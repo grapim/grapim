@@ -22,7 +22,7 @@ RUN sed -i 's/\r$//' /app/src/hub/entrypoint.sh \
  && chown -R root:root /app && chmod -R a-w /app \
  && mkdir -p /data && chown node:node /data && chmod 700 /data
 
-VOLUME ["/data"]
+# The volume is attached in Railway (mount path /data); Railway rejects VOLUME here.
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
