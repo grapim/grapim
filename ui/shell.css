@@ -1,0 +1,60 @@
+/* The sidebar's collapse, drag-to-resize and peek (behaviour in sidebar.js).
+   Shared by the review desk (.sidebar) and the hub (.side). */
+
+:root:root { --sidebar: var(--sidebar-open, 232px); }
+:root:root[data-sidebar="collapsed"] { --sidebar: 0px; }
+
+.app { position: relative; transition: grid-template-columns var(--dur) var(--ease-out, ease-out); }
+html[data-resizing] .app { transition: none; }
+html[data-resizing], html[data-resizing] * { cursor: col-resize !important; user-select: none; }
+
+.side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.side-toggle {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none;
+  border: 0; border-radius: var(--radius); background: none; color: var(--text-3); cursor: pointer;
+}
+.side-toggle:hover { background: var(--surface-2); color: var(--text); }
+.side-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.side-toggle.in-main { display: none; position: absolute; top: 14px; left: 12px; z-index: 5; }
+
+/* The drag handle sits on the sidebar's edge; a thin line shows on hover. */
+.side-resize {
+  position: absolute; top: 0; bottom: 0; left: calc(var(--sidebar) - 4px); width: 8px; z-index: 20;
+  cursor: col-resize; touch-action: none;
+}
+.side-resize::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px;
+  background: var(--accent); opacity: 0; transition: opacity var(--dur-fast) var(--ease-out, ease-out);
+}
+.side-resize:hover::after, html[data-resizing] .side-resize::after { opacity: .6; transition-delay: 80ms; }
+.side-resize:focus-visible { outline: none; }
+.side-resize:focus-visible::after { opacity: 1; }
+
+.side-peek-zone { display: none; position: fixed; top: 0; bottom: 0; left: 0; width: 10px; z-index: 39; }
+
+/* Collapsed: the sidebar leaves the grid and waits off screen for a peek. */
+html[data-sidebar="collapsed"] .side-resize { display: none; }
+html[data-sidebar="collapsed"] .side-peek-zone { display: block; }
+html[data-sidebar="collapsed"] .side-toggle.in-main { display: inline-grid; }
+.app > .main { position: relative; }
+/* The fixed sidebar leaves the grid; the page keeps the second (now full) column. */
+html[data-sidebar="collapsed"] .app > .main { grid-column: 2; padding-left: 44px; }
+html[data-sidebar="collapsed"] :is(.side, .sidebar) {
+  position: fixed; top: 0; bottom: 0; left: 0; z-index: 40; width: var(--sidebar-open, 232px); height: 100vh;
+  transform: translateX(-100%); visibility: hidden;
+  transition: transform var(--dur) var(--ease-out, ease-out), visibility 0s linear var(--dur);
+}
+html[data-sidebar="collapsed"][data-peek] :is(.side, .sidebar) {
+  transform: none; visibility: visible; box-shadow: var(--shadow-pop);
+  border-right: 1px solid var(--border); border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  top: 8px; bottom: 8px; height: auto; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  transition: transform var(--dur) var(--ease-out, ease-out), visibility 0s;
+}
+
+@media (max-width: 860px) {
+  .side-resize, .side-peek-zone, .side-toggle { display: none !important; }
+  html[data-sidebar="collapsed"] .app > .main { grid-column: auto; padding-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app, :is(.side, .sidebar), .side-resize::after { transition: none !important; }
+}

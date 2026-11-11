@@ -88,6 +88,9 @@ export async function createHub(options = {}) {
     // Self-hosted type (ui/fonts, SIL OFL): tokens.css asks for fonts/<file> next to itself.
     ...Object.fromEntries(['inter-latin.woff2', 'inter-latin-ext.woff2', 'jetbrains-mono-latin.woff2'].map((f) => [
       `/hub/static/fonts/${f}`, ['font/woff2', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'fonts', f))]])),
+    // The sidebar's collapse and resize, shared with the desk.
+    '/hub/static/sidebar.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'sidebar.js'))],
+    '/hub/static/shell.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'shell.css'))],
     '/hub/static/favicon.svg': ['image/svg+xml', fs.readFileSync(path.join(PAGES, 'favicon.svg'))],
   };
 

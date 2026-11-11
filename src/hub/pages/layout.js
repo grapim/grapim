@@ -115,8 +115,10 @@ function head(title) {
 <meta name="color-scheme" content="light dark">
 <title>${title ? `${title} · Grapim` : 'Grapim'}</title>
 <script src="/hub/static/theme.js"></script>
+<script src="/hub/static/sidebar.js"></script>
 <link rel="icon" href="/hub/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/hub/static/tokens.css">
+<link rel="stylesheet" href="/hub/static/shell.css">
 <link rel="stylesheet" href="/hub/static/hub.css">
 <script src="/hub/static/hub.js" defer></script>
 </head>`;

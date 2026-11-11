@@ -556,7 +556,7 @@ test('synced strings and names are escaped on every page; no inline script', asy
     assert.ok([200, 404].includes(r.status), `${p}: ${r.status}`);
     assert.doesNotMatch(r.text, /<script>alert|<img src=x/i, `${p} renders synced text as HTML`);
     assert.match(r.headers.get('content-security-policy'), /script-src 'self'/);
-    for (const s of r.text.match(/<script[^>]*>/g) ?? []) assert.match(s, /src="\/hub\/static\/(hub|theme)\.js"/, `inline script on ${p}`);
+    for (const s of r.text.match(/<script[^>]*>/g) ?? []) assert.match(s, /src="\/hub\/static\/(hub|theme|sidebar)\.js"/, `inline script on ${p}`);
     // Attribute values are escaped text; only real attribute names count.
     assert.doesNotMatch(r.text.replace(/"[^"]*"/g, '""'), /<[^>]*\s(style|on[a-z]+)=/i, `inline style or handler on ${p}`);
   }
