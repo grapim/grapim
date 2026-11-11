@@ -166,7 +166,9 @@ export function createEmbeds({ hub, keys }) {
       if (!navigation) sameOrigin(req, write);
       if (write && !same(headerText(req, 'x-grapim-csrf') ?? '', who.session.csrf)) throw refuse('This page expired. Reload it and try again.');
     }
-    if ((info.kind === 'fs' && info.write) || (info.kind === 'mcp-tool' && info.write)) {
+    // An embedded desk never writes files: not over /fs, WebDAV or MCP. (WebDAV
+    // also refuses cookies outright; this keeps the rule true here as well.)
+    if (((info.kind === 'fs' || info.kind === 'dav') && info.write) || (info.kind === 'mcp-tool' && info.write)) {
       throw refuse(info.kind === 'mcp-tool' ? `An embedded review desk cannot call ${info.tool}.` : 'An embedded review desk cannot write files.');
     }
     if (who.embed.mode === 'readonly' && info.write) throw refuse('This review desk is read-only: it cannot undo, restore, review or branch.');

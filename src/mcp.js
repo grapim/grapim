@@ -19,6 +19,7 @@ import { ago, blameText, logText, runsText, statusText, who } from './format.js'
 import { blame, inTree } from './attribution.js';
 import { beginEdit, failOpen, finishRun } from './ledger.js';
 import { pendingPairs } from './server/offload.js';
+import { pathsByRun, scopedEvents } from './server/queries.js';
 
 export const VERSION = '0.1.0';
 
@@ -116,6 +117,11 @@ const text = (t, isError = false) => ({ content: [{ type: 'text', text: t }], ..
 const toolError = (message, code) => Object.assign(new Error(message), { code });
 
 const counted = (r) => (r.added === null ? 'untracked' : `+${r.added} -${r.removed}`);
+// A hub workspace's SaaS connector (src/connectors/) answers for files under
+// saas/: what happened remotely. A conflict or a failed push is an error the
+// agent must act on, although the file itself was written.
+const saasText = (r) => (r?.saas?.message ? `\n${r.saas.message}` : '');
+const saasFailed = (r) => r?.saas?.status === 'conflict' || r?.saas?.status === 'error';
 
 function listText(entries, folder) {
   if (!entries.length) return `${folder || '/'} is empty.`;
@@ -160,7 +166,25 @@ export function createTools({ store, ws, who: whoAmI, cwd = ws.root, workspace =
     return done;
   };
 
-  function core(name, args, me) {
+  // view (a scoped caller, src/scope.js reader): the store as that caller may
+  // see it, for the tools that summarise the whole repo.
+  const seen = (view) => {
+    if (!view) return { store, runs: () => store.runs() };
+    const runsSeen = () => {
+      const byRun = pathsByRun(store);
+      return store.runs().filter((r) => (byRun.get(r.run) ?? []).some((p) => view(p)));
+    };
+    return {
+      store: {
+        leases: () => store.leases().filter((l) => view(l.path)),
+        activeAgents: () => store.activeAgents(),
+        events: (n) => scopedEvents(() => new Set(runsSeen().map((r) => r.run)), view, store.events(n)),
+      },
+      runs: runsSeen,
+    };
+  };
+
+  function core(name, args, me, view) {
     switch (name) {
       case 'claim_files': {
         const files = keys(args.paths ?? []);
@@ -190,16 +214,16 @@ export function createTools({ store, ws, who: whoAmI, cwd = ws.root, workspace =
         return offload ? offload.ensure(() => pendingPairs(store, me.agent, only), release) : release();
       }
       case 'who_is_editing':
-        return text(statusText(ws, store));
+        return text(statusText(ws, seen(view).store));
       case 'set_intent':
         store.setIntent(me.agent, String(args.intent ?? ''), { label: me.label, worktree: ws.worktree });
         newTurn(me.agent, String(args.intent ?? ''));
         return text('Intent recorded. Other agents will see it.');
       case 'recent_activity':
-        return text(logText(store, Math.min(Number(args.limit) || 30, 200)));
+        return text(logText(seen(view).store, Math.min(Number(args.limit) || 30, 200)));
       case 'list_runs':
-        if (offload) return offload.inTree(store).then((status) => text(runsText(store.runs(), status)));
-        return text(runsText(store.runs(), inTree(store)));
+        if (offload) return offload.inTree(store).then((status) => text(runsText(seen(view).runs(), status)));
+        return text(runsText(seen(view).runs(), inTree(store)));
       case 'who_wrote': {
         const [file] = keys([String(args.path ?? '')]);
         if (!file) return text('That path is not inside this repo.', true);
@@ -213,7 +237,7 @@ export function createTools({ store, ws, who: whoAmI, cwd = ws.root, workspace =
 
   // Workspace errors (held by someone, bad path, missing file) are answers the
   // agent should read, not protocol errors.
-  function files(name, args, me) {
+  function files(name, args, me, view) {
     const rel = String(args.path ?? '');
     try {
       switch (name) {
@@ -225,14 +249,16 @@ export function createTools({ store, ws, who: whoAmI, cwd = ws.root, workspace =
         case 'write_file': {
           if (typeof args.content !== 'string') return text('write_file needs content: the whole new file as a string.', true);
           const r = workspace.write(me, rel, Buffer.from(args.content, 'utf8'), { intent: args.intent });
-          const say = (w) => text(`Wrote ${w.path} (${counted(w)}). You hold it until release_files, or 30 minutes without writes.`);
+          const say = (w) => text(`Wrote ${w.path} (${counted(w)}). You hold it until release_files, or 30 minutes without writes.${saasText(w)}`, saasFailed(w));
           return r?.then ? r.then(say) : say(r);
         }
-        case 'list_dir':
-          return text(listText(workspace.list(rel), rel));
+        case 'list_dir': {
+          const entries = workspace.list(rel);
+          return text(listText(view ? entries.filter((e) => view(e.path, e.type)) : entries, rel));
+        }
         case 'delete_file': {
           const r = workspace.remove(me, rel, { intent: args.intent });
-          const say = (d) => text(`Deleted ${d.path} (${counted(d)}). The delete is recorded as yours and can be undone.`);
+          const say = (d) => text(`Deleted ${d.path} (${counted(d)}). The delete is recorded as yours and can be undone.${saasText(d)}`, saasFailed(d));
           return r?.then ? r.then(say) : say(r);
         }
         default:
@@ -246,17 +272,20 @@ export function createTools({ store, ws, who: whoAmI, cwd = ws.root, workspace =
 
   return {
     list: () => (workspace ? [...TOOLS, ...WORKSPACE_TOOLS] : TOOLS),
-    call(name, args = {}) {
+    // view: (path, 'file' | 'dir') -> whether this caller may see it, or
+    // null for everything (src/scope.js reader). Paths a call names were
+    // already checked by the server's authorize hook.
+    call(name, args = {}, { view = null } = {}) {
       const me = whoAmI();
       let out;
       try {
-        out = core(name, args, me);
+        out = core(name, args, me, view);
       } catch (err) {
         // A refused path is an answer for the agent, like in files().
         if (typeof err.status === 'number' && err.code !== 'internal') return text(err.message, true);
         throw err;
       }
-      out ??= workspace ? files(name, args, me) : undefined;
+      out ??= workspace ? files(name, args, me, view) : undefined;
       if (out === undefined) throw toolError(`Unknown tool: ${name}`, -32602);
       // An offloaded tool answers later; its refusals are answers too.
       if (out?.then) {

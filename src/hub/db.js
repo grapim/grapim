@@ -221,8 +221,10 @@ export function openDb(dataDir) {
   db.exec('PRAGMA foreign_keys = ON');
   db.exec(SCHEMA);
   // Columns added after v0 shipped, for hub.db files made before them.
-  // teams.storage_url: a team's own bucket for workspace files (owner-only,
-  // stored as given). TODO(v1): per-team storage credentials, and using it.
+  // teams.storage_url: the url (no credentials) of the team's own bucket for
+  // workspace files, NULL for the hub's store. Set by src/hub/team-storage.js
+  // when a move completes; the config and sealed credentials are in its
+  // team_storage table (owner only).
   if (!db.prepare('PRAGMA table_info(teams)').all().some((c) => c.name === 'storage_url')) db.exec('ALTER TABLE teams ADD COLUMN storage_url TEXT');
   // Platforms (docs/platform.md): a team's kind, and what the platform API
   // adds to workspaces and their tokens. The platform's own tables are in
@@ -239,6 +241,7 @@ export function openDb(dataDir) {
   addColumn('workspaces', 'stored_bytes', 'INTEGER NOT NULL DEFAULT 0');
   addColumn('workspace_tokens', 'expires_at', 'INTEGER'); // NULL: never (tokens made in the hub UI)
   addColumn('workspace_tokens', 'agent_name', 'TEXT'); // pins the run identity to <name>/<agent_name>
+  addColumn('workspace_tokens', 'scopes', 'TEXT'); // JSON [{ path, access }] (src/scope.js); NULL: the whole workspace
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS workspaces_external ON workspaces(team_id, COALESCE(mode, 'live'), external_id) WHERE deleted_at IS NULL AND external_id IS NOT NULL");
   // Provenance (docs/provenance.md section 3): the notes, and the GitHub
   // repo ("owner/name") a hub repo is synced from, at most one per repo.

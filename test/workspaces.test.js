@@ -576,7 +576,10 @@ test('the team storage quota counts workspace bytes and refuses an upload past i
   assert.equal(fs.existsSync(path.join(h.dir, 'workspaces', team, ws.id, 'big.txt')), false);
 
   // Measured after the write settles: the small file is in the team's usage.
-  await new Promise((r) => setTimeout(r, 1500));
+  // The measure runs after a delay that grows with the last scan's cost, so on
+  // a busy machine poll for it instead of waiting a fixed time.
+  const bytesNow = () => h.hub.db.prepare('SELECT bytes FROM workspaces WHERE id = ?').get(ws.id).bytes;
+  for (const until = Date.now() + 20_000; bytesNow() <= 10_000 && Date.now() < until; ) await new Promise((r) => setTimeout(r, 100));
   const row = h.hub.db.prepare('SELECT bytes FROM workspaces WHERE id = ?').get(ws.id);
   assert.ok(row.bytes > 10_000, `workspace bytes ${row.bytes}`);
   assert.ok(used() >= row.bytes);

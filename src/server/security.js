@@ -75,13 +75,36 @@ function checkOrigin(req, read) {
   if (site && site !== 'same-origin' && site !== 'none' && !navigation) throw new HttpError('forbidden', 'Cross-site request refused.');
 }
 
+// The peer is this machine (the socket's address, not a header).
+export const isLoopbackAddress = (addr) => /^(127\.\d{1,3}\.\d{1,3}\.\d{1,3}|::1|::ffff:127\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i.test(String(addr ?? ''));
+
+// WebDAV clients (Explorer, Finder, davfs2) only send a user name and a
+// password: the token is the password, the name is ignored. Bearer works too.
+function checkDavToken(req, token) {
+  const auth = String(req.headers.authorization ?? '');
+  let given = /^Bearer\s+(.+)$/i.exec(auth)?.[1]?.trim() ?? null;
+  const basic = /^Basic\s+([A-Za-z0-9+/=]+)\s*$/i.exec(auth)?.[1];
+  if (basic) {
+    const pair = Buffer.from(basic, 'base64').toString('utf8');
+    given = pair.includes(':') ? pair.slice(pair.indexOf(':') + 1) : null;
+  }
+  if (given === null || !crypto.timingSafeEqual(digest(given), digest(token))) {
+    throw new HttpError('unauthorized', 'Use any user name and GRAPIM_TOKEN as the password.', { 'WWW-Authenticate': 'Basic realm="Grapim"' });
+  }
+}
+
 export function createGuard({ host, env, token }) {
   const hosts = allowedHosts(host, env);
-  // asset: a GET of the desk's static files (not /api, /fs or /mcp).
-  return function guard(req, { asset = false } = {}) {
+  // asset: a GET of the desk's static files (not /api, /fs, /mcp or /dav).
+  // dav: a WebDAV request (/dav): this machine only, since it is plain http
+  // and the token would travel as a password; Basic auth when a token is set.
+  return function guard(req, { asset = false, dav = false } = {}) {
     const h = req.headers.host;
     if (!h || !hosts.has(hostName(h))) throw new HttpError('forbidden', `Host "${h ?? ''}" is not this server. Use http://127.0.0.1 or http://localhost.`);
-    if (token && !asset) checkToken(req, token);
-    checkOrigin(req, ['GET', 'HEAD', 'OPTIONS'].includes(req.method));
+    if (dav && !isLoopbackAddress(req.socket?.remoteAddress)) {
+      throw new HttpError('forbidden', 'WebDAV on grapim serve answers only this machine: mount http://127.0.0.1:<port>/dav/ here, or use a cloud workspace (https) from other machines.');
+    }
+    if (token && !asset) (dav ? checkDavToken : checkToken)(req, token);
+    checkOrigin(req, ['GET', 'HEAD', 'OPTIONS', 'PROPFIND'].includes(req.method));
   };
 }

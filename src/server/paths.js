@@ -90,6 +90,13 @@ export function resolvePath(ws, rel) {
   return { abs, rel: file?.display ?? '', dir, file };
 }
 
+// The workspace-relative path `abs` really leads to, links resolved, with
+// forward slashes ('' for the root). Access scopes check it as well as the
+// path as named, so a link inside an allowed folder cannot reach past it.
+export function realRel(ws, abs) {
+  return path.relative(realOrSelf(ws.root), realPath(abs)).split(path.sep).join('/');
+}
+
 function guardRealPath(ws, abs, refuse) {
   const root = realOrSelf(ws.root);
   const real = realPath(abs);

@@ -11,6 +11,10 @@
 //   another site are refused, except a top-level navigation.
 // - Authorization: Bearer gws_..., a token of this very workspace. A read
 //   token gets 403 on every write and act route and on MCP write tools.
+// - /dav (WebDAV, a network drive): only a workspace token, sent by the
+//   desktop's own client as the Basic password; never a cookie, and never
+//   over plain http except from this machine. A missing or wrong token gets
+//   401 with a Basic challenge (davCaller below).
 // Anyone else gets 404, the same as for a workspace that does not exist, so
 // workspaces cannot be enumerated. A request with no credentials at all gets
 // 401 (or the sign-in page for a navigation), whatever the URL names.
@@ -24,12 +28,15 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
+import { enforce, scopeOf } from '../scope.js';
 import { createEngine, UI_DIR } from '../server/engine.js';
 import { HttpError as EngineError, headerText, MAX_BODY } from '../server/http.js';
+import { DAV_WRITES } from '../server/webdav.js';
 import { usageOf } from './ingest.js';
 import { HttpError, notFound } from './http.js';
 import { MAX_STREAMS, MAX_STREAMS_PER_USER } from './routes-api.js';
 import { same } from './secure.js';
+import { applyTemplate, cleanTemplate } from './templates.js';
 import { initRepo, NAME_RE, TEAM_ID_RE, WS_TOKEN_PREFIX } from './workspaces.js';
 
 export const IDLE_MS = 10 * 60 * 1000; // an unused workspace engine is closed after this
@@ -114,8 +121,21 @@ function kindOf(rest) {
   if (rest === '/mcp') return 'mcp';
   if (rest === '/fs' || rest.startsWith('/fs/')) return 'fs';
   if (rest === '/api' || rest.startsWith('/api/')) return 'api';
+  if (rest === '/dav' || rest.startsWith('/dav/')) return 'dav';
   return 'asset';
 }
+
+// "Basic base64(user:password)" -> the password (the user name is ignored).
+function basicPassword(header) {
+  const b64 = /^Basic\s+([A-Za-z0-9+/=]+)\s*$/i.exec(String(header ?? ''))?.[1];
+  if (!b64) return null;
+  const pair = Buffer.from(b64, 'base64').toString('utf8');
+  const i = pair.indexOf(':');
+  return i < 0 ? null : pair.slice(i + 1);
+}
+
+const lastOf = (h) => String(h ?? '').split(',').map((s) => s.trim()).filter(Boolean).at(-1) ?? null;
+const LOOPBACK_ADDR = /^(127\.\d{1,3}\.\d{1,3}\.\d{1,3}|::1|::ffff:127\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i;
 
 export function createWorkspaceMount(
   hub,
@@ -300,8 +320,13 @@ export function createWorkspaceMount(
           throw refuse(403, 'forbidden', 'This page expired. Reload it and try again.');
         }
       }
-    } else if (info.write && who.token.scope !== 'write') {
-      throw refuse(403, 'forbidden', `The token ${who.token.name} is read-only: it cannot ${info.kind === 'mcp-tool' ? `call ${info.tool}` : 'write or act'} in this workspace.`);
+    } else {
+      if (info.write && who.token.scope !== 'write') {
+        throw refuse(403, 'forbidden', `The token ${who.token.name} is read-only: it cannot ${info.kind === 'mcp-tool' ? `call ${info.tool}` : 'write or act'} in this workspace.`);
+      }
+      // The token's folders (src/scope.js), for any call that names paths:
+      // 404 outside what it may read, 403 outside what it may write.
+      enforce(who.scope, info);
     }
     // Test mode's daily write cap counts each write tool of an MCP batch,
     // not the request once (platform review L2).
@@ -376,6 +401,8 @@ export function createWorkspaceMount(
       env: {},
       uiDir,
       authorize,
+      // A token's folders (src/scope.js); people and embeds see everything.
+      scope: (req) => principals.get(req)?.scope ?? null,
       identity,
       securityHeaders,
       repoName: ws.name,
@@ -385,6 +412,16 @@ export function createWorkspaceMount(
       // Diffs, line counts, blame and replays run in the hub's worker pool,
       // within this team's share of it (src/hub/compute-pool.js).
       compute: hub.compute?.forTeam(ws.team_id) ?? null,
+      // Bytes and files a WebDAV COPY or MKCOL creates without an upload.
+      admit: (req, { bytes = 0 } = {}) => {
+        const who = principals.get(req);
+        if (!who) throw refuse(404, 'not_found', 'Not found.');
+        admitFile(who.ws);
+        if (bytes > 0) admit(who.ws, bytes);
+      },
+      // SaaS connectors (src/hub/connectors.js): a write under saas/<name>/
+      // is pushed to that service, and the answer joins the write's response.
+      afterWrite: (event) => (hub.connectors ? hub.connectors.afterWrite(ws, engine, event) : null),
     });
     // Each workspace is its own repo, with its own state: never a parent
     // repo's, nor one GRAPIM_STATE_DIR shared by every workspace.
@@ -444,6 +481,66 @@ export function createWorkspaceMount(
     });
   }
 
+  // ---- WebDAV (/dav): a workspace token as a Basic password ----
+
+  // Whether a WebDAV request arrived over https, or from this machine. Behind
+  // the proxy (TRUST_PROXY) its X-Forwarded-Proto and X-Forwarded-For say so.
+  function davTransportOk(req) {
+    if (req.socket?.encrypted) return true;
+    if (config.trustProxy && lastOf(req.headers['x-forwarded-proto'])?.toLowerCase() === 'https') return true;
+    const from = (config.trustProxy && lastOf(req.headers['x-forwarded-for'])) || req.socket?.remoteAddress || '';
+    return LOOPBACK_ADDR.test(from);
+  }
+
+  function davChallenge(res, name, message) {
+    const body = JSON.stringify({ error: { code: 'unauthorized', message } });
+    res.writeHead(401, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Length': Buffer.byteLength(body),
+      'Cache-Control': 'no-store',
+      'WWW-Authenticate': `Basic realm="Grapim workspace ${name}"`,
+    });
+    res.end(body);
+    return null;
+  }
+
+  // The caller of a /dav request, or null once it was answered with 401.
+  // Native clients (Explorer, Finder, davfs2, GNOME) only speak Basic: any
+  // user name, a gws_ token of this workspace as the password (Bearer works
+  // too). Never a session or embed cookie, so a web page cannot use a signed-in
+  // browser against /dav (no CSRF surface), and never over plain http except
+  // from this machine: a Basic password would cross the network in clear.
+  function davCaller(ctx, where) {
+    const { req, res } = ctx;
+    const origin = req.headers.origin;
+    const site = req.headers['sec-fetch-site'];
+    if ((origin !== undefined && origin !== config.origin) || (site && site !== 'same-origin' && site !== 'none')) {
+      req.resume();
+      throw new HttpError(403, 'forbidden', 'Cross-site request refused.');
+    }
+    if (!davTransportOk(req)) {
+      req.resume();
+      throw new HttpError(403, 'forbidden', 'The drive sends your workspace token as a password, so it only works over https://. Use the https address of the hub.');
+    }
+    const auth = req.headers.authorization;
+    const secret = basicPassword(auth) ?? /^Bearer\s+(\S+)$/i.exec(String(auth ?? ''))?.[1] ?? null;
+    if (!secret) {
+      req.resume();
+      return davChallenge(res, where.name, 'Sign in with any user name and a workspace token (gws_...) as the password.');
+    }
+    const hit = secret.startsWith(WS_TOKEN_PREFIX) ? workspaces.authenticate(secret) : null;
+    if (!hit) {
+      req.resume();
+      hub.limit(ctx, 'syncIp', ctx.ip);
+    }
+    // A token of another workspace gets the same answer as a wrong one.
+    if (!hit || hit.workspace.team_id !== where.team || hit.workspace.name !== where.name) {
+      req.resume();
+      return davChallenge(res, where.name, 'Unknown or revoked workspace token, or a token of another workspace. Use a token of this workspace as the password.');
+    }
+    return { kind: 'token', token: hit.token, ws: hit.workspace, key: `t:${hit.token.id}`, scope: scopeOf(hit.token) };
+  }
+
   // ---- the request ----
 
   async function handle(ctx, raw) {
@@ -458,7 +555,10 @@ export function createWorkspaceMount(
     // Who is calling. The token, not the URL, names its workspace.
     let who;
     const bearer = /^Bearer\s+(\S+)$/i.exec(String(req.headers.authorization || ''))?.[1];
-    if (req.headers.authorization !== undefined) {
+    if (kind === 'dav') {
+      who = davCaller(ctx, where);
+      if (!who) return; // answered with a Basic challenge
+    } else if (req.headers.authorization !== undefined) {
       // Per address, only unknown, revoked and expired tokens are counted;
       // valid tokens are limited per token below. Many sandboxes, of several
       // platforms, share one egress address, so one platform's expired tokens
@@ -470,7 +570,7 @@ export function createWorkspaceMount(
         throw new HttpError(401, 'unauthorized', 'Unknown or revoked workspace token. Send Authorization: Bearer gws_...');
       }
       if (hit.workspace.team_id !== where.team || hit.workspace.name !== where.name) throw notFound();
-      who = { kind: 'token', token: hit.token, ws: hit.workspace, key: `t:${hit.token.id}` };
+      who = { kind: 'token', token: hit.token, ws: hit.workspace, key: `t:${hit.token.id}`, scope: scopeOf(hit.token) };
     } else if ((who = hub.platform?.embeds.principal(ctx.cookies, where) ?? null)) {
       // An embed session's cookie, valid for this very workspace only.
     } else {
@@ -527,7 +627,8 @@ export function createWorkspaceMount(
     principals.set(req, who);
     if (who.kind === 'session' || who.kind === 'embed') res.setHeader('X-Grapim-Csrf', who.session.csrf);
 
-    const write = !READS.has(req.method);
+    // WebDAV: PROPFIND is a read; LOCK, UNLOCK and PROPPATCH count as writes.
+    const write = kind === 'dav' ? DAV_WRITES.has(req.method) : !READS.has(req.method);
     // Platform workspaces: metering, test-mode caps, webhook events, and the
     // embedded desk's page (src/hub/platform/index.js).
     if (hub.platform?.onWorkspaceRequest(ctx, who, where, { write, engine, uiDir, csp })) return;
@@ -536,7 +637,7 @@ export function createWorkspaceMount(
         if (kind !== 'asset') takeBody(who, res);
         // A file upload counts toward the quota before its body is read.
         // Without a Content-Length it counts as the largest body /fs accepts.
-        if (kind === 'fs' && req.method === 'PUT') {
+        if ((kind === 'fs' || kind === 'dav') && req.method === 'PUT') {
           admitFile(who.ws);
           const len = Number(req.headers['content-length']);
           admit(who.ws, Number.isFinite(len) && len >= 0 ? len : MAX_BODY);
@@ -602,6 +703,14 @@ export function createWorkspaceMount(
     admit, // the platform API's undo is admitted like an upload...
     measureSoon, // ...and measured like one, which settles what was admitted
     engineFor, // the platform API's runs and undo use the same engine
+    // Writes a folder template into a new workspace, as the approved run
+    // template:<name> (src/hub/templates.js). by: who created it.
+    applyTemplate(ws, name, by) {
+      if (cleanTemplate(name) === 'blank') return { run: null, files: [] };
+      const r = applyTemplate(engineFor(ws), name, by);
+      if (r.run) storage?.touch(workspaces.storageKey(ws));
+      return r;
+    },
     close: closeEngine,
     // Closes every engine (writing pending manifests) and stops the timers.
     async closeAll() {

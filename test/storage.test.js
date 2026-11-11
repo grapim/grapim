@@ -2,7 +2,6 @@ import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -14,6 +13,9 @@ import {
   persistBlob, writeManifest, readManifest, snapshotWorkspace, restoreWorkspace, createPersister,
   blobKey, manifestKey, sha1,
 } from '../src/storage/workspace.js';
+import { canonicalizedResource, parseAzureUrl, parseListBlobs, signSharedKey, stringToSign as azureStringToSign } from '../src/storage/azure.js';
+import { parseGcsUrl } from '../src/storage/s3.js';
+import { startFakeAzure, startFakeS3 } from './fake-clouds.js';
 
 const tmp = (tag = 'x') => fs.mkdtempSync(path.join(os.tmpdir(), `grapim-storage-${tag}-`));
 const fileUrl = (dir) => pathToFileURL(dir).href;
@@ -191,124 +193,7 @@ describe('SigV4 against AWS published test vectors', () => {
 
 // ------------------------------------------------------- fake S3 server ----
 
-// An independent SigV4 verifier: it rebuilds the canonical request from the
-// raw HTTP request as received (its own encoder and parser, not s3.js), so a
-// wrong signature from the client fails with 403 SignatureDoesNotMatch.
-const enc = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
-const hmacOf = (k, d) => crypto.createHmac('sha256', k).update(d).digest();
-
-function verifySigV4(req, body, creds) {
-  const auth = req.headers.authorization || '';
-  const m = auth.match(/^AWS4-HMAC-SHA256 Credential=([^/]+)\/(\d{8})\/([^/]+)\/s3\/aws4_request, SignedHeaders=([a-z0-9;-]+), Signature=([0-9a-f]{64})$/);
-  if (!m) return 'malformed authorization';
-  const [, akid, day, region, signed, signature] = m;
-  if (akid !== creds.accessKeyId) return 'unknown access key';
-  const amzDate = req.headers['x-amz-date'] || '';
-  if (amzDate.slice(0, 8) !== day) return 'date mismatch';
-  const names = signed.split(';');
-  for (const need of ['host', 'x-amz-content-sha256', 'x-amz-date']) if (!names.includes(need)) return `${need} not signed`;
-  if (creds.sessionToken && (!names.includes('x-amz-security-token') || req.headers['x-amz-security-token'] !== creds.sessionToken)) return 'session token missing';
-  const payload = req.headers['x-amz-content-sha256'];
-  if (payload !== 'UNSIGNED-PAYLOAD' && payload !== crypto.createHash('sha256').update(body).digest('hex')) return 'payload hash mismatch';
-
-  const [rawPath, rawQuery = ''] = req.url.split('?');
-  const canonPath = rawPath.split('/').map((seg) => enc(decodeURIComponent(seg))).join('/');
-  const canonQuery = rawQuery
-    ? rawQuery.split('&').map((kv) => {
-      const i = kv.indexOf('=');
-      const k = decodeURIComponent(i === -1 ? kv : kv.slice(0, i));
-      const v = i === -1 ? '' : decodeURIComponent(kv.slice(i + 1));
-      return `${enc(k)}=${enc(v)}`;
-    }).sort().join('&')
-    : '';
-  const canonHeaders = names.map((n) => `${n}:${String(req.headers[n] ?? '').trim().replace(/ +/g, ' ')}\n`).join('');
-  const creq = `${req.method}\n${canonPath}\n${canonQuery}\n${canonHeaders}\n${signed}\n${payload}`;
-  const sts = `AWS4-HMAC-SHA256\n${amzDate}\n${day}/${region}/s3/aws4_request\n${crypto.createHash('sha256').update(creq).digest('hex')}`;
-  let k = hmacOf(`AWS4${creds.secretAccessKey}`, day);
-  for (const part of [region, 's3', 'aws4_request']) k = hmacOf(k, part);
-  const expected = hmacOf(k, sts).toString('hex');
-  if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) return { sts };
-  return null;
-}
-
-const xmlEsc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-
-function startFakeS3({ bucket, creds, pageSize = 2 }) {
-  const objects = new Map();
-  const state = { objects, requests: [], failNext: [], hangNext: 0, signatureFailures: 0 };
-  const server = http.createServer((req, res) => {
-    const chunks = [];
-    req.on('data', (c) => chunks.push(c));
-    req.on('end', () => {
-      const body = Buffer.concat(chunks);
-      state.requests.push({ method: req.method, url: req.url });
-      const xmlErr = (status, code, extra = '') => {
-        res.writeHead(status, { 'content-type': 'application/xml' });
-        res.end(`<?xml version="1.0" encoding="UTF-8"?><Error><Code>${code}</Code><Message>fake</Message>${extra}</Error>`);
-      };
-      if (state.hangNext > 0) {
-        state.hangNext--;
-        return; // never answer: the client must time out
-      }
-      if (state.failNext.length) {
-        const status = state.failNext.shift();
-        return xmlErr(status, status === 503 ? 'SlowDown' : status === 429 ? 'TooManyRequests' : 'AccessDenied');
-      }
-      const bad = verifySigV4(req, body, creds);
-      if (bad) {
-        state.signatureFailures++;
-        // Real S3 echoes the string to sign; the client must not repeat it.
-        return xmlErr(403, 'SignatureDoesNotMatch', `<StringToSign>${xmlEsc(bad.sts || String(bad))}</StringToSign><SignatureProvided>${xmlEsc(req.headers.authorization || '')}</SignatureProvided>`);
-      }
-      const [rawPath, rawQuery = ''] = req.url.split('?');
-      const segs = rawPath.split('/').slice(1).map(decodeURIComponent);
-      if (segs[0] !== bucket) return xmlErr(404, 'NoSuchBucket');
-      const key = segs.slice(1).join('/');
-      const q = new URLSearchParams(rawQuery);
-
-      if (!key && req.method === 'GET' && q.get('list-type') === '2') {
-        const prefix = q.get('prefix') || '';
-        const all = [...objects.keys()].filter((k) => k.startsWith(prefix)).sort();
-        const token = q.get('continuation-token');
-        const start = token ? Number(token.match(/^tok&<(\d+)> \+\/=$/)?.[1] ?? NaN) : 0;
-        if (!Number.isFinite(start)) return xmlErr(400, 'InvalidArgument');
-        const max = Math.min(Number(q.get('max-keys') || 1000), pageSize);
-        const page = all.slice(start, start + max);
-        const truncated = start + max < all.length;
-        res.writeHead(200, { 'content-type': 'application/xml' });
-        return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>${bucket}</Name><Prefix>${xmlEsc(prefix)}</Prefix><KeyCount>${page.length}</KeyCount><MaxKeys>${max}</MaxKeys><IsTruncated>${truncated}</IsTruncated>${
-          page.map((k) => `<Contents><Key>${xmlEsc(k)}</Key><Size>${objects.get(k).length}</Size><StorageClass>STANDARD</StorageClass></Contents>`).join('')
-        }${truncated ? `<NextContinuationToken>${xmlEsc(`tok&<${start + max}> +/=`)}</NextContinuationToken>` : ''}</ListBucketResult>`);
-      }
-      if (!key) return xmlErr(400, 'InvalidRequest');
-      if (req.method === 'PUT') {
-        objects.set(key, body);
-        res.writeHead(200, { etag: `"${crypto.createHash('md5').update(body).digest('hex')}"` });
-        return res.end();
-      }
-      if (req.method === 'GET' || req.method === 'HEAD') {
-        if (!objects.has(key)) return req.method === 'HEAD' ? (res.writeHead(404), res.end()) : xmlErr(404, 'NoSuchKey');
-        const buf = objects.get(key);
-        res.writeHead(200, { 'content-length': buf.length, 'content-type': 'application/octet-stream' });
-        return res.end(req.method === 'HEAD' ? undefined : buf);
-      }
-      if (req.method === 'DELETE') {
-        objects.delete(key);
-        res.writeHead(204);
-        return res.end();
-      }
-      return xmlErr(405, 'MethodNotAllowed');
-    });
-  });
-  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => {
-    state.endpoint = `http://127.0.0.1:${server.address().port}`;
-    state.close = () => new Promise((r) => {
-      server.closeAllConnections();
-      server.close(r);
-    });
-    resolve(state);
-  }));
-}
+// The fakes (test/fake-clouds.js) verify signatures independently of src/storage.
 
 describe('S3 storage against a fake S3 that checks SigV4', () => {
   const creds = { accessKeyId: 'AKIDTESTKEY', secretAccessKey: 'test/secret+KEY/do-not-leak-0123456789', sessionToken: null };
@@ -640,5 +525,200 @@ describe('write-behind persister', () => {
     assert.equal(puts, 1);
     assert.equal(p.stats().failed, 2);
     assert.deepEqual(errors.map((e) => e[0]), [undefined, 403]);
+  });
+});
+
+// ------------------------------------------------------------------- GCS ----
+
+describe('GCS (gs://) through the XML API, against the fake S3 in GCS mode', () => {
+  const creds = { accessKeyId: 'GOOG1EHMACKEYIDEXAMPLE', secretAccessKey: 'gcs/hmac+secret-do-not-leak-42', region: 'auto' };
+  const env = { GRAPIM_GCS_ACCESS_KEY_ID: creds.accessKeyId, GRAPIM_GCS_SECRET_ACCESS_KEY: creds.secretAccessKey };
+  const fast = { retry: { retries: 2, baseDelayMs: 1, maxDelayMs: 5 }, timeoutMs: 2000 };
+  let fake;
+  let url;
+  before(async () => {
+    fake = await startFakeS3({ bucket: 'gcs-bucket', creds, gcs: true });
+    url = `gs://gcs-bucket/grapim?endpoint=${encodeURIComponent(fake.endpoint)}`;
+  });
+  after(() => fake.close());
+
+  test('url parsing: Google endpoint by default, region auto, prefix; credentials only from GRAPIM_GCS_*', () => {
+    const g = parseGcsUrl('gs://my-bucket/team/x');
+    assert.equal(g.endpoint.href, 'https://storage.googleapis.com/');
+    assert.equal(g.region, 'auto');
+    assert.equal(g.prefix, 'team/x/');
+    assert.equal(parseGcsUrl('gs://b_1.example').prefix, '');
+    assert.throws(() => parseGcsUrl('gs://b/x?region=us'), /only endpoint/);
+    assert.throws(() => parseGcsUrl('gs://key:secret@b/x'), /not in the storage url/);
+    assert.throws(() => parseGcsUrl('gs://b/a%2F..%2Fx'), { code: 'invalid_key' });
+    assert.throws(() => createStorage('gs://b/x', {}), /GRAPIM_GCS_ACCESS_KEY_ID/);
+    assert.throws(() => createStorage('gs://b/x', { GRAPIM_S3_ACCESS_KEY_ID: 'a', GRAPIM_S3_SECRET_ACCESS_KEY: 'b' }), /GRAPIM_GCS_ACCESS_KEY_ID/, 'S3 keys are not GCS keys');
+    assert.equal(createStorage('gs://b/x', env).kind, 'gcs');
+  });
+
+  test('round trip with a verified signature: path-style, scope auto/s3/aws4_request, no session token', async () => {
+    // A stray S3 session token in the environment must not be sent to GCS.
+    const s = createStorage(url, { ...env, GRAPIM_S3_SESSION_TOKEN: 'stray-token' }, fast);
+    const bin = crypto.randomBytes(2048);
+    const before = fake.requests.length;
+    await s.put('ws/t/blobs/one', bin);
+    assert.deepEqual(fake.objects.get('grapim/ws/t/blobs/one'), bin, 'stored under the url prefix');
+    assert.deepEqual(await s.get('ws/t/blobs/one'), bin);
+    assert.equal(await s.has('ws/t/blobs/one'), true);
+    assert.equal(await s.get('ws/t/blobs/two'), null);
+    await s.delete('ws/t/blobs/one');
+    await s.delete('ws/t/blobs/one'); // GCS answers 404 NoSuchKey here: still fine
+    assert.equal(await s.has('ws/t/blobs/one'), false);
+    const mine = fake.requests.slice(before);
+    assert.ok(mine.every((r) => r.url.startsWith('/gcs-bucket/')), 'path-style');
+    assert.ok(mine.every((r) => /Credential=GOOG1EHMACKEYIDEXAMPLE\/\d{8}\/auto\/s3\/aws4_request/.test(r.headers.authorization)));
+    assert.ok(mine.every((r) => !('x-amz-security-token' in r.headers)));
+    assert.ok(mine.every((r) => /^[0-9a-f]{64}$/.test(r.headers['x-amz-content-sha256'])));
+    assert.equal(fake.signatureFailures, 0);
+    assert.match(s.describe(), /^gs:\/\/gcs-bucket\/grapim\/ via http:\/\/127\.0\.0\.1:\d+ \(auto\)$/);
+  });
+
+  test('list pages with ListObjectsV2, and falls back to marker= when GCS answers a V1 page', async () => {
+    const s = createStorage(url, env, fast);
+    const keys = ['ws/l/blobs/a', 'ws/l/blobs/b', 'ws/l/blobs/c', 'ws/l/blobs/d', 'ws/l/manifest.json'];
+    for (const k of keys) await s.put(k, Buffer.from(k));
+    for (const mode of ['v2', 'v1', 'v1-nomarker']) {
+      fake.listMode = mode;
+      const before = fake.requests.length;
+      assert.deepEqual(await s.list('ws/l/'), keys, mode);
+      const lists = fake.requests.slice(before);
+      assert.equal(lists.length, 3, `${mode}: 5 keys at 2 per page`);
+      if (mode !== 'v2') assert.ok(lists.slice(1).every((r) => /[?&]marker=/.test(r.url)), `${mode}: marker sent`);
+      else assert.ok(lists.slice(1).every((r) => /continuation-token=/.test(r.url)));
+    }
+    fake.listMode = 'v2';
+    assert.equal(fake.signatureFailures, 0);
+  });
+
+  test('a wrong HMAC secret: 403 SignatureDoesNotMatch, no retry, nothing secret in the error', async () => {
+    const s = createStorage(url, { ...env, GRAPIM_GCS_SECRET_ACCESS_KEY: 'wrong-gcs-secret-XYZ' }, fast);
+    const before = fake.requests.length;
+    const err = await s.put('ws/t/blobs/bad', Buffer.from('x')).catch((e) => e);
+    assert.equal(err.status, 403);
+    assert.equal(err.code, 'SignatureDoesNotMatch');
+    assert.match(err.message, /^GCS PutObject/);
+    assert.equal(fake.requests.length - before, 1);
+    fake.signatureFailures = 0;
+    const text = `${err.message} ${err.stack} ${JSON.stringify(err)}`;
+    for (const leak of ['wrong-gcs-secret-XYZ', creds.secretAccessKey, 'Signature=', 'StringToSign', 'AWS4-HMAC-SHA256']) assert.ok(!text.includes(leak), leak);
+  });
+});
+
+// ----------------------------------------------------------------- Azure ----
+
+describe('Azure Blob Storage (azure://) with Shared Key, against a fake that verifies it', () => {
+  const key = crypto.randomBytes(64).toString('base64');
+  const env = { GRAPIM_AZURE_ACCOUNT_KEY: key };
+  const fast = { retry: { retries: 2, baseDelayMs: 1, maxDelayMs: 5 }, timeoutMs: 2000 };
+  let fake;
+  let url;
+  before(async () => {
+    fake = await startFakeAzure({ account: 'grapimtest', container: 'workspaces', key });
+    url = `azure://grapimtest/workspaces/grapim?endpoint=${encodeURIComponent(fake.endpoint)}`;
+  });
+  after(() => fake.close());
+
+  test('url parsing: account, container, prefix, the default endpoint; bad names refused', () => {
+    const a = parseAzureUrl('azure://acct123/my-container/team/x');
+    assert.equal(a.endpoint.href, 'https://acct123.blob.core.windows.net/');
+    assert.equal(a.container, 'my-container');
+    assert.equal(a.prefix, 'team/x/');
+    assert.equal(parseAzureUrl('azure://acct123/abc').prefix, '');
+    for (const bad of ['azure://Acct/abc', 'azure://ab/abc', 'azure://acct123', 'azure://acct123/a--b', 'azure://acct123/-ab', 'azure://acct123/ab', 'azure://acct123/abc?region=x', 'azure://u:p@acct123/abc']) {
+      assert.throws(() => parseAzureUrl(bad), Error, bad);
+    }
+    assert.throws(() => createStorage('azure://acct123/abc', {}), /GRAPIM_AZURE_ACCOUNT_KEY/);
+    assert.throws(() => createStorage('azure://acct123/abc', { GRAPIM_AZURE_ACCOUNT_KEY: 'not base64!' }), /base64/);
+    assert.equal(createStorage('azure://acct123/abc', env).kind, 'azure');
+  });
+
+  test('string to sign and canonicalized resource follow the documented layout', () => {
+    assert.equal(
+      canonicalizedResource('myaccount', '/mycontainer', [['restype', 'container'], ['comp', 'list'], ['Prefix', 'a b'], ['include', 'snapshots'], ['include', 'metadata']]),
+      '/myaccount/mycontainer\ncomp:list\ninclude:metadata,snapshots\nprefix:a b\nrestype:container',
+    );
+    const headers = { 'x-ms-version': '2021-08-06', 'x-ms-date': 'Fri, 26 Jun 2015 23:39:12 GMT', 'content-type': 'application/octet-stream', 'content-length': '11', 'x-ms-blob-type': 'BlockBlob' };
+    assert.equal(
+      azureStringToSign({ method: 'PUT', headers, account: 'myaccount', path: '/mycontainer/a/b.txt' }),
+      'PUT\n\n\n11\n\napplication/octet-stream\n\n\n\n\n\n\nx-ms-blob-type:BlockBlob\nx-ms-date:Fri, 26 Jun 2015 23:39:12 GMT\nx-ms-version:2021-08-06\n/myaccount/mycontainer/a/b.txt',
+    );
+    // Content-Length 0 is an empty line (x-ms-version 2015-02-21 and later).
+    assert.match(azureStringToSign({ method: 'PUT', headers: { ...headers, 'content-length': '0' }, account: 'a', path: '/c/k' }), /^PUT\n\n\n\n\napplication/);
+    const k = Buffer.from('secret-key-material-0123456789ab');
+    const { authorization, signature } = signSharedKey({ method: 'GET', headers: { 'x-ms-date': 'x', 'x-ms-version': 'y' }, account: 'myaccount', path: '/c/k', key: k });
+    assert.equal(authorization, `SharedKey myaccount:${signature}`);
+    assert.equal(signature, crypto.createHmac('sha256', k).update('GET\n\n\n\n\n\n\n\n\n\n\n\nx-ms-date:x\nx-ms-version:y\n/myaccount/c/k').digest('base64'));
+  });
+
+  test('put, get, has, delete round trip with a verified Shared Key', async () => {
+    const s = createStorage(url, env, fast);
+    const bin = crypto.randomBytes(4096);
+    await s.put('ws/t/blobs/one', bin);
+    assert.deepEqual(fake.blobs.get('grapim/ws/t/blobs/one'), bin, 'stored under the url prefix');
+    assert.deepEqual(await s.get('ws/t/blobs/one'), bin);
+    assert.equal(await s.has('ws/t/blobs/one'), true);
+    assert.equal(await s.has('ws/t/blobs/two'), false);
+    assert.equal(await s.get('ws/t/blobs/two'), null);
+    await s.put('ws/t/empty', Buffer.alloc(0));
+    assert.equal((await s.get('ws/t/empty')).length, 0, 'an empty blob signs Content-Length as empty');
+    await s.delete('ws/t/blobs/one');
+    await s.delete('ws/t/blobs/one');
+    assert.equal(await s.has('ws/t/blobs/one'), false);
+    assert.equal(fake.signatureFailures, 0);
+    assert.ok(fake.requests.every((r) => r.headers['x-ms-version'] && r.headers['x-ms-date']));
+    await assert.rejects(() => s.put('../escape', Buffer.from('x')), { code: 'invalid_key' });
+    assert.match(s.describe(), /^azure:\/\/grapimtest\/workspaces\/grapim\/ via /);
+    assert.ok(!s.describe().includes(key));
+  });
+
+  test('list pages through NextMarker', async () => {
+    const s = createStorage(url, env, fast);
+    const keys = ['ws/l/blobs/a', 'ws/l/blobs/b', 'ws/l/blobs/c', 'ws/l/blobs/d', 'ws/l/blobs/e', 'ws/l/manifest.json'];
+    for (const k of keys) await s.put(k, Buffer.from(k));
+    const before = fake.requests.length;
+    assert.deepEqual(await s.list('ws/l/'), keys);
+    const lists = fake.requests.slice(before);
+    assert.equal(lists.length, 3, '6 keys at 2 per page');
+    assert.ok(lists.slice(1).every((r) => /marker=m%21\d+%21/.test(r.url)), 'marker sent back encoded');
+    assert.deepEqual(await s.list('nothing/'), []);
+    assert.equal(fake.signatureFailures, 0);
+  });
+
+  test('List Blobs XML: entities and percent-encoded names', () => {
+    const page = parseListBlobs('<?xml version="1.0"?><EnumerationResults><Blobs><Blob><Name>a&amp;b</Name></Blob><Blob><Name Encoded="true">c%3Cd</Name></Blob></Blobs><NextMarker>m&amp;1</NextMarker></EnumerationResults>');
+    assert.deepEqual(page, { names: ['a&b', 'c<d'], nextMarker: 'm&1' });
+    assert.equal(parseListBlobs('<EnumerationResults><Blobs/><NextMarker/></EnumerationResults>').nextMarker, null);
+    assert.throws(() => parseListBlobs('<Error><Code>x</Code></Error>'), /EnumerationResults/);
+  });
+
+  test('a wrong key fails the Shared Key check: 403, no retry, no key or string to sign in the error', async () => {
+    const wrong = crypto.randomBytes(64).toString('base64');
+    const s = createStorage(url, { GRAPIM_AZURE_ACCOUNT_KEY: wrong }, fast);
+    const before = fake.requests.length;
+    const err = await s.put('ws/t/blobs/bad', Buffer.from('x')).catch((e) => e);
+    assert.equal(err.status, 403);
+    assert.equal(err.code, 'AuthenticationFailed');
+    assert.equal(fake.requests.length - before, 1, 'no retry on 4xx');
+    assert.equal(fake.signatureFailures, 1);
+    fake.signatureFailures = 0;
+    const text = `${err.message} ${err.stack} ${JSON.stringify(err)}`;
+    for (const leak of [wrong, key, 'SharedKey', 'string to sign', 'x-ms-date:']) assert.ok(!text.includes(leak), leak);
+  });
+
+  test('retries 503 then succeeds; gives up after the budget', async () => {
+    const s = createStorage(url, env, fast);
+    let fails = 2;
+    fake.failWhen = () => (fails-- > 0 ? 503 : null);
+    const before = fake.requests.length;
+    await s.put('ws/t/retry', Buffer.from('ok'));
+    assert.equal(fake.requests.length - before, 3);
+    fake.failWhen = () => 503;
+    await assert.rejects(() => s.has('ws/t/retry'), (e) => e.status === 503 && /gave up after 3 attempts/.test(e.message));
+    fake.failWhen = null;
   });
 });

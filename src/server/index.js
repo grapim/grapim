@@ -35,7 +35,7 @@ export async function startServer({ cwd = process.cwd(), host = '127.0.0.1', por
   const guard = createGuard({ host, env, token: required });
   // The engine at the root, behind the local guard (Host, token, Origin),
   // checked once per request: locally every MCP tool is allowed.
-  const engine = createEngine({ cwd, env, uiDir, authorize: (req, { kind, asset }) => (kind === 'mcp-tool' ? undefined : guard(req, { asset })) });
+  const engine = createEngine({ cwd, env, uiDir, authorize: (req, { kind, asset }) => (kind === 'mcp-tool' ? undefined : guard(req, { asset, dav: kind === 'dav' })) });
   const server = http.createServer(engine.handle);
   server.keepAliveTimeout = 5000;
   try {
@@ -104,6 +104,7 @@ export async function serveMain(args, { cwd = process.cwd(), env = process.env }
   console.log(`  API          ${s.url}/api/overview`);
   console.log(`  Workspace    ${s.url}/fs/`);
   console.log(`  MCP          ${s.url}/mcp`);
+  console.log(`  Drive        ${s.url}/dav/  (WebDAV, this machine only)`);
   if (s.token) {
     console.log('  Every request needs Authorization: Bearer $GRAPIM_TOKEN.');
     console.log('  Open the desk once as /?token=<GRAPIM_TOKEN>; it keeps the token for that tab only.');

@@ -54,7 +54,25 @@ export const SCHEMAS = {
   WorkspaceCreate: {
     type: 'object',
     additionalProperties: false,
-    properties: { external_id: str('Your id for the end customer or session.', { maxLength: 255 }), name: str('URL name; generated when absent.', { pattern: '^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$' }), metadata: { type: 'object' } },
+    properties: {
+      external_id: str('Your id for the end customer or session.', { maxLength: 255 }),
+      name: str('URL name; generated when absent.', { pattern: '^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$' }),
+      metadata: { type: 'object' },
+      template: {
+        enum: ['blank', 'agent-team', 'research', 'data'],
+        default: 'blank',
+        description: 'Folders to start with, each with a short README.md, written as the approved run template:<name>. agent-team: code/, docs/, data/, saas/. research: sources/, notes/, drafts/. data: raw/, clean/, reports/.',
+      },
+    },
+  },
+  ScopeRule: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['path', 'access'],
+    properties: {
+      path: str('A workspace-relative glob: ** any folders, * any text in one name, ? one character. No "..", no leading "/". A trailing "/" means the folder and everything in it.', { maxLength: 300 }),
+      access: { enum: ['read', 'write'], description: 'Every rule grants read; write needs the most specific rule covering the path (longest literal prefix, then write over read) to be a write rule.' },
+    },
   },
   WorkspaceUpdate: {
     type: 'object',
@@ -69,6 +87,7 @@ export const SCHEMAS = {
       object: { const: 'workspace_token' },
       token: str('gws_..., shown once.'),
       scope: { enum: ['read', 'write'] },
+      scopes: { type: ['array', 'null'], items: ref('ScopeRule'), description: 'The folders the token is limited to; null: the whole workspace.' },
       name: str('The token name: runs are http:<name>/<agent>.'),
       agent_name: nullable(str('When set, every run of this token is http:<name>/<agent_name>, whatever X-Grapim-Agent says.')),
       expires_at: int('Unix seconds.'),
@@ -83,6 +102,12 @@ export const SCHEMAS = {
       ttl_seconds: int('Default 3600, at most 2592000 (30 days).', { minimum: 60, maximum: 2592000 }),
       agent_name: str('Pins the run identity.', { pattern: '^[A-Za-z0-9._-]{1,60}$' }),
       name: str('Token name; generated when absent. Unique in the workspace for good.', { pattern: '^[A-Za-z0-9._-]{1,40}$' }),
+      scopes: {
+        type: 'array',
+        maxItems: 32,
+        items: ref('ScopeRule'),
+        description: 'Limit the token to some folders. Paths outside every rule are not found (404); paths it may read but not write are refused (403). A read token cannot have write rules. Absent or empty: the whole workspace.',
+      },
     },
   },
   EmbedSession: {
@@ -166,15 +191,54 @@ export const SCHEMAS = {
       livemode: { type: 'boolean' },
       embed_allowed_origins: { type: 'array', items: { type: 'string' } },
       workspace_storage_mb: int("Each workspace's storage limit in MB (files, history and stored versions). Default 512."),
+      storage: ref('Storage'),
+    },
+  },
+  Storage: {
+    type: 'object',
+    description: "Where the platform's workspace files are kept: the hub's own storage, or your bucket. Live keys only, and only when the hub has workspace storage. Credentials are never returned.",
+    required: ['object', 'provider', 'credentials', 'move'],
+    properties: {
+      object: { const: 'storage' },
+      provider: { enum: ['hub', 's3', 'r2', 'gcs', 'azure'] },
+      bucket: nullable(str('Bucket, or the container on Azure.')),
+      prefix: nullable(str('Key prefix inside the bucket.')),
+      endpoint: nullable(str('https origin.')),
+      region: nullable(str('S3 region.')),
+      account: nullable(str('Azure storage account.')),
+      credentials: { enum: ['saved', 'unreadable', null], description: 'unreadable: the hub cannot decrypt them any more; set storage again.' },
+      move: {
+        type: ['object', 'null'],
+        description: 'A move in progress: the files are being copied; the platform switches when it completes.',
+        properties: { state: { enum: ['copying', 'failed'] }, to: str('hub, s3, r2, gcs or azure.'), done: { type: 'integer' }, total: { type: 'integer' }, copied: { type: 'integer' }, pass: { type: 'integer' }, error: nullable(str('Why it stopped.')) },
+      },
+    },
+  },
+  StorageUpdate: {
+    type: ['object', 'null'],
+    additionalProperties: false,
+    description:
+      'Your own bucket (live keys only; a test key gets 403 livemode_required). The endpoint must be https on public addresses. Grapim first writes, reads, lists and deletes a test object (400 storage_unreachable if any step fails, and nothing changes), then copies the files in the background and switches when done. The same bucket with new keys replaces the keys. null, or provider "hub": back to the hub\'s storage.',
+    properties: {
+      provider: { enum: ['s3', 'r2', 'gcs', 'azure', 'hub'] },
+      bucket: str('Bucket name, or the container on Azure.'),
+      prefix: str('Optional key prefix.'),
+      endpoint: str('https origin. Required for R2; defaults for S3 (by region), GCS and Azure (by account).'),
+      region: str('S3 only. Default us-east-1.'),
+      account: str('Azure storage account name.'),
+      access_key_id: str('S3, R2, or a GCS HMAC key id. Write only.'),
+      secret_access_key: str('Write only.'),
+      account_key: str('Azure account key (base64). Write only.'),
     },
   },
   SettingsUpdate: {
     type: 'object',
     additionalProperties: false,
-    description: "Changes only the calling key's mode. At least one field.",
+    description: "Changes only the calling key's mode, except storage, which is the platform's and needs a live key. At least one field.",
     properties: {
       embed_allowed_origins: { type: 'array', items: { type: 'string' }, maxItems: 20, description: 'https origins (http only for localhost).' },
       workspace_storage_mb: { type: 'integer', minimum: 1, description: "Each workspace's storage limit in MB, up to the platform's own quota." },
+      storage: ref('StorageUpdate'),
     },
   },
   WorkspaceList: list('Workspace'),

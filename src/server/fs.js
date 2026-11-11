@@ -24,7 +24,8 @@ const MAX_INTENT = 300;
 // GET /api/files?recursive=1 lists at most this many files.
 export const MAX_LISTED = 5000;
 const FOLD = process.platform === 'win32' || process.platform === 'darwin';
-const TEMP = /\.grapim-\d+-[0-9a-f]+\.tmp$/;
+// The temp files atomicWrite leaves for a moment; never listed.
+export const TEMP = /\.grapim-\d+-[0-9a-f]+\.tmp$/;
 
 // An HTTP agent from its name: run id http:<name>, labelled with the name.
 export function httpAgent(name) {
@@ -290,7 +291,24 @@ export function createWorkspace({ store, ws, env = {}, offload = null }) {
     return { released: store.release(me.agent, null), recorded };
   }
 
-  if (!offload) return { write, remove, read, list, listAll, release };
+  // Claims one file without writing it, for ttlMs (a WebDAV LOCK): 409 if
+  // someone else holds it. Refuses the same paths a write refuses.
+  function hold(me, rel, { ttlMs } = {}) {
+    const t = writable(rel);
+    const r = store.claim(me.agent, [t.file], { worktree: ws.worktree, label: me.label, ...(ttlMs ? { ttlMs } : {}) });
+    if (!r.ok) throw conflict(heldMessage(r.conflicts[0]));
+    return { path: t.rel };
+  }
+
+  // Releases one file the agent holds (a WebDAV UNLOCK, or the end of a
+  // WebDAV write), recording any open snapshot of it first.
+  function letGo(me, rel) {
+    const t = target(rel);
+    for (const c of finishRun(store, me.agent, [t.file.key])) store.recordEdit(me.agent, c.path, c.detail);
+    return store.release(me.agent, [t.file.key]);
+  }
+
+  if (!offload) return { write, remove, read, list, listAll, release, hold, letGo };
 
   // The counts a write will need: the file now against the new content, and
   // any open snapshot of this file by this agent (closed by the claim).
@@ -307,6 +325,8 @@ export function createWorkspace({ store, ws, env = {}, offload = null }) {
     write: (me, rel, buf, opts = {}) => offload.ensure(() => writePairs(me, rel, buf, opts.expect), () => write(me, rel, buf, opts)),
     remove: (me, rel, opts = {}) => offload.ensure(() => pendingPairs(store, me.agent, [writable(rel).file.key]), () => remove(me, rel, opts)),
     release: (me) => offload.ensure(() => pendingPairs(store, me.agent), () => release(me)),
+    hold,
+    letGo: (me, rel) => offload.ensure(() => pendingPairs(store, me.agent, [target(rel).file.key]), () => letGo(me, rel)),
     read,
     list,
     listAll,

@@ -74,11 +74,16 @@ export interface ListParams {
   starting_after?: string;
 }
 
+/** Folders to start a workspace with, each with a short README.md, written as the approved run `template:<name>`. */
+export type WorkspaceTemplate = 'blank' | 'agent-team' | 'research' | 'data';
+
 export interface WorkspaceCreateParams {
   external_id?: string;
   name?: string;
   /** JSON, up to 4 KB. */
   metadata?: Metadata;
+  /** Default `blank`. agent-team: code/, docs/, data/, saas/; research: sources/, notes/, drafts/; data: raw/, clean/, reports/. */
+  template?: WorkspaceTemplate;
 }
 
 export interface WorkspaceUpdateParams {
@@ -92,12 +97,31 @@ export interface WorkspaceListParams extends ListParams {
 
 export type TokenScope = 'read' | 'write';
 
+/**
+ * One folder rule of a workspace token. `path` is a workspace-relative glob
+ * (`docs/**`, `notes/*.md`; a trailing `/` means the whole folder). Every rule
+ * grants read; write needs the most specific covering rule (longest literal
+ * prefix, then write over read) to be `write`.
+ */
+export interface ScopeRule {
+  path: string;
+  access: TokenScope;
+}
+
 export interface TokenCreateParams {
   scope: TokenScope;
   /** Default 3600, maximum 30 days. */
   ttl_seconds?: number;
   /** Pins the run identity to `http:<token-name>/<agent_name>`. */
   agent_name?: string;
+  /** Token name; generated when absent. */
+  name?: string;
+  /**
+   * Limit the token to some folders (at most 32 rules). Outside them, reads
+   * are 404 and writes 403. A read token cannot have write rules. Absent or
+   * empty: the whole workspace.
+   */
+  scopes?: ScopeRule[];
 }
 
 export interface WorkspaceToken {
@@ -105,6 +129,8 @@ export interface WorkspaceToken {
   token: string;
   expires_at: number | string;
   scope: TokenScope;
+  /** The folder rules, or null for the whole workspace. */
+  scopes?: ScopeRule[] | null;
   /** The token's id, for tokens.revoke, when the server returns it. */
   id?: string;
   [k: string]: unknown;
@@ -232,6 +258,58 @@ export interface SettingsUpdateParams {
   embed_allowed_origins?: string[];
   /** Storage limit per workspace in MB (default 512). */
   workspace_storage_mb?: number;
+  /**
+   * Keep the platform's workspace files in your own bucket (live keys only;
+   * a test key gets 403 livemode_required). null: back to the hub's storage.
+   */
+  storage?: StorageUpdateParams | null;
+}
+
+export type StorageProvider = 's3' | 'r2' | 'gcs' | 'azure';
+
+/**
+ * Your own bucket. Grapim writes, reads, lists and deletes a test object
+ * before saving (400 storage_unreachable otherwise), then copies the files in
+ * the background and switches when the copy completes. Credentials are write
+ * only: they are never returned.
+ */
+export type StorageUpdateParams =
+  | { provider: 's3'; bucket: string; prefix?: string; region?: string; endpoint?: string; access_key_id: string; secret_access_key: string }
+  | { provider: 'r2'; bucket: string; prefix?: string; endpoint: string; access_key_id: string; secret_access_key: string }
+  | { provider: 'gcs'; bucket: string; prefix?: string; endpoint?: string; /** A GCS HMAC key. */ access_key_id: string; secret_access_key: string }
+  | { provider: 'azure'; account: string; /** The container. */ bucket: string; prefix?: string; endpoint?: string; account_key: string }
+  | { provider: 'hub' };
+
+/** In GET/PUT /v1/settings with a live key, when the hub has workspace storage. */
+export interface StorageSettings {
+  object: 'storage';
+  provider: 'hub' | StorageProvider;
+  bucket: string | null;
+  prefix: string | null;
+  endpoint: string | null;
+  region: string | null;
+  account: string | null;
+  credentials: 'saved' | 'unreadable' | null;
+  move: {
+    state: 'copying' | 'failed';
+    to: 'hub' | StorageProvider;
+    bucket?: string;
+    prefix?: string;
+    endpoint?: string;
+    done: number;
+    total: number;
+    copied: number;
+    pass: number;
+    error: string | null;
+  } | null;
+}
+
+export interface Settings {
+  object: 'platform_settings';
+  livemode: boolean;
+  embed_allowed_origins: string[];
+  workspace_storage_mb: number;
+  storage?: StorageSettings;
 }
 
 export interface Deleted {
@@ -360,7 +438,7 @@ export declare class Grapim {
     delete(id: string, options?: RequestOptions): Promise<Deleted>;
   };
   settings: {
-    update(params: SettingsUpdateParams, options?: RequestOptions): Promise<Record<string, unknown>>;
+    update(params: SettingsUpdateParams, options?: RequestOptions): Promise<Settings>;
   };
 }
 export default Grapim;

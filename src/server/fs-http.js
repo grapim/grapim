@@ -9,11 +9,15 @@
 // A GET of a file and a PUT answer with ETag: "<sha1 of the content>". PUT and
 // DELETE take If-Match: "<sha1>" (the file must be that version) or
 // If-Match: "absent" (there must be no file); otherwise 412 and nothing is written.
+//
+// Every path is checked against the caller's scope (the engine's authorize
+// hook) before anything is read or written; a listing leaves out what the
+// caller cannot see.
 
 import { sha1 } from '../ledger.js';
 import { httpAgent } from './fs.js';
 import { badRequest, headerText, notAllowed, readBody, sendBytes, sendJson } from './http.js';
-import { decodePath } from './paths.js';
+import { decodePath, resolvePath } from './paths.js';
 
 const agentOf = (req) => httpAgent(headerText(req, 'x-grapim-agent'));
 const etag = (sha) => `"${sha}"`;
@@ -29,18 +33,38 @@ function expectOf(req) {
 }
 
 // rawPath is "/fs" or starts with "/fs/".
-export async function handleFs({ workspace }, req, res, rawPath) {
+export async function handleFs(ctx, req, res, rawPath) {
+  const { workspace } = ctx;
   const rel = decodePath(rawPath.slice('/fs/'.length));
+  const folder = rel === '' || rel.endsWith('/');
+  // The path as the scope sees it, once resolvePath accepted it (no "..",
+  // nothing in .git). A path it refuses is refused by the operation itself,
+  // with the same error as before.
+  const check = async (write) => {
+    let t;
+    try {
+      t = resolvePath(ctx.ws, rel);
+    } catch {
+      return;
+    }
+    await ctx.authorizeTarget?.(req, { kind: 'fs', write, access: write ? 'write' : 'read' }, t);
+  };
   switch (req.method) {
     case 'GET':
     case 'HEAD': {
-      if (rel === '' || rel.endsWith('/')) return sendJson(res, 200, workspace.list(rel));
+      await check(false);
+      if (folder) {
+        const see = ctx.readable?.(req);
+        const list = workspace.list(rel);
+        return sendJson(res, 200, see ? list.filter((e) => see(e.path, e.type)) : list);
+      }
       const { buf } = workspace.read(rel);
       return sendBytes(res, buf, undefined, { ETag: etag(sha1(buf)) });
     }
     case 'PUT': {
       const me = agentOf(req);
       const expect = expectOf(req);
+      if (!folder) await check(true);
       const body = await readBody(req);
       // A hub workspace answers with a promise (its line counts are computed
       // off the event loop first); grapim serve with the result.
@@ -49,6 +73,7 @@ export async function handleFs({ workspace }, req, res, rawPath) {
     }
     case 'DELETE': {
       const me = agentOf(req);
+      if (!folder) await check(true);
       return sendJson(res, 200, await workspace.remove(me, rel, { intent: headerText(req, 'x-grapim-intent'), expect: expectOf(req) }));
     }
     case 'POST':

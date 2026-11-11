@@ -252,6 +252,29 @@ form { margin: 0; }
 .howto summary { cursor: pointer; color: var(--text-2); font-weight: 500; }
 .howto .code { margin-top: 8px; }
 
+/* Settings, Storage: bring your own bucket */
+.storage-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; margin-top: 12px; }
+.storage-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.storage-field input, .storage-field select { width: 100%; }
+.storage-secrets { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; margin: 0; padding: 12px; border: 1px solid var(--border-strong); border-radius: var(--radius); }
+.storage-secrets legend { padding: 0 4px; color: var(--text-2); }
+.storage-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.storage-move { margin-top: 12px; display: grid; gap: 8px; }
+.storage-move progress { width: 100%; height: 8px; }
+input[type="password"] {
+  height: 32px; padding: 0 10px; min-width: 0;
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--surface); color: var(--text);
+}
+.token-form .howto .fine { margin-top: 8px; }
+/* Workspace page, SaaS connectors */
+.connector-form { margin-top: 12px; }
+.connector-form input[type="password"] { flex: 1 1 260px; }
+.connector-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.scope-rows { display: grid; gap: 8px; margin-top: 8px; }
+.scope-list { display: inline-flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.scope-list .badge { font-size: 11px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
 .auth { max-width: 400px; margin: 64px auto 0; display: flex; flex-direction: column; gap: 16px; }
 .auth h1 { font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.015em; }
 .empty-page { max-width: 480px; margin: 64px auto 0; display: flex; flex-direction: column; gap: 12px; }

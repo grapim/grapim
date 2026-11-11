@@ -51,8 +51,9 @@ class _Resource:
 
 
 class Workspaces(_Resource):
-    def create(self, *, external_id: Optional[str] = None, name: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None, idempotency_key: Optional[str] = None) -> Dict[str, Any]:
-        return self._post("/workspaces", _body(external_id=external_id, name=name, metadata=metadata), idempotency_key)
+    def create(self, *, external_id: Optional[str] = None, name: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None, template: Optional[str] = None, idempotency_key: Optional[str] = None) -> Dict[str, Any]:
+        """``template``: ``"blank"`` (default), ``"agent-team"``, ``"research"`` or ``"data"``: folders with a short README each, written as the approved run ``template:<name>``."""
+        return self._post("/workspaces", _body(external_id=external_id, name=name, metadata=metadata, template=template), idempotency_key)
 
     def list(self, *, external_id: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None) -> ListResult:
         return self._list("/workspaces", {"external_id": external_id, "limit": limit, "starting_after": starting_after})
@@ -68,9 +69,28 @@ class Workspaces(_Resource):
 
 
 class Tokens(_Resource):
-    def create(self, workspace_id: str, *, scope: str, ttl_seconds: Optional[int] = None, agent_name: Optional[str] = None, idempotency_key: Optional[str] = None) -> Dict[str, Any]:
-        """Returns ``{"token", "expires_at", "scope"}``; the token is shown once."""
-        return self._post(f"/workspaces/{_id(workspace_id, 'workspace_id')}/tokens", _body(scope=scope, ttl_seconds=ttl_seconds, agent_name=agent_name), idempotency_key)
+    def create(
+        self,
+        workspace_id: str,
+        *,
+        scope: str,
+        ttl_seconds: Optional[int] = None,
+        agent_name: Optional[str] = None,
+        name: Optional[str] = None,
+        scopes: Optional[List[Dict[str, str]]] = None,
+        idempotency_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Returns ``{"token", "expires_at", "scope", "scopes"}``; the token is shown once.
+
+        ``scopes`` limits the token to some folders: ``[{"path": "docs/**", "access": "read"},
+        {"path": "docs/drafts/**", "access": "write"}]`` (at most 32; the most specific rule wins).
+        Outside them, reads are 404 and writes 403. Absent: the whole workspace.
+        """
+        return self._post(
+            f"/workspaces/{_id(workspace_id, 'workspace_id')}/tokens",
+            _body(scope=scope, ttl_seconds=ttl_seconds, agent_name=agent_name, name=name, scopes=scopes),
+            idempotency_key,
+        )
 
     def revoke(self, workspace_id: str, token_id: str) -> Dict[str, Any]:
         return self._req("DELETE", f"/workspaces/{_id(workspace_id, 'workspace_id')}/tokens/{_id(token_id, 'token_id')}")

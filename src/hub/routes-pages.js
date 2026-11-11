@@ -6,7 +6,19 @@ import { HttpError, redirect, sendHtml } from './http.js';
 import { invitePage, pickerPage, signInPage } from './pages/account.js';
 import { repoPage, runPage } from './pages/repo.js';
 import { reposPage, settingsPage } from './pages/team.js';
-import { workspacePage, workspacesPage } from './pages/workspaces.js';
+import { SCOPE_ROWS, workspacePage, workspacesPage } from './pages/workspaces.js';
+import { cleanTemplate } from './templates.js';
+
+// The "Limit to folders" rows of the token form (scope_path_<i>,
+// scope_access_<i>) as rules; rows without a path are left out. None: null.
+function scopeRows(form) {
+  const rules = [];
+  for (let i = 0; i < SCOPE_ROWS; i++) {
+    const p = String(form[`scope_path_${i}`] ?? '').trim();
+    if (p) rules.push({ path: p, access: form[`scope_access_${i}`] === 'write' ? 'write' : 'read' });
+  }
+  return rules.length ? rules : null;
+}
 
 const SESSION = { auth: 'session' };
 const FORM = { auth: 'session', csrf: true };
@@ -57,11 +69,15 @@ export function pageRoutes(router, hub) {
         billing: { enabled: !!hub.billing, intervals: config.billingIntervals, governanceIntervals: config.governanceIntervals ?? [] },
         origin: config.origin,
         github: role === 'owner' ? hub.github?.settingsSection(fresh, ctx.session.csrf) : null,
+        // A team's own bucket (src/hub/team-storage.js): owners only.
+        storage: role === 'owner' ? (hub.teamStorage?.settingsSection(fresh, ctx.session.csrf) ?? null) : null,
         ...extra,
       }),
       status,
     );
   }
+  // The storage card's routes render the page with their own error (team-storage.js).
+  hub.renderSettings = renderSettings;
 
   // Errors a person can fix on the settings page are shown there, not on a bare error page.
   async function onSettings(ctx, fn) {
@@ -250,7 +266,17 @@ export function pageRoutes(router, hub) {
     const ws = workspaces.byId(ctx.member.team.id, ctx.workspace.id) ?? ctx.workspace;
     html(
       ctx,
-      workspacePage({ user: ctx.session.user, csrf: ctx.session.csrf, team: ctx.member.team, role: ctx.member.role, ws, tokens: workspaces.tokens(ws, wsActor(ctx)), origin: config.origin, ...extra }),
+      workspacePage({
+        user: ctx.session.user,
+        csrf: ctx.session.csrf,
+        team: ctx.member.team,
+        role: ctx.member.role,
+        ws,
+        tokens: workspaces.tokens(ws, wsActor(ctx)),
+        origin: config.origin,
+        connectors: hub.connectors?.status(ws) ?? [], // SaaS connectors (src/hub/connectors.js)
+        ...extra,
+      }),
       status,
     );
   }
@@ -275,7 +301,10 @@ export function pageRoutes(router, hub) {
     (ctx) =>
       onPage(ctx, renderWorkspaces, async () => {
         const team = teams.get(ctx.member.team.id);
+        const template = cleanTemplate(ctx.form.template);
         const ws = workspaces.create(team, wsActor(ctx), ctx.form.name);
+        // Its folders, as the approved run template:<name> (src/hub/templates.js).
+        hub.mount.applyTemplate(ws, template, `human:${ctx.session.user.login}`);
         await hub.mount.measure(ws).catch(() => {});
         hub.platform?.workspaceCreated(ws); // a platform's webhooks (docs/platform.md)
         redirect(ctx.res, `/hub/teams/${team.id}/workspaces/${ws.id}`);
@@ -318,8 +347,8 @@ export function pageRoutes(router, hub) {
     '/hub/teams/:team/workspaces/:ws/tokens',
     (ctx) =>
       onPage(ctx, renderWorkspace, () => {
-        const t = workspaces.createToken(ctx.workspace, wsActor(ctx), ctx.form.name, ctx.form.scope);
-        renderWorkspace(ctx, { revealed: { value: t.token, name: t.name, scope: t.scope } });
+        const t = workspaces.createToken(ctx.workspace, wsActor(ctx), ctx.form.name, ctx.form.scope, { scopes: scopeRows(ctx.form) });
+        renderWorkspace(ctx, { revealed: { value: t.token, name: t.name, scope: t.scope, scopes: t.scopes } });
       }),
     WS_FORM,
   );
@@ -332,6 +361,53 @@ export function pageRoutes(router, hub) {
         redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/workspaces/${ctx.workspace.id}#tokens`);
       }),
     WS_FORM,
+  );
+
+  // ---- SaaS connectors (docs/connectors.md): owners connect, test, sync and disconnect ----
+
+  const connectorName = (form) => String(form.connector ?? '');
+  const backTo = (ctx) => `/hub/teams/${ctx.member.team.id}/workspaces/${ctx.workspace.id}#connectors`;
+
+  router.post(
+    '/hub/teams/:team/workspaces/:ws/connectors/connect',
+    (ctx) =>
+      onPage(ctx, renderWorkspace, async () => {
+        const info = await hub.connectors.connect(ctx.workspace, wsActor(ctx), connectorName(ctx.form), ctx.form.token);
+        renderWorkspace(ctx, { notice: `Connected to ${info.name}${info.workspace ? ` in ${info.workspace}` : ''}. The first sync is running; reload in a minute to see the pages.` });
+      }),
+    { ...WS_FORM, owner: true },
+  );
+
+  router.post(
+    '/hub/teams/:team/workspaces/:ws/connectors/test',
+    (ctx) =>
+      onPage(ctx, renderWorkspace, async () => {
+        const info = await hub.connectors.test(ctx.workspace, connectorName(ctx.form));
+        renderWorkspace(ctx, { notice: `The connection works: ${info.name}${info.workspace ? ` in ${info.workspace}` : ''}.` });
+      }),
+    { ...WS_FORM, owner: true },
+  );
+
+  router.post(
+    '/hub/teams/:team/workspaces/:ws/connectors/sync',
+    (ctx) =>
+      onPage(ctx, renderWorkspace, async () => {
+        await hub.connectors.syncNow(ctx.workspace, connectorName(ctx.form)).catch((err) => {
+          throw new HttpError(400, 'bad_request', err.message);
+        });
+        redirect(ctx.res, backTo(ctx));
+      }),
+    { ...WS_FORM, owner: true },
+  );
+
+  router.post(
+    '/hub/teams/:team/workspaces/:ws/connectors/disconnect',
+    (ctx) =>
+      onPage(ctx, renderWorkspace, () => {
+        hub.connectors.disconnect(ctx.workspace, connectorName(ctx.form));
+        renderWorkspace(ctx, { notice: 'Disconnected. Syncing stopped; the files and their history stay in the workspace.' });
+      }),
+    { ...WS_FORM, owner: true },
   );
 
   // ---- Repo and run views (read-only) ----

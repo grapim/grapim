@@ -16,6 +16,7 @@ import { listRuns, planJson } from '../../server/runs.js';
 import { autoApprove } from '../../review.js';
 import { applyUndo, changedAny, planUndo } from '../../undo.js';
 import { HttpError, readBody, sendJson } from '../http.js';
+import { cleanTemplate } from '../templates.js';
 import { Router } from '../router.js';
 import { randomId, same, sha256 } from '../secure.js';
 import { buildOpenApi } from './openapi.js';
@@ -97,9 +98,15 @@ export function createApi({ hub, keys, limiter, sealer, metering, events, embeds
   // ---- handlers ----
 
   async function createWorkspace(p, rawBody) {
-    const body = onlyFields(rawBody, ['external_id', 'name', 'metadata']);
+    const body = onlyFields(rawBody, ['external_id', 'name', 'metadata', 'template']);
     const externalId = body.external_id === undefined || body.external_id === null ? null : cleanExternalId(body.external_id);
     const metadata = body.metadata === undefined ? null : cleanMetadata(body.metadata);
+    let template;
+    try {
+      template = cleanTemplate(body.template);
+    } catch (err) {
+      throw invalid(err.message);
+    }
     const team = db.prepare('SELECT * FROM teams WHERE id = ?').get(p.team.id);
     const mode = p.mode === 'test' ? 'test' : null;
     const check = () => {
@@ -118,6 +125,8 @@ export function createApi({ hub, keys, limiter, sealer, metering, events, embeds
       throw err;
     }
     events.start(ws);
+    // Its folders, as the approved run template:<name> (src/hub/templates.js).
+    hub.mount.applyTemplate(ws, template, `api:${p.key.name}`);
     await hub.mount.measure(ws).catch(() => {});
     ws = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(ws.id);
     const out = wsJson(ws);
@@ -171,7 +180,7 @@ export function createApi({ hub, keys, limiter, sealer, metering, events, embeds
   }
 
   function createToken(p, ws, rawBody) {
-    const body = onlyFields(rawBody, ['scope', 'ttl_seconds', 'agent_name', 'name']);
+    const body = onlyFields(rawBody, ['scope', 'ttl_seconds', 'agent_name', 'name', 'scopes']);
     if (body.scope !== 'read' && body.scope !== 'write') throw invalid('scope is read or write.');
     const ttl = body.ttl_seconds ?? TOKEN_TTL.fallback;
     if (!Number.isInteger(ttl) || ttl < TOKEN_TTL.min || ttl > TOKEN_TTL.max) throw invalid(`ttl_seconds is a whole number from ${TOKEN_TTL.min} to ${TOKEN_TTL.max} (30 days).`);
@@ -182,12 +191,13 @@ export function createApi({ hub, keys, limiter, sealer, metering, events, embeds
     const expiresAt = now() + ttl * 1000;
     let t;
     try {
-      t = workspaces.createToken(ws, actorOf(p), name, body.scope, { expiresAt, agentName: body.agent_name ?? null });
+      // scopes: the folders the token is limited to (src/scope.js); validated there.
+      t = workspaces.createToken(ws, actorOf(p), name, body.scope, { expiresAt, agentName: body.agent_name ?? null, scopes: body.scopes ?? null });
     } catch (err) {
       if (err instanceof HttpError && err.code === 'bad_request') throw invalid(err.message);
       throw err;
     }
-    return { id: t.id, object: 'workspace_token', token: t.token, scope: t.scope, name: t.name, agent_name: t.agent_name, expires_at: unix(expiresAt) };
+    return { id: t.id, object: 'workspace_token', token: t.token, scope: t.scope, scopes: t.scopes, name: t.name, agent_name: t.agent_name, expires_at: unix(expiresAt) };
   }
 
   function revokeToken(p, ws, tokenId) {
@@ -251,6 +261,10 @@ export function createApi({ hub, keys, limiter, sealer, metering, events, embeds
       }
       events.afterActivity(ws, store, { undoneRun: run });
       hub.mount.storage?.touch(workspaces.storageKey(ws));
+      // Files under saas/ go back to their service too (src/hub/connectors.js).
+      const changed = plan.files.filter((f) => ['revert', 'delete', 'restore'].includes(f.action)).map((f) => ({ path: f.path, sha: f.end?.sha ?? null }));
+      const saas = changed.length && engine.ctx.afterWrites ? await engine.ctx.afterWrites(changed, { run: plan.undoRun, kind: 'undo' }) : null;
+      if (saas) return { ...planJson(plan, true), saas };
     }
     return planJson(plan, !!body.apply);
   }
@@ -262,12 +276,26 @@ export function createApi({ hub, keys, limiter, sealer, metering, events, embeds
   }
 
   // Settings are per mode (review M6): a key reads and writes its own mode's.
-  const settingsJson = (p) => ({ object: 'platform_settings', livemode: p.mode === 'live', ...keys.settings(p.team.id, p.mode) });
+  // `storage` (the platform's own bucket, src/hub/team-storage.js) is per team,
+  // not per mode: only live keys see it, and only when the hub has storage.
+  const settingsJson = (p) => ({
+    object: 'platform_settings',
+    livemode: p.mode === 'live',
+    ...keys.settings(p.team.id, p.mode),
+    ...(p.mode === 'live' && hub.teamStorage?.available ? { storage: hub.teamStorage.statusJson(p.team.id) } : {}),
+  });
   const maxWorkspaceMb = () => Math.floor((config.platformStorageBytes ?? 20480 * 1024 * 1024) / 1024 / 1024);
+  const STORAGE_FIELDS = ['provider', 'bucket', 'prefix', 'endpoint', 'region', 'account', 'access_key_id', 'secret_access_key', 'account_key'];
 
-  function putSettings(p, rawBody) {
-    const body = onlyFields(rawBody, ['embed_allowed_origins', 'workspace_storage_mb']);
-    if (body.embed_allowed_origins === undefined && body.workspace_storage_mb === undefined) throw invalid('Send embed_allowed_origins, workspace_storage_mb, or both.');
+  async function putSettings(p, rawBody) {
+    const body = onlyFields(rawBody, ['embed_allowed_origins', 'workspace_storage_mb', 'storage']);
+    if (body.embed_allowed_origins === undefined && body.workspace_storage_mb === undefined && body.storage === undefined) throw invalid('Send embed_allowed_origins, workspace_storage_mb, storage, or several.');
+    // A test key cannot move a platform's files (they are the live ones too).
+    if (body.storage !== undefined && p.mode !== 'live') throw apiError(403, 'livemode_required', 'storage can only be set with a live key: it applies to every workspace of the platform.');
+    if (body.storage !== undefined && body.storage !== null) {
+      if (typeof body.storage !== 'object' || Array.isArray(body.storage)) throw invalid('storage is an object, or null for the hub\'s own storage.');
+      for (const k of Object.keys(body.storage)) if (!STORAGE_FIELDS.includes(k)) throw invalid(`Unknown field storage.${k.slice(0, 60)}. Allowed: ${STORAGE_FIELDS.join(', ')}.`);
+    }
     const patch = {};
     if (body.embed_allowed_origins !== undefined) {
       const list = body.embed_allowed_origins;
@@ -285,7 +313,12 @@ export function createApi({ hub, keys, limiter, sealer, metering, events, embeds
       if (!Number.isInteger(mb) || mb < 1 || mb > maxWorkspaceMb()) throw invalid(`workspace_storage_mb is a whole number from 1 to ${maxWorkspaceMb()} (the platform's own quota).`);
       patch.workspace_storage_mb = mb;
     }
-    keys.setSettings(p.team.id, p.mode, patch);
+    // Everything else is checked first: a refused probe changes nothing.
+    if (body.storage !== undefined) {
+      if (!hub.teamStorage?.available) throw apiError(409, 'storage_unavailable', 'Workspace storage is off on this hub.');
+      await hub.teamStorage.configure(p.team.id, body.storage, `api:${p.key.id}`);
+    }
+    if (Object.keys(patch).length) keys.setSettings(p.team.id, p.mode, patch);
     return settingsJson(p);
   }
 

@@ -20,8 +20,11 @@ export const invalid = (message) => apiError(400, 'invalid_request', message);
 // authenticated, so a sealed value copied into another row or another
 // platform's row does not open (security review 2026-11-11, M1). v1 values
 // (no binding) are refused.
-export function sealer(secret) {
-  const key = Buffer.from(crypto.hkdfSync('sha256', secret, Buffer.alloc(0), Buffer.from('grapim platform seal v1'), 32));
+//
+// `purpose` derives a separate key per use (the SaaS connectors' tokens use
+// their own), so a value sealed for one never opens as another's.
+export function sealer(secret, purpose = 'grapim platform seal v1') {
+  const key = Buffer.from(crypto.hkdfSync('sha256', secret, Buffer.alloc(0), Buffer.from(purpose), 32));
   const bind = (aad) => {
     if (typeof aad !== 'string' || !aad) throw new Error('sealer: aad is required');
     return Buffer.from(`grapim seal v2\n${aad}`, 'utf8');

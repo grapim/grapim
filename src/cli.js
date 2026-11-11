@@ -63,6 +63,10 @@ const HELP = `grapim: lets many coding agents work in one repo without overwriti
   grapim folder <workspace-url> <dir> [--watch] [--once] [--force] [--token-env NAME]
                                keep a local folder and a workspace in sync both ways (token from
                                $GRAPIM_WORKSPACE_TOKEN; edits on both sides merge or keep both)
+  grapim mount <workspace-url> [drive-letter | mount-point]
+                               the workspace as a network drive (WebDAV): on Windows with a
+                               letter it runs net use, elsewhere it prints the steps (token
+                               from $GRAPIM_WORKSPACE_TOKEN, never the command line)
   grapim provenance pr <base>..<head> [--json]
                                the AI provenance summary a pull request gets (git blame + notes)
   grapim hook                 Claude Code hook entry point (reads JSON on stdin)
@@ -319,6 +323,12 @@ export async function main(argv) {
     // Its own flag parsing too (--watch, --once and --force take no value).
     const { folderMain } = await import('./folder-sync.js');
     return folderMain(args);
+  }
+
+  if (cmd === 'mount') {
+    // The workspace as a network drive (WebDAV); token from $GRAPIM_WORKSPACE_TOKEN.
+    const { mountMain } = await import('./mount.js');
+    return mountMain(args);
   }
 
   if (cmd === 'provenance' && args[0] === 'pr') {

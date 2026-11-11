@@ -27,7 +27,10 @@ const rpcError = (res, status, code, message, id = null) => sendJson(res, status
 // the hub refuses write tools to read-only workspace tokens.
 // offload (the hub, src/server/offload.js) runs the heavy tools off the event
 // loop; their replies are awaited one message at a time, in order.
-export function createMcpHttp({ store, ws, workspace, authorizeTool = null, offload = null }) {
+// readable(req) (optional): null when the caller sees everything, else
+// (path, 'file' | 'dir') -> whether it may see it (src/scope.js reader): the
+// tools that list or summarise leave out what it cannot read.
+export function createMcpHttp({ store, ws, workspace, authorizeTool = null, offload = null, readable = null }) {
   const sessions = new Map();
 
   function open(name, clientName) {
@@ -109,15 +112,19 @@ export function createMcpHttp({ store, ws, workspace, authorizeTool = null, offl
           await authorizeTool(req, String(m.params?.name ?? ''), m.params?.arguments ?? {});
         } catch (err) {
           if (!(err instanceof HttpError)) throw err;
-          // Nothing in the request runs: refused as a whole, with the HTTP status.
-          return rpcError(res, err.status, -32003, err.message, m.id ?? null);
+          // Nothing in the request runs: refused as a whole, with the HTTP
+          // status. A path outside the caller's scope is "not found", but
+          // over HTTP 200: a 404 tells an MCP client its session is gone.
+          return rpcError(res, err.status === 404 ? 200 : err.status, -32003, err.message, m.id ?? null);
         }
       }
     }
     s.seen = Date.now();
+    const view = readable ? readable(req) : null;
+    const rpc = view ? createRpc({ tools: { list: s.tools.list, call: (n, a) => s.tools.call(n, a, { view }) }, instructions: INSTRUCTIONS + WORKSPACE_NOTE }) : s.rpc;
     const replies = [];
     for (const m of messages) {
-      const reply = s.rpc(m);
+      const reply = rpc(m);
       replies.push(reply?.then ? await reply : reply);
     }
     const sent = replies.filter(Boolean);

@@ -10,16 +10,29 @@
 //   row keeps deleted_at, so every URL and token of it stops working. Purging
 //   the trash is v1; until then its bytes still count toward the team quota.
 // - Workspace tokens (gws_...) are 256-bit, stored as sha256, shown once,
-//   scoped to one workspace and to read or write. Their name is the agent
+//   scoped to one workspace and to read or write, and optionally limited to
+//   some folders (scopes, src/scope.js). Their name is the agent
 //   namespace (http:<token-name>/<X-Grapim-Agent>), so it is unique in the
 //   workspace for good and may not hold "/" or "@".
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { cleanScopes } from '../scope.js';
 import { tx } from './db.js';
 import { HttpError } from './http.js';
 import { randomId, randomToken, same, sha256 } from './secure.js';
+
+// A token's stored folder rules as a list, or null for the whole workspace.
+const parseRules = (text) => {
+  if (!text) return null;
+  try {
+    const list = JSON.parse(text);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+};
 
 export const WS_TOKEN_PREFIX = 'gws_';
 export const NAME_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
@@ -169,13 +182,21 @@ export class Workspaces {
 
   // ---- Tokens ----
 
-  // opts (the platform API): { expiresAt (ms), agentName (pins the run
-  // identity to <name>/<agentName>, validated by the caller) }.
-  createToken(ws, actor, rawName, rawScope, { expiresAt = null, agentName = null } = {}) {
+  // opts: { expiresAt (ms), agentName (pins the run identity to
+  // <name>/<agentName>, validated by the caller) } from the platform API, and
+  // scopes: [{ path, access }], the folders the token is limited to
+  // (src/scope.js; null or [] for the whole workspace).
+  createToken(ws, actor, rawName, rawScope, { expiresAt = null, agentName = null, scopes = null } = {}) {
     const name = String(rawName ?? '').trim();
     if (!TOKEN_NAME_RE.test(name)) throw new HttpError(400, 'bad_request', 'Name the token with 1 to 40 letters, digits, dots, dashes or underscores (it prefixes the agent names in the ledger).');
     const scope = rawScope === 'read' ? 'read' : rawScope === 'write' ? 'write' : null;
     if (!scope) throw new HttpError(400, 'bad_request', 'Pick read or write access.');
+    let rules;
+    try {
+      rules = cleanScopes(scopes, { tokenScope: scope });
+    } catch (err) {
+      throw new HttpError(400, 'bad_request', err.message);
+    }
     const token = WS_TOKEN_PREFIX + randomToken(32);
     const id = randomId(9);
     tx(this.db, () => {
@@ -186,22 +207,24 @@ export class Workspaces {
         throw new HttpError(409, 'conflict', `A token named ${name} exists or existed in this workspace. Its agents keep that name in the history, so pick another.`);
       }
       this.db
-        .prepare('INSERT INTO workspace_tokens (id, workspace_id, team_id, user_id, name, scope, token_hash, hint, created_at, expires_at, agent_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(id, ws.id, ws.team_id, actor.userId, name, scope, sha256(token), token.slice(-4), this.now(), expiresAt, agentName);
+        .prepare('INSERT INTO workspace_tokens (id, workspace_id, team_id, user_id, name, scope, token_hash, hint, created_at, expires_at, agent_name, scopes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(id, ws.id, ws.team_id, actor.userId, name, scope, sha256(token), token.slice(-4), this.now(), expiresAt, agentName, rules ? JSON.stringify(rules) : null);
     });
-    return { id, name, scope, token, expires_at: expiresAt, agent_name: agentName };
+    return { id, name, scope, token, expires_at: expiresAt, agent_name: agentName, scopes: rules };
   }
 
   // Owners see every live token of the workspace; members see their own.
+  // scopes: the token's folder rules, or null for the whole workspace.
   tokens(ws, actor) {
     return this.db
       .prepare(
-        `SELECT t.id, t.name, t.scope, t.hint, t.created_at, t.last_used_at, t.user_id, u.login AS owner
+        `SELECT t.id, t.name, t.scope, t.scopes, t.hint, t.created_at, t.last_used_at, t.user_id, u.login AS owner
          FROM workspace_tokens t LEFT JOIN users u ON u.id = t.user_id
          WHERE t.workspace_id = ? AND t.revoked_at IS NULL AND (t.expires_at IS NULL OR t.expires_at > ?) ORDER BY t.created_at DESC`,
       )
       .all(ws.id, this.now())
-      .filter((r) => actor.role === 'owner' || r.user_id === actor.userId);
+      .filter((r) => actor.role === 'owner' || r.user_id === actor.userId)
+      .map((r) => ({ ...r, scopes: parseRules(r.scopes) }));
   }
 
   revokeToken(ws, actor, tokenId) {

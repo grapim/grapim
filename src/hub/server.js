@@ -25,10 +25,12 @@ import { Router } from './router.js';
 import { randomId, same } from './secure.js';
 import { Teams } from './teams.js';
 import { createWorkspaceMount } from './workspace-mount.js';
+import { createConnectors } from './connectors.js';
 import { createComputePool } from './compute-pool.js';
 import { createPlatform } from './platform/index.js';
 import { createGitHubApp } from './github/index.js';
 import { createWorkspaceStorage, defaultStorageUrl, loadStorage } from './workspace-storage.js';
+import { createTeamStorage } from './team-storage.js';
 import { Workspaces } from './workspaces.js';
 import { errorPage } from './pages/layout.js';
 import { apiRoutes } from './routes-api.js';
@@ -40,7 +42,8 @@ const defaultLog = (line) => process.stdout.write(`${new Date().toISOString()} $
 
 // options: { env | config, fetch, now, billing (object, or null for off; omitted: load billing.js), log,
 //   storage (a storage backend for workspace files, or null for none; omitted: HUB_STORAGE_URL), uiDir,
-//   compute (options for the workspace compute pool: { size, budgetMs, perTeam }) }
+//   compute (options for the workspace compute pool: { size, budgetMs, perTeam }),
+//   connectors (options for the SaaS connectors, src/hub/connectors.js: tests point Notion at a fake) }
 export async function createHub(options = {}) {
   const config = options.config ?? loadConfig(options.env ?? process.env);
   const now = options.now ?? (() => Date.now());
@@ -86,7 +89,19 @@ export async function createHub(options = {}) {
   const storageUrl = String(env.HUB_STORAGE_URL ?? '').trim() || defaultStorageUrl(config.dataDir);
   const loaded = await loadStorage({ url: storageUrl, env, log, storage: options.storage });
   if (loaded) log(`workspace storage: ${storageUrl.startsWith('file:') ? 'the local folder' : storageUrl.split('?')[0].replace(/\/\/[^@/]*@/, '//')}${options.storage ? ' (given)' : ''}`);
-  hub.restored = hub.mount.boot(loaded ? createWorkspaceStorage({ ...loaded, log, now }) : null);
+  // A team's own bucket (docs/storage.md): the workspace storage writes
+  // through a router that sends each team's keys to its store, both during a move.
+  hub.teamStorage = createTeamStorage(hub, {
+    defaultStorage: loaded?.storage ?? null,
+    resolve: options.platform?.resolve,
+    ...(options.teamStorage ?? {}),
+  });
+  await hub.teamStorage.ready;
+  hub.restored = hub.mount.boot(loaded ? createWorkspaceStorage({ ...loaded, storage: hub.teamStorage.router ?? loaded.storage, log, now }) : null);
+  hub.teamStorage.resume();
+  // SaaS connectors (docs/connectors.md): Notion pages as files under saas/notion/.
+  hub.connectors = createConnectors(hub, options.connectors ?? {});
+  hub.connectors.boot();
 
   const router = new Router();
   pageRoutes(router, hub);
@@ -98,6 +113,7 @@ export async function createHub(options = {}) {
   // The GitHub App (docs/provenance.md section 6): webhooks, linking, PR comments and checks.
   hub.github = createGitHubApp(hub, { env, fetch: fetchImpl, ...(options.github ?? {}) });
   hub.github.routes(router);
+  hub.teamStorage.routes(router);
 
   const wantsJson = (p) => p.startsWith('/hub/api/') || p.startsWith('/hub/stripe/');
 
@@ -171,7 +187,9 @@ export async function createHub(options = {}) {
       // sandboxes share a few egress addresses (with other platforms' too),
       // and each valid token has its own limit in the mount. Bad tokens are
       // still counted per address there (syncIp).
-      const agentCall = req.url.startsWith('/w/') && /^Bearer\s+gws_/i.test(String(req.headers.authorization || ''));
+      // A mounted drive (/dav) sends the token as a Basic password.
+      const wsAuth = String(req.headers.authorization || '');
+      const agentCall = req.url.startsWith('/w/') && (/^Bearer\s+gws_/i.test(wsAuth) || (/^Basic\s/i.test(wsAuth) && /^\/w\/[^/?]+\/[^/?]+\/dav(?:[/?]|$)/.test(req.url)));
       limit(ctx, v1 || agentCall ? 'platformIp' : 'global', ctx.ip);
 
       // A cloud workspace: decided on the raw target, never on a normalised
@@ -291,11 +309,14 @@ export async function createHub(options = {}) {
       clearInterval(sweep);
       hub.platform.close();
       hub.github.close();
+      hub.teamStorage.close();
+      const connectorsDone = hub.connectors.close();
       bus.emit('close');
       server.closeAllConnections?.();
       server.close(async () => {
         try {
           await hub.restored;
+          await connectorsDone; // pulls in flight finish before their engines close
           await hub.mount.closeAll();
           await hub.compute.close();
         } catch {}

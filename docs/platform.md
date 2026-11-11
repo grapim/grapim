@@ -17,12 +17,12 @@ JSON in and out. Errors use `{ "error": { "code", "message", "request_id" } }`. 
 
 | Method and path | What it does |
 |---|---|
-| `POST /v1/workspaces` | `{ external_id?, name?, metadata? }` creates a workspace. Returns the workspace object |
+| `POST /v1/workspaces` | `{ external_id?, name?, metadata?, template? }` creates a workspace. `template` is `blank` (default), `agent-team`, `research` or `data` (docs/workspaces.md 1b). Returns the workspace object |
 | `GET /v1/workspaces` | List, filter `?external_id=` |
 | `GET /v1/workspaces/:id` | One workspace: `{ id, object: "workspace", external_id, name, metadata, created_at, expires_at, url, mcp_url, fs_url, usage: { bytes, writes_30d } }` |
 | `PATCH /v1/workspaces/:id` | Update `name` and `metadata` |
 | `DELETE /v1/workspaces/:id` | Soft delete |
-| `POST /v1/workspaces/:id/tokens` | `{ scope: "read"|"write", ttl_seconds?, agent_name? }` returns `{ token, expires_at, scope }`, shown once. `agent_name` pins the run identity (`http:<token-name>/<agent_name>`) |
+| `POST /v1/workspaces/:id/tokens` | `{ scope: "read"|"write", ttl_seconds?, agent_name?, scopes? }` returns `{ token, expires_at, scope, scopes }`, shown once. `agent_name` pins the run identity (`http:<token-name>/<agent_name>`); `scopes` limits the token to some folders (docs/workspaces.md 1a) |
 | `DELETE /v1/workspaces/:id/tokens/:token_id` | Revoke a token |
 | `POST /v1/workspaces/:id/embed_sessions` | `{ ttl_seconds? (default 600, max 3600), mode: "review"|"readonly", theme?: "light"|"dark"|"system" }` returns `{ url, expires_at }`. `url` opens the review desk for that workspace with no Grapim login. It is single-use to establish an embed cookie scoped to that workspace path, and can be framed only by the platform's allowed origins |
 | `GET /v1/workspaces/:id/runs` | The same run objects as docs/api.md `/api/runs` (convenience proxy) |
@@ -124,7 +124,8 @@ Code: `src/hub/platform/` (`api.js` routes and pipeline, `openapi.js`, `keys.js`
   - At most 36,000 new keys an hour per platform; past that, 429 `rate_limited` (stored keys still replay).
   - 5xx and 429 replies are not kept.
 - **Tokens**:
-  - Body `{ scope, ttl_seconds? (60 to 2,592,000, default 3,600), agent_name? ([A-Za-z0-9._-]{1,60}), name? }`. Reply `{ id, object: "workspace_token", token, scope, name, agent_name, expires_at }`.
+  - Body `{ scope, ttl_seconds? (60 to 2,592,000, default 3,600), agent_name? ([A-Za-z0-9._-]{1,60}), name?, scopes? }`. Reply `{ id, object: "workspace_token", token, scope, scopes, name, agent_name, expires_at }`.
+  - `scopes`: at most 32 `{ path, access }` rules, e.g. `[{ "path": "docs/**", "access": "read" }, { "path": "docs/drafts/**", "access": "write" }]`. Outside them the token gets 404 on reads and 403 on writes; the most specific rule wins. A read token cannot have write rules. Bad rules are 400 `invalid_request`. Absent or `[]`: the whole workspace (`scopes: null` in the reply). Rules are in docs/workspaces.md 1a.
   - With `agent_name`, every run of the token is `http:<name>/<agent_name>`, over `/fs` and MCP, and `X-Grapim-Agent` is ignored.
   - An expired token gets 401, like a revoked one. Tokens made in the hub UI have no `expires_at` and never expire.
   - Expired tokens do not count toward the 50 live tokens per workspace.

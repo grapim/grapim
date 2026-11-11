@@ -57,6 +57,37 @@ export function lastChanges(store, ws) {
   return new Map(rows.map((r) => [r.path_key, { ts: r.ts, label: r.label, run: r.run }]));
 }
 
+// Map(run -> the paths it recorded changes to), for leaving out the runs a
+// scoped token cannot see (src/scope.js).
+export function pathsByRun(store) {
+  const out = new Map();
+  for (const r of store.db.prepare('SELECT DISTINCT run, path FROM changes').all()) {
+    if (!out.has(r.run)) out.set(r.run, []);
+    out.get(r.run).push(r.path);
+  }
+  return out;
+}
+
+// The events a scoped caller may see: those about a file it can read; without
+// a file, an intent (agents announce those to every agent anyway), or a
+// review, branch or template event of a run it can see: a review note or a
+// template's file list describes that run's files (security review batch 5, L2).
+// runsOf() -> Set of the run ids the caller can see (asked at most once).
+export function scopedEvents(runsOf, view, events) {
+  let runs = null;
+  return events.filter((e) => {
+    if (e.path !== null && e.path !== undefined) return view(e.path);
+    if (e.kind === 'intent') return true;
+    runs ??= runsOf();
+    return runs.has(e.agent);
+  });
+}
+
+// The paths that ever had this content (a stored version), for scope checks.
+export function pathsOfVersion(store, sha) {
+  return store.db.prepare('SELECT DISTINCT path FROM changes WHERE before_sha = ? OR after_sha = ?').all(sha, sha).map((r) => r.path);
+}
+
 // The run's intent events, oldest first: what it said it was working on, and when.
 export function intentsOf(store, agent) {
   return store.db.prepare(`SELECT ts, detail FROM events WHERE agent = ? AND kind = 'intent' ORDER BY id`).all(agent);

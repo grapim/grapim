@@ -123,7 +123,7 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
 </section>`;
 }
 
-export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, github = null, revealed = null, notice = null, error = null }) {
+export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, github = null, storage = null, revealed = null, notice = null, error = null }) {
   const owner = role === 'owner';
   return layout({
     title: `${team.name} settings`,
@@ -214,6 +214,8 @@ ${owner
 ${billingSection({ team, role, csrf, limits, seatsUsed, billing })}
 
 ${github ?? ''}
+
+${storage ?? ''}
 
 ${owner && team.kind !== 'platform'
   ? html`<section class="card" id="platform" aria-labelledby="platform-title">

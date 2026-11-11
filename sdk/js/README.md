@@ -43,7 +43,7 @@ const { url } = await grapim.embedSessions.create(ws.id, { mode: 'review', theme
 | `runs` | `list(workspaceId)`, `undo(workspaceId, run, { turn?, apply? })` |
 | `usage` | `get({ from?, to?, group_by? })` (a `Date` becomes `YYYY-MM-DD`, UTC) |
 | `webhooks` | `create({ url, events })`, `list()`, `delete(id)` |
-| `settings` | `update({ embed_allowed_origins })` |
+| `settings` | `update({ embed_allowed_origins?, workspace_storage_mb?, storage? })` (`storage`: your own S3, R2, GCS or Azure bucket, live keys only; `null` moves back to the hub's storage) |
 
 Request and response bodies keep the API's own snake_case names. Every method takes a last argument `{ signal?, idempotencyKey? }`.
 

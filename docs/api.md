@@ -6,7 +6,8 @@ This is the contract shared by the server (`src/server/`), the review desk UI (`
 - the review desk UI from `ui/` at `/`;
 - the JSON API at `/api/*`;
 - the agent workspace at `/fs/*` (the "Dropbox" half);
-- MCP over HTTP at `/mcp`.
+- MCP over HTTP at `/mcp`;
+- the workspace as a network drive (WebDAV) at `/dav/`.
 
 It works on the repo containing the current directory, the same state file the hooks and CLI use.
 
@@ -184,6 +185,16 @@ Paths are refused (400) if they contain `..`, `.`, empty parts, backslashes, con
 - `.envrc`: direnv runs it on entering the folder.
 
 The developer can still edit them by hand. To let agents write them (all but `.git`), start the server with `GRAPIM_ALLOW_SENSITIVE_WRITES=1` in its environment.
+
+## WebDAV: `/dav/` (the workspace as a network drive)
+
+The same files as `/fs`, for Windows File Explorer, macOS Finder, GNOME Files and davfs2. The steps, the hub's auth rules and the details are in docs/workspaces.md section 5.
+
+- Methods: `OPTIONS` (`DAV: 1, 2`, `MS-Author-Via: DAV`), `PROPFIND` (Depth 0 or 1; infinity or no Depth is 403), `GET`, `HEAD`, `PUT`, `DELETE`, `MKCOL`, `MOVE`, `COPY`, `PROPPATCH` (accepted and ignored, 207), `LOCK`, `UNLOCK`. Status codes follow RFC 4918: 201 created, 204 replaced or deleted, 207 multistatus, 409 for a missing parent folder, 412 for `Overwrite: F` on an existing destination or a refresh without a known lock, 415 for a MKCOL body, 423 for a locked or claimed file, 502 for a `Destination` on another host or outside this `/dav/`. Other errors use the JSON shape above.
+- Writes are `/fs` writes: claim, ledger, atomic write, sensitive files refused (403), the same path rules. `MOVE` is a recorded create plus a recorded delete in one run; `COPY` is a recorded create. The run is `http:dav-<client>` (`windows`, `macos`, `linux` or `dav`, from the User-Agent); `X-Grapim-Agent` is ignored. A write without a lock releases its claim when it finishes.
+- `LOCK` takes an exclusive write lock on a file (at most 30 minutes) and claims it in the ledger for that time; writes to it then need the lock token in `If` and the same agent. `UNLOCK` with `Lock-Token` releases it.
+- `desktop.ini`, `Thumbs.db`, `.DS_Store` and `._*` are kept in memory only, never written or recorded.
+- On `grapim serve`, `/dav` answers only connections from this machine. With `GRAPIM_TOKEN` set, send it as the Basic password (any user name) or as a Bearer token; a missing or wrong one is 401 with `WWW-Authenticate: Basic realm="Grapim"`.
 
 ## MCP over HTTP: `POST /mcp`
 
