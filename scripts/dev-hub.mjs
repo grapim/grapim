@@ -8,6 +8,13 @@
 // --slow delays every page and form request (not static files) by that many
 // milliseconds, to see and capture the waiting states.
 //
+// Ask Grapim answers from a local stand-in for the Anthropic API
+// (scripts/fake-anthropic.mjs), so it can be demoed without a key:
+//   --no-agent           the "not set up" state instead (no key)
+//   --agent-think <ms>   the wait before the first token (default 700)
+//   --agent-delay <ms>   the pause between streamed chunks (default 30)
+//   --agent-tool <ms>    how long each tool seems to take (default 0)
+//
 // Seeds (in a fresh folder unless --data is given):
 // - "Acme" (governance): five synced repos with 12 weeks of runs and provenance
 //   (scripts/seed-reports.mjs), three members, hub reviews on older runs and a
@@ -28,6 +35,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHub } from '../src/hub/server.js';
+import { demoBrain, startFakeAnthropic } from './fake-anthropic.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const args = process.argv.slice(2);
@@ -52,9 +60,17 @@ const TEAM = 'acme-demo-gov';
 
 if (fresh) execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'seed-reports.mjs'), '--data', dataDir, '--reset', '--owner', '1001', 'demo'], { stdio: 'inherit' });
 
+// Ask Grapim talks to a local stand-in for the Anthropic API (scripts/fake-anthropic.mjs):
+// no key, nothing sent. --no-agent shows the "not set up" state instead;
+// --agent-delay <ms> slows each streamed chunk (default 30) to watch it stream.
+const agentOn = !args.includes('--no-agent');
+// --agent-think <ms> is the wait before the first token, --agent-tool <ms> how long each tool seems to take.
+const fakeModel = agentOn ? await startFakeAnthropic({ script: demoBrain(), chunk: 6, delayMs: Number(opt('agent-delay', 30)) || 0, firstTokenMs: Number(opt('agent-think', 700)) || 0 }) : null;
+
 const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
 const hub = await createHub({
   env: {
+    ...(agentOn ? { ANTHROPIC_API_KEY: 'dev-hub-fake-key', ANTHROPIC_BASE_URL: fakeModel.url } : {}),
     HUB_URL: ORIGIN,
     HUB_SECRET: crypto.createHash('sha256').update(`dev-hub ${dataDir}`).digest('hex'),
     HUB_DATA: dataDir,
@@ -75,6 +91,14 @@ const hub = await createHub({
 });
 const { db } = hub;
 const now = Date.now();
+const toolMs = Number(opt('agent-tool', 0)) || 0;
+if (toolMs) {
+  const run = hub.agent.tools.run;
+  hub.agent.tools.run = async (...a) => {
+    await new Promise((r) => setTimeout(r, toolMs));
+    return run(...a);
+  };
+}
 
 async function seedMore() {
   const repoId = (name) => sha1(`${TEAM} ${name} root`);
@@ -197,6 +221,7 @@ console.log(`  empty team: ${ORIGIN}/hub/teams/${extra.empty?.id}`);
 
 const stop = () => {
   server.close();
+  fakeModel?.close();
   hub.close().finally(() => process.exit(0));
 };
 process.on('SIGINT', stop);

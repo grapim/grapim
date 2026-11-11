@@ -322,6 +322,13 @@ test('roles: a member cannot do owner things on any team route, nor touch anothe
     'POST /hub/teams/:team/workspaces',
     'POST /hub/teams/:team/workspaces/:ws/rename',
     'POST /hub/teams/:team/workspaces/:ws/tokens',
+    // Ask Grapim (src/hub/agent/) is for every member: these only talk to the
+    // assistant or record a decision on a proposal; any write it proposes goes
+    // through the page route above, with that route's own role check.
+    'POST /hub/api/teams/:team/agent/messages',
+    'POST /hub/api/teams/:team/agent/stop',
+    'POST /hub/api/teams/:team/agent/new',
+    'POST /hub/api/teams/:team/agent/actions',
   ]);
   const before = JSON.stringify(db.prepare('SELECT * FROM invites').all()) + JSON.stringify(db.prepare('SELECT * FROM members').all());
   for (const r of h.hub.router.routes.filter((x) => x.opts.team && x.method === 'POST')) {
@@ -556,7 +563,7 @@ test('synced strings and names are escaped on every page; no inline script', asy
     assert.ok([200, 404].includes(r.status), `${p}: ${r.status}`);
     assert.doesNotMatch(r.text, /<script>alert|<img src=x/i, `${p} renders synced text as HTML`);
     assert.match(r.headers.get('content-security-policy'), /script-src 'self'/);
-    for (const s of r.text.match(/<script[^>]*>/g) ?? []) assert.match(s, /src="\/hub\/static\/(hub|theme|sidebar)\.js"/, `inline script on ${p}`);
+    for (const s of r.text.match(/<script[^>]*>/g) ?? []) assert.match(s, /src="\/hub\/static\/(hub|theme|sidebar|agent)\.js"/, `inline script on ${p}`);
     // Attribute values are escaped text; only real attribute names count.
     assert.doesNotMatch(r.text.replace(/"[^"]*"/g, '""'), /<[^>]*\s(style|on[a-z]+)=/i, `inline style or handler on ${p}`);
   }

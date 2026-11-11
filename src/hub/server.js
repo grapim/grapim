@@ -35,6 +35,7 @@ import { createTeamStorage } from './team-storage.js';
 import { Workspaces } from './workspaces.js';
 import { errorPage } from './pages/layout.js';
 import { apiRoutes } from './routes-api.js';
+import { createAgent } from './agent/index.js';
 import { pageRoutes } from './routes-pages.js';
 
 const PAGES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'pages');
@@ -83,6 +84,8 @@ export async function createHub(options = {}) {
     '/hub/static/hub.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, 'hub.css'))],
     '/hub/static/theme.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, 'theme.js'))],
     '/hub/static/hub.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, 'hub.js'))],
+    // Ask Grapim's panel (src/hub/agent/): same-origin calls only, no inline code.
+    '/hub/static/agent.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, 'agent.js'))],
     // The design tokens the review desk uses too (ui/tokens.css): one source, no drift.
     '/hub/static/tokens.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'tokens.css'))],
     // Self-hosted type (ui/fonts, SIL OFL): tokens.css asks for fonts/<file> next to itself.
@@ -114,10 +117,14 @@ export async function createHub(options = {}) {
   hub.connectors = createConnectors(hub, options.connectors ?? {});
   hub.connectors.boot();
 
+  // Ask Grapim (docs/security-agent.md): off, and hidden from members, without ANTHROPIC_API_KEY.
+  hub.agent = createAgent(hub, { env, ...(options.agent ?? {}) });
+
   const router = new Router();
   pageRoutes(router, hub);
   apiRoutes(router, hub);
   reportRoutes(router, hub);
+  hub.agent.routes(router);
   // Grapim for platforms (docs/platform.md): /v1 has its own router; its hub pages join this one.
   hub.platform = createPlatform(hub, { env, fetch: fetchImpl, ...(options.platform ?? {}) });
   hub.platform.pageRoutes(router);
@@ -331,6 +338,7 @@ export async function createHub(options = {}) {
   hub.close = () =>
     (closing ??= new Promise((resolve) => {
       clearInterval(sweep);
+      hub.agent.close();
       hub.platform.close();
       hub.github.close();
       hub.teamStorage.close();

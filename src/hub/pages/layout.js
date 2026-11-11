@@ -95,6 +95,7 @@ function paletteSource(team, shell) {
   ${shell.palette.workspaces.map((w) => item('Workspaces', `/w/${team.id}/${w.name}/`, `Open ${w.name} in the review desk`, 'review desk'))}
   ${SETTINGS_SECTIONS.filter((s) => owner || !s.owner).map((s) => item('Settings', `${base}/settings#${s.id}`, s.label, 'settings'))}
   ${shell.teams.filter((t) => t.id !== team.id).map((t) => item('Switch team', `/hub/teams/${t.id}`, t.name, `${t.role} · created ${date(t.created_at)}`))}
+  ${shell.agent ? html`<a href="#" data-action="agent" data-group="Help" data-hint="Ctrl J">Ask Grapim</a>` : ''}
   <a href="#" data-action="help" data-group="Help" data-hint="?">Show keyboard shortcuts</a>
 </template>`;
 }
@@ -121,6 +122,7 @@ function head(title) {
 <link rel="stylesheet" href="/hub/static/shell.css">
 <link rel="stylesheet" href="/hub/static/hub.css">
 <script src="/hub/static/hub.js" defer></script>
+<script src="/hub/static/agent.js"></script>
 </head>`;
 }
 
@@ -162,6 +164,19 @@ function profileMenu({ user, team, me, csrf, shell }) {
 
 const MOD = html`<kbd class="mod">Ctrl</kbd><kbd>K</kbd>`;
 
+// Ask Grapim (src/hub/agent/): the sidebar button and the panel's mount
+// point. /hub/static/agent.js builds the panel; shell.agent is null when the
+// person should not see it (a member, before the hub has an API key).
+function askButton(shell) {
+  if (!shell.agent) return '';
+  return html`<button class="ask-btn" type="button" data-action="agent" aria-controls="agent" aria-expanded="false">${icon('spark')}<span>Ask Grapim</span><kbd class="mod">Ctrl</kbd><kbd>J</kbd></button>`;
+}
+
+function agentRoot(team, csrf, shell) {
+  if (!shell.agent) return '';
+  return html`<aside class="agent-panel" id="agent" aria-label="Ask Grapim" tabindex="-1" hidden data-team="${team.id}" data-csrf="${csrf}" data-configured="${shell.agent.configured ? '1' : '0'}" data-role="${shell.role}"></aside>`;
+}
+
 function shellPage({ title, user, team, csrf, crumbs, body, wide, shell }) {
   const current = currentSection(team, shell.path);
   const me = shell.teams.find((t) => t.id === team.id) ?? { ...team, role: shell.role };
@@ -173,6 +188,7 @@ function shellPage({ title, user, team, csrf, crumbs, body, wide, shell }) {
   <aside class="side" aria-label="Team">
     <a class="brand" href="/hub">${LOGO}<span>Grapim</span></a>
     <button class="search-btn" type="button" data-action="palette">${icon('search')}<span>Jump to…</span>${MOD}</button>
+    ${askButton(shell)}
     <nav class="nav" aria-label="Team sections">${navLinks(team, shell, current)}</nav>
     <div class="side-foot">
       ${profileMenu({ user, team, me, csrf, shell })}
@@ -183,6 +199,7 @@ function shellPage({ title, user, team, csrf, crumbs, body, wide, shell }) {
       <a class="brand" href="/hub" aria-label="Grapim, all teams">${LOGO}</a>
       <span class="topbar-team">${team.name}</span>
       <button class="icon-btn" type="button" data-action="palette" aria-label="Search or jump to">${icon('search')}</button>
+      ${shell.agent ? html`<button class="icon-btn" type="button" data-action="agent" aria-controls="agent" aria-expanded="false" aria-label="Ask Grapim">${icon('spark')}</button>` : ''}
       <details class="mnav" data-menu>
         <summary class="icon-btn" aria-label="Menu">${icon('menu')}</summary>
         <div class="menu menu-sheet">
@@ -199,6 +216,7 @@ function shellPage({ title, user, team, csrf, crumbs, body, wide, shell }) {
       ${body}
     </main>
   </div>
+  ${agentRoot(team, csrf, shell)}
 </div>
 ${paletteSource(team, shell)}
 <dialog id="hub-dialog" aria-label="Dialog"></dialog>

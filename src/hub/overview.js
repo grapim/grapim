@@ -182,6 +182,8 @@ export function createOverview(hub) {
       role,
       teams: teamsOf(user.id),
       reviews: waiting.length,
+      // Ask Grapim's entry points: null hides them (a member, before it is set up).
+      agent: hub.agent?.shellInfo(role) ?? null,
       palette: {
         repos: q('SELECT id, COALESCE(github, name) AS name FROM repos WHERE team_id = ? ORDER BY COALESCE(last_sync_at, created_at) DESC LIMIT 50').all(team.id),
         workspaces: hub.workspaces.live(team.id).slice(0, 50).map((w) => ({ id: w.id, name: w.name })),

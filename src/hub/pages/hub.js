@@ -134,7 +134,7 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('submit', (e) => {
   const form = e.target.closest('form');
-  if (!form) return;
+  if (!form || e.defaultPrevented) return; // a script handles it (Ask Grapim's composer)
   if (form.dataset.busy) {
     e.preventDefault(); // one submit per form
     return;
@@ -232,7 +232,7 @@ const keys = (s) => s.split(' ').map((k) => el('kbd', { text: k }));
 
 function openHelp() {
   const groups = [
-    ['Go to', $$('.side .nav-item[data-g]').map((a) => [a.firstChild?.nextSibling?.textContent?.trim() || a.textContent.trim(), `g ${a.dataset.g}`]).concat([['Search or jump to…', `${MOD} K`]])],
+    ['Go to', $$('.side .nav-item[data-g]').map((a) => [a.firstChild?.nextSibling?.textContent?.trim() || a.textContent.trim(), `g ${a.dataset.g}`]).concat([['Search or jump to…', `${MOD} K`]], $('.ask-btn') ? [['Ask Grapim', `${MOD} J`]] : [])],
     ['Anywhere', [['Show this list', '?'], ['Close a menu or dialog', 'Esc']]],
   ];
   const body = el('div', { class: 'dlg' },
@@ -338,6 +338,8 @@ function openPalette() {
     if (!it) return;
     dialog.close();
     if (it.action === 'help') return setTimeout(openHelp);
+    // Other actions belong to other scripts (agent.js opens Ask Grapim).
+    if (it.action) return setTimeout(() => document.dispatchEvent(new CustomEvent('grapim:action', { detail: it.action })));
     if (it.href) {
       navStart();
       location.href = it.href;

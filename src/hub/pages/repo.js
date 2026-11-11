@@ -154,7 +154,10 @@ export function runPage({ user, csrf, team, repo, detail, review = null }) {
     <h1 class="run-title">${r.intent || r.label}</h1>
     ${state ? reviewBadge(state) : ''}
   </div>
-  ${review ? html`<div class="run-bar-actions" role="group" aria-label="Review">${reviewActions({ review, state })}</div>` : ''}
+  <div class="run-bar-actions">
+    <button class="btn btn-ghost ask-run" type="button" hidden data-agent-ask="Summarize this run: what it changed and why, whether its lines are still in the tree, and anything a reviewer should check before approving.">${icon('spark')}Ask about this run</button>
+    ${review ? html`<span class="run-bar-review" role="group" aria-label="Review">${reviewActions({ review, state })}</span>` : ''}
+  </div>
 </header>
 <div class="run-meta">
   ${agent(r.label, kindOf(r.run))}
