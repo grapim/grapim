@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { PROVENANCE_SCHEMA } from './provenance.js';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -169,11 +170,46 @@ CREATE TABLE IF NOT EXISTS billing_events (
   team_id    TEXT NOT NULL,
   applied_at INTEGER NOT NULL
 );
--- Approximate bytes each team has synced (blobs plus rows), for the storage quota.
+-- Approximate bytes each team has synced (blobs plus rows), for the storage
+-- quota. Cloud workspaces add the bytes of their folders (src/hub/workspaces.js).
 CREATE TABLE IF NOT EXISTS team_usage (
   team_id TEXT PRIMARY KEY,
   bytes   INTEGER NOT NULL
 );
+
+-- Cloud workspaces (docs/workspaces.md section 1): a git repo per row at
+-- HUB_DATA/workspaces/<team_id>/<id>/. The name is the URL segment
+-- (/w/<team_id>/<name>/), unique among a team's live workspaces. Deleting is
+-- soft: the folder moves to HUB_DATA/trash/ and deleted_at is set.
+CREATE TABLE IF NOT EXISTS workspaces (
+  id         TEXT PRIMARY KEY,
+  team_id    TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  created_by INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  bytes      INTEGER NOT NULL DEFAULT 0   -- the folder's size as last measured, counted in team_usage
+);
+CREATE UNIQUE INDEX IF NOT EXISTS workspaces_live_name ON workspaces(team_id, name) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS workspaces_team ON workspaces(team_id);
+-- Workspace tokens (gws_...): one workspace each, read or write. Only the
+-- sha256 is stored. The name is unique in its workspace for good (revoked
+-- tokens keep theirs), because it is the agent namespace: http:<name>/<agent>.
+CREATE TABLE IF NOT EXISTS workspace_tokens (
+  id           TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  team_id      TEXT NOT NULL,
+  user_id      INTEGER NOT NULL,
+  name         TEXT NOT NULL,
+  scope        TEXT NOT NULL CHECK (scope IN ('read', 'write')),
+  token_hash   TEXT NOT NULL UNIQUE,
+  hint         TEXT NOT NULL,
+  created_at   INTEGER NOT NULL,
+  last_used_at INTEGER,
+  revoked_at   INTEGER,
+  UNIQUE (workspace_id, name)
+);
+CREATE INDEX IF NOT EXISTS workspace_tokens_ws ON workspace_tokens(workspace_id);
 `;
 
 export function openDb(dataDir) {
@@ -184,6 +220,31 @@ export function openDb(dataDir) {
   db.exec('PRAGMA synchronous = NORMAL');
   db.exec('PRAGMA foreign_keys = ON');
   db.exec(SCHEMA);
+  // Columns added after v0 shipped, for hub.db files made before them.
+  // teams.storage_url: a team's own bucket for workspace files (owner-only,
+  // stored as given). TODO(v1): per-team storage credentials, and using it.
+  if (!db.prepare('PRAGMA table_info(teams)').all().some((c) => c.name === 'storage_url')) db.exec('ALTER TABLE teams ADD COLUMN storage_url TEXT');
+  // Platforms (docs/platform.md): a team's kind, and what the platform API
+  // adds to workspaces and their tokens. The platform's own tables are in
+  // src/hub/platform/schema.js.
+  const addColumn = (table, name, type) => {
+    if (!db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
+  };
+  addColumn('teams', 'kind', "TEXT NOT NULL DEFAULT 'team'"); // 'team' | 'platform'
+  addColumn('workspaces', 'external_id', 'TEXT'); // the platform's id for its end customer
+  addColumn('workspaces', 'metadata', 'TEXT'); // JSON, up to 4 KB
+  addColumn('workspaces', 'mode', 'TEXT'); // 'test' for a platform's test-mode workspace, else NULL (live)
+  // Bytes of every version uploaded to storage for this workspace (they also
+  // count in team_usage): with `bytes`, what its own storage limit sees.
+  addColumn('workspaces', 'stored_bytes', 'INTEGER NOT NULL DEFAULT 0');
+  addColumn('workspace_tokens', 'expires_at', 'INTEGER'); // NULL: never (tokens made in the hub UI)
+  addColumn('workspace_tokens', 'agent_name', 'TEXT'); // pins the run identity to <name>/<agent_name>
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS workspaces_external ON workspaces(team_id, COALESCE(mode, 'live'), external_id) WHERE deleted_at IS NULL AND external_id IS NOT NULL");
+  // Provenance (docs/provenance.md section 3): the notes, and the GitHub
+  // repo ("owner/name") a hub repo is synced from, at most one per repo.
+  db.exec(PROVENANCE_SCHEMA);
+  addColumn('repos', 'github', 'TEXT');
+  db.exec('CREATE INDEX IF NOT EXISTS repos_github ON repos(team_id, github COLLATE NOCASE) WHERE github IS NOT NULL');
   return db;
 }
 

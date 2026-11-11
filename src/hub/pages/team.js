@@ -9,11 +9,14 @@ function tabs(team, current) {
     html`<a class="tab" href="${href}" ${current === key ? html`aria-current="page"` : ''}>${label}</a>`;
   return html`<nav class="tabs" aria-label="Team">
   ${tab(`/hub/teams/${team.id}`, 'Repos', 'repos')}
+  ${tab(`/hub/teams/${team.id}/workspaces`, 'Workspaces', 'workspaces')}
+  ${tab(`/hub/teams/${team.id}/reports`, 'Reports', 'reports')}
   ${tab(`/hub/teams/${team.id}/settings`, 'Settings', 'settings')}
+  ${team.kind === 'platform' ? tab(`/hub/teams/${team.id}/platform`, 'Platform', 'platform') : ''}
 </nav>`;
 }
 
-function head(team, current) {
+export function head(team, current) {
   return html`<header class="page-head">
   <h1>${team.name}</h1>
   ${tabs(team, current)}
@@ -57,7 +60,7 @@ ${repos.length
   });
 }
 
-function reveal({ title, value, hint, id }) {
+export function reveal({ title, value, hint, id }) {
   return html`<div class="reveal" role="status" aria-live="polite">
   <p class="reveal-title">${title}</p>
   <div class="reveal-row">
@@ -81,6 +84,7 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
     <div><dt>Seats</dt><dd>${seatsUsed} / ${fmt(limits.seats)}</dd></div>
     <div><dt>History</dt><dd>${limits.historyDays} days</dd></div>
     <div><dt>Repos</dt><dd>${fmt(limits.repos)}</dd></div>
+    <div><dt>Workspaces</dt><dd>${fmt(limits.workspaces ?? 1)}</dd></div>
     ${team.period_end ? html`<div><dt>Renews</dt><dd>${date(team.period_end)}</dd></div>` : ''}
   </dl>
   ${!billing.enabled
@@ -88,17 +92,24 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
     : !owner
       ? html`<p class="fine">Only an owner can change the plan.</p>`
       : html`<div class="billing-actions">
-    ${billing.intervals.length
+    ${billing.intervals.length || billing.governanceIntervals?.length
       ? html`<form method="post" action="/hub/billing/checkout" class="inline-form">
       ${csrfField(csrf)}
       <input type="hidden" name="team" value="${team.id}">
+      ${billing.governanceIntervals?.length
+        ? html`<label class="sr-only" for="plan">Plan</label>
+      <select id="plan" name="plan">
+        ${billing.intervals.length ? html`<option value="team" ${team.plan === 'governance' ? '' : 'selected'}>Team · $20 per seat</option>` : ''}
+        <option value="governance" ${team.plan === 'governance' || !billing.intervals.length ? 'selected' : ''}>Governance · $40 per seat, reports and required review</option>
+      </select>`
+        : ''}
       <label for="seats">Seats</label>
       <input id="seats" name="seats" type="number" min="1" max="1000" value="${Math.max(seatsUsed, team.seats || 0, 1)}" inputmode="numeric" class="input-narrow">
       <label class="sr-only" for="interval">Billing period</label>
       <select id="interval" name="interval">
-        ${billing.intervals.map((i) => html`<option value="${i}">${i === 'month' ? 'Monthly' : 'Yearly'}</option>`)}
+        ${[...new Set([...billing.intervals, ...(billing.governanceIntervals ?? [])])].map((i) => html`<option value="${i}">${i === 'month' ? 'Monthly' : 'Yearly'}</option>`)}
       </select>
-      <button class="btn btn-primary" type="submit">${paid ? 'Change plan' : 'Upgrade to Team'}</button>
+      <button class="btn btn-primary" type="submit">${paid ? 'Change plan' : billing.governanceIntervals?.length ? 'Upgrade' : 'Upgrade to Team'}</button>
     </form>`
       : ''}
     ${team.customer_id
@@ -112,7 +123,7 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
 </section>`;
 }
 
-export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, revealed = null, notice = null, error = null }) {
+export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, github = null, revealed = null, notice = null, error = null }) {
   const owner = role === 'owner';
   return layout({
     title: `${team.name} settings`,
@@ -201,6 +212,15 @@ ${owner
 </section>
 
 ${billingSection({ team, role, csrf, limits, seatsUsed, billing })}
+
+${github ?? ''}
+
+${owner && team.kind !== 'platform'
+  ? html`<section class="card" id="platform" aria-labelledby="platform-title">
+  <div class="card-head"><h2 id="platform-title" class="card-title">Platform</h2><span class="badge">beta</span></div>
+  <p class="card-sub">Run agents for your own customers? A platform creates a workspace per end customer through an API, embeds the review desk in its app, and pays by usage. <a href="/hub/teams/${team.id}/platform">Set it up</a>.</p>
+</section>`
+  : ''}
 
 <section class="card card-danger" aria-labelledby="leave-title">
   <div class="card-head">

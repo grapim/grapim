@@ -20,9 +20,10 @@ const STATE_MS = 10 * 60 * 1000;
 export const sessionCookieName = (config) => (config.secure ? '__Host-grapim_session' : 'grapim_session');
 export const oauthCookieName = (config) => (config.secure ? '__Host-grapim_oauth' : 'grapim_oauth');
 
-// Where to go after signing in: only hub paths, never another host.
+// Where to go after signing in: only hub paths and cloud workspaces
+// (/w/<team>/<name>), never another host.
 export function safeNext(next) {
-  return typeof next === 'string' && /^\/hub(\/[A-Za-z0-9_\-/]*)?$/.test(next) && !next.includes('//') ? next : '/hub';
+  return typeof next === 'string' && /^\/(hub|w)(\/[A-Za-z0-9_\-/]*)?$/.test(next) && !next.includes('//') ? next : '/hub';
 }
 
 export class Auth {

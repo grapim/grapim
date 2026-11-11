@@ -140,16 +140,19 @@ test('undo without --yes only prints the plan', () => {
 });
 
 test('a CRLF file round-trips byte for byte, with core.autocrlf on', () => {
-  const merges = () => new Set(fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith('grapim-merge-')));
-  const tmpBefore = merges();
   const dir = repo({ 'app.js': text(TEN, '\r\n') }, ['-c', 'core.autocrlf=true']);
   twoRuns(dir, { 8: 'B eight' });
   // HEAD holds LF (autocrlf), the working file CRLF: only the 3 edited lines differ.
   assert.deepEqual(owners(json(dir, 'blame', 'app.js')).map(([n]) => n), [1, 2, 8]);
-  assert.equal(json(dir, 'undo', 'aaaa1111', '--yes').files[0].action, 'revert');
+  // Undo in a process with its own temp folder, so other tests running in
+  // parallel cannot put their merge files there: it must be empty afterwards.
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'grapim-own-tmp-'));
+  const r = spawnSync(process.execPath, [BIN, 'undo', 'aaaa1111', '--yes', '--json'], { cwd: dir, encoding: 'utf8', env: { ...process.env, TMP: tmp, TEMP: tmp, TMPDIR: tmp } });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(JSON.parse(r.stdout).files[0].action, 'revert');
   const want = Buffer.from(text([...TEN.slice(0, 7), 'B eight', ...TEN.slice(8)], '\r\n'));
   assert.ok(fs.readFileSync(path.join(dir, 'app.js')).equals(want));
-  assert.deepEqual([...merges()].filter((n) => !tmpBefore.has(n)), [], 'merge temp files were left behind');
+  assert.deepEqual(fs.readdirSync(tmp), [], 'merge temp files were left behind');
 });
 
 test('an MCP agent: claim, edit on disk, release, and runs shows the change', async () => {

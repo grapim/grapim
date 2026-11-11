@@ -9,6 +9,7 @@
 import { tx } from './db.js';
 import { HttpError, badRequest } from './http.js';
 import { sha1 } from './secure.js';
+import { parseGitHub, parseProvenance, provenanceBytes, storeProvenance } from './provenance.js';
 
 export const MAX_BATCH = 8 * 1024 * 1024;
 export const MAX_BLOB = 2 * 1024 * 1024;
@@ -129,7 +130,11 @@ export function parseBatch(body) {
     blobs.set(sha, buf);
   }
 
-  return { repo: { id: repo.id, name: repoName }, machine, cursor, runs, agents, changes, events, blobs };
+  // Provenance notes and the GitHub repo (src/hub/provenance.js).
+  const github = parseGitHub(repo.github);
+  const provenance = parseProvenance(body.provenance);
+
+  return { repo: { id: repo.id, name: repoName, github }, machine, cursor, runs, agents, changes, events, blobs, provenance };
 }
 
 // Approximate stored size of one row, for the per-team storage quota.
@@ -145,13 +150,14 @@ function batchBytes(batch) {
   let n = 0;
   for (const buf of batch.blobs.values()) n += buf.length;
   for (const list of [batch.runs, batch.agents, batch.changes, batch.events]) for (const r of list) n += rowBytes(r);
+  n += provenanceBytes(batch.provenance ?? []);
   return n;
 }
 
 // Stored bytes of a team (blobs plus approximate row sizes), kept in
 // team_usage. A team that has no row yet (data synced before the quota
 // existed) starts from the size of its blobs.
-function usageOf(db, teamId) {
+export function usageOf(db, teamId) {
   const row = db.prepare('SELECT bytes FROM team_usage WHERE team_id = ?').get(teamId);
   if (row) return row.bytes;
   const bytes = db.prepare('SELECT COALESCE(SUM(LENGTH(content)), 0) AS n FROM h_blobs WHERE team_id = ?').get(teamId).n;
@@ -214,7 +220,7 @@ export class Ingest {
       let added = 0;
 
       const key = [team.id, batch.repo.id, batch.machine];
-      const counts = { runs: 0, agents: 0, changes: 0, events: 0, blobs: 0 };
+      const counts = { runs: 0, agents: 0, changes: 0, events: 0, blobs: 0, provenance: 0 };
       const putBlob = this.db.prepare('INSERT OR IGNORE INTO h_blobs (team_id, sha, content) VALUES (?, ?, ?)');
       for (const [sha, buf] of batch.blobs) {
         const n = putBlob.run(team.id, sha, buf).changes;
@@ -256,6 +262,13 @@ export class Ingest {
         counts.events += n;
         if (n) added += rowBytes(e);
       }
+      if (batch.provenance?.length) {
+        const p = storeProvenance(this.db, team.id, batch.repo.id, batch.provenance, t);
+        counts.provenance = p.stored;
+        added += p.bytes;
+      }
+      // At most one GitHub repo per hub repo: the newest sync names it.
+      if (batch.repo.github) this.db.prepare('UPDATE repos SET github = ? WHERE team_id = ? AND id = ? AND github IS NOT ?').run(batch.repo.github, team.id, batch.repo.id, batch.repo.github);
       if (added) this.db.prepare('UPDATE team_usage SET bytes = bytes + ? WHERE team_id = ?').run(added, team.id);
 
       const cursor = {
@@ -271,7 +284,7 @@ export class Ingest {
         .run(cursor.changes, cursor.events, cursor.agents, token.id, t, ...key);
       return { status: 200, body: { ok: true, repo: batch.repo.id, cursor, stored: counts } };
     });
-    if (result.status === 200 && (result.body.stored.changes || result.body.stored.events || result.body.stored.agents)) {
+    if (result.status === 200 && (result.body.stored.changes || result.body.stored.events || result.body.stored.agents || result.body.stored.provenance)) {
       this.onSync(team.id, batch.repo.id);
     }
     return result;

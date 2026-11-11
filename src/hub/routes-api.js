@@ -29,6 +29,7 @@ export function apiRoutes(router, hub) {
       role,
       plan: t.plan,
       limits: { seats: fin(l.seats), historyDays: l.historyDays, repos: fin(l.repos) },
+      features: l.features, // { reports, requireReview } (docs/provenance.md section 7)
     };
   };
 
@@ -60,6 +61,7 @@ export function apiRoutes(router, hub) {
         seats_used: teams.seatsUsed(t.id),
         period_end: t.period_end ?? null,
         limits: { seats: fin(l.seats), historyDays: l.historyDays, repos: fin(l.repos) },
+        features: l.features,
         has_customer: !!t.customer_id,
       });
     },

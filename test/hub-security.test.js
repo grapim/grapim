@@ -179,6 +179,15 @@ async function getOnce(h, p, headers) {
 
 const cookieOf = (b) => [...b.jar].map(([k, v]) => `${k}=${v}`).join('; ');
 
+// A cloud workspace with one token in the team, for the :ws and :wstoken ids.
+async function workspaceIds(b, team, name = 'notes') {
+  const r = await b.post(`/hub/teams/${team}/workspaces`, { name });
+  assert.equal(r.status, 303, r.text);
+  const ws = r.headers.get('location').match(/\/workspaces\/([^/]+)$/)[1];
+  assert.equal((await b.post(`/hub/teams/${team}/workspaces/${ws}/tokens`, { name: `${name}-token`, scope: 'write' })).status, 200);
+  return ws;
+}
+
 // ---------------------------------------------------------------- tenant isolation
 
 test('every team route (enumerated from the router) is guarded, and answers 404 to another team by session, by token and by foreign ids', async (t) => {
@@ -193,14 +202,18 @@ test('every team route (enumerated from the router) is guarded, and answers 404 
   assert.equal((await sync(h, aToken, batch())).status, 200);
   assert.equal((await sync(h, mToken, batch({ repo: REPO_M, name: 'mallory-api', run: RUN_M, file: 'src/m.js', before: 'm\n', after: 'mm\n', label: 'claude m', intent: 'm intent' }))).status, 200);
   await createInvite(alice, A);
+  const wsA = await workspaceIds(alice, A, 'alpha-ws');
   const db = h.hub.db;
   const idsA = {
+    ws: wsA,
+    wstoken: db.prepare('SELECT id FROM workspace_tokens WHERE workspace_id = ?').get(wsA).id,
     team: A,
     repo: REPO_A,
     run: RUN_A,
     invite: db.prepare('SELECT id FROM invites WHERE team_id = ?').get(A).id,
     token: db.prepare('SELECT id FROM machine_tokens WHERE team_id = ?').get(A).id,
     user: String(alice.user.id),
+    key: 'no-such-platform-key', // platform API keys (team A is not a platform; the team guard answers first)
   };
 
   // Structural guarantees, for every route the hub serves.
@@ -210,10 +223,11 @@ test('every team route (enumerated from the router) is guarded, and answers 404 
     const name = `${r.method} ${r.pattern}`;
     if (r.pattern.includes(':team')) assert.ok(r.opts.team, `${name} takes a team id but has no membership guard`);
     if (r.pattern.includes(':repo')) assert.ok(r.opts.repo, `${name} takes a repo id but does not look it up inside the team`);
+    if (r.pattern.includes(':ws')) assert.ok(r.opts.workspace, `${name} takes a workspace id but does not look it up inside the team`);
     if (r.opts.team === 'form') assert.ok(r.opts.csrf, `${name} reads the team from a form without CSRF`);
     if (r.opts.team) assert.equal(r.opts.auth, 'session', `${name} is a team route without sign in`);
     if (r.method === 'POST' && !r.opts.csrf) {
-      assert.ok(['/hub/api/sync', '/hub/stripe/webhook'].includes(r.pattern) || READ_ONLY_STUB.test(r.pattern), `${name} changes state without CSRF`);
+      assert.ok(['/hub/api/sync', '/hub/stripe/webhook', '/hub/github/webhook'].includes(r.pattern) || READ_ONLY_STUB.test(r.pattern), `${name} changes state without CSRF`);
     }
   }
   const teamRoutes = routes.filter((r) => r.opts.team);
@@ -255,7 +269,7 @@ test('every team route (enumerated from the router) is guarded, and answers 404 
     assert.doesNotMatch(viaToken.text, LEAK, `nothing of team A leaks from ${name} by token`);
 
     // 3. Mallory's own team, with team A's repo, run, invite, token or user id.
-    if (/:(repo|run|invite|token|user)\b/.test(r.pattern)) {
+    if (/:(repo|run|invite|token|user|ws|wstoken)\b/.test(r.pattern)) {
       const ids = { ...idsA, team: M, repo: r.pattern.includes(':run') ? REPO_M : REPO_A };
       const q = fill(r.pattern, ids);
       const cross = r.method === 'GET' ? await getOnce(h, q, { Cookie: cookieOf(mallory) }) : await mallory.post(q, form);
@@ -268,7 +282,9 @@ test('every team route (enumerated from the router) is guarded, and answers 404 
   assert.equal(checked, teamRoutes.length);
   assert.equal(snapshot(), before, 'team A is unchanged');
 
-  // Alice can use the same GET routes (the substitutions are real ids).
+  // Alice can use the same GET routes (the substitutions are real ids). The
+  // report API is on the governance plan (a free team gets 402 plan_required).
+  db.prepare("UPDATE teams SET plan = 'governance' WHERE id = ?").run(A);
   for (const r of teamRoutes.filter((x) => x.method === 'GET' && !x.pattern.endsWith('/stream'))) {
     assert.equal((await getOnce(h, fill(r.pattern, idsA), { Cookie: cookieOf(alice) })).status, 200, `alice GET ${r.pattern}`);
   }
@@ -283,26 +299,37 @@ test('roles: a member cannot do owner things on any team route, nor touch anothe
   await joinTeam(alice, bob, A);
   await createToken(alice, A, 'alice-box');
   await createInvite(alice, A);
+  const ws = await workspaceIds(alice, A);
   const db = h.hub.db;
   const ids = {
+    ws,
+    wstoken: db.prepare('SELECT id FROM workspace_tokens WHERE workspace_id = ?').get(ws).id,
     team: A,
     repo: REPO_A,
     run: RUN_A,
     invite: db.prepare('SELECT id FROM invites WHERE team_id = ? AND used_at IS NULL').get(A).id,
     token: db.prepare('SELECT id FROM machine_tokens WHERE team_id = ?').get(A).id,
     user: String(alice.user.id),
+    key: 'no-such-platform-key', // platform API keys (team A is not a platform; the team guard answers first)
   };
   assert.equal(db.prepare('SELECT role FROM members WHERE team_id = ? AND user_id = ?').get(A, bob.user.id).role, 'member', 'an invite grants member, never owner');
 
   // What a member may do; every other state-changing team route is owner only.
-  const MEMBER_MAY = new Set(['POST /hub/teams/:team/tokens', 'POST /hub/teams/:team/leave']);
+  // Any member may also create, rename and make tokens for cloud workspaces; deleting one is owner only.
+  const MEMBER_MAY = new Set([
+    'POST /hub/teams/:team/tokens',
+    'POST /hub/teams/:team/leave',
+    'POST /hub/teams/:team/workspaces',
+    'POST /hub/teams/:team/workspaces/:ws/rename',
+    'POST /hub/teams/:team/workspaces/:ws/tokens',
+  ]);
   const before = JSON.stringify(db.prepare('SELECT * FROM invites').all()) + JSON.stringify(db.prepare('SELECT * FROM members').all());
   for (const r of h.hub.router.routes.filter((x) => x.opts.team && x.method === 'POST')) {
     const name = `${r.method} ${r.pattern}`;
     if (MEMBER_MAY.has(name) || /\/runs\/:run\//.test(r.pattern) || !r.opts.csrf) continue;
     const form = r.opts.team === 'form' ? { team: A, seats: '5', interval: 'month' } : {};
     const res = await bob.post(fill(r.pattern, ids), form);
-    if (r.pattern.endsWith('/tokens/:token/revoke')) assert.equal(res.status, 404, `bob revoking alice's token: ${res.status}`);
+    if (/\/tokens\/:(token|wstoken)\/revoke$/.test(r.pattern)) assert.equal(res.status, 404, `bob revoking alice's token: ${res.status}`);
     else assert.equal(res.status, 403, `bob ${name}: ${res.status}`);
   }
   for (const r of h.hub.router.routes.filter((x) => x.opts.owner && x.method === 'GET')) {
@@ -422,12 +449,18 @@ test('CSRF: every state-changing browser route (enumerated) refuses a missing to
   const A = await createTeam(alice, 'Csrf');
   await createToken(alice, A);
   await createInvite(alice, A);
+  const ws = await workspaceIds(alice, A);
   const db = h.hub.db;
   const ids = {
+    ws,
+    wstoken: db.prepare('SELECT id FROM workspace_tokens WHERE workspace_id = ?').get(ws).id,
     team: A,
     invite: db.prepare('SELECT id FROM invites WHERE team_id = ?').get(A).id,
     token: db.prepare('SELECT id FROM machine_tokens WHERE team_id = ?').get(A).id,
     user: '1',
+    key: 'no-such-platform-key',
+    repo: REPO_A, // the hub review route (docs/provenance.md section 6)
+    run: RUN_A,
   };
   const csrf = await alice.csrf();
   const before = JSON.stringify(db.prepare('SELECT * FROM invites').all()) + JSON.stringify(db.prepare('SELECT id, revoked_at FROM machine_tokens').all()) + db.prepare('SELECT COUNT(*) AS n FROM teams').get().n;

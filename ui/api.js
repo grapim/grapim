@@ -33,6 +33,24 @@ let token = null;
 })();
 const auth = () => (token ? { authorization: `Bearer ${token}` } : {});
 
+// ---------------------------------------------------------------- base path
+// `grapim serve` serves the desk at /, the cloud hub at /w/<team>/<workspace>/.
+// Every request is relative to the folder the page was loaded from, never a
+// fixed path: "/w/acme/docs/" -> "/w/acme/docs/api/overview".
+export const BASE = location.pathname.replace(/[^/]*$/, '') || '/';
+const at = (p) => `${BASE}${p}`;
+
+// The hub signs in with a cookie, so a write from the desk must also prove it
+// comes from the desk: the hub sends a per-session token in X-Grapim-Csrf on
+// its responses (other sites cannot read them) and wants it back on every
+// write. `grapim serve` sends none and wants none.
+let csrf = null;
+const keepCsrf = (res) => {
+  const c = res.headers.get('x-grapim-csrf');
+  if (c) csrf = c;
+};
+const csrfHeader = (method) => (csrf && method !== 'GET' && method !== 'HEAD' ? { 'x-grapim-csrf': csrf } : {});
+
 const listeners = new Set();
 const statusListeners = new Set();
 export const conn = { mode: 'live', state: 'connecting', reason: null };
@@ -65,12 +83,13 @@ async function request(method, url, body, attempt = 0) {
   try {
     res = await fetch(url, {
       method,
-      headers: { ...auth(), ...(body ? { 'content-type': 'application/json' } : {}) },
+      headers: { ...auth(), ...csrfHeader(method), ...(body ? { 'content-type': 'application/json' } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new ApiError('offline', 'Can’t reach the Grapim server. Check that `grapim serve` is still running in your repo.');
   }
+  keepCsrf(res);
   const type = res.headers.get('content-type') || '';
   if (!res.ok) {
     let msg = '';
@@ -97,24 +116,24 @@ async function request(method, url, body, attempt = 0) {
 const wtq = (worktree) => (worktree ? `&worktree=${enc(worktree)}` : '');
 
 const live = {
-  overview: () => request('GET', '/api/overview'),
-  runs: () => request('GET', '/api/runs'),
-  run: (id) => request('GET', `/api/runs/${enc(id)}`),
+  overview: () => request('GET', at('api/overview')),
+  runs: () => request('GET', at('api/runs')),
+  run: (id) => request('GET', at(`api/runs/${enc(id)}`)),
   // full: also the working file's text as `content`, in the same response.
-  blame: (p, { full = false, worktree = null } = {}) => request('GET', `/api/blame?path=${enc(p)}${full ? '&full=1' : ''}${wtq(worktree)}`),
+  blame: (p, { full = false, worktree = null } = {}) => request('GET', at(`api/blame?path=${enc(p)}${full ? '&full=1' : ''}${wtq(worktree)}`)),
   // recursive: { files: [every file below p], truncated } instead of one folder.
-  files: (p, { recursive = false, worktree = null } = {}) => request('GET', `/api/files?path=${enc(p)}${recursive ? '&recursive=1' : ''}${wtq(worktree)}`),
-  history: (p, { worktree = null } = {}) => request('GET', `/api/files/history?path=${enc(p)}${wtq(worktree)}`),
-  version: (sha) => request('GET', `/api/files/version?sha=${enc(sha)}`),
-  read: (p) => request('GET', `/fs/${p.split('/').map(enc).join('/')}`),
+  files: (p, { recursive = false, worktree = null } = {}) => request('GET', at(`api/files?path=${enc(p)}${recursive ? '&recursive=1' : ''}${wtq(worktree)}`)),
+  history: (p, { worktree = null } = {}) => request('GET', at(`api/files/history?path=${enc(p)}${wtq(worktree)}`)),
+  version: (sha) => request('GET', at(`api/files/version?sha=${enc(sha)}`)),
+  read: (p) => request('GET', at(`fs/${p.split('/').map(enc).join('/')}`)),
   // apply: false is the plan (with the diff); expect: the current sha the plan showed.
   restore: (p, sha, { apply = true, expect, worktree = null } = {}) =>
-    request('POST', '/api/files/restore', { path: p, sha, apply, ...(expect !== undefined ? { expect } : {}), ...(worktree ? { worktree } : {}) }),
+    request('POST', at('api/files/restore'), { path: p, sha, apply, ...(expect !== undefined ? { expect } : {}), ...(worktree ? { worktree } : {}) }),
   // after = 0 means "what just happened": the newest `limit` events.
-  events: (after = 0, limit = 100) => request('GET', `/api/events?after=${after}&limit=${limit}${after ? '' : '&latest=1'}`),
-  undo: (id, { turn = null, apply = false } = {}) => request('POST', `/api/runs/${enc(id)}/undo`, { turn, apply }),
-  branch: (id) => request('POST', `/api/runs/${enc(id)}/branch`, {}),
-  review: (id, status, note) => request('POST', `/api/runs/${enc(id)}/review`, { status, ...(note ? { note } : {}) }),
+  events: (after = 0, limit = 100) => request('GET', at(`api/events?after=${after}&limit=${limit}${after ? '' : '&latest=1'}`)),
+  undo: (id, { turn = null, apply = false } = {}) => request('POST', at(`api/runs/${enc(id)}/undo`), { turn, apply }),
+  branch: (id) => request('POST', at(`api/runs/${enc(id)}/branch`), {}),
+  review: (id, status, note) => request('POST', at(`api/runs/${enc(id)}/review`), { status, ...(note ? { note } : {}) }),
 };
 
 // EventSource cannot send a header, so with a token the stream is read with
@@ -122,7 +141,7 @@ const live = {
 function streamWithToken() {
   const open = async () => {
     try {
-      const res = await fetch('/api/stream', { headers: { ...auth(), accept: 'text/event-stream' } });
+      const res = await fetch(at('api/stream'), { headers: { ...auth(), accept: 'text/event-stream' } });
       if (!res.ok || !res.body) throw new Error(`stream ${res.status}`);
       setState('live');
       const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -155,7 +174,7 @@ function stream() {
   if (token) return streamWithToken();
   let es;
   const open = () => {
-    es = new EventSource('/api/stream');
+    es = new EventSource(at('api/stream'));
     es.onopen = () => setState('live');
     es.addEventListener('tick', (e) => {
       setState('live');
@@ -394,8 +413,9 @@ export async function init() {
     try {
       const ctl = new AbortController();
       const t = setTimeout(() => ctl.abort(), 2500);
-      const res = await fetch('/api/overview', { signal: ctl.signal, headers: auth() });
+      const res = await fetch(at('api/overview'), { signal: ctl.signal, headers: auth() });
       clearTimeout(t);
+      keepCsrf(res);
       // 401 is the real server asking for its token: stay live and say so, not sample data.
       if (res.status !== 401) {
         if (!res.ok || !(res.headers.get('content-type') || '').includes('json')) throw new Error('not the api');

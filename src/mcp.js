@@ -18,6 +18,7 @@ import { fileKey, resolveWorkspace } from './workspace.js';
 import { ago, blameText, logText, runsText, statusText, who } from './format.js';
 import { blame, inTree } from './attribution.js';
 import { beginEdit, failOpen, finishRun } from './ledger.js';
+import { pendingPairs } from './server/offload.js';
 
 export const VERSION = '0.1.0';
 
@@ -133,8 +134,10 @@ function listText(entries, folder) {
 // workspace (optional) adds the workspace tools. guard (optional) checks each
 // file the core tools touch and throws to refuse it: over HTTP it is the /fs
 // path check, so claim_files and who_wrote cannot read .git or follow a link
-// out of the repo.
-export function createTools({ store, ws, who: whoAmI, cwd = ws.root, workspace = null, guard = null }) {
+// out of the repo. offload (optional, the hub: src/server/offload.js) runs
+// list_runs, who_wrote and the counts of release_files off the event loop;
+// those tools (and the workspace's writes) then answer with a promise.
+export function createTools({ store, ws, who: whoAmI, cwd = ws.root, workspace = null, guard = null, offload = null }) {
   const keys = (paths) =>
     paths
       .map((p) => fileKey(ws, path.resolve(cwd, String(p))))
@@ -178,10 +181,13 @@ export function createTools({ store, ws, who: whoAmI, cwd = ws.root, workspace =
       }
       case 'release_files': {
         const only = args.paths?.length ? keys(args.paths).map((f) => f.key) : null;
-        const done = record(me.agent, only);
-        const released = store.release(me.agent, only);
-        const changed = done.length ? `\nRecorded your changes: ${done.map((c) => `${c.path} ${c.detail}`).join(', ')}` : '';
-        return text((released.length ? `Released: ${released.join(', ')}` : 'You held none of those files.') + changed);
+        const release = () => {
+          const done = record(me.agent, only);
+          const released = store.release(me.agent, only);
+          const changed = done.length ? `\nRecorded your changes: ${done.map((c) => `${c.path} ${c.detail}`).join(', ')}` : '';
+          return text((released.length ? `Released: ${released.join(', ')}` : 'You held none of those files.') + changed);
+        };
+        return offload ? offload.ensure(() => pendingPairs(store, me.agent, only), release) : release();
       }
       case 'who_is_editing':
         return text(statusText(ws, store));
@@ -192,10 +198,12 @@ export function createTools({ store, ws, who: whoAmI, cwd = ws.root, workspace =
       case 'recent_activity':
         return text(logText(store, Math.min(Number(args.limit) || 30, 200)));
       case 'list_runs':
+        if (offload) return offload.inTree(store).then((status) => text(runsText(store.runs(), status)));
         return text(runsText(store.runs(), inTree(store)));
       case 'who_wrote': {
         const [file] = keys([String(args.path ?? '')]);
         if (!file) return text('That path is not inside this repo.', true);
+        if (offload) return offload.blame(store, ws, file).then((b) => text(blameText(b)));
         return text(blameText(blame(store, ws, file)));
       }
       default:
@@ -217,13 +225,15 @@ export function createTools({ store, ws, who: whoAmI, cwd = ws.root, workspace =
         case 'write_file': {
           if (typeof args.content !== 'string') return text('write_file needs content: the whole new file as a string.', true);
           const r = workspace.write(me, rel, Buffer.from(args.content, 'utf8'), { intent: args.intent });
-          return text(`Wrote ${r.path} (${counted(r)}). You hold it until release_files, or 30 minutes without writes.`);
+          const say = (w) => text(`Wrote ${w.path} (${counted(w)}). You hold it until release_files, or 30 minutes without writes.`);
+          return r?.then ? r.then(say) : say(r);
         }
         case 'list_dir':
           return text(listText(workspace.list(rel), rel));
         case 'delete_file': {
           const r = workspace.remove(me, rel, { intent: args.intent });
-          return text(`Deleted ${r.path} (${counted(r)}). The delete is recorded as yours and can be undone.`);
+          const say = (d) => text(`Deleted ${d.path} (${counted(d)}). The delete is recorded as yours and can be undone.`);
+          return r?.then ? r.then(say) : say(r);
         }
         default:
           return undefined;
@@ -248,6 +258,13 @@ export function createTools({ store, ws, who: whoAmI, cwd = ws.root, workspace =
       }
       out ??= workspace ? files(name, args, me) : undefined;
       if (out === undefined) throw toolError(`Unknown tool: ${name}`, -32602);
+      // An offloaded tool answers later; its refusals are answers too.
+      if (out?.then) {
+        return out.catch((err) => {
+          if (typeof err.status === 'number' && err.code !== 'internal') return text(err.message, true);
+          throw err;
+        });
+      }
       return out;
     },
     // The client went away: record what changed and give back what it held.
@@ -265,6 +282,7 @@ export function createRpc({ tools, onInitialize = () => {}, instructions = INSTR
     if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid request' } };
     const { id: rid, method, params } = msg;
     const isRequest = rid !== undefined && rid !== null;
+    const failed = (err) => ({ jsonrpc: '2.0', id: rid, error: { code: typeof err.code === 'number' ? err.code : -32603, message: err.message } });
     try {
       let result;
       if (method === 'initialize') {
@@ -280,9 +298,11 @@ export function createRpc({ tools, onInitialize = () => {}, instructions = INSTR
       else if (method === 'tools/call') result = tools.call(params?.name, params?.arguments ?? {});
       else if (!isRequest) return null; // notifications such as notifications/initialized
       else throw toolError(`Method not found: ${method}`, -32601);
+      // A tool that answers later (the hub's offloaded ones): so does the reply.
+      if (result?.then) return result.then((r) => (isRequest ? { jsonrpc: '2.0', id: rid, result: r } : null), (err) => (isRequest ? failed(err) : null));
       return isRequest ? { jsonrpc: '2.0', id: rid, result } : null;
     } catch (err) {
-      return isRequest ? { jsonrpc: '2.0', id: rid, error: { code: typeof err.code === 'number' ? err.code : -32603, message: err.message } } : null;
+      return isRequest ? failed(err) : null;
     }
   };
 }

@@ -39,6 +39,18 @@ export const PLANS = {
       env: { month: 'STRIPE_PRICE_TEAM_MONTH', year: 'STRIPE_PRICE_TEAM_YEAR' },
     },
   },
+  // Team plus the manager reports and the require_review policy
+  // (docs/provenance.md section 7).
+  governance: {
+    seats: Infinity,
+    historyDays: 365,
+    repos: Infinity,
+    price: {
+      currency: 'usd',
+      perSeat: { month: 40, year: 384 },
+      env: { month: 'STRIPE_PRICE_GOVERNANCE_MONTH', year: 'STRIPE_PRICE_GOVERNANCE_YEAR' },
+    },
+  },
   enterprise: {
     seats: Infinity,
     historyDays: 365,
@@ -46,6 +58,42 @@ export const PLANS = {
     price: 'contact sales',
   },
 };
+
+// What each plan unlocks beyond its limits. Unknown plans get none.
+export const FEATURES = Object.freeze({
+  free: Object.freeze({ reports: false, requireReview: false }),
+  team: Object.freeze({ reports: false, requireReview: false }),
+  governance: Object.freeze({ reports: true, requireReview: true }),
+  enterprise: Object.freeze({ reports: true, requireReview: true }),
+});
+
+// The plans a team can buy in self-serve checkout (they have a price table).
+export const CHECKOUT_PLANS = Object.freeze(Object.keys(PLANS).filter((p) => typeof PLANS[p].price === 'object' && PLANS[p].price));
+
+export const featuresFor = (plan) => ({ ...(Object.hasOwn(FEATURES, plan) ? FEATURES[plan] : FEATURES.free) });
+
+// Usage-based pricing for platforms (docs/platform.md, "Metering and
+// pricing"): the one table to change. Amounts are in `currency` units.
+// Test keys never bill and are capped instead. `meters` names the env vars
+// holding the Stripe Billing Meter event names the daily reporter sends to
+// (src/hub/platform/metering.js); the reporter only runs when all are set.
+export const PLATFORM_PRICES = Object.freeze({
+  currency: 'usd',
+  activeWorkspaceMonth: 0.5, // a workspace with at least one write in the month
+  per1000Writes: 0.1,
+  perGbMonth: 0.1, // storage, sampled daily: GB-month = byte-days / days in month / 2^30
+  monthlyMinimum: 500, // live keys only
+  // Test keys never bill, so test mode is kept small and short-lived (platform
+  // review M10): per platform, 25 workspaces at once, 2,000 writes a UTC day,
+  // 100 MB of storage, and each test workspace is deleted 7 days after it
+  // was created.
+  testCaps: Object.freeze({ workspaces: 25, writesPerDay: 2_000, storageMb: 100, workspaceDays: 7 }),
+  meters: Object.freeze({
+    writes: 'STRIPE_METER_WRITES', // value: writes that day
+    activeWorkspaces: 'STRIPE_METER_ACTIVE_WORKSPACES', // value: workspaces whose first write of the month was that day
+    storage: 'STRIPE_METER_STORAGE', // value: MiB-days stored that day (whole numbers)
+  }),
+});
 
 // Stripe subscription statuses that keep the paid plan, and those that keep it
 // only during the grace period. Anything else (canceled, incomplete,
@@ -65,11 +113,15 @@ export class BillingError extends Error {
 const isPlan = (plan) => typeof plan === 'string' && Object.hasOwn(PLANS, plan);
 
 // Limits for a plan name. Unknown names get the free limits.
-// For 'team', pass the purchased seat count to get it back as the seat limit.
+// For 'team' and 'governance', pass the purchased seat count to get it back as
+// the seat limit. `features` ({ reports, requireReview }) is on the result too,
+// non-enumerable so the limits compare and serialise as they always have; read
+// it as limitsFor(plan).features.
 export function limitsFor(plan, { seats } = {}) {
   const p = isPlan(plan) ? PLANS[plan] : PLANS.free;
-  const purchased = plan === 'team' && Number.isInteger(seats) && seats > 0 ? seats : null;
-  return { seats: purchased ?? p.seats, historyDays: p.historyDays, repos: p.repos };
+  const purchased = (plan === 'team' || plan === 'governance') && Number.isInteger(seats) && seats > 0 ? seats : null;
+  const out = { seats: purchased ?? p.seats, historyDays: p.historyDays, repos: p.repos };
+  return Object.defineProperty(out, 'features', { value: featuresFor(isPlan(plan) ? plan : 'free'), enumerable: false });
 }
 
 // The plan a team actually gets right now.
@@ -149,16 +201,18 @@ export function createBilling({ fetch: fetchImpl, env: envSource } = {}) {
     return data;
   }
 
-  // A Stripe Checkout Session (subscription mode) for `seats` seats of Team.
-  async function createCheckout({ team, user, seats, interval, successUrl, cancelUrl, idempotencyKey } = {}) {
+  // A Stripe Checkout Session (subscription mode) for `seats` seats of a plan
+  // (Team unless `plan` says 'governance').
+  async function createCheckout({ team, user, seats, interval, plan = 'team', successUrl, cancelUrl, idempotencyKey } = {}) {
     if (team?.id === undefined || team?.id === null || team.id === '') throw badRequest('team.id is required');
     if (!Number.isInteger(seats) || seats < 1) throw badRequest('seats must be a whole number of at least 1');
     if (interval !== 'month' && interval !== 'year') throw badRequest("interval must be 'month' or 'year'");
+    if (!CHECKOUT_PLANS.includes(plan)) throw badRequest(`plan must be one of ${CHECKOUT_PLANS.join(', ')}`);
     if (!successUrl || !cancelUrl) throw badRequest('successUrl and cancelUrl are required');
 
     const env = getEnv();
     secretKey(env); // refuse a live or missing key before anything else
-    const priceVar = PLANS.team.price.env[interval];
+    const priceVar = PLANS[plan].price.env[interval];
     const price = env[priceVar];
     if (!price) throw new BillingError('not_configured', `${priceVar} is not set`);
 
@@ -173,6 +227,12 @@ export function createBilling({ fetch: fetchImpl, env: envSource } = {}) {
       // So every customer.subscription.* and invoice.* event names the team too.
       subscription_data: { metadata: { team_id: teamId } },
     };
+    // Team checkouts carry no plan (that is the default everywhere); others
+    // name it, so the subscription events set the right plan.
+    if (plan !== 'team') {
+      params.metadata.plan = plan;
+      params.subscription_data.metadata.plan = plan;
+    }
     if (team.stripe_customer_id) params.customer = team.stripe_customer_id;
     else if (user?.email) params.customer_email = user.email;
 
@@ -214,7 +274,7 @@ export function createBilling({ fetch: fetchImpl, env: envSource } = {}) {
     const obj = event?.data?.object ?? {};
     const eventAt = secToMs(event?.created) ?? nowMs;
 
-    const mapped = mapEvent(type, obj, eventAt);
+    const mapped = mapEvent(type, obj, eventAt, planOfPrice(getEnv()));
     if (!mapped) return { handled: false, type };
     if (mapped.skip) return { handled: false, type, reason: mapped.skip };
 
@@ -231,12 +291,25 @@ export function createBilling({ fetch: fetchImpl, env: envSource } = {}) {
     return { handled: true, type, teamId: String(teamId) };
   }
 
-  return { createCheckout, createPortal, handleWebhook };
+  // One Stripe Billing Meter event (POST /v1/billing/meter_events). The
+  // identifier doubles as the Idempotency-Key, so a retried report of the
+  // same (platform, day, meter) is counted once by Stripe.
+  async function reportMeterEvent({ eventName, customerId, value, identifier, timestamp } = {}) {
+    if (!eventName || !customerId || !identifier) throw badRequest('eventName, customerId and identifier are required');
+    if (!Number.isSafeInteger(value) || value < 0) throw badRequest('value must be a whole number');
+    return stripePost(
+      '/billing/meter_events',
+      { event_name: eventName, identifier, timestamp, payload: { stripe_customer_id: customerId, value: String(value) } },
+      identifier,
+    );
+  }
+
+  return { createCheckout, createPortal, handleWebhook, reportMeterEvent };
 }
 
 // Turns a Stripe event into { teamId, update }, { skip: reason }, or null for
 // types this module does not handle.
-function mapEvent(type, obj, eventAt) {
+function mapEvent(type, obj, eventAt, priceToPlan = () => null) {
   switch (type) {
     case 'checkout.session.completed': {
       if (obj.mode !== 'subscription') return { skip: 'not_a_subscription' };
@@ -244,7 +317,7 @@ function mapEvent(type, obj, eventAt) {
       return {
         teamId: obj.client_reference_id || obj.metadata?.team_id || null,
         update: {
-          plan: 'team',
+          plan: paidPlan(obj.metadata?.plan) ?? 'team',
           seats: toSeats(obj.metadata?.seats),
           status: paid ? 'active' : 'incomplete',
           customerId: idOf(obj.customer),
@@ -257,7 +330,7 @@ function mapEvent(type, obj, eventAt) {
     case 'customer.subscription.created':
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted': {
-      const update = fromSubscription(obj, eventAt);
+      const update = fromSubscription(obj, eventAt, priceToPlan);
       if (type === 'customer.subscription.deleted') {
         update.plan = 'free';
         update.status = 'canceled';
@@ -289,12 +362,14 @@ function mapEvent(type, obj, eventAt) {
   }
 }
 
-function fromSubscription(sub, eventAt) {
+function fromSubscription(sub, eventAt, priceToPlan = () => null) {
   const item = sub.items?.data?.[0];
   const metaPlan = sub.metadata?.plan;
-  // Self-serve subscriptions are Team. Enterprise ones made by hand in Stripe
-  // carry metadata.plan = 'enterprise'.
-  const plan = isPlan(metaPlan) && metaPlan !== 'free' ? metaPlan : 'team';
+  // Self-serve subscriptions are Team or Governance: the item's price says
+  // which (so a plan switch in the Billing Portal is seen), else the checkout's
+  // metadata.plan. Enterprise ones made by hand in Stripe carry
+  // metadata.plan = 'enterprise', which always wins.
+  const plan = metaPlan === 'enterprise' ? 'enterprise' : priceToPlan(idOf(item?.price)) ?? paidPlan(metaPlan) ?? 'team';
   // Period fields moved from the subscription to its items in API 2025-03-31.
   const periodStart = secToMs(sub.current_period_start ?? item?.current_period_start);
   const periodEnd = secToMs(sub.current_period_end ?? item?.current_period_end);
@@ -349,6 +424,19 @@ function toMs(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   const parsed = /^\d+$/.test(String(value)) ? Number(value) : Date.parse(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+const paidPlan = (p) => (isPlan(p) && p !== 'free' ? p : null);
+
+// priceId -> the self-serve plan whose STRIPE_PRICE_* env var holds it, or null.
+function planOfPrice(env) {
+  return (priceId) => {
+    if (!priceId) return null;
+    for (const plan of CHECKOUT_PLANS) {
+      for (const v of Object.values(PLANS[plan].price.env)) if (env[v] && env[v] === priceId) return plan;
+    }
+    return null;
+  };
 }
 
 const secToMs = (s) => (Number.isFinite(s) ? s * 1000 : null);

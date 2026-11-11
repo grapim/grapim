@@ -11,17 +11,20 @@ export const STATUS = {
   not_found: 404,
   method_not_allowed: 405,
   conflict: 409,
+  precondition_failed: 412,
   too_large: 413,
   internal: 500,
   busy: 503,
 };
 
+// extra: more fields for the error body (412 adds current_sha).
 export class HttpError extends Error {
-  constructor(code, message, headers = {}) {
+  constructor(code, message, headers = {}, extra = null) {
     super(message);
     this.code = code;
     this.status = STATUS[code] ?? 500;
     this.headers = headers;
+    this.extra = extra;
   }
 }
 
@@ -29,6 +32,8 @@ export const badRequest = (message) => new HttpError('bad_request', message);
 export const notFound = (message) => new HttpError('not_found', message);
 export const conflict = (message) => new HttpError('conflict', message);
 export const busy = (message) => new HttpError('busy', message, { 'Retry-After': '1' });
+// If-Match did not hold: the file is not the version the client last saw.
+export const preconditionFailed = (message, currentSha) => new HttpError('precondition_failed', message, {}, { current_sha: currentSha });
 export const notAllowed = (allow) => new HttpError('method_not_allowed', `Use ${allow.join(' or ')} here.`, { Allow: allow.join(', ') });
 
 const isSqliteBusy = (err) => err?.code === 'ERR_SQLITE_ERROR' && /\b(busy|locked)\b/i.test(err.message);
@@ -55,11 +60,11 @@ export function sendError(res, err) {
     res.destroy();
     return;
   }
-  sendJson(res, e.status, { error: { code: e.code, message: e.message } }, e.headers);
+  sendJson(res, e.status, { error: { code: e.code, message: e.message, ...e.extra } }, e.headers);
 }
 
-export function sendBytes(res, buf, type = 'application/octet-stream') {
-  res.writeHead(200, { 'Content-Type': type, 'Content-Length': buf.length, 'Cache-Control': 'no-store' });
+export function sendBytes(res, buf, type = 'application/octet-stream', headers = {}) {
+  res.writeHead(200, { 'Content-Type': type, 'Content-Length': buf.length, 'Cache-Control': 'no-store', ...headers });
   res.end(buf);
 }
 

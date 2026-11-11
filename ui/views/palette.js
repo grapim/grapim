@@ -50,9 +50,12 @@ export function openPalette(ctx) {
       { group: 'Go to', label: 'Files', hint: 'g f', icon: 'files', run: () => navigate('#/files') },
       ...s.runs.map((r) => ({ group: 'Runs', label: runTitle(r) || r.label, agent: r.label, sub: r.review?.status === 'pending' ? 'needs review' : r.review?.status, keywords: `${r.label} ${r.run} ${r.worktree}`, icon: 'runs', run: () => navigate(runHref(r.run)) })),
       ...s.files.map((f) => ({ group: 'Files', label: f.path, mono: true, sub: f.held_by ? `held by ${f.held_by}` : '', icon: 'file', run: () => navigate(fileHref(f.path)) })),
-      { group: 'Actions', label: 'Use the light theme', icon: 'sun', run: () => setTheme('light') },
-      { group: 'Actions', label: 'Use the dark theme', icon: 'moon', run: () => setTheme('dark') },
-      { group: 'Actions', label: 'Follow the system theme', icon: 'system', run: () => setTheme('system') },
+      // Embedded, the host sets the theme; the palette only moves inside this workspace.
+      ...(ctx.embedded ? [] : [
+        { group: 'Actions', label: 'Use the light theme', icon: 'sun', run: () => setTheme('light') },
+        { group: 'Actions', label: 'Use the dark theme', icon: 'moon', run: () => setTheme('dark') },
+        { group: 'Actions', label: 'Follow the system theme', icon: 'system', run: () => setTheme('system') },
+      ]),
       { group: 'Actions', label: 'Show keyboard shortcuts', hint: '?', icon: 'info', run: () => setTimeout(openHelp) },
     ];
   };

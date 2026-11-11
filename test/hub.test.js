@@ -17,6 +17,8 @@ import { runHook } from '../src/hook.js';
 import { Store } from '../src/store.js';
 import { resolveWorkspace } from '../src/workspace.js';
 import { syncOnce } from '../src/sync.js';
+import { recordCommit } from '../src/provenance/record.js';
+import { provenanceFor } from '../src/hub/read.js';
 
 const ORIGIN = 'http://localhost:7999';
 const sha1 = (b) => crypto.createHash('sha1').update(b).digest('hex');
@@ -864,4 +866,145 @@ test('end to end: hook edits in a real repo, syncOnce to an in-process hub, the 
 
   // A plain-http hub that is not on this machine is refused before any request.
   await assert.rejects(syncOnce({ ws, store, hubUrl: 'http://hub.example.com', token }), /https/);
+});
+
+// ---------------------------------------------------------------- provenance (docs/provenance.md section 3)
+
+test('provenance: sync uploads each new note once, maps the repo to GitHub, and provenanceFor answers only for the right team', async (t) => {
+  const h = await startHub();
+  t.after(h.close);
+  const a = await signIn(h, 'prov-a');
+  const teamA = await createTeam(a, 'Prov A');
+  const tokenA = await createToken(a, teamA, 'laptop');
+  const b = await signIn(h, 'prov-b');
+  const teamB = await createTeam(b, 'Prov B');
+  const tokenB = await createToken(b, teamB, 'laptop');
+
+  const root = gitRepo();
+  const git = (...args) => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { cwd: root, encoding: 'utf8' });
+  git('remote', 'add', 'origin', 'https://someone:ghp_secret0123@github.com/Acme/Shop-API.git');
+  const env = { ...process.env };
+  delete env.GRAPIM_STATE_DIR;
+  const session = 'prov0000-1111-2222-3333-444455556666';
+  const hook = (input) => runHook({ session_id: session, cwd: root, ...input }, env);
+  const file = path.join(root, 'src', 'routes.js');
+  const edit = (id, content) => {
+    const e = { tool_name: 'Edit', tool_input: { file_path: file }, tool_use_id: id };
+    assert.equal(hook({ hook_event_name: 'PreToolUse', ...e }).code, 0);
+    fs.writeFileSync(file, content);
+    assert.equal(hook({ hook_event_name: 'PostToolUse', ...e }).code, 0);
+  };
+  hook({ hook_event_name: 'UserPromptSubmit', prompt: 'Add a /billing route' });
+  edit('tp1', "export const routes = [];\nroutes.push('/billing');\nexport default routes;\n");
+
+  const ws = resolveWorkspace(root);
+  const store = new Store(ws.stateDir);
+  t.after(() => store.close());
+  git('commit', '-qam', 'billing');
+  const sha = git('rev-parse', 'HEAD').trim();
+  assert.equal(recordCommit(ws, store, 'HEAD').written, true);
+  const repoId = git('rev-list', '--max-parents=0', 'HEAD').trim();
+
+  const first = await syncOnce({ ws, store, hubUrl: h.base, token: tokenA, machine: 'box' });
+  assert.equal(first.notes, 1);
+  const rows = h.hub.db.prepare('SELECT * FROM h_provenance').all();
+  assert.deepEqual(rows.map((r) => [r.team_id, r.repo_id, r.commit_sha]), [[teamA, repoId, sha]]);
+
+  // The repo is linked to its GitHub repo, and the remote's credentials stay on the machine.
+  assert.equal(h.hub.db.prepare('SELECT github FROM repos WHERE team_id = ? AND id = ?').get(teamA, repoId).github, 'Acme/Shop-API');
+  assert.doesNotMatch(JSON.stringify(h.hub.db.prepare('SELECT * FROM repos').all()), /ghp_secret|someone/);
+  assert.deepEqual(h.hub.read.repoByGitHub({ id: teamA }, 'acme/shop-api').map((r) => r.id), [repoId]);
+  assert.deepEqual(h.hub.read.repoByGitHub({ id: teamB }, 'acme/shop-api'), []);
+
+  const got = h.hub.read.provenanceFor({ id: teamA }, repoId, [sha, 'f'.repeat(40), 'not a sha']);
+  assert.deepEqual(Object.keys(got), [sha]);
+  assert.deepEqual(got[sha].files, { 'src/routes.js': [[2, 2, 0, 1]] });
+  assert.equal(got[sha].commit.added, 1, 'the commit block survives ingest');
+  assert.deepEqual(got[sha].runs.map((r) => [r.id, r.kind, r.turns]), [[`claude-code:${session}`, 'claude-code', [{ turn: 1, intent: 'Add a /billing route' }]]]);
+  assert.deepEqual(provenanceFor(h.hub.db, teamB, repoId, [sha]), {}, 'another team gets nothing');
+  assert.deepEqual(provenanceFor(h.hub.db, { id: teamB }, repoId, [sha]), {});
+
+  // Nothing new: nothing sent again. A new note: only that one is sent.
+  assert.equal((await syncOnce({ ws, store, hubUrl: h.base, token: tokenA, machine: 'box' })).notes, 0);
+  edit('tp2', "export const routes = [];\nroutes.push('/billing');\nroutes.push('/refunds');\nexport default routes;\n");
+  git('commit', '-qam', 'refunds');
+  const sha2 = git('rev-parse', 'HEAD').trim();
+  recordCommit(ws, store, 'HEAD');
+  const third = await syncOnce({ ws, store, hubUrl: h.base, token: tokenA, machine: 'box' });
+  assert.equal(third.notes, 1);
+  assert.deepEqual(Object.keys(provenanceFor(h.hub.db, teamA, repoId, [sha, sha2])).sort(), [sha, sha2].sort());
+  assert.deepEqual(provenanceFor(h.hub.db, teamA, repoId, [sha2])[sha2].files, { 'src/routes.js': [[3, 3, 0, 1]] });
+
+  // A human-only commit: an empty note ("recorded, human"), synced like the others.
+  fs.writeFileSync(path.join(root, 'README.md'), 'by hand\n');
+  git('add', 'README.md');
+  git('commit', '-qm', 'readme');
+  const sha3 = git('rev-parse', 'HEAD').trim();
+  recordCommit(ws, store, 'HEAD');
+  assert.equal((await syncOnce({ ws, store, hubUrl: h.base, token: tokenA, machine: 'box' })).notes, 1);
+  const empty = provenanceFor(h.hub.db, teamA, repoId, [sha3])[sha3];
+  assert.deepEqual([empty.runs, empty.files, empty.commit.added], [[], {}, 1]);
+
+  // Team B syncing the same repo gets its own rows; team A's are untouched and invisible to B.
+  const forB = await syncOnce({ ws, store, hubUrl: h.base, token: tokenB, machine: 'box-b' });
+  assert.equal(forB.notes, 3);
+  assert.equal(h.hub.db.prepare('SELECT COUNT(*) AS n FROM h_provenance WHERE team_id = ?').get(teamA).n, 3);
+  assert.equal(h.hub.db.prepare('SELECT COUNT(*) AS n FROM h_provenance WHERE team_id = ?').get(teamB).n, 3);
+  h.hub.db.prepare('DELETE FROM h_provenance WHERE team_id = ?').run(teamB);
+  assert.deepEqual(provenanceFor(h.hub.db, teamB, repoId, [sha, sha2, sha3]), {});
+  assert.equal(Object.keys(provenanceFor(h.hub.db, teamA, repoId, [sha, sha2, sha3])).length, 3);
+});
+
+test('provenance ingest validates the commit sha, the note and its size, caps the batch, and counts toward storage', async (t) => {
+  const h = await startHub();
+  t.after(h.close);
+  const b = await signIn(h, 'prov-ingest');
+  const team = await createTeam(b, 'Prov ingest');
+  const token = await createToken(b, team);
+  const note = (extra = {}) =>
+    JSON.stringify({
+      v: 1,
+      tool: 'grapim/0.1.0',
+      runs: [{ id: 'claude-code:1a2b3c4d-0000', label: 'claude 1a2b3c4d', kind: 'claude-code', turns: [{ turn: 1, intent: 'Add /billing' }], review: 'pending' }],
+      files: { 'src/app.js': [[2, 2, 0, 1]] },
+      ...extra,
+    });
+  const C1 = sha1('commit one');
+  const withProv = (provenance, repo = { id: REPO_ID, name: 'shop-api' }) => batch({ extra: { provenance, repo } });
+  const usage = () => h.hub.db.prepare('SELECT bytes FROM team_usage WHERE team_id = ?').get(team)?.bytes ?? 0;
+
+  assert.equal((await sync(h, token, batch())).status, 200);
+  const before = usage();
+  const ok = await sync(h, token, withProv([{ commit: C1, note: note() }], { id: REPO_ID, name: 'shop-api', github: 'github.com/acme/shop-api' }));
+  assert.equal(ok.status, 200);
+  assert.equal((await ok.json()).stored.provenance, 1);
+  assert.ok(usage() - before >= note().length, 'the note counts toward the team storage quota');
+  assert.equal(h.hub.db.prepare('SELECT github FROM repos WHERE team_id = ?').get(team).github, 'acme/shop-api');
+  // The same note again stores nothing; a re-recorded note replaces it.
+  assert.equal((await (await sync(h, token, withProv([{ commit: C1, note: note() }]))).json()).stored.provenance, 0);
+  const changed = note({ files: { 'src/app.js': [[2, 3, 0, 1]] } });
+  assert.equal((await (await sync(h, token, withProv([{ commit: C1, note: changed }]))).json()).stored.provenance, 1);
+  assert.deepEqual(h.hub.read.provenanceFor(team, REPO_ID, [C1])[C1].files, { 'src/app.js': [[2, 3, 0, 1]] });
+
+  const count = () => h.hub.db.prepare('SELECT COUNT(*) AS n FROM h_provenance').get().n;
+  const status = async (body) => (await sync(h, token, body)).status;
+  assert.equal(await status(withProv([{ commit: 'nope', note: note() }])), 400);
+  assert.equal(await status(withProv([{ commit: C1.toUpperCase(), note: note() }])), 400);
+  assert.equal(await status(withProv([{ commit: sha1('x'), note: '{' }])), 400);
+  assert.equal(await status(withProv([{ commit: sha1('x'), note: note({ files: { 'a.js': [[1, 1, 5, 1]] } }) }])), 400, 'run index out of range');
+  assert.equal(await status(withProv([{ commit: sha1('x'), note: note({ v: 2 }) }])), 400);
+  assert.equal(await status(withProv([{ commit: sha1('x'), note: note() }, { commit: sha1('x'), note: note() }])), 400, 'one commit twice');
+  assert.equal(await status(withProv([{ commit: sha1('x'), note: note({ pad: 'x'.repeat(256 * 1024) }) }])), 413);
+  assert.equal(await status(withProv(Array.from({ length: 201 }, (_, i) => ({ commit: sha1(`c${i}`), note: note() })))), 413);
+  assert.equal(await status(withProv('nope')), 400);
+  assert.equal(await status(withProv([], { id: REPO_ID, name: 'shop-api', github: 'gitlab.com/a/b' })), 400);
+  assert.equal(count(), 1, 'nothing from a refused batch was written');
+  // 200 is fine.
+  assert.equal(await status(withProv(Array.from({ length: 200 }, (_, i) => ({ commit: sha1(`c${i}`), note: note() })))), 200);
+  assert.equal(count(), 201);
+
+  // Another team never sees them.
+  const o = await signIn(h, 'prov-other');
+  const other = await createTeam(o, 'Other');
+  assert.deepEqual(h.hub.read.provenanceFor(other, REPO_ID, [C1]), {});
 });

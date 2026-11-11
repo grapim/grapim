@@ -5,7 +5,7 @@
 
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { ignoreEol, matchLines, splitLines } from './diff.js';
+import { exact, ignoreEol, matchLines, splitLines } from './diff.js';
 import { snapshot } from './ledger.js';
 import { rootKey } from './workspace.js';
 
@@ -35,13 +35,21 @@ const countOf = (who, run) => who.reduce((n, a) => n + (a?.run === run ? 1 : 0),
 // Replays the changes and then the current file. who[i] is the author of
 // lines[i] (null: already there before the first recorded change). ends maps
 // each run to how many lines it owned right after its last change.
-export function replay(changes, now) {
-  let sha = changes.length ? changes[0].before_sha : now.sha;
-  let lines = splitLines(changes.length ? changes[0].before : now.buf);
+//
+// Options (provenance, src/provenance/record.js): `base` starts the replay
+// from any content (a commit's parent version) instead of the first change's
+// before; content between the base and the first change is "outside agents".
+// `key` is the line comparison (ignoreEol to compare a git blob with CRLF
+// working-tree snapshots). Without options it behaves exactly as before.
+const BASE = Symbol('base');
+export function replay(changes, now, { base, key = exact } = {}) {
+  const fromBase = base !== undefined;
+  let sha = fromBase ? BASE : changes.length ? changes[0].before_sha : now.sha;
+  let lines = splitLines(fromBase ? base : changes.length ? changes[0].before : now.buf);
   let who = lines.map(() => null);
   const ends = new Map();
   const step = (next, author) => {
-    const from = matchLines(lines, next);
+    const from = matchLines(lines, next, key);
     who = next.map((_, j) => (from[j] >= 0 ? who[from[j]] : author));
     lines = next;
   };
@@ -71,24 +79,41 @@ function headContent(root, display) {
 
 const text = (line) => Buffer.from(line, 'latin1').toString('utf8').replace(/\r?\n$/, '');
 
-// Each line of the working file that differs from HEAD (or, without git, from
-// the first recorded content), with who wrote it.
-export function blame(store, ws, file) {
+// The fields of a change row replay() reads, and nothing else: what a
+// compute worker is sent (the hub, src/hub/compute-pool.js).
+export const replayFields = (c) => ({ run: c.run, label: c.label, turn: c.turn, before_sha: c.before_sha, after_sha: c.after_sha, before: c.before, after: c.after });
+
+// blame() in two halves: reading (the ledger, the file, HEAD) and comparing
+// (pure, CPU only). The hub runs the second half off its event loop. The
+// first returns { done } when there is nothing to compare.
+export function blameInputs(store, ws, file) {
   const changes = history(store, ws.root, file.key);
   const now = snapshot(path.join(ws.root, file.display));
   const base = { path: file.display, base: ws.isGit ? 'HEAD' : 'the first recorded version', changes: changes.length, exists: now.sha !== null };
-  if (!isTracked(changes, now)) return { ...base, untracked: true, runs: [...new Set(changes.map((c) => c.label || c.run))] };
+  if (!isTracked(changes, now)) return { done: { ...base, untracked: true, runs: [...new Set(changes.map((c) => c.label || c.run))] } };
+  const head = ws.isGit ? headContent(ws.root, file.display) : changes[0]?.before ?? null;
+  return { base, changes: changes.map(replayFields), now: { sha: now.sha, buf: now.buf }, head };
+}
+
+export function blameFrom({ base, changes, now, head }) {
   const r = replay(changes, now);
   // Compare to HEAD ignoring line endings: with core.autocrlf the blob has LF
   // and the working file CRLF, and that is not an authored change.
-  const head = splitLines(ws.isGit ? headContent(ws.root, file.display) : changes[0]?.before);
-  const from = matchLines(head, r.lines, ignoreEol);
+  const headLines = splitLines(head);
+  const from = matchLines(headLines, r.lines, ignoreEol);
   const lines = [];
   r.lines.forEach((line, i) => {
     if (from[i] < 0) lines.push({ line: i + 1, text: text(line), ...(r.who[i] ?? OUTSIDE) });
   });
-  const removed = head.length - from.filter((i) => i >= 0).length;
+  const removed = headLines.length - from.filter((i) => i >= 0).length;
   return { ...base, untracked: false, lines, removed };
+}
+
+// Each line of the working file that differs from HEAD (or, without git, from
+// the first recorded content), with who wrote it.
+export function blame(store, ws, file) {
+  const i = blameInputs(store, ws, file);
+  return i.done ?? blameFrom(i);
 }
 
 // Per run and file: are the run's lines still in the working file? yes, partly, no, or ?.
@@ -122,16 +147,31 @@ function summary(all) {
   return known.every((s) => s === known[0]) ? known[0] : 'partly';
 }
 
-// Which runs' changes are still in the working tree. Returns Map(run -> status).
-export function inTree(store) {
-  const byFile = touchedFiles(store);
-  const out = new Map();
-  const add = (run, s) => out.set(run, [...(out.get(run) ?? []), s]);
-  for (const f of byFile.values()) {
+// inTree() in two halves, as blame(): per touched file, its replayable
+// history (null when it cannot be replayed), the file now, and each run's
+// first before and last after in it.
+export function inTreeInputs(store) {
+  const files = [];
+  for (const f of touchedFiles(store).values()) {
     const changes = history(store, f.root, f.key);
     const now = snapshot(path.join(f.root, f.path));
-    const r = isTracked(changes, now) ? replay(changes, now) : null;
-    for (const c of f.runs.values()) add(c.run, r ? fileStatus(r, c, now) : '?');
+    const tracked = isTracked(changes, now);
+    files.push({ changes: tracked ? changes.map(replayFields) : null, now: { sha: now.sha, buf: tracked ? now.buf : null }, runs: [...f.runs.values()] });
+  }
+  return files;
+}
+
+export function inTreeFrom(files) {
+  const out = new Map();
+  const add = (run, s) => out.set(run, [...(out.get(run) ?? []), s]);
+  for (const f of files) {
+    const r = f.changes ? replay(f.changes, f.now) : null;
+    for (const c of f.runs) add(c.run, r ? fileStatus(r, c, f.now) : '?');
   }
   return new Map([...out].map(([run, all]) => [run, summary(all)]));
+}
+
+// Which runs' changes are still in the working tree. Returns Map(run -> status).
+export function inTree(store) {
+  return inTreeFrom(inTreeInputs(store));
 }

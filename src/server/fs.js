@@ -11,11 +11,11 @@ import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { lineCounts } from '../diff.js';
 import { ago, who } from '../format.js';
-import { beginEdit, finishEdit, finishRun, sha1, snapshot } from '../ledger.js';
+import { beginEdit, countLines, finishEdit, finishRun, sha1, snapshot } from '../ledger.js';
 import { rootKey } from '../workspace.js';
-import { badRequest, busy, conflict, notFound } from './http.js';
+import { badRequest, busy, conflict, notFound, preconditionFailed } from './http.js';
+import { kept as keptContent, pendingPairs } from './offload.js';
 import { guardSensitiveWrite, isHidden, resolvePath } from './paths.js';
 import { lastChanges } from './queries.js';
 
@@ -65,7 +65,8 @@ function renameRetrying(from, to) {
 
 // Replaces the file in one step: a temp file next to it, then a rename over
 // it. A crash leaves the old file or the new one, never half of one.
-export function atomicWrite(abs, buf) {
+// check: runs right before the rename and may throw to cancel the write.
+export function atomicWrite(abs, buf, { check = null } = {}) {
   const parent = path.dirname(abs);
   try {
     fs.mkdirSync(parent, { recursive: true });
@@ -80,6 +81,7 @@ export function atomicWrite(abs, buf) {
   try {
     fs.writeFileSync(tmp, buf, { flag: 'wx' });
     if (mode !== undefined && process.platform !== 'win32') fs.chmodSync(tmp, mode & 0o7777);
+    check?.();
     renameRetrying(tmp, abs);
   } finally {
     fs.rmSync(tmp, { force: true });
@@ -87,10 +89,29 @@ export function atomicWrite(abs, buf) {
 }
 
 // +/- lines between two snapshots; null when either side's content is not kept.
-function counts(before, after) {
+function counts(store, before, after) {
   if (before.sha === after.sha) return { added: 0, removed: 0 };
   const kept = (s) => s.sha === null || s.buf !== null;
-  return kept(before) && kept(after) ? lineCounts(before.buf, after.buf) : { added: null, removed: null };
+  return kept(before) && kept(after) ? countLines(store, before.buf, after.buf) : { added: null, removed: null };
+}
+
+// The sha1 of the file's bytes now, or null if there is no file. Unlike a
+// ledger snapshot, this hashes files of any size, so If-Match works for them.
+export function currentSha(abs) {
+  const st = statOf(abs);
+  if (!st || !st.isFile()) return null;
+  return sha1(fs.readFileSync(abs));
+}
+
+// If-Match: `expect` is a sha (the file must have exactly that content), null
+// (the file must not exist) or undefined (no condition). Throws 412.
+function checkExpect(t, expect) {
+  if (expect === undefined) return;
+  const now = currentSha(t.abs);
+  if (now === expect) return;
+  const want = expect === null ? 'not to exist' : `to be version ${expect.slice(0, 12)}`;
+  const is = now === null ? 'it does not exist' : `it is version ${now.slice(0, 12)}`;
+  throw preconditionFailed(`${t.rel} was expected ${want}, but ${is}. Read it again, merge, and retry with the new ETag.`, now);
 }
 
 function heldMessage(c) {
@@ -99,7 +120,11 @@ function heldMessage(c) {
 
 // env: GRAPIM_ALLOW_SENSITIVE_WRITES=1 lets agents write files that run code
 // by themselves (see guardSensitiveWrite in paths.js).
-export function createWorkspace({ store, ws, env = {} }) {
+// offload (the hub, src/server/offload.js): write, remove and release first
+// get their line counts computed off the event loop, then run as below, and
+// return a promise. Without it (grapim serve) they run in place and return
+// their result.
+export function createWorkspace({ store, ws, env = {}, offload = null }) {
   const target = (rel) => {
     const t = resolvePath(ws, rel);
     if (t.dir || !t.file) throw badRequest(`"${rel}" is a folder path. Give a file path without a trailing /.`);
@@ -154,24 +179,34 @@ export function createWorkspace({ store, ws, env = {} }) {
     }
     const done = finishEdit(store, { run: me.agent, ws, file: t.file, id });
     if (done) store.recordEdit(me.agent, done.path, done.detail);
-    return { path: t.rel, ...counts(before, snapshot(t.abs)) };
+    return { path: t.rel, ...counts(store, before, snapshot(t.abs)) };
   }
 
-  function write(me, rel, buf, { intent = null } = {}) {
+  // expect (If-Match): checked before the claim, so a stale write claims and
+  // records nothing, and again with the claim held right before the rename,
+  // so a process that does not claim (a hook in warn mode, a person) cannot
+  // slip a change in between. Everything from the first check to the rename
+  // is synchronous, so no other request in this process interleaves.
+  function write(me, rel, buf, { intent = null, expect } = {}) {
     const t = writable(rel);
     if (statOf(t.abs)?.isDirectory()) throw badRequest(`${t.rel} is a folder.`);
+    checkExpect(t, expect);
     claim(me, t, cleanIntent(intent));
-    const r = edit(me, t, () => atomicWrite(t.abs, buf));
+    const r = edit(me, t, () => atomicWrite(t.abs, buf, { check: () => checkExpect(t, expect) }));
     return { path: r.path, sha: sha1(buf), added: r.added, removed: r.removed };
   }
 
-  function remove(me, rel, { intent = null } = {}) {
+  function remove(me, rel, { intent = null, expect } = {}) {
     const t = writable(rel);
+    checkExpect(t, expect);
     const st = statOf(t.abs);
     if (!st) throw notFound(`${t.rel} does not exist.`);
     if (!st.isFile()) throw badRequest(`${t.rel} is not a file.`);
     claim(me, t, cleanIntent(intent));
-    const r = edit(me, t, () => fs.rmSync(t.abs));
+    const r = edit(me, t, () => {
+      checkExpect(t, expect);
+      fs.rmSync(t.abs);
+    });
     return { path: r.path, sha: null, added: r.added, removed: r.removed };
   }
 
@@ -255,7 +290,27 @@ export function createWorkspace({ store, ws, env = {} }) {
     return { released: store.release(me.agent, null), recorded };
   }
 
-  return { write, remove, read, list, listAll, release };
+  if (!offload) return { write, remove, read, list, listAll, release };
+
+  // The counts a write will need: the file now against the new content, and
+  // any open snapshot of this file by this agent (closed by the claim).
+  function writePairs(me, rel, buf, expect) {
+    const t = writable(rel);
+    checkExpect(t, expect);
+    const now = snapshot(t.abs);
+    const pairs = pendingPairs(store, me.agent, [t.file.key]);
+    if ((now.sha === null || now.buf) && keptContent(buf)) pairs.push([now.buf, buf]);
+    return pairs;
+  }
+
+  return {
+    write: (me, rel, buf, opts = {}) => offload.ensure(() => writePairs(me, rel, buf, opts.expect), () => write(me, rel, buf, opts)),
+    remove: (me, rel, opts = {}) => offload.ensure(() => pendingPairs(store, me.agent, [writable(rel).file.key]), () => remove(me, rel, opts)),
+    release: (me) => offload.ensure(() => pendingPairs(store, me.agent), () => release(me)),
+    read,
+    list,
+    listAll,
+  };
 }
 
 // Tracked and untracked, not ignored, files of a git worktree, repo-relative.

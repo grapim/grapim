@@ -17,6 +17,12 @@ export const UNTRACKED = 'untracked';
 
 export const sha1 = (buf) => crypto.createHash('sha1').update(buf).digest('hex');
 
+// +/- lines between two contents. A store may carry its own counter
+// (store.countLines): the hub's workspace engines count big contents off the
+// event loop (src/server/offload.js). Without one, as in grapim serve, the
+// lines are compared here.
+export const countLines = (store, before, after) => (store?.countLines ? store.countLines(before, after) : lineCounts(before, after));
+
 const isBinary = (buf) => buf.subarray(0, 8192).includes(0);
 
 // The file as it is now. { sha: null } if absent; buf is null when the content
@@ -57,7 +63,7 @@ export function beginEdit(store, { run, label, ws, file, id = null, keep = false
 function stats(store, p, after) {
   const before = store.blob(p.before_sha);
   const untracked = (p.before_sha !== null && !before) || (after.sha !== null && !after.buf);
-  return untracked ? { untracked: true } : { untracked: false, ...lineCounts(before, after.buf) };
+  return untracked ? { untracked: true } : { untracked: false, ...countLines(store, before, after.buf) };
 }
 
 export const detailOf = (s) => (s.untracked ? 'untracked' : `+${s.added} -${s.removed}`);

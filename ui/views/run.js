@@ -45,15 +45,15 @@ export async function mount(el, params, ctx) {
           </div>
           ${r.review?.note || (st !== 'pending' && r.review?.by) ? html`<p class="note">${(r.review.by || '').replace(/^\w+:/, '') || 'Someone'} ${st} this ${when(r.review.at)}${r.review.note ? html`: “${r.review.note}”` : '.'}</p>` : ''}
         </div>
-        <div class="actions" role="group" aria-label="Review">
+        ${ctx.readonly() ? '' : html`<div class="actions" role="group" aria-label="Review">
           <button class="btn approve ${st === 'approved' ? '' : 'primary'}" type="button" data-act="approved" aria-pressed="${st === 'approved'}" title="${st === 'approved' ? 'Approved. Click to mark as needing review again.' : 'Mark as approved. Merging stays your call in git.'}">${icon('check')}${st === 'approved' ? 'Approved' : 'Approve'}<kbd>a</kbd></button>
           <button class="btn reject" type="button" data-act="rejected" aria-pressed="${st === 'rejected'}" title="${st === 'rejected' ? 'Rejected. Click to mark as needing review again.' : 'Mark as rejected. Its changes stay until you undo them.'}">${icon('x')}${st === 'rejected' ? 'Rejected' : 'Reject'}<kbd>x</kbd></button>
           <button class="btn" type="button" data-act="branch" ${s.busy === 'branch' ? 'disabled' : ''} title="Put this run's changes on a new branch from HEAD. No working tree changes.">${icon('branch')}${s.busy === 'branch' ? 'Creating…' : r.branch ? 'New branch' : 'Create branch'}<kbd>b</kbd></button>
           <button class="btn danger" type="button" data-act="undo" title="Remove this run's changes from the working tree. Shows the plan first.">${icon('undo')}Undo…<kbd>u</kbd></button>
-        </div>
+        </div>`}
       </div>
       ${r.active ? html`<div class="notice">${icon('info')}<span>${r.label} is still working. It may change more files after you review; new changes show up here as they land.</span></div>` : ''}
-      ${st === 'rejected' && r.in_tree !== 'none' ? html`<div class="notice warn">${icon('alert')}<span>Rejected, but its changes are still in the working tree. Rejecting only marks the run. <button class="btn sm" type="button" data-act="undo" style="margin-left:4px">Undo its changes…</button></span></div>` : ''}`;
+      ${st === 'rejected' && r.in_tree !== 'none' ? html`<div class="notice warn">${icon('alert')}<span>Rejected, but its changes are still in the working tree. Rejecting only marks the run.${ctx.readonly() ? '' : html` <button class="btn sm" type="button" data-act="undo" style="margin-left:4px">Undo its changes…</button>`}</span></div>` : ''}`;
   }
 
   function turns(d) {
@@ -71,7 +71,7 @@ export async function mount(el, params, ctx) {
               <div class="chips">${(t.files || []).map((p) => html`<a class="chip" href="#${fileId(p)}" data-jump="${fileId(p)}" title="Jump to ${p}">${p}</a>`)}</div>
             </div>
             <div class="turn-side">${when(t.ts)}
-              ${d.turns.length > 1 ? html`<button class="btn ghost sm" type="button" data-undo-turn="${t.turn}" title="Undo only what turn ${t.turn} changed">Undo turn…</button>` : ''}
+              ${d.turns.length > 1 && !ctx.readonly() ? html`<button class="btn ghost sm" type="button" data-undo-turn="${t.turn}" title="Undo only what turn ${t.turn} changed">Undo turn…</button>` : ''}
             </div>
           </li>`)}
         </ol>
@@ -139,7 +139,7 @@ export async function mount(el, params, ctx) {
     }
     if (!s.data) {
       return render(el, html`<nav class="crumbs"><a href="#/runs">Runs</a></nav>
-        <div class="run-head"><div>${sk('60%', 24)}<div style="margin-top:12px">${sk('380px')}</div></div><div class="actions">${sk('96px', 32)}${sk('84px', 32)}${sk('120px', 32)}${sk('80px', 32)}</div></div>
+        <div class="run-head"><div>${sk('60%', 24)}<div style="margin-top:12px">${sk('380px')}</div></div>${ctx.readonly() ? '' : html`<div class="actions">${sk('96px', 32)}${sk('84px', 32)}${sk('120px', 32)}${sk('80px', 32)}</div>`}</div>
         <div class="panel" style="padding:16px">${sk('50%')}<div style="margin-top:12px">${sk('40%')}</div></div>
         <div class="panel" style="margin-top:32px;height:240px"></div>`);
     }
@@ -147,6 +147,7 @@ export async function mount(el, params, ctx) {
     render(el, html`${header(s.data)}${s.error ? html`<div style="margin-bottom:16px">${errorBlock(s.error, { title: 'Couldn’t refresh this run' })}</div>` : ''}${turns(s.data)}${files(s.data)}`);
   }
 
+  let opened = false;
   async function load() {
     try {
       const d = await api.run(s.id);
@@ -154,6 +155,7 @@ export async function mount(el, params, ctx) {
       if (s.pendingReview && d.run.review?.status !== s.pendingReview) d.run.review = { ...d.run.review, status: s.pendingReview };
       s.data = d;
       s.error = null;
+      if (!opened) { opened = true; ctx.emit('grapim:run-opened', { run: d.run.run, label: d.run.label }); }
     } catch (e) {
       s.error = e;
     }
@@ -162,7 +164,7 @@ export async function mount(el, params, ctx) {
 
   async function review(status) {
     const r = s.data?.run;
-    if (!r) return;
+    if (!r || ctx.readonly()) return;
     const prev = r.review;
     const next = prev?.status === status ? 'pending' : status;
     r.review = { status: next, note: prev?.note ?? null, at: Date.now(), by: prev?.by ?? null };
@@ -172,6 +174,7 @@ export async function mount(el, params, ctx) {
       r.review = await api.review(r.run, next);
       s.pendingReview = null;
       draw();
+      ctx.emit('grapim:run-reviewed', { run: r.run, status: r.review?.status || next });
       ctx.toast(next === 'pending' ? `${r.label} needs review again.` : `${next === 'approved' ? 'Approved' : 'Rejected'} ${r.label}.`, {
         action: { label: 'Undo', fn: () => review(next) },
       });
@@ -186,7 +189,7 @@ export async function mount(el, params, ctx) {
 
   async function branch() {
     const r = s.data?.run;
-    if (!r || s.busy) return;
+    if (!r || s.busy || ctx.readonly()) return;
     s.busy = 'branch';
     draw();
     try {
@@ -272,10 +275,12 @@ export async function mount(el, params, ctx) {
     destroy() { el.removeEventListener('click', onClick); el.removeEventListener('change', onChange); },
     onKey(e) {
       if (!s.data) return false;
-      if (e.key === 'a') { review('approved'); return true; }
-      if (e.key === 'x') { review('rejected'); return true; }
-      if (e.key === 'b') { branch(); return true; }
-      if (e.key === 'u') { undo(); return true; }
+      if (!ctx.readonly()) {
+        if (e.key === 'a') { review('approved'); return true; }
+        if (e.key === 'x') { review('rejected'); return true; }
+        if (e.key === 'b') { branch(); return true; }
+        if (e.key === 'u') { undo(); return true; }
+      }
       if (e.key === 's') { s.mode = s.mode === 'split' ? 'unified' : 'split'; store.set('grapim.diffMode', s.mode); draw(); return true; }
       if (e.key === 'v') {
         const f = s.data.files.find((x) => !s.viewed.has(viewKey(x)));
@@ -297,10 +302,12 @@ export async function mount(el, params, ctx) {
       const r = s.data?.run;
       if (!r) return [];
       return [
-        { label: r.review?.status === 'approved' ? 'Mark as needing review' : 'Approve this run', hint: 'a', run: () => review('approved') },
-        { label: r.review?.status === 'rejected' ? 'Mark as needing review' : 'Reject this run', hint: 'x', run: () => review('rejected') },
-        { label: 'Create a branch from this run', hint: 'b', run: branch },
-        { label: 'Undo this run…', hint: 'u', run: () => undo() },
+        ...(ctx.readonly() ? [] : [
+          { label: r.review?.status === 'approved' ? 'Mark as needing review' : 'Approve this run', hint: 'a', run: () => review('approved') },
+          { label: r.review?.status === 'rejected' ? 'Mark as needing review' : 'Reject this run', hint: 'x', run: () => review('rejected') },
+          { label: 'Create a branch from this run', hint: 'b', run: branch },
+          { label: 'Undo this run…', hint: 'u', run: () => undo() },
+        ]),
         { label: s.mode === 'split' ? 'Show unified diffs' : 'Show split diffs', hint: 's', run: () => { s.mode = s.mode === 'split' ? 'unified' : 'split'; store.set('grapim.diffMode', s.mode); draw(); } },
       ];
     },

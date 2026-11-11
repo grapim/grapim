@@ -119,6 +119,7 @@ export function openUndo(run, turn, ctx) {
       try {
         s.result = await api.undo(run.run, { turn, apply: true });
         applied = s.result.files.some((f) => CLEAN.has(f.action));
+        if (applied) ctx.emit('grapim:undone', { run: run.run, turn, files: s.result.files.filter((f) => CLEAN.has(f.action)).map((f) => f.path) });
         ctx.toast(applied ? `Undid ${name}.` : `Nothing was undone for ${name}.`);
         ctx.refreshShell();
       } catch (e) {

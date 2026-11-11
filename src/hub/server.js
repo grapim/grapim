@@ -20,9 +20,16 @@ import { Ingest } from './ingest.js';
 import { loadBilling, makeLimits } from './plans.js';
 import { LIMITS, RateLimiter } from './ratelimit.js';
 import { TeamRead } from './read.js';
+import { reportRoutes, Reports } from './reports/index.js';
 import { Router } from './router.js';
-import { same } from './secure.js';
+import { randomId, same } from './secure.js';
 import { Teams } from './teams.js';
+import { createWorkspaceMount } from './workspace-mount.js';
+import { createComputePool } from './compute-pool.js';
+import { createPlatform } from './platform/index.js';
+import { createGitHubApp } from './github/index.js';
+import { createWorkspaceStorage, defaultStorageUrl, loadStorage } from './workspace-storage.js';
+import { Workspaces } from './workspaces.js';
 import { errorPage } from './pages/layout.js';
 import { apiRoutes } from './routes-api.js';
 import { pageRoutes } from './routes-pages.js';
@@ -31,7 +38,9 @@ const PAGES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'pages');
 
 const defaultLog = (line) => process.stdout.write(`${new Date().toISOString()} ${line}\n`);
 
-// options: { env | config, fetch, now, billing (object, or null for off; omitted: load billing.js), log }
+// options: { env | config, fetch, now, billing (object, or null for off; omitted: load billing.js), log,
+//   storage (a storage backend for workspace files, or null for none; omitted: HUB_STORAGE_URL), uiDir,
+//   compute (options for the workspace compute pool: { size, budgetMs, perTeam }) }
 export async function createHub(options = {}) {
   const config = options.config ?? loadConfig(options.env ?? process.env);
   const now = options.now ?? (() => Date.now());
@@ -56,19 +65,39 @@ export async function createHub(options = {}) {
     auth: new Auth({ db, config, fetch: fetchImpl, now }),
     teams: new Teams({ db, now, limits }),
     read: new TeamRead({ db, now, limits }),
+    reports: new Reports({ db, now, limits }), // docs/provenance.md section 7
     rate: new RateLimiter({ now }),
     streams: new Map(), // user id -> open SSE connections
   };
+  hub.workspaces = new Workspaces({ db, now, limits, dataDir: config.dataDir });
   hub.ingest = new Ingest({ db, now, limits, storageBytes: config.teamStorageBytes, onSync: (teamId, repoId) => bus.emit(`sync:${teamId}:${repoId}`) });
+  // Workspace diffs, blame and replays run in worker threads, a fair share
+  // per team, never on this event loop (security review of workspaces, M7).
+  hub.compute = createComputePool({ log, ...(options.compute ?? {}) });
 
   const statics = {
     '/hub/static/hub.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, 'hub.css'))],
     '/hub/static/hub.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, 'hub.js'))],
   };
 
+  // Cloud workspaces at /w/<team>/<name>/, and their files in storage.
+  const env = options.env ?? process.env;
+  hub.mount = createWorkspaceMount(hub, options.uiDir ? { uiDir: options.uiDir } : {});
+  const storageUrl = String(env.HUB_STORAGE_URL ?? '').trim() || defaultStorageUrl(config.dataDir);
+  const loaded = await loadStorage({ url: storageUrl, env, log, storage: options.storage });
+  if (loaded) log(`workspace storage: ${storageUrl.startsWith('file:') ? 'the local folder' : storageUrl.split('?')[0].replace(/\/\/[^@/]*@/, '//')}${options.storage ? ' (given)' : ''}`);
+  hub.restored = hub.mount.boot(loaded ? createWorkspaceStorage({ ...loaded, log, now }) : null);
+
   const router = new Router();
   pageRoutes(router, hub);
   apiRoutes(router, hub);
+  reportRoutes(router, hub);
+  // Grapim for platforms (docs/platform.md): /v1 has its own router; its hub pages join this one.
+  hub.platform = createPlatform(hub, { env, fetch: fetchImpl, ...(options.platform ?? {}) });
+  hub.platform.pageRoutes(router);
+  // The GitHub App (docs/provenance.md section 6): webhooks, linking, PR comments and checks.
+  hub.github = createGitHubApp(hub, { env, fetch: fetchImpl, ...(options.github ?? {}) });
+  hub.github.routes(router);
 
   const wantsJson = (p) => p.startsWith('/hub/api/') || p.startsWith('/hub/stripe/');
 
@@ -85,7 +114,7 @@ export async function createHub(options = {}) {
     const message = known ? err.message : 'Something went wrong on the hub.';
     const headers = status === 429 && err.extra?.retryAfter ? { 'Retry-After': String(err.extra.retryAfter) } : {};
     if (status === 405 && err.extra?.allow) headers.Allow = err.extra.allow;
-    if (ctx.json) sendJson(res, status, { error: { code, message }, ...(err.extra?.body ?? {}) }, headers);
+    if (ctx.json) sendJson(res, status, { error: { code, message, ...(ctx.requestId ? { request_id: ctx.requestId } : {}) }, ...(err.extra?.body ?? {}) }, headers);
     else sendHtml(res, status, errorPage({ status, message, user: ctx.session?.user, csrf: ctx.session?.csrf }), headers);
   }
 
@@ -129,9 +158,29 @@ export async function createHub(options = {}) {
       const url = new URL(req.url, config.origin);
       pathname = url.pathname;
       ctx.url = url;
-      ctx.json = wantsJson(pathname);
+      // /v1: the platform API. JSON errors with a request_id, and a Request-Id header on every response.
+      const v1 = pathname === '/v1' || pathname.startsWith('/v1/');
+      if (v1) {
+        ctx.requestId = `req_${randomId(12)}`;
+        res.setHeader('Request-Id', ctx.requestId);
+      }
+      ctx.json = v1 || wantsJson(pathname);
       ctx.ip = clientIp(req, config.trustProxy);
-      limit(ctx, 'global', ctx.ip);
+      // Platform keys have their own token buckets; per address, /v1 gets a wider limit.
+      // So do agents calling a workspace with a gws_ token: a platform's
+      // sandboxes share a few egress addresses (with other platforms' too),
+      // and each valid token has its own limit in the mount. Bad tokens are
+      // still counted per address there (syncIp).
+      const agentCall = req.url.startsWith('/w/') && /^Bearer\s+gws_/i.test(String(req.headers.authorization || ''));
+      limit(ctx, v1 || agentCall ? 'platformIp' : 'global', ctx.ip);
+
+      // A cloud workspace: decided on the raw target, never on a normalised
+      // one, so "/w/a/b/fs/../x" reaches the engine's path check as written.
+      if (req.url.startsWith('/w/')) {
+        ctx.cookies = parseCookies(req.headers.cookie);
+        await hub.mount.handle(ctx, req.url);
+        return;
+      }
 
       if (statics[pathname] && (req.method === 'GET' || req.method === 'HEAD')) {
         const [type, body] = statics[pathname];
@@ -141,7 +190,7 @@ export async function createHub(options = {}) {
         return;
       }
 
-      const m = router.match(req.method, pathname);
+      const m = (v1 ? hub.platform.router : router).match(req.method, pathname);
       if (!m) throw notFound();
       if (m.allowed) throw new HttpError(405, 'method_not_allowed', 'Method not allowed.', { allow: [...new Set(m.allowed)].join(', ') });
       const { route, params } = m;
@@ -194,6 +243,10 @@ export async function createHub(options = {}) {
         }
         if (o.owner && ctx.member.role !== 'owner') throw new HttpError(403, 'forbidden', 'Only a team owner can do that.');
       }
+      if (o.workspace) {
+        ctx.workspace = hub.workspaces.byId(ctx.member.team.id, params.ws);
+        if (!ctx.workspace) throw notFound();
+      }
       if (o.repo) {
         ctx.repo = hub.read.repo(ctx.member.team, params.repo);
         if (!ctx.repo) throw notFound();
@@ -232,17 +285,25 @@ export async function createHub(options = {}) {
   hub.handle = handle;
   hub.listen = (port = config.port, host = config.host) =>
     new Promise((resolve) => server.listen(port, host, () => resolve(server.address())));
+  let closing = null;
   hub.close = () =>
-    new Promise((resolve) => {
+    (closing ??= new Promise((resolve) => {
       clearInterval(sweep);
+      hub.platform.close();
+      hub.github.close();
       bus.emit('close');
       server.closeAllConnections?.();
-      server.close(() => {
+      server.close(async () => {
+        try {
+          await hub.restored;
+          await hub.mount.closeAll();
+          await hub.compute.close();
+        } catch {}
         try {
           db.close();
         } catch {}
         resolve();
       });
-    });
+    }));
   return hub;
 }

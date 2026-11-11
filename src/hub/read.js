@@ -10,6 +10,9 @@
 import { isTracked, replay } from '../attribution.js';
 import { hunks } from './hunks.js';
 import { HttpError } from './http.js';
+import { provenanceFor, repoByGitHub } from './provenance.js';
+
+export { provenanceFor, repoByGitHub };
 
 const DAY = 24 * 60 * 60 * 1000;
 const ACTIVE_MS = 60 * 60 * 1000;
@@ -313,5 +316,16 @@ export class TeamRead {
 
   lastEventId(team, repo) {
     return this.db.prepare('SELECT MAX(id) AS id FROM h_events WHERE team_id = ? AND repo_id = ?').get(team.id, repo.id).id ?? 0;
+  }
+
+  // { [sha]: note } for commits of one of the team's repos (docs/provenance.md
+  // section 3), for the GitHub App and the reports.
+  provenanceFor(team, repoId, shas, opts) {
+    return provenanceFor(this.db, team, repoId, shas, opts);
+  }
+
+  // The team's hub repos synced from a GitHub repo ("owner/name").
+  repoByGitHub(team, fullName) {
+    return repoByGitHub(this.db, team, fullName);
   }
 }

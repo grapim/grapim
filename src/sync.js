@@ -12,6 +12,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { NOTE_REF, parseNote, serializeNote } from './provenance/note.js';
+import { readBlobs } from './provenance/git.js';
 
 export const CURSOR_FILE = 'hub-sync.json';
 const MAX_CHANGES = 500;
@@ -50,6 +52,36 @@ export function repoIdentity(ws) {
   const roots = out.split(/\s+/).filter((s) => /^[0-9a-f]{40}$/.test(s)).sort();
   if (!roots.length) throw new SyncError('This repo has no commits yet. Commit once, then sync.');
   return { id: roots[0], name: String(ws.repo || path.basename(ws.root)).slice(0, 100) || 'repo' };
+}
+
+// The origin remote as github.com/owner/name, or null (no origin, or not
+// GitHub). Credentials in the URL never leave this function.
+export function githubRemote(url) {
+  if (typeof url !== 'string') return null;
+  const u = url.trim();
+  let m = /^(?:[A-Za-z0-9._~-]+@)?(?:www\.)?github\.com:\/?([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/i.exec(u); // scp-like: git@github.com:o/n.git
+  if (!m) {
+    try {
+      const p = new URL(u);
+      if (!['https:', 'http:', 'ssh:', 'git:', 'git+ssh:', 'ssh+git:'].includes(p.protocol) || !/^(www\.)?github\.com$/i.test(p.hostname)) return null;
+      m = /^\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(decodeURIComponent(p.pathname));
+    } catch {
+      return null;
+    }
+  }
+  if (!m) return null;
+  const [, owner, name] = m;
+  if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(owner) || !/^[A-Za-z0-9._-]{1,100}$/.test(name) || name === '.' || name === '..') return null;
+  return `github.com/${owner}/${name}`;
+}
+
+function originGitHub(ws) {
+  try {
+    const url = execFileSync('git', ['config', '--get', 'remote.origin.url'], { cwd: ws.root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+    return githubRemote(url);
+  } catch {
+    return null;
+  }
 }
 
 export function machineName(env = process.env) {
@@ -140,6 +172,81 @@ export function buildBatch(store, cursor, { budget = BLOB_BUDGET } = {}) {
   };
 }
 
+// ---- Provenance notes (docs/provenance.md section 3) ----
+// The sync state keeps { base, target, after }: base is the notes commit
+// whose notes have all been sent; a pass sends the notes added or changed
+// between base and target, in commit order, and `after` is the last commit
+// sent in the pass. When the pass ends, base = target.
+
+const MAX_NOTES = 200;
+const NOTES_BUDGET = 1024 * 1024; // note bytes per batch
+
+function gitOut(ws, args, input) {
+  try {
+    return execFileSync('git', args, { cwd: ws.root, input, encoding: 'utf8', stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'ignore'], windowsHide: true, maxBuffer: 256 * 1024 * 1024 });
+  } catch {
+    return null;
+  }
+}
+
+// commit -> note blob, for every note in the ref at `rev`.
+function notesAt(ws, rev) {
+  const out = gitOut(ws, ['ls-tree', '-r', '-z', rev]) ?? '';
+  const map = new Map();
+  for (const entry of out.split('\0')) {
+    const m = /^\d+ blob ([0-9a-f]{40,64})\t(.+)$/.exec(entry);
+    if (!m) continue;
+    const commit = m[2].replace(/\//g, '');
+    if (/^[0-9a-f]{40}$/.test(commit)) map.set(commit, m[1]);
+  }
+  return map;
+}
+
+export function buildNotes(ws, state = {}, { max = MAX_NOTES, budget = NOTES_BUDGET } = {}) {
+  const head = gitOut(ws, ['rev-parse', '--verify', '--quiet', NOTE_REF])?.trim() || null;
+  if (!head) return { provenance: [], state: {}, more: false };
+  const base = state.base || null;
+  if (base === head) return { provenance: [], state: { base: head, target: head, after: '' }, more: false };
+  const after = state.target === head ? state.after || '' : '';
+  const now = notesAt(ws, head);
+  const old = base ? notesAt(ws, base) : null;
+  // Notes added or changed since base (all of them if base is gone).
+  let commits = old && old.size ? [...now].filter(([c, b]) => old.get(c) !== b).map(([c]) => c) : [...now.keys()];
+  commits = commits.sort().filter((c) => c > after);
+  // One git process for every note text of this batch.
+  let texts = new Map();
+  try {
+    texts = readBlobs(ws.root, commits.slice(0, max).map((c) => now.get(c)));
+  } catch {}
+  const provenance = [];
+  let used = 0;
+  let last = after;
+  for (const commit of commits) {
+    if (provenance.length >= max) break;
+    const text = texts.get(now.get(commit));
+    last = commit;
+    let note;
+    try {
+      // Concatenated notes are merged here, so the hub gets one clean note.
+      note = serializeNote(parseNote(text ?? ''));
+    } catch {
+      continue; // a note this client cannot read is not sent
+    }
+    if (provenance.length && used + note.length > budget) {
+      last = provenance.at(-1).commit;
+      break;
+    }
+    used += note.length;
+    provenance.push({ commit, note });
+  }
+  const done = !commits.length || last === commits.at(-1);
+  return {
+    provenance,
+    state: done ? { base: head, target: head, after: '' } : { base, target: head, after: last },
+    more: !done,
+  };
+}
+
 async function post(fetchImpl, origin, token, body) {
   let res;
   try {
@@ -164,13 +271,17 @@ export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = gl
   if (!token) throw new SyncError('No hub token. Pass --token or set GRAPIM_HUB_TOKEN.');
   const origin = hubOrigin(hubUrl);
   const repo = repoIdentity(ws);
+  const github = originGitHub(ws);
+  if (github) repo.github = github;
   const key = cursorKey(origin, repo.id, token);
   const saved = readCursors(ws.stateDir)[key];
   let cursor = { changes: saved?.changes ?? 0, events: saved?.events ?? 0, agents: saved?.agents ?? 0 };
-  const total = { batches: 0, changes: 0, events: 0, agents: 0, runs: 0, blobs: 0, repo: repo.id };
+  let notes = saved?.notes ?? {};
+  const total = { batches: 0, changes: 0, events: 0, agents: 0, runs: 0, blobs: 0, notes: 0, repo: repo.id };
   let resets = 0;
   for (let i = 0; i < maxBatches; i++) {
     const b = buildBatch(store, cursor, { budget });
+    const n = ws.isGit ? buildNotes(ws, notes) : { provenance: [], state: notes, more: false };
     const { status, data } = await post(fetchImpl, origin, token, {
       repo,
       machine,
@@ -180,10 +291,12 @@ export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = gl
       changes: b.changes,
       events: b.events,
       blobs: b.blobs,
+      provenance: n.provenance,
     });
     if (status === 409 && data?.error?.code === 'cursor_mismatch' && data.cursor && resets++ < 2) {
       cursor = { changes: data.cursor.changes ?? 0, events: data.cursor.events ?? 0, agents: data.cursor.agents ?? 0 };
-      writeCursor(ws.stateDir, key, cursor);
+      notes = {}; // the hub lost data: send every note again too
+      writeCursor(ws.stateDir, key, { ...cursor, notes });
       continue;
     }
     if (status !== 200 || !data?.cursor) {
@@ -191,14 +304,16 @@ export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = gl
       throw new SyncError(status === 401 ? `The hub rejected the token: ${msg}` : `Sync failed: ${msg}`, status, data?.error?.code ?? null);
     }
     cursor = { changes: data.cursor.changes, events: data.cursor.events, agents: data.cursor.agents };
-    writeCursor(ws.stateDir, key, cursor);
+    notes = n.state;
+    writeCursor(ws.stateDir, key, { ...cursor, notes });
     total.batches++;
+    total.notes += n.provenance.length;
     total.changes += b.changes.length;
     total.events += b.events.length;
     total.agents += b.agents.length;
     total.runs += b.runs.length;
     total.blobs += Object.keys(b.blobs).length;
-    if (!b.more) break;
+    if (!b.more && !n.more) break;
   }
   total.cursor = cursor;
   return total;

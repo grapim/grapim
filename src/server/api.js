@@ -11,8 +11,9 @@ import { rootKey } from '../workspace.js';
 import { createWorkspace, httpAgent } from './fs.js';
 import { badRequest, headerText, notAllowed, notFound, readJson, sendBytes, sendJson } from './http.js';
 import { diffJson } from './json-diff.js';
+import { restorePairs, undoPairs } from './offload.js';
 import { decodePath, guardSensitiveWrite, resolvePath } from './paths.js';
-import { eventsAfter, fileHistory, worktrees } from './queries.js';
+import { changesAfter, eventsAfter, fileHistory, worktrees } from './queries.js';
 import { listRuns, planJson, resolveRun, runDetail } from './runs.js';
 
 const REVIEW = new Set(['pending', 'approved', 'rejected']);
@@ -20,10 +21,11 @@ const MAX_NOTE = 4000;
 
 const slash = (p) => p.split(path.sep).join('/');
 
-// Who is acting: the X-Grapim-Agent if given, else the human running the server.
-function actor(req) {
+// Who is acting: the X-Grapim-Agent if given, else the human: the one the
+// mount names (ctx.human, the hub's signed-in person) or the user running the server.
+function actor(req, ctx) {
   const name = headerText(req, 'x-grapim-agent');
-  return name ? httpAgent(name).agent : `human:${os.userInfo().username}`;
+  return name ? httpAgent(name).agent : `human:${ctx?.human?.(req) ?? os.userInfo().username}`;
 }
 
 function int(query, name, fallback, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
@@ -60,16 +62,17 @@ function worktreeOf(ctx, name) {
   ctx.worktreeCache ??= new Map();
   if (!ctx.worktreeCache.has(key)) {
     const ws = { ...ctx.ws, root, worktree: hits[0].name };
-    ctx.worktreeCache.set(key, { ws, workspace: createWorkspace({ store: ctx.store, ws, env: ctx.env }) });
+    ctx.worktreeCache.set(key, { ws, workspace: createWorkspace({ store: ctx.store, ws, env: ctx.env, offload: ctx.offload }) });
   }
   return ctx.worktreeCache.get(key);
 }
 
 // GET /api/blame; with full=1 also the working file's text, so the file view needs one request.
-function blameOf(ctx, q) {
+// ctx.offload (the hub) compares off the event loop.
+async function blameOf(ctx, q) {
   const { ws } = worktreeOf(ctx, q.get('worktree'));
   const t = filePath(ws, q.get('path'));
-  const b = blame(ctx.store, ws, t.file);
+  const b = ctx.offload ? await ctx.offload.blame(ctx.store, ws, t.file) : blame(ctx.store, ws, t.file);
   if (!flag(q, 'full')) return b;
   const now = snapshot(t.abs);
   return { ...b, content: now.buf ? now.buf.toString('utf8') : null };
@@ -86,7 +89,7 @@ function history(ctx, q) {
   return fileHistory(ctx.store, ws, filePath(ws, q.get('path')).file.key);
 }
 
-function overview({ store, ws }) {
+function overview({ store, ws, publicRoot = null }, runs = listRuns(store)) {
   const leases = store.leases().map((l) => ({
     path: l.path,
     agent: l.agent,
@@ -104,11 +107,11 @@ function overview({ store, ws }) {
     last_seen: a.last_seen,
     files: leases.filter((l) => l.agent === a.agent).map((l) => l.path),
   }));
-  const runs = listRuns(store);
   return {
     repo: ws.repo,
-    root: slash(ws.root),
-    worktrees: worktrees(ws),
+    // A hosted engine (the hub) names its mount, never its folder.
+    root: publicRoot ?? slash(ws.root),
+    worktrees: publicRoot ? worktrees(ws).map((w) => ({ ...w, root: publicRoot })) : worktrees(ws),
     agents,
     leases,
     counts: { agents: agents.length, leases: leases.length, runs: runs.length, unreviewed: runs.filter((r) => r.review.status === 'pending').length },
@@ -116,12 +119,12 @@ function overview({ store, ws }) {
   };
 }
 
-function undoRun(ctx, req, run, body) {
+async function undoRun(ctx, req, run, body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw badRequest('Send a JSON object: { "turn": null, "apply": false }.');
   const turn = body.turn ?? null;
   if (turn !== null && !(Number.isInteger(turn) && turn >= 0)) throw badRequest('turn must be null or a whole number.');
   if (body.apply !== undefined && typeof body.apply !== 'boolean') throw badRequest('apply must be true or false.');
-  const who = actor(req);
+  const who = actor(req, ctx);
   let plan;
   try {
     plan = planUndo(ctx.store, run, { turn, actor: who });
@@ -131,15 +134,21 @@ function undoRun(ctx, req, run, body) {
     throw err;
   }
   if (body.apply) {
-    plan = applyUndo(ctx.store, plan, who);
-    if (changedAny(plan)) autoApprove(ctx.store, plan.undoRun, who);
+    const apply = (p) => {
+      const done = applyUndo(ctx.store, p, who);
+      if (changedAny(done)) autoApprove(ctx.store, done.undoRun, who);
+      return done;
+    };
+    plan = ctx.offload ? await ctx.offload.ensure(() => undoPairs(plan), () => apply(plan)) : apply(plan);
   }
-  return planJson(plan, !!body.apply);
+  const out = planJson(plan, !!body.apply);
+  if (ctx.publicRoot) out.files = out.files.map((f) => ({ ...f, root: ctx.publicRoot }));
+  return out;
 }
 
 // POST /api/files/restore { path, sha, worktree?, apply = true, expect? }.
 // apply: false only plans; both answer with the diff from the current file to the version.
-function restore(ctx, req, body) {
+async function restore(ctx, req, body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw badRequest('Send a JSON object: { "path": "src/app.js", "sha": "…" }.');
   if (typeof body.sha !== 'string') throw badRequest('sha must be a string: a version from GET /api/files/history.');
   if (body.apply !== undefined && typeof body.apply !== 'boolean') throw badRequest('apply must be true or false.');
@@ -148,12 +157,16 @@ function restore(ctx, req, body) {
   const t = filePath(ws, body.path);
   // Like /fs: files that run code by themselves are not written over HTTP.
   guardSensitiveWrite(ws, t.rel, ctx.env, t.abs);
-  const who = actor(req);
+  const who = actor(req, ctx);
   const apply = body.apply !== false;
-  let plan = planRestore(ctx.store, ws, t.file, body.sha, { actor: who });
-  if (apply) plan = applyRestore(ctx.store, ws, plan, who, { expect: body.expect });
+  const act = () => {
+    const p = planRestore(ctx.store, ws, t.file, body.sha, { actor: who });
+    return apply ? applyRestore(ctx.store, ws, p, who, { expect: body.expect }) : p;
+  };
+  // The hub counts the lines of the current file against the version first.
+  const plan = ctx.offload ? await ctx.offload.ensure(() => restorePairs(ctx.store, t, body.sha), act) : act();
   const known = plan.now.sha === null || plan.now.buf !== null;
-  const diff = known ? diffJson(plan.now.buf, plan.version.buf).diff : null;
+  const diff = known ? (ctx.offload ? (await ctx.offload.diff(plan.now.buf, plan.version.buf)).diff : diffJson(plan.now.buf, plan.version.buf).diff) : null;
   return restoreJson(plan, apply && plan.action !== 'nothing', { worktree: ws.worktree, diff });
 }
 
@@ -163,24 +176,25 @@ async function review(ctx, req, run, body) {
   if (body.note !== undefined && body.note !== null && typeof body.note !== 'string') throw badRequest('note must be a string.');
   if (body.note && body.note.length > MAX_NOTE) throw badRequest(`note is over ${MAX_NOTE} characters.`);
   const r = resolveRun(ctx.store, run);
-  return await setReview(ctx.store, r.run, body.status, { note: body.note || null, by: actor(req) });
+  return await setReview(ctx.store, r.run, body.status, { note: body.note || null, by: actor(req, ctx) });
 }
 
 async function branch(ctx, req, run) {
   await readJson(req); // no options yet; a malformed body is still an error
   const r = resolveRun(ctx.store, run);
-  return await createBranch(ctx.store, ctx.ws, r.run, { by: actor(req) });
+  return await createBranch(ctx.store, ctx.ws, r.run, { by: actor(req, ctx) });
 }
 
 // [method, path parts (":run" matches one segment), handler(ctx, req, res, params, query)]
 const ROUTES = [
-  ['GET', ['overview'], (ctx) => overview(ctx)],
-  ['GET', ['runs'], (ctx) => listRuns(ctx.store)],
-  ['GET', ['runs', ':run'], (ctx, req, res, p) => runDetail(ctx.store, p.run)],
+  ['GET', ['overview'], async (ctx) => (ctx.offload ? overview(ctx, await ctx.offload.runs(ctx.store)) : overview(ctx))],
+  ['GET', ['runs'], (ctx) => (ctx.offload ? ctx.offload.runs(ctx.store) : listRuns(ctx.store))],
+  ['GET', ['runs', ':run'], (ctx, req, res, p) => (ctx.offload ? ctx.offload.runDetail(ctx.store, p.run) : runDetail(ctx.store, p.run))],
   ['GET', ['blame'], (ctx, req, res, p, q) => blameOf(ctx, q)],
   ['GET', ['files'], (ctx, req, res, p, q) => files(ctx, q)],
   ['GET', ['files', 'history'], (ctx, req, res, p, q) => history(ctx, q)],
   ['GET', ['files', 'version'], (ctx, req, res, p, q) => version(ctx, res, q)],
+  ['GET', ['files', 'changes'], (ctx, req, res, p, q) => changesFeed(ctx, q)],
   ['GET', ['events'], (ctx, req, res, p, q) => eventsAfter(ctx.store, int(q, 'after', 0), int(q, 'limit', 100, { min: 1, max: 1000 }), { latest: q.get('latest') === '1' })],
   ['GET', ['stream'], (ctx, req, res) => ctx.stream.attach(req, res)],
   ['POST', ['runs', ':run', 'undo'], async (ctx, req, res, p) => undoRun(ctx, req, p.run, await readJson(req))],
@@ -188,6 +202,14 @@ const ROUTES = [
   ['POST', ['runs', ':run', 'review'], async (ctx, req, res, p) => review(ctx, req, p.run, await readJson(req))],
   ['POST', ['files', 'restore'], async (ctx, req) => restore(ctx, req, await readJson(req))],
 ];
+
+// GET /api/files/changes?after=<id>&limit=500: the changes feed for folder sync.
+function changesFeed(ctx, q) {
+  const { ws } = worktreeOf(ctx, q.get('worktree'));
+  const after = int(q, 'after', 0);
+  const changes = changesAfter(ctx.store, ws, after, int(q, 'limit', 500, { min: 1, max: 1000 }));
+  return { changes, cursor: changes.length ? changes.at(-1).id : after };
+}
 
 function version(ctx, res, q) {
   const sha = q.get('sha') ?? '';

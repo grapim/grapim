@@ -1,7 +1,7 @@
 // Runs as the API shows them: the list, one run in detail, and the undo plan.
 
 import path from 'node:path';
-import { history, inTree, isTracked, replay } from '../attribution.js';
+import { history, inTree, isTracked, replay, replayFields } from '../attribution.js';
 import { snapshot } from '../ledger.js';
 import { branchOf, getReview } from '../review.js';
 import { findRun } from '../undo.js';
@@ -45,36 +45,46 @@ function runRow(r, status, active, store) {
   };
 }
 
-export function listRuns(store) {
-  const status = inTree(store);
+// status: Map(run -> in-tree status), from inTree(store) unless given (the
+// hub computes it off its event loop, src/server/offload.js).
+export function listRuns(store, status = inTree(store)) {
   const active = activeSet(store);
   return store.runs().map((r) => runRow(r, status, active, store));
 }
 
 // Is the run's work in this file still in the working tree? Mirrors
-// fileStatus in attribution.js, per file instead of per run.
-function fileState(store, f, run) {
-  const changes = history(store, f.root, f.path_key);
-  const now = snapshot(path.join(f.root, f.path));
-  if (!isTracked(changes, now)) return null;
-  const r = replay(changes, now);
+// fileStatus in attribution.js, per file instead of per run. s is the
+// file's replayable history from fileInputs, or null.
+function fileState(s, run) {
+  if (!s) return null;
+  const r = replay(s.changes, s.now);
   const end = r.ends.get(run) ?? 0;
   const kept = r.who.filter((a) => a?.run === run).length;
   if (end > 0) return kept === end ? 'in_tree' : kept === 0 ? 'gone' : 'partial';
-  if (now.sha === f.last.after_sha) return 'in_tree';
-  if (now.sha === f.first.before_sha) return 'gone';
+  if (s.now.sha === s.lastAfter) return 'in_tree';
+  if (s.now.sha === s.firstBefore) return 'gone';
   return null;
 }
 
 // Content for a sha: null if the file did not exist, undefined if it was not kept.
 const content = (store, sha) => (sha === null ? null : store.blob(sha) ?? undefined);
 
-function fileDetail(store, f, run) {
+// What a file's detail is computed from (reading only): its first and last
+// content in the run, and its whole history for the in-tree state.
+function fileInputs(store, f) {
   const before = content(store, f.first.before_sha);
   const after = content(store, f.last.after_sha);
   const untracked = f.changes.some((c) => c.untracked) || before === undefined || after === undefined;
-  const d = untracked ? { added: null, removed: null, diff: null } : diffJson(before, after);
-  return { path: f.path, added: d.added, removed: d.removed, untracked, state: fileState(store, f, run), diff: d.diff };
+  const changes = history(store, f.root, f.path_key);
+  const now = snapshot(path.join(f.root, f.path));
+  const state = isTracked(changes, now) ? { changes: changes.map(replayFields), now: { sha: now.sha, buf: now.buf }, lastAfter: f.last.after_sha, firstBefore: f.first.before_sha } : null;
+  return { path: f.path, untracked, before: untracked ? null : before, after: untracked ? null : after, state };
+}
+
+// A file's detail from fileInputs (CPU only: the diff and the replay).
+export function fileDetailFrom(fi, run) {
+  const d = fi.untracked ? { added: null, removed: null, diff: null } : diffJson(fi.before, fi.after);
+  return { path: fi.path, added: d.added, removed: d.removed, untracked: fi.untracked, state: fileState(fi.state, run), diff: d.diff };
 }
 
 // The run's changes grouped by file, in the order it first touched each.
@@ -102,15 +112,21 @@ function turnsOf(store, run, changes) {
   return [...turns.values()].sort((a, b) => a.turn - b.turn);
 }
 
-export function runDetail(store, query) {
+// runDetail() in two halves, as blame(): what to compute, then the answer
+// from the in-tree statuses and the files' details.
+export function runDetailInputs(store, query) {
   const r = resolveRun(store, query);
-  const row = listRuns(store).find((x) => x.run === r.run);
   const changes = store.changesOfRun(r.run);
-  return {
-    run: row,
-    turns: turnsOf(store, r.run, changes),
-    files: byFile(changes).map((f) => fileDetail(store, f, r.run)),
-  };
+  return { run: r.run, turns: turnsOf(store, r.run, changes), files: byFile(changes).map((f) => fileInputs(store, f)) };
+}
+
+export function runDetailFrom(store, inputs, status, files) {
+  return { run: listRuns(store, status).find((x) => x.run === inputs.run), turns: inputs.turns, files };
+}
+
+export function runDetail(store, query) {
+  const i = runDetailInputs(store, query);
+  return runDetailFrom(store, i, inTree(store), i.files.map((f) => fileDetailFrom(f, i.run)));
 }
 
 // The same JSON as `grapim undo --json`.

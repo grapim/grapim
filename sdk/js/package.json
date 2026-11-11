@@ -1,0 +1,42 @@
+{
+  "name": "@grapim/sdk",
+  "version": "0.1.0",
+  "description": "Grapim for platforms: workspaces, scoped agent tokens, embedded review, undo, usage and webhook verification.",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "index.d.ts",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://grapim.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/twfly104/grapim.git",
+    "directory": "sdk/js"
+  },
+  "keywords": [
+    "grapim",
+    "ai",
+    "agents",
+    "sandbox",
+    "undo",
+    "workspace"
+  ]
+}

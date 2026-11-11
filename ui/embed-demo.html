@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Acme Agents · embed demo</title>
+  <!--
+    A fake platform ("Acme Agents") that embeds the Grapim review desk, for
+    trying embed mode and for the docs. Not linked from the app.
+      node ui/dev-server.mjs   then open   http://127.0.0.1:7421/embed-demo.html
+    The desk loads from the other loopback name (localhost <-> 127.0.0.1), so
+    it is a real cross-origin iframe. ui/dev-server.mjs plays the hub and
+    injects the grapim-embed-origin and grapim-embed-mode meta tags.
+    URL options: ?theme=light|dark|system &mode=review|readonly &brand=0
+      &origin=ok|missing|wrong &height=auto|fixed &width=375|800|1200|fill
+      &view=#/runs &desk=http://host:port (where the desk is served)
+  -->
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f5f7; --surface: #fff; --line: #e2e4e9; --line-2: #cdd1d8;
+      --text: #14161a; --text-2: #4c525c; --text-3: #6b717c;
+      --brand: #0f766e; --brand-bg: #e6f4f2; --ok: #157a3c; --bad: #b4231f; --code: #f1f2f5;
+      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0c0d10; --surface: #15171b; --line: #262a31; --line-2: #343943;
+      --text: #eceef2; --text-2: #b3b8c2; --text-3: #8b919c;
+      --brand: #3cc4b4; --brand-bg: #10302d; --ok: #5ccf86; --bad: #ff7b74; --code: #1c1f25;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/20px var(--font); -webkit-font-smoothing: antialiased; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    code { font: 12px/18px var(--mono); }
+
+    .top { display: flex; align-items: center; gap: 16px; height: 56px; padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--line); }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -0.01em; }
+    .logo svg { width: 22px; height: 22px; color: var(--brand); }
+    .crumb { color: var(--text-3); display: flex; gap: 8px; align-items: center; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .crumb b { color: var(--text); font-weight: 550; }
+    .top .sp { flex: 1; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--brand-bg); color: var(--brand); display: grid; place-items: center; font-size: 12px; font-weight: 650; flex: none; }
+
+    .page { padding: 24px; max-width: 1840px; margin: 0 auto; }
+    .head h1 { margin: 0; font-size: 20px; line-height: 28px; font-weight: 650; letter-spacing: -0.015em; }
+    .head p { margin: 4px 0 0; color: var(--text-2); }
+    .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; background: var(--brand-bg); color: var(--brand); font-size: 12px; font-weight: 600; margin-left: 8px; vertical-align: 2px; }
+
+    .controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin: 20px 0 16px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+    .ctl { display: flex; align-items: center; gap: 8px; }
+    .ctl > span { color: var(--text-3); font-size: 12px; font-weight: 550; }
+    .seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: 7px; background: var(--code); border: 1px solid var(--line); }
+    .seg button { border: 0; background: none; height: 24px; padding: 0 9px; border-radius: 5px; font-size: 12px; font-weight: 550; color: var(--text-2); }
+    .seg button:hover { color: var(--text); }
+    .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+    .btn { height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--surface); font-size: 12px; font-weight: 550; }
+    .btn:hover { border-color: var(--text-3); }
+    .nav-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+    .grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+    @media (max-width: 1500px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+    .grid.stack { grid-template-columns: minmax(0, 1fr); } /* a 1200 px desk needs the whole row */
+    .grid.stack .log { position: static; }
+
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+    .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    .card-head h2 { margin: 0; font-size: 14px; font-weight: 650; }
+    .card-head .meta { color: var(--text-3); font-size: 12px; font-family: var(--mono); }
+    .stage { padding: 16px; overflow-x: auto; background: repeating-linear-gradient(45deg, transparent 0 10px, color-mix(in srgb, var(--line) 45%, transparent) 10px 11px); border-radius: 0 0 12px 12px; }
+    .frame-wrap { margin: 0 auto; width: 800px; max-width: none; transition: width 160ms ease; }
+    .frame-wrap.fill { width: 100%; }
+    iframe { display: block; box-sizing: content-box; width: calc(100% - 2px); height: 640px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+
+    .log { position: sticky; top: 16px; }
+    .log ol { list-style: none; margin: 0; padding: 0; max-height: min(720px, calc(100vh - 160px)); overflow: auto; }
+    .log li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 2px 10px; padding: 8px 16px; border-top: 1px solid var(--line); }
+    .log li:first-child { border-top: 0; }
+    .log time { color: var(--text-3); font: 11px/20px var(--mono); }
+    .log .type { font: 600 12px/20px var(--mono); display: flex; gap: 8px; align-items: center; min-width: 0; }
+    .log .dir { color: var(--text-3); font-weight: 400; }
+    .log .times { color: var(--text-3); font-weight: 400; }
+    .log .chk { margin-left: auto; font: 500 11px/1 var(--font); padding: 3px 6px; border-radius: 4px; flex: none; }
+    .log .chk.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+    .log .chk.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+    .log pre { grid-column: 2; margin: 0; white-space: pre-wrap; word-break: break-all; font: 11px/16px var(--mono); color: var(--text-2); }
+    .log .empty { padding: 24px 16px; color: var(--text-3); text-align: center; }
+    .note { margin: 12px 16px 16px; color: var(--text-3); font-size: 12px; line-height: 18px; }
+    .note code { background: var(--code); padding: 1px 4px; border-radius: 4px; }
+
+    @media (max-width: 720px) {
+      .top { padding: 0 16px; }
+      .crumb .hide { display: none; }
+      .page { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 21 20H3z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M8.5 14h7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      Acme Agents
+    </div>
+    <div class="crumb"><span class="hide">Sessions</span><span class="hide">/</span><b>checkout-service</b><span class="hide">· ses_8f2a91</span></div>
+    <span class="sp"></span>
+    <span class="avatar" aria-label="Signed in as Jo Doe">JD</span>
+  </header>
+
+  <main class="page">
+    <div class="head">
+      <h1>Session changes <span class="tag">Embed demo</span></h1>
+      <p>Everything the agents changed in this session. Review a run, or undo it.</p>
+    </div>
+
+    <div class="controls" id="controls">
+      <div class="ctl"><span>Theme</span><div class="seg" data-key="theme"><button data-v="light">Light</button><button data-v="dark">Dark</button><button data-v="system">System</button></div></div>
+      <div class="ctl"><span>Mode</span><div class="seg" data-key="mode"><button data-v="review">Review</button><button data-v="readonly">Readonly</button></div></div>
+      <div class="ctl"><span>Branding</span><div class="seg" data-key="brand"><button data-v="1">On</button><button data-v="0">Off</button></div></div>
+      <div class="ctl"><span>Origin meta</span><div class="seg" data-key="origin"><button data-v="ok">This page</button><button data-v="missing">Missing</button><button data-v="wrong">Other site</button></div></div>
+      <div class="ctl"><span>Height</span><div class="seg" data-key="height"><button data-v="auto">Auto</button><button data-v="fixed">Fixed 640</button></div></div>
+      <div class="ctl"><span>Width</span><div class="seg" data-key="width"><button data-v="375">375</button><button data-v="800">800</button><button data-v="1200">1200</button><button data-v="fill">Fill</button></div></div>
+      <div class="ctl"><span>Navigate</span><div class="nav-btns">
+        <button class="btn" data-go="live" data-nav='{"view":"live"}'>Live</button>
+        <button class="btn" data-go="runs" data-nav='{"view":"runs","filter":"all"}'>All runs</button>
+        <button class="btn" data-go="run" data-nav='{"view":"run","run":"claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911"}'>A run</button>
+        <button class="btn" data-go="file" data-nav='{"view":"files","path":"src/billing/invoice.ts"}'>A file</button>
+      </div></div>
+    </div>
+
+    <div class="grid">
+      <section class="card" aria-label="Embedded review desk">
+        <div class="card-head"><h2>Review desk</h2><span class="meta" id="frame-meta"></span></div>
+        <div class="stage"><div class="frame-wrap" id="wrap"><iframe id="desk" title="Grapim review desk"></iframe></div></div>
+      </section>
+      <section class="card log" aria-label="Messages">
+        <div class="card-head"><h2>postMessage</h2><button class="btn" type="button" id="clear">Clear</button></div>
+        <ol id="log" aria-live="off"><li class="empty">Waiting for the desk…</li></ol>
+        <p class="note" id="note"></p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const P = new URLSearchParams(location.search);
+      const otherHost = location.hostname === 'localhost' ? '127.0.0.1' : 'localhost';
+      const deskOrigin = P.get('desk') ? new URL(P.get('desk')).origin : `${location.protocol}//${otherHost}${location.port ? `:${location.port}` : ''}`;
+      const pick = (k, ok, d) => (ok.includes(P.get(k)) ? P.get(k) : d);
+      const s = {
+        theme: pick('theme', ['light', 'dark', 'system'], 'light'),
+        mode: pick('mode', ['review', 'readonly'], 'review'),
+        brand: P.get('brand') === '0' ? '0' : '1',
+        origin: pick('origin', ['ok', 'missing', 'wrong'], 'ok'),
+        height: pick('height', ['auto', 'fixed'], 'auto'),
+        width: pick('width', ['375', '800', '1200', 'fill'], '800'),
+        view: /^#\/[\w/?=&%.:-]*$/.test(P.get('view') || '') ? P.get('view') : '#/live',
+      };
+      const frame = document.getElementById('desk');
+      const wrap = document.getElementById('wrap');
+      const logEl = document.getElementById('log');
+      const events = (window.__events = []); // for scripted checks
+
+      function applyHostTheme() {
+        const dark = s.theme === 'dark' || (s.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      }
+      function src() {
+        const u = new URL('/', deskOrigin);
+        u.searchParams.set('mock', '1');
+        u.searchParams.set('embed', '1');
+        u.searchParams.set('theme', s.theme);
+        if (s.brand === '0') u.searchParams.set('brand', '0');
+        // Stands in for the hub's meta tags (ui/dev-server.mjs injects them).
+        if (s.origin === 'ok') u.searchParams.set('embed_origin', location.origin);
+        if (s.origin === 'wrong') u.searchParams.set('embed_origin', 'https://other-site.example');
+        u.searchParams.set('embed_mode', s.mode);
+        u.hash = s.view;
+        return u.href;
+      }
+      function sync() {
+        for (const seg of document.querySelectorAll('.seg')) {
+          for (const b of seg.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.v === s[seg.dataset.key]));
+        }
+        wrap.classList.toggle('fill', s.width === 'fill');
+        document.querySelector('.grid').classList.toggle('stack', s.width === '1200');
+        wrap.style.width = s.width === 'fill' ? '' : `${Number(s.width) + 2}px`; // + the 1px border each side
+        if (s.height === 'fixed') frame.style.height = '640px';
+        meta();
+        document.getElementById('note').innerHTML =
+          `Host <code>${location.origin}</code> · desk <code>${deskOrigin}</code>. ` +
+          (s.origin === 'ok' ? 'The desk posts to this origin only.' : s.origin === 'missing'
+            ? 'No origin meta: the desk must send nothing and ignore Navigate.'
+            : 'The meta names another site: the browser drops every message, and the desk ignores Navigate from here.');
+      }
+      function meta() {
+        const w = s.width === 'fill' ? Math.round(wrap.getBoundingClientRect().width) : s.width;
+        document.getElementById('frame-meta').textContent = `${w} × ${Math.round(frame.getBoundingClientRect().height)}${s.height === 'auto' ? ' · auto height' : ''}`;
+      }
+      function load() {
+        frame.style.height = s.height === 'fixed' ? '640px' : '480px';
+        frame.src = src();
+      }
+
+      const clock = () => new Date().toLocaleTimeString(undefined, { hour12: false });
+      const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+      let lastHeightRow = null;
+      function log(dir, msg, ok) {
+        const { type, ...rest } = msg;
+        events.push({ dir, type, data: rest, ok, at: Date.now() });
+        logEl.querySelector('.empty')?.remove();
+        // Height comes often: one row that counts up.
+        if (type === 'grapim:height' && lastHeightRow && logEl.firstElementChild === lastHeightRow) {
+          lastHeightRow.n++;
+          lastHeightRow.querySelector('.times').textContent = `×${lastHeightRow.n}`;
+          lastHeightRow.querySelector('pre').textContent = JSON.stringify(rest);
+          lastHeightRow.querySelector('time').textContent = clock();
+          return;
+        }
+        const li = document.createElement('li');
+        li.innerHTML = `<time>${clock()}</time><span class="type"><span class="dir">${dir === 'in' ? '←' : '→'}</span>${esc(type)}<span class="times"></span>` +
+          `<span class="chk ${ok ? 'ok' : 'bad'}">${dir === 'out' ? 'sent' : ok ? 'origin ok' : 'wrong origin'}</span></span><pre>${esc(JSON.stringify(rest))}</pre>`;
+        li.n = 1;
+        logEl.prepend(li);
+        lastHeightRow = type === 'grapim:height' ? li : null;
+      }
+
+      window.addEventListener('message', (ev) => {
+        if (ev.source !== frame.contentWindow) return;
+        const d = ev.data;
+        if (!d || typeof d !== 'object' || typeof d.type !== 'string' || !d.type.startsWith('grapim:')) return;
+        const ok = ev.origin === deskOrigin;
+        log('in', d, ok);
+        if (!ok) return;
+        if (d.type === 'grapim:height' && s.height === 'auto' && Number.isFinite(d.px)) {
+          frame.style.height = `${Math.max(240, Math.min(d.px, 20000))}px`;
+          meta();
+        }
+      });
+
+      document.getElementById('controls').addEventListener('click', (e) => {
+        const b = e.target.closest('.seg button');
+        if (b) {
+          const key = b.parentElement.dataset.key;
+          if (s[key] === b.dataset.v) return;
+          s[key] = b.dataset.v;
+          sync();
+          if (key === 'theme') applyHostTheme();
+          if (key !== 'width') load();
+          else requestAnimationFrame(meta);
+          return;
+        }
+        const n = e.target.closest('[data-nav]');
+        if (n) {
+          const msg = { type: 'grapim:navigate', ...JSON.parse(n.dataset.nav) };
+          frame.contentWindow.postMessage(msg, deskOrigin);
+          log('out', msg, true);
+        }
+      });
+      document.getElementById('clear').addEventListener('click', () => {
+        logEl.innerHTML = '<li class="empty">Cleared.</li>';
+        lastHeightRow = null;
+      });
+      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyHostTheme);
+      addEventListener('resize', meta);
+
+      applyHostTheme();
+      sync();
+      load();
+    })();
+  </script>
+</body>
+</html>

@@ -77,6 +77,7 @@ export class Teams {
 
   #revokeTokensOf(teamId, userId) {
     this.db.prepare('UPDATE machine_tokens SET revoked_at = ? WHERE team_id = ? AND user_id = ? AND revoked_at IS NULL').run(this.now(), teamId, userId);
+    this.db.prepare('UPDATE workspace_tokens SET revoked_at = ? WHERE team_id = ? AND user_id = ? AND revoked_at IS NULL').run(this.now(), teamId, userId);
   }
 
   removeMember(teamId, actor, userId) {

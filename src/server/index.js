@@ -6,51 +6,13 @@
 import { spawn } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { Store } from '../store.js';
-import { resolveWorkspace } from '../workspace.js';
-import { handleApi } from './api.js';
-import { createWorkspace } from './fs.js';
-import { handleFs } from './fs-http.js';
-import { sendError, splitUrl } from './http.js';
-import { createMcpHttp } from './mcp-http.js';
+import { createEngine, UI_DIR } from './engine.js';
 import { createGuard, tokenFor } from './security.js';
-import { serveStatic } from './static.js';
-import { createStream } from './stream.js';
 
 export const DEFAULT_PORT = 7420;
-export const UI_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'ui');
-
-const SECURITY_HEADERS = {
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'Content-Security-Policy': "frame-ancestors 'none'",
-  'Referrer-Policy': 'no-referrer',
-  'Cross-Origin-Resource-Policy': 'same-origin',
-};
-
-// The parts of the server that hold repo data or act on it. Everything else
-// is the review desk's own files (public code, no data), which a browser must
-// be able to load before the page can send the token.
-const isAppPath = (target) => /^\/(api|fs|mcp)(\/|$)/.test(target.split('?')[0]);
+export { UI_DIR };
 
 const urlHost = (host) => (host === '0.0.0.0' || host === '::' ? '127.0.0.1' : host.includes(':') ? `[${host}]` : host);
-
-function route(ctx) {
-  return async (req, res) => {
-    for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
-    try {
-      ctx.guard(req, { asset: (req.method === 'GET' || req.method === 'HEAD') && req.url.startsWith('/') && !isAppPath(req.url) });
-      const { path: p, query } = splitUrl(req.url);
-      if (p === '/mcp') return await ctx.mcp.handle(req, res);
-      if (p === '/fs' || p.startsWith('/fs/')) return await handleFs(ctx, req, res, p);
-      if (p === '/api' || p.startsWith('/api/')) return await handleApi(ctx, req, res, p, query);
-      return serveStatic(req, res, p, ctx.uiDir);
-    } catch (err) {
-      sendError(res, err);
-    }
-  };
-}
 
 function listen(server, port, host) {
   return new Promise((resolve, reject) => {
@@ -70,40 +32,31 @@ function listen(server, port, host) {
 // Starts the server. Resolves to { url, port, host, ws, close() }.
 export async function startServer({ cwd = process.cwd(), host = '127.0.0.1', port = DEFAULT_PORT, env = process.env, uiDir = UI_DIR, token } = {}) {
   const required = tokenFor(host, env, token);
-  const ws = resolveWorkspace(cwd);
-  const store = new Store(ws.stateDir);
-  const workspace = createWorkspace({ store, ws, env });
-  const ctx = {
-    store,
-    ws,
-    env,
-    workspace,
-    uiDir,
-    stream: createStream(store),
-    mcp: createMcpHttp({ store, ws, workspace }),
-    guard: createGuard({ host, env, token: required }),
-  };
-  const server = http.createServer(route(ctx));
+  const guard = createGuard({ host, env, token: required });
+  // The engine at the root, behind the local guard (Host, token, Origin),
+  // checked once per request: locally every MCP tool is allowed.
+  const engine = createEngine({ cwd, env, uiDir, authorize: (req, { kind, asset }) => (kind === 'mcp-tool' ? undefined : guard(req, { asset })) });
+  const server = http.createServer(engine.handle);
   server.keepAliveTimeout = 5000;
   try {
     await listen(server, port, host);
   } catch (err) {
-    store.close();
+    engine.close();
     throw err;
   }
   const actual = server.address().port;
   let closing = null;
   const close = () =>
     (closing ??= new Promise((resolve) => {
-      ctx.stream.close();
-      ctx.mcp.closeAll();
+      engine.ctx.stream.close();
+      engine.ctx.mcp.closeAll();
       server.close(() => {
-        store.close();
+        engine.close();
         resolve();
       });
       server.closeAllConnections();
     }));
-  return { url: `http://${urlHost(host)}:${actual}`, port: actual, host, ws, token: required, close };
+  return { url: `http://${urlHost(host)}:${actual}`, port: actual, host, ws: engine.ws, token: required, close };
 }
 
 // url is built here from a host and a port, so it holds no shell characters.

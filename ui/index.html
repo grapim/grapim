@@ -7,8 +7,14 @@
   <title>Grapim</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%231a1a17'/%3E%3Cpath d='M10.9 5.2A3.6 3.6 0 1 0 10.9 10.8' stroke='%23fff' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
   <script>
-    // Apply the saved theme before first paint, so there is no flash.
-    try { const t = localStorage.getItem('grapim.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+    // Apply the theme before first paint, so there is no flash. Embedded
+    // (?embed=1), the host picks it with ?theme= and nothing is saved.
+    try {
+      const q = new URLSearchParams(location.search), h = document.documentElement;
+      const t = q.get('embed') === '1' ? q.get('theme') : localStorage.getItem('grapim.theme');
+      if (q.get('embed') === '1') h.classList.add('embed');
+      if (t === 'light' || t === 'dark') h.dataset.theme = t;
+    } catch {}
   </script>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
@@ -44,8 +50,20 @@
         </div>
         <nav class="nav" id="nav-top" aria-label="Views"></nav>
       </header>
+      <header class="embed-bar">
+        <nav class="nav embed-tabs" id="nav-embed" aria-label="Views"></nav>
+        <div class="embed-side">
+          <span class="badge outline embed-ro" title="You can look at every change here, but not approve, reject or undo it."><svg class="icon sm" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg><span class="lbl">View only</span></span>
+          <span class="conn" id="conn-embed" data-state="connecting" role="status"><span class="pip"></span><span class="txt">Connecting…</span></span>
+          <button class="embed-search" type="button" data-action="palette" aria-label="Search or jump to">
+            <svg class="icon sm" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="keys" aria-hidden="true"><kbd data-mod>Ctrl</kbd><kbd>K</kbd></span>
+          </button>
+        </div>
+      </header>
       <div id="banner"></div>
       <main class="view" id="view" tabindex="-1"></main>
+      <footer class="embed-foot"><a href="https://grapim.com" target="_blank" rel="noopener">Powered by <b>Grapim</b></a></footer>
     </div>
   </div>
   <div class="toasts" id="toasts" aria-live="polite"></div>

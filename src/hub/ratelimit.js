@@ -59,5 +59,8 @@ export const LIMITS = {
   syncIp: [240, 60_000], // per address, before the token is checked
   form: [60, 60_000], // state-changing browser posts, per user
   read: [120, 60_000], // repo and run reads (they diff synced content), per user
+  workspace: [600, 60_000], // cloud workspace requests (desk, /api, /fs, /mcp), per workspace token or per user
   webhook: [300, 60_000],
+  platformIp: [6000, 60_000], // /v1 per address, instead of `global`; each platform key has its own token bucket (src/hub/platform/)
+  embed: [120, 60_000], // embed session links redeemed, per address
 };

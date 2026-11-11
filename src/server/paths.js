@@ -47,11 +47,21 @@ function realPath(abs) {
   }
 }
 
+// A name some file system treats as ".git": ".git." or ".git " (Windows drops
+// the trailing dots and spaces), "git~1" (the 8.3 short name of .git),
+// ".git::$INDEX_ALLOCATION" (an NTFS stream), or ".git" with characters HFS+
+// ignores. Refused on every platform: a cloud workspace on Linux is synced to
+// Windows and macOS laptops, where these would land inside the real .git.
+export function isGitAlias(seg) {
+  const s = String(seg).toLowerCase().replace(/[‌-‏‪-‮⁪-⁯﻿]/g, '');
+  return /^\.git[. ]*(:.*)?$/.test(s) || /^git~\d+$/.test(s);
+}
+
 function checkSegment(seg, rel) {
   const refuse = (why) => badRequest(`Refused path "${rel}": ${why}. Give a path relative to the repo root, like src/app.js.`);
   if (seg === '') return refuse('it has an empty part (//)');
   if (seg === '.' || seg === '..') return refuse('"." and ".." are not allowed');
-  if (seg.toLowerCase() === '.git') return refuse('.git is not part of the workspace');
+  if (isGitAlias(seg)) return refuse('.git is not part of the workspace');
   if (WIN && /[<>:"|?*]/.test(seg)) return refuse('it has a character Windows does not allow in file names');
   if (WIN && /[. ]$/.test(seg)) return refuse('a name ending in a dot or space is not allowed on Windows');
   if (WIN && DEVICE.test(seg)) return refuse(`"${seg}" is a reserved device name on Windows`);
@@ -95,10 +105,19 @@ function guardRealPath(ws, abs, refuse) {
 const SENSITIVE = [
   { why: 'Claude Code settings can run hooks', test: (s) => s.length >= 2 && s.at(-2) === '.claude' && /^settings.*\.json$/.test(s.at(-1)) },
   // No override for .git: resolvePath refuses it in any case.
-  { why: 'git runs hooks and config from .git', test: (s) => s.includes('.git'), always: true },
+  { why: 'git runs hooks and config from .git', test: (s) => s.some(isGitAlias), always: true },
   { why: 'VS Code can run tasks from it', test: (s) => s.length >= 2 && s.at(-2) === '.vscode' && s.at(-1) === 'tasks.json' },
   { why: 'direnv runs it when you enter the folder', test: (s) => s.at(-1) === '.envrc' },
+  // HEAD next to objects/ and refs/ makes the folder a bare git repo: git,
+  // a shell prompt or an editor opened there would run its config (core.fsmonitor).
+  { why: 'with objects/ and refs/ beside it, git treats the folder as a repository and runs its config', test: (s) => s.at(-1) === 'head' },
 ];
+
+// Why an agent may never write `rel` (a file that runs code by itself), or
+// null. The folder sync client also refuses to write these from a workspace.
+export function sensitiveReason(rel) {
+  return sensitiveRule(String(rel ?? ''), false)?.why ?? null;
+}
 
 const hint = (r) =>
   r.always

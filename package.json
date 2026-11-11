@@ -8,13 +8,45 @@
   },
   "files": [
     "bin",
-    "src"
+    "src",
+    "ui",
+    "!ui/screenshots",
+    ".claude-plugin",
+    "hooks",
+    "skills",
+    "README.md",
+    "docs/api.md",
+    "docs/workspaces.md"
   ],
   "engines": {
     "node": ">=22.13"
   },
   "scripts": {
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test \"test/*.test.js\" \"sdk/js/test/*.test.js\"",
+    "test:sdk": "node --test \"sdk/js/test/*.test.js\""
   },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "keywords": [
+    "ai",
+    "agents",
+    "claude-code",
+    "codex",
+    "cursor",
+    "mcp",
+    "multi-agent",
+    "worktree",
+    "blame",
+    "undo",
+    "code-review"
+  ],
+  "homepage": "https://grapim.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/twfly104/grapim.git"
+  },
+  "bugs": {
+    "url": "https://github.com/twfly104/grapim/issues"
+  },
+  "author": "Grapim",
+  "mcpName": "io.github.twfly104/grapim"
 }

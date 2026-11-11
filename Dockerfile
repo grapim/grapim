@@ -1,6 +1,7 @@
 # Grapim hub (the team cloud service). Zero npm dependencies: node:http,
-# node:crypto and node:sqlite only. The SQLite file lives on a volume at
-# HUB_DATA (/data). See docs/deploy.md.
+# node:crypto and node:sqlite only, plus git for cloud workspaces. The SQLite
+# file and the workspace folders live on a volume at HUB_DATA (/data). See
+# docs/deploy.md.
 FROM node:22-slim
 
 ENV NODE_ENV=production \
@@ -10,14 +11,23 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
+# git: every cloud workspace is a git repo (git init, ls-files, branches).
+# ca-certificates: HTTPS to an S3 or R2 storage backend.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
 # Only what the hub needs to run.
 COPY package.json ./
 COPY bin ./bin
 COPY src ./src
+# The review desk, served for each cloud workspace at /w/<team>/<workspace>/.
+COPY ui ./ui
 
 # Normalise line endings (the repo may be checked out on Windows), make the
 # app read-only for the runtime user, and prepare the data directory.
 RUN sed -i 's/\r$//' /app/src/hub/entrypoint.sh \
+ && rm -rf /app/ui/screenshots /app/ui/dev-server.mjs \
  && chmod 755 /app/src/hub/entrypoint.sh \
  && chown -R root:root /app && chmod -R a-w /app \
  && mkdir -p /data && chown node:node /data && chmod 700 /data

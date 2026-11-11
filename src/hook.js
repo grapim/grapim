@@ -18,6 +18,7 @@ import { DEFAULT_TTL_MS, Store } from './store.js';
 import { fileKey, resolveWorkspace } from './workspace.js';
 import { ago, othersText, who } from './format.js';
 import { beginEdit, failOpen, finishEdit } from './ledger.js';
+import { hasGitHooks } from './provenance/hooks.js';
 
 export const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 
@@ -49,6 +50,19 @@ function blockedMessage(file, c, now, worktree) {
   ].join('\n');
 }
 
+// The Claude Code plugin cannot install git hooks, so a session in a git repo
+// without Grapim's post-commit hook gets one line saying how to turn commit
+// provenance on. Nothing is installed from here.
+function initHint(ws, env) {
+  if (!ws.isGit || env.GRAPIM_NO_INIT_HINT === '1') return '';
+  try {
+    if (hasGitHooks(ws.root)) return '';
+  } catch {
+    return '';
+  }
+  return 'Grapim: commits in this repo do not record which lines AI agents wrote yet. If the user wants commit provenance (git notes, shown in pull requests), they can run `grapim init` in the repo.\n';
+}
+
 export function runHook(input, env = process.env, now = () => Date.now()) {
   const ev = input.hook_event_name;
   const cwd = input.cwd || process.cwd();
@@ -59,14 +73,20 @@ export function runHook(input, env = process.env, now = () => Date.now()) {
     const ws = resolveWorkspace(cwd);
     const store = new Store(ws.stateDir, { now });
     try {
-      if (ev === 'UserPromptSubmit' && input.prompt) store.setIntent(agent, firstLine(input.prompt), { label, worktree: ws.worktree });
+      // The hooks may be installed twice (the plugin and `grapim init`), so the
+      // same prompt can arrive twice in a row: count it as one turn.
+      const intent = input.prompt ? firstLine(input.prompt) : null;
+      const prev = store.db.prepare('SELECT intent, last_seen FROM agents WHERE agent = ?').get(agent);
+      const duplicate = ev === 'UserPromptSubmit' && intent !== null && prev?.intent === intent && now() - prev.last_seen < 5000;
+      if (ev === 'UserPromptSubmit' && intent !== null && !duplicate) store.setIntent(agent, intent, { label, worktree: ws.worktree });
       else store.touch(agent, { label, worktree: ws.worktree });
-      if (ev === 'UserPromptSubmit') failOpen('start a new turn', () => store.nextTurn(agent));
+      if (ev === 'UserPromptSubmit' && !duplicate) failOpen('start a new turn', () => store.nextTurn(agent));
       const others = othersText(store, agent);
-      if (!others) return { code: 0 };
+      const hint = ev === 'SessionStart' ? initHint(ws, env) : '';
+      if (!others) return hint ? { code: 0, stdout: hint } : { code: 0 };
       return {
         code: 0,
-        stdout: `Grapim: other agents are working in this repo right now. Leave these files alone unless the user says otherwise:\n${others}\n`,
+        stdout: `${hint}Grapim: other agents are working in this repo right now. Leave these files alone unless the user says otherwise:\n${others}\n`,
       };
     } finally {
       store.close();

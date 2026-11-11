@@ -41,9 +41,13 @@ function page(res, status, title, body) {
   res.end(buf);
 }
 
-const API_HINT = '<p>The API is running: <a href="/api/overview"><code>/api/overview</code></a>, <a href="/api/runs"><code>/api/runs</code></a>, the agent workspace at <a href="/fs/"><code>/fs/</code></a>, MCP at <code>POST /mcp</code>.</p>';
+// base: the path the engine is mounted at ("" for grapim serve).
+const apiHint = (base = '') => {
+  const b = escape(base);
+  return `<p>The API is running: <a href="${b}/api/overview"><code>${b}/api/overview</code></a>, <a href="${b}/api/runs"><code>${b}/api/runs</code></a>, the agent workspace at <a href="${b}/fs/"><code>${b}/fs/</code></a>, MCP at <code>POST ${b}/mcp</code>.</p>`;
+};
 
-const notFound = (res, rawPath) => page(res, 404, 'Not found', `<p>Nothing at <code>${escape(rawPath)}</code>.</p>${API_HINT}`);
+const notFound = (res, rawPath, base) => page(res, 404, 'Not found', `<p>Nothing at <code>${escape(base + rawPath)}</code>.</p>${apiHint(base)}`);
 
 // The file under uiDir for a URL path, or null if the path is not acceptable.
 function fileFor(uiDir, rawPath) {
@@ -63,15 +67,15 @@ function fileFor(uiDir, rawPath) {
   return real.startsWith(root + path.sep) ? real : null;
 }
 
-export function serveStatic(req, res, rawPath, uiDir) {
+export function serveStatic(req, res, rawPath, uiDir, base = '') {
   if (req.method !== 'GET' && req.method !== 'HEAD') throw notAllowed(['GET', 'HEAD']);
   if (!fs.existsSync(path.join(uiDir, 'index.html'))) {
     // No absolute path here: this page loads without the token.
-    return page(res, 404, 'The review desk is not built yet', `<p>There is no <code>index.html</code> in the server's <code>ui</code> folder.</p>${API_HINT}`);
+    return page(res, 404, 'The review desk is not built yet', `<p>There is no <code>index.html</code> in the server's <code>ui</code> folder.</p>${apiHint(base)}`);
   }
   const abs = fileFor(uiDir, rawPath);
   const st = abs && fs.statSync(abs);
-  if (!st?.isFile()) return notFound(res, rawPath);
+  if (!st?.isFile()) return notFound(res, rawPath, base);
   res.writeHead(200, { 'Content-Type': TYPES[path.extname(abs).toLowerCase()] ?? 'application/octet-stream', 'Content-Length': st.size, 'Cache-Control': 'no-cache' });
   if (req.method === 'HEAD') return res.end();
   fs.createReadStream(abs).on('error', () => res.destroy()).pipe(res);

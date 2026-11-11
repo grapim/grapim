@@ -187,7 +187,7 @@ export async function mount(el, params, ctx) {
         <button type="button" data-show="file" aria-pressed="${s.show !== 'changes'}">File</button>
         <button type="button" data-show="changes" aria-pressed="${s.show === 'changes'}">Its changes</button>
       </div>
-      ${v.after !== null && h?.after_sha ? html`<button class="btn sm primary" type="button" data-restore="${h.after_sha}">${icon('history', 'sm')}Restore this version</button>` : ''}
+      ${v.after !== null && h?.after_sha && !ctx.readonly() ? html`<button class="btn sm primary" type="button" data-restore="${h.after_sha}">${icon('history', 'sm')}Restore this version</button>` : ''}
       ${h?.run && !h.run.startsWith('undo:') ? html`<a class="btn sm" href="${runHref(h.run)}">Open run</a>` : ''}
       <button class="btn sm" type="button" data-version="">${icon('back', 'sm')}Back to now</button>
     </div>`;
@@ -291,6 +291,7 @@ export async function mount(el, params, ctx) {
 
   // Confirm (the diff from the working file to the version), apply, show the result.
   function openRestore(sha) {
+    if (ctx.readonly()) return;
     const p = s.path;
     const wt = s.worktree;
     const entry = s.file?.versionText?.entry;

@@ -71,6 +71,10 @@ export function loadConfig(env = process.env) {
 
   const storageMb = env.HUB_TEAM_STORAGE_MB === undefined || env.HUB_TEAM_STORAGE_MB === '' ? 1024 : Number(env.HUB_TEAM_STORAGE_MB);
   if (!Number.isInteger(storageMb) || storageMb < 1) throw new ConfigError('grapim hub: HUB_TEAM_STORAGE_MB must be a whole number of megabytes.');
+  // A platform team (docs/platform.md) holds one workspace per end customer:
+  // its own quota, not the one meant for a small team.
+  const platformMb = env.PLATFORM_STORAGE_MB === undefined || env.PLATFORM_STORAGE_MB === '' ? 20480 : Number(env.PLATFORM_STORAGE_MB);
+  if (!Number.isInteger(platformMb) || platformMb < 1) throw new ConfigError('grapim hub: PLATFORM_STORAGE_MB must be a whole number of megabytes.');
 
   const port = env.PORT === undefined || env.PORT === '' ? 8080 : Number(env.PORT);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new ConfigError('grapim hub: PORT must be a port number.');
@@ -79,6 +83,7 @@ export function loadConfig(env = process.env) {
   // passes it). The config keeps only whether they are set, never the values.
   const billingEnabled = !!(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET);
   const billingIntervals = ['month', 'year'].filter((i) => env[`STRIPE_PRICE_TEAM_${i.toUpperCase()}`]);
+  const governanceIntervals = ['month', 'year'].filter((i) => env[`STRIPE_PRICE_GOVERNANCE_${i.toUpperCase()}`]);
 
   const config = {
     port,
@@ -88,11 +93,13 @@ export function loadConfig(env = process.env) {
     dataDir: path.resolve(env.HUB_DATA),
     billingEnabled,
     billingIntervals: Object.freeze(billingIntervals),
+    governanceIntervals: Object.freeze(governanceIntervals), // docs/provenance.md section 7
     // Behind Railway's (or any) proxy the client address is the last hop the
     // proxy appended to X-Forwarded-For. Only trust it when told to.
     trustProxy: env.TRUST_PROXY === '1' || env.TRUST_PROXY === 'true',
     teamCreators: creators.length ? Object.freeze(creators) : null,
     teamStorageBytes: storageMb * 1024 * 1024,
+    platformStorageBytes: platformMb * 1024 * 1024,
   };
   // Secrets are non-enumerable, so logging or serialising the config by
   // mistake never prints them.

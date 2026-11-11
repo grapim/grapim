@@ -24,14 +24,31 @@ src/log.ts          codex 4121       main      rename the app logger            
 
 Status: prototype, phase 0. Node 22.13 or newer, no dependencies.
 
-## Try it
+## Install
+
+Pick one. Node 22.13 or newer, no other dependencies.
+
+**Claude Code plugin** (hooks for every repo, plus the MCP tools and a skill):
+
+```
+/plugin marketplace add twfly104/grapim
+/plugin install grapim@grapim
+```
+
+**npm, per repo:**
 
 ```bash
 cd your-repo
-node /path/to/grapim/bin/grapim.js init
+npx grapim init
 ```
 
-That installs Claude Code hooks in `.claude/settings.local.json` (run it in each worktree; the file is not committed). Every Claude Code session in the repo now:
+That installs the Claude Code hooks in `.claude/settings.local.json` (run it in each worktree; the file is not committed). Use the plugin or `init`, not both; if both are installed, Grapim still counts each prompt once.
+
+**Codex, Cursor and any MCP client:** add an MCP server that runs `npx grapim mcp` (see below).
+
+## Try it
+
+Every Claude Code session in the repo now:
 
 - records what it is working on (its latest prompt),
 - is told at each prompt which files other agents hold,

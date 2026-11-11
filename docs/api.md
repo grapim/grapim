@@ -27,7 +27,8 @@ All times are epoch milliseconds. All paths are repo-relative with forward slash
 | `not_found` | 404 | no such run, file or version |
 | `method_not_allowed` | 405 | the path exists, the method does not (`Allow` lists the right ones) |
 | `conflict` | 409 | another agent holds the file; a restore whose file changed since the plan |
-| `too_large` | 413 | a body over 32 MB (`/fs`) or 1 MB (`/api`) |
+| `precondition_failed` | 412 | a `/fs` write whose `If-Match` no longer holds; the error also has `current_sha` |
+| `too_large` | 413 | a body over 32 MB (`/fs`) or 1 MB (`/api`); on a hub workspace also a write, blame, run detail, undo or restore whose line comparison takes over 2 s (nothing is written) |
 | `internal` | 500 | a bug, or a module that is not implemented yet (the review stub) |
 | `busy` | 503 | another agent is mid-edit on the file, or SQLite stayed locked; `Retry-After: 1` |
 
@@ -105,6 +106,13 @@ Any `before_sha` or `after_sha` here that is not `null` can be passed to `POST /
 ### `GET /api/files/version?sha=…`
 The raw content of one stored version (`text/plain`), or 404.
 
+### `GET /api/files/changes?after=<id>&limit=500[&worktree=<name>]`
+The changes feed, for folder sync: every recorded change to a file in this worktree with an id above `after`, oldest first, at most `limit` (default 500, at most 1000):
+```json
+{ "changes": [{ "id": 0, "path": "src/app.ts", "sha": "<sha1 after the change>" | null, "ts": 0, "run": "http:sync-laptop", "label": "sync-laptop" }], "cursor": 0 }
+```
+`sha` is `null` when the change deleted the file, and `"untracked"` when the file is over 2 MB (its content is not hashed by the ledger: GET it for its ETag). `cursor` is the last id in the page, or `after` when the page is empty: pass it as the next `after`. A short page means the client has caught up. Restores and undos are recorded changes, so they appear too. Only changes the ledger records are here: a file edited on the server's disk by hand, outside any agent, shows up in the feed the next time an agent changes it (and a write with `If-Match` sees it at once).
+
 ### `GET /api/events?after=<id>&limit=100[&latest=1]`
 Events newer than `id`, oldest first. Without `latest`, it gives the `limit` events right after `id` (for paging). With `latest=1`, it gives the newest `limit` of them, still oldest first, which is what a feed wants (the UI sends it when `after` is 0). Each item is `[{ "id", "ts", "agent", "label", "kind", "path", "detail", "actor" }]`. The kinds are `claim`, `release`, `edit`, `blocked`, `intent`, `end`, `undo`, `review`, `branch` and `restore`.
 
@@ -161,9 +169,10 @@ Body: `{ "status": "approved" | "rejected" | "pending", "note": "optional" }`. I
 Any agent can work through HTTP instead of a local checkout, for example one in a sandbox (E2B, Modal) or on another machine. Every write goes through the same claim, ledger and undo as local agents.
 Identify the agent with the header `X-Grapim-Agent: <name>` (required for writes, 1 to 100 printable characters). Its run id is `http:<name>` and its label `<name>`. `X-Grapim-Intent: <text>` is optional; the first write, and every write with a new intent, starts a new turn.
 
-- `GET /fs/<path>` returns the raw bytes of a file (`application/octet-stream`). A path ending in `/` (or `/fs/` for the root) returns the same JSON as `GET /api/files`. A folder without the `/` is 400.
-- `PUT /fs/<path>` takes raw bytes (up to 32 MB). It claims the file for the agent, records `before`, writes atomically (temp file plus rename), records `after`, and keeps the claim. The response is `{ "path", "sha", "added", "removed" }` (`sha` is the sha1 of the bytes written; `added`/`removed` are `null` for binary or over 2 MB). If another agent holds the file, it returns 409 `conflict` with the holder in the message. If another agent is in the middle of an edit to it without a claim (a hook in warn mode), 503 `busy`.
+- `GET /fs/<path>` returns the raw bytes of a file (`application/octet-stream`) with `ETag: "<sha1 of the content>"` (`HEAD` gives the same headers). A path ending in `/` (or `/fs/` for the root) returns the same JSON as `GET /api/files`. A folder without the `/` is 400.
+- `PUT /fs/<path>` takes raw bytes (up to 32 MB). It claims the file for the agent, records `before`, writes atomically (temp file plus rename), records `after`, and keeps the claim. The response is `{ "path", "sha", "added", "removed" }` with `ETag: "<sha>"` (`sha` is the sha1 of the bytes written; `added`/`removed` are `null` for binary or over 2 MB). If another agent holds the file, it returns 409 `conflict` with the holder in the message. If another agent is in the middle of an edit to it without a claim (a hook in warn mode), 503 `busy`.
 - `DELETE /fs/<path>` works the same way, as a delete. Response `{ "path", "sha": null, "added": 0, "removed": n }`; 404 if there is no such file.
+- **`If-Match`** (optional) on `PUT` and `DELETE` makes the write conditional, so a client never overwrites a version it has not seen. `If-Match: "<sha1>"` (an ETag from `GET` or `PUT`): the file must have exactly that content now. `If-Match: "absent"`: there must be no file. If it does not hold, the answer is 412 `precondition_failed` with `"current_sha": "<sha1>" | null` in the error, and nothing is written or recorded. The condition is checked before the claim (so a stale write takes no claim either) and again, with the claim held, right before the rename (or the delete), so a writer that does not claim (a hook in warn mode, a person in an editor) cannot slip in between; if that second check fails, the claim stays until `_release` as after any write. Two requests with the same `If-Match` cannot both win. Any other `If-Match` value is 400. Without `If-Match`, writes are unconditional as before. A `DELETE` with `If-Match: "absent"` on a missing file is 404.
 - `POST /fs/_release` releases everything the agent holds and closes its open snapshots. Response `{ "released": ["src/a.ts"], "recorded": [{ "path", "detail": "+2 -1" }] }`.
 
 Paths are refused (400) if they contain `..`, `.`, empty parts, backslashes, control characters, are absolute or a drive path, reach into `.git` or the Grapim state folder, or resolve (through a symlink or junction) outside the repo. On Windows, names that Windows would silently change (a trailing dot or space, `:`, reserved device names like `nul`) are refused too. `.git` is never listed.

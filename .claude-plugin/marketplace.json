@@ -1,0 +1,12 @@
+{
+  "name": "grapim",
+  "owner": { "name": "Grapim", "url": "https://grapim.com" },
+  "description": "Grapim for Claude Code: see what every agent changed, undo any agent's run.",
+  "plugins": [
+    {
+      "name": "grapim",
+      "source": "./",
+      "description": "Per-line blame and per-run undo for parallel coding agents, with a write guard across worktrees."
+    }
+  ]
+}

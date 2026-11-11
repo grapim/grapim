@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "grapim"
+version = "0.1.0"
+description = "Grapim for platforms: workspaces, scoped agent tokens, embedded review, undo, usage and webhook verification."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+authors = [{ name = "Grapim" }]
+dependencies = []
+keywords = ["grapim", "ai", "agents", "sandbox", "undo", "workspace"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://grapim.com"
+Repository = "https://github.com/twfly104/grapim"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/grapim"]

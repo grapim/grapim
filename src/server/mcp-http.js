@@ -11,6 +11,7 @@ import crypto from 'node:crypto';
 import { createRpc, createTools, INSTRUCTIONS } from '../mcp.js';
 import { httpAgent } from './fs.js';
 import { HttpError, busy, headerText, readBody, sendJson } from './http.js';
+import { pendingPairs } from './offload.js';
 import { resolvePath } from './paths.js';
 
 const IDLE_MS = 6 * 60 * 60 * 1000;
@@ -22,7 +23,11 @@ const WORKSPACE_NOTE =
 
 const rpcError = (res, status, code, message, id = null) => sendJson(res, status, { jsonrpc: '2.0', id, error: { code, message } });
 
-export function createMcpHttp({ store, ws, workspace }) {
+// authorizeTool(req, name, args) (optional) throws an HttpError to refuse a tools/call:
+// the hub refuses write tools to read-only workspace tokens.
+// offload (the hub, src/server/offload.js) runs the heavy tools off the event
+// loop; their replies are awaited one message at a time, in order.
+export function createMcpHttp({ store, ws, workspace, authorizeTool = null, offload = null }) {
   const sessions = new Map();
 
   function open(name, clientName) {
@@ -38,7 +43,7 @@ export function createMcpHttp({ store, ws, workspace }) {
     };
     // claim_files, release_files and who_wrote get the same path check as /fs.
     const guard = (f) => resolvePath(ws, f.display).file;
-    s.tools = createTools({ store, ws, who, workspace, guard });
+    s.tools = createTools({ store, ws, who, workspace, guard, offload });
     s.rpc = createRpc({ tools: s.tools, instructions: INSTRUCTIONS + WORKSPACE_NOTE });
     sessions.set(id, s);
     return s;
@@ -97,18 +102,42 @@ export function createMcpHttp({ store, ws, workspace }) {
     if (!messages.length) return rpcError(res, 400, -32600, 'Invalid request: empty batch');
     const s = sessionFor(req, res, messages);
     if (!s) return;
+    if (authorizeTool) {
+      for (const m of messages) {
+        if (m?.method !== 'tools/call') continue;
+        try {
+          await authorizeTool(req, String(m.params?.name ?? ''), m.params?.arguments ?? {});
+        } catch (err) {
+          if (!(err instanceof HttpError)) throw err;
+          // Nothing in the request runs: refused as a whole, with the HTTP status.
+          return rpcError(res, err.status, -32003, err.message, m.id ?? null);
+        }
+      }
+    }
     s.seen = Date.now();
-    const replies = messages.map((m) => s.rpc(m)).filter(Boolean);
-    if (!replies.length) {
+    const replies = [];
+    for (const m of messages) {
+      const reply = s.rpc(m);
+      replies.push(reply?.then ? await reply : reply);
+    }
+    const sent = replies.filter(Boolean);
+    if (!sent.length) {
       res.writeHead(202, { 'Content-Length': 0 });
       return res.end();
     }
-    sendJson(res, 200, batch ? replies : replies[0]);
+    sendJson(res, 200, batch ? sent : sent[0]);
   }
 
-  function remove(req, res) {
-    const s = sessions.get(headerText(req, 'mcp-session-id') ?? '');
+  async function remove(req, res) {
+    const sid = headerText(req, 'mcp-session-id') ?? '';
+    let s = sessions.get(sid);
     if (!s) return rpcError(res, 404, -32001, 'Unknown or ended MCP session.');
+    // Ending records what changed: those counts first, off the event loop.
+    if (offload) {
+      for (const agent of s.used) await offload.prepare(pendingPairs(store, agent)).catch(() => {});
+      s = sessions.get(sid);
+      if (!s) return rpcError(res, 404, -32001, 'Unknown or ended MCP session.');
+    }
     end(s);
     res.writeHead(204);
     res.end();

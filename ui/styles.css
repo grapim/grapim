@@ -764,3 +764,87 @@ dialog::backdrop { background: rgb(10 10 8 / 0.42); }
 }
 
 @media (max-width: 860px) { .hide-sm { display: none !important; } .btn kbd { display: none; } }
+
+/* ------------------------------------------------------------ embedded (?embed=1)
+   Inside a platform's iframe, 360 to 1200 px wide: no sidebar, one compact
+   header with the three views, the host owns the theme. The height follows
+   the content (no vh anywhere), so a host can size the iframe to it; dialogs
+   and toasts sit in the part of the iframe the host page shows (--vis-top,
+   --vis-h, from embed.js). */
+
+.embed-bar, .embed-foot { display: none; }
+html.embed .sidebar, html.embed .topbar, html.embed #banner { display: none; }
+html.embed .app { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+
+html.embed .embed-bar {
+  display: flex; align-items: stretch; justify-content: space-between; gap: 12px;
+  height: 44px; padding: 0 16px 0 12px; position: sticky; top: 0; z-index: 20;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+}
+html.embed .embed-tabs { flex-direction: row; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+html.embed .embed-tabs a {
+  position: relative; flex: none; height: 100%; padding: 0 8px; gap: 6px; border-radius: 0;
+  background: none; color: var(--text-2); font-weight: 500;
+}
+html.embed .embed-tabs a::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: transparent; }
+html.embed .embed-tabs a:hover { background: none; color: var(--text); }
+html.embed .embed-tabs a:hover::after { background: var(--border-strong); }
+html.embed .embed-tabs a[aria-current="page"] { background: none; color: var(--text); }
+html.embed .embed-tabs a[aria-current="page"]::after { background: var(--text); }
+html.embed .embed-tabs a:focus-visible { outline-offset: -6px; }
+html.embed .embed-tabs .count {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--accent-bg); color: var(--accent-text); font-size: 11px; font-weight: 600; line-height: 1;
+}
+
+.embed-side { display: flex; align-items: center; gap: 12px; flex: none; }
+.embed-ro { display: none; }
+html.readonly .embed-ro { display: inline-flex; }
+.embed-ro .icon { color: var(--text-3); }
+.embed-search {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px 0 8px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text-3);
+}
+.embed-search:hover { border-color: var(--border-strong); color: var(--text-2); }
+.embed-search .keys { display: inline-flex; gap: 2px; }
+.embed-search kbd { height: 16px; min-width: 16px; font-size: 10px; border-bottom-width: 1px; }
+
+html.embed .view { padding: 20px 24px 24px; }
+html.embed .embed-foot { display: flex; justify-content: flex-end; padding: 0 24px 16px; font-size: 12px; color: var(--text-3); }
+html.embed.no-brand .embed-foot { display: none; }
+.embed-foot a { display: inline-flex; gap: 4px; align-items: center; border-radius: 4px; }
+.embed-foot a:hover { color: var(--text-2); }
+.embed-foot b { font-weight: 600; color: var(--text-2); }
+
+/* Sticky parts clear the header; scroll areas get fixed caps instead of vh. */
+html.embed .feed { top: 68px; }
+html.embed .feed-list { max-height: 560px; }
+html.embed .tree, html.embed .ftree { top: 60px; max-height: 640px; }
+html.embed .file { scroll-margin-top: 60px; }
+/* The host's customers do not run grapim commands. */
+html.embed .empty .cmd { display: none; }
+/* The hidden skip link's shadow would show above the header. */
+html.embed .skip-link:not(:focus) { box-shadow: none; }
+
+html.embed dialog {
+  margin: calc(var(--vis-top, 0px) + 16px) auto auto;
+  max-height: min(720px, calc(var(--vis-h, 100vh) - 32px));
+}
+html.embed dialog.palette { margin-top: calc(var(--vis-top, 0px) + var(--vis-h, 100vh) * 0.1); }
+html.embed .toasts { bottom: auto; top: calc(var(--vis-top, 0px) + var(--vis-h, 100vh) - 16px); transform: translateY(-100%); }
+
+@media (max-width: 860px) {
+  html.embed .view { padding: 16px 16px 20px; }
+  html.embed .embed-foot { padding: 0 16px 12px; }
+  html.embed .tabs { margin: 0 -16px; }
+}
+@media (max-width: 640px), (hover: none) {
+  .embed-search { width: 28px; padding: 0; justify-content: center; }
+  .embed-search .keys { display: none; }
+}
+@media (max-width: 480px) {
+  html.embed .embed-bar { padding: 0 12px 0 4px; }
+  html.embed .embed-tabs { gap: 0; }
+  .embed-side { gap: 8px; }
+  .embed-side .conn .txt { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}

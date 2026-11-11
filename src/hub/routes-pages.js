@@ -6,11 +6,14 @@ import { HttpError, redirect, sendHtml } from './http.js';
 import { invitePage, pickerPage, signInPage } from './pages/account.js';
 import { repoPage, runPage } from './pages/repo.js';
 import { reposPage, settingsPage } from './pages/team.js';
+import { workspacePage, workspacesPage } from './pages/workspaces.js';
 
 const SESSION = { auth: 'session' };
 const FORM = { auth: 'session', csrf: true };
 const TEAM = { auth: 'session', team: true };
 const TEAM_FORM = { auth: 'session', csrf: true, team: true };
+const WS = { ...TEAM, workspace: true };
+const WS_FORM = { ...TEAM_FORM, workspace: true };
 
 // Stripe URLs only: the billing module's answer is never an open redirect.
 function stripeUrl(u) {
@@ -51,8 +54,9 @@ export function pageRoutes(router, hub) {
         tokens: teams.tokens(team.id, actor),
         limits: limits(fresh),
         seatsUsed: teams.seatsUsed(team.id),
-        billing: { enabled: !!hub.billing, intervals: config.billingIntervals },
+        billing: { enabled: !!hub.billing, intervals: config.billingIntervals, governanceIntervals: config.governanceIntervals ?? [] },
         origin: config.origin,
+        github: role === 'owner' ? hub.github?.settingsSection(fresh, ctx.session.csrf) : null,
         ...extra,
       }),
       status,
@@ -232,6 +236,104 @@ export function pageRoutes(router, hub) {
     TEAM_FORM,
   );
 
+  // ---- Cloud workspaces (docs/workspaces.md section 1) ----
+
+  const { workspaces } = hub;
+  const wsActor = (ctx) => ({ role: ctx.member.role, userId: ctx.member.userId });
+
+  function renderWorkspaces(ctx, extra = {}, status = 200) {
+    const team = teams.get(ctx.member.team.id);
+    html(ctx, workspacesPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, workspaces: workspaces.live(team.id), limit: workspaces.limitOf(team), ...extra }), status);
+  }
+
+  function renderWorkspace(ctx, extra = {}, status = 200) {
+    const ws = workspaces.byId(ctx.member.team.id, ctx.workspace.id) ?? ctx.workspace;
+    html(
+      ctx,
+      workspacePage({ user: ctx.session.user, csrf: ctx.session.csrf, team: ctx.member.team, role: ctx.member.role, ws, tokens: workspaces.tokens(ws, wsActor(ctx)), origin: config.origin, ...extra }),
+      status,
+    );
+  }
+
+  // Errors a person can fix are shown on the page they came from.
+  async function onPage(ctx, render, fn) {
+    try {
+      await fn();
+    } catch (err) {
+      if (err instanceof HttpError && err.status < 500 && err.status !== 404 && err.status !== 403) {
+        render(ctx, { error: err.message }, err.status);
+        return;
+      }
+      throw err;
+    }
+  }
+
+  router.get('/hub/teams/:team/workspaces', (ctx) => renderWorkspaces(ctx), TEAM);
+
+  router.post(
+    '/hub/teams/:team/workspaces',
+    (ctx) =>
+      onPage(ctx, renderWorkspaces, async () => {
+        const team = teams.get(ctx.member.team.id);
+        const ws = workspaces.create(team, wsActor(ctx), ctx.form.name);
+        await hub.mount.measure(ws).catch(() => {});
+        hub.platform?.workspaceCreated(ws); // a platform's webhooks (docs/platform.md)
+        redirect(ctx.res, `/hub/teams/${team.id}/workspaces/${ws.id}`);
+      }),
+    TEAM_FORM,
+  );
+
+  router.get('/hub/teams/:team/workspaces/:ws', (ctx) => renderWorkspace(ctx), WS);
+
+  router.post(
+    '/hub/teams/:team/workspaces/:ws/rename',
+    (ctx) =>
+      onPage(ctx, renderWorkspace, async () => {
+        const ws = workspaces.rename(ctx.member.team.id, ctx.workspace.id, ctx.form.name);
+        // The open engine serves the old address: close it, the next request opens the new one.
+        await hub.mount.close(ws.id);
+        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/workspaces/${ws.id}`);
+      }),
+    WS_FORM,
+  );
+
+  router.post(
+    '/hub/teams/:team/workspaces/:ws/delete',
+    (ctx) =>
+      onPage(ctx, renderWorkspace, async () => {
+        const ws = ctx.workspace;
+        if (String(ctx.form.confirm ?? '').trim() !== ws.name) throw new HttpError(400, 'bad_request', `Type ${ws.name} exactly to delete this workspace.`);
+        // Its engine holds the folder's files open: close it before the move,
+        // with no await in between, so no request can reopen it meanwhile.
+        const closed = hub.mount.close(ws.id);
+        workspaces.remove(ctx.member.team.id, ws.id);
+        await closed;
+        hub.platform?.workspaceDeleted(ws);
+        renderWorkspaces(ctx, { notice: `Deleted ${ws.name}. Its address and tokens no longer work.` });
+      }),
+    { ...WS_FORM, owner: true },
+  );
+
+  router.post(
+    '/hub/teams/:team/workspaces/:ws/tokens',
+    (ctx) =>
+      onPage(ctx, renderWorkspace, () => {
+        const t = workspaces.createToken(ctx.workspace, wsActor(ctx), ctx.form.name, ctx.form.scope);
+        renderWorkspace(ctx, { revealed: { value: t.token, name: t.name, scope: t.scope } });
+      }),
+    WS_FORM,
+  );
+
+  router.post(
+    '/hub/teams/:team/workspaces/:ws/tokens/:wstoken/revoke',
+    (ctx) =>
+      onPage(ctx, renderWorkspace, () => {
+        workspaces.revokeToken(ctx.workspace, wsActor(ctx), ctx.params.wstoken);
+        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/workspaces/${ctx.workspace.id}#tokens`);
+      }),
+    WS_FORM,
+  );
+
   // ---- Repo and run views (read-only) ----
 
   router.get(
@@ -248,7 +350,9 @@ export function pageRoutes(router, hub) {
     (ctx) => {
       const { team } = ctx.member;
       const detail = read.run(team, ctx.repo, ctx.params.run, ctx.url.searchParams.get('machine'));
-      html(ctx, runPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, repo: ctx.repo, detail }));
+      // Approve or reject in the hub: the review require_review counts (src/hub/github/index.js).
+      const review = hub.github?.reviewPanel?.({ team, repo: ctx.repo, run: detail.run.run, userId: ctx.session.user.id, done: ctx.url.searchParams.get('done') }) ?? null;
+      html(ctx, runPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, repo: ctx.repo, detail, review }));
     },
     { ...TEAM, repo: true },
   );
@@ -283,6 +387,8 @@ export function pageRoutes(router, hub) {
       if (!Number.isInteger(seats) || seats < 1 || seats > 1000) throw new HttpError(400, 'bad_request', 'Seats must be a whole number from 1 to 1000.');
       if (seats < teams.seatsUsed(team.id)) throw new HttpError(400, 'bad_request', `The team already has ${teams.seatsUsed(team.id)} members. Buy at least that many seats.`);
       const interval = ctx.form.interval === 'year' ? 'year' : 'month';
+      // Team unless the form asks for Governance (the reports plan, docs/provenance.md section 7).
+      const plan = ctx.form.plan === 'governance' ? 'governance' : 'team';
       const back = `${config.origin}/hub/teams/${team.id}/settings`;
       return billingCall(ctx, (b) =>
         b.createCheckout({
@@ -290,6 +396,7 @@ export function pageRoutes(router, hub) {
           user: { id: ctx.session.user.id, login: ctx.session.user.login },
           seats,
           interval,
+          plan,
           successUrl: `${back}?billing=success#billing`,
           cancelUrl: `${back}?billing=cancel#billing`,
         }),

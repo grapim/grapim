@@ -86,7 +86,44 @@ function diffTable(d) {
 
 const STATE = { in_tree: ['In tree', 'ok'], partial: ['Partly', 'warn'], gone: ['Gone', 'muted'] };
 
-export function runPage({ user, csrf, team, repo, detail }) {
+// The hub review of a run (docs/provenance.md section 6): the only approval
+// the require_review policy counts. review: from hub.github.reviewPanel.
+function reviewCard({ csrf, team, repo, run, review }) {
+  const h = review.hub;
+  const [label, tone] = !h
+    ? ['Not reviewed', 'muted']
+    : h.stale
+      ? ['Changed since review', 'warn']
+      : h.status === 'approved'
+        ? ['Approved', 'ok']
+        : ['Rejected', 'danger'];
+  const action = `/hub/teams/${team.id}/repos/${repo.id}/runs/${encodeURIComponent(run.run)}/decision`;
+  return html`<section class="card review-card" id="review" aria-labelledby="review-title">
+  <div class="card-head"><h2 id="review-title" class="card-title">Review</h2><span class="badge badge-${tone}">${label}</span></div>
+  ${review.done ? html`<p class="notice" role="status">${review.done === 'approved' ? 'Approved.' : 'Rejected.'} Open pull requests with this run are checked again.</p>` : ''}
+  <p class="card-sub">${h
+    ? html`${h.status === 'approved' ? 'Approved' : 'Rejected'} by <span class="strong">${h.reviewer_login || 'a member'}</span> ${time(h.reviewed_at)}${h.note ? html`: ${h.note}` : ''}.${h.stale ? ' The run changed after that, so it needs a new review.' : ''}`
+    : 'Nobody has reviewed this run in the hub yet.'}
+  ${review.enforced && !(h && h.status === 'approved' && !h.stale) ? ' Pull requests with its lines fail the Grapim check until it is approved here.' : ''}</p>
+  ${review.local && review.local.status !== 'pending' ? html`<p class="fine">${review.local.status === 'approved' ? 'Approved' : 'Rejected'} locally by ${review.local.login || review.local.machine} with <code>grapim review</code>. Shown for information: it does not count for the policy.</p>` : ''}
+  ${review.pulls.length ? html`<p class="fine">In pull requests: ${review.pulls.map((p, i) => html`${i ? ', ' : ''}<code>${p.owner}/${p.name}#${p.number}</code>`)}.</p>` : ''}
+  <p class="fine">Synced by ${review.owners.length ? review.owners.join(', ') : 'nobody'}. The person who synced a run cannot review it.</p>
+  ${review.mine
+    ? html`<p class="muted small">You synced this run, so another member has to review it.</p>`
+    : html`<form method="post" action="${action}" class="review-form">
+    ${csrfField(csrf)}
+    <input type="hidden" name="machine" value="${run.machine}">
+    <label for="review-note">Note (optional)</label>
+    <textarea id="review-note" name="note" maxlength="1000" rows="2"></textarea>
+    <div class="review-actions">
+      <button class="btn btn-primary" type="submit" name="status" value="approved">Approve</button>
+      <button class="btn btn-danger" type="submit" name="status" value="rejected">Reject</button>
+    </div>
+  </form>`}
+</section>`;
+}
+
+export function runPage({ user, csrf, team, repo, detail, review = null }) {
   const r = detail.run;
   return layout({
     title: r.label,
@@ -114,7 +151,8 @@ ${detail.files.map((f) => {
   </header>
   ${f.diff ? (f.diff.hunks.length ? diffTable(f.diff) : html`<p class="muted small pad">No net change.</p>`) : html`<p class="muted small pad">Content not kept (binary or over 2 MB).</p>`}
 </section>`;
-})}`,
+})}
+${review ? reviewCard({ csrf, team, repo, run: r, review }) : ''}`,
   });
 }
 

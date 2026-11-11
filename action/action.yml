@@ -1,0 +1,27 @@
+name: Grapim provenance
+description: Comment on each pull request with the share of added lines written by AI agents, per agent run, prompt and review status.
+author: Grapim
+branding:
+  icon: git-pull-request
+  color: purple
+inputs:
+  github-token:
+    description: Token used to post the comment. Needs pull-requests write. On a pull request from a fork it is read-only, and the summary goes to the job log instead.
+    required: false
+    default: ${{ github.token }}
+  max-files:
+    description: At most this many changed files are attributed; the comment notes the rest.
+    required: false
+    default: '300'
+outputs:
+  added-lines:
+    description: Lines the pull request adds.
+  ai-lines:
+    description: Added lines written by AI agent runs.
+  ai-share:
+    description: ai-lines divided by added-lines, from 0 to 1.
+  unreviewed-runs:
+    description: Agent runs with lines in the pull request that are not approved in Grapim.
+runs:
+  using: node20
+  main: index.mjs

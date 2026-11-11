@@ -58,7 +58,7 @@ export async function mount(el, params, ctx) {
         <nav class="tabs" aria-label="Filter runs">${FILTERS.map((f) => html`
           <a href="#/runs?f=${f.id}" aria-current="${s.filter === f.id}" data-filter="${f.id}">${f.label}${s.runs ? html`<span class="n num">${counts[f.id]}</span>` : ''}</a>`)}
         </nav>
-        <div class="hint" aria-hidden="true"><span><kbd>j</kbd><kbd>k</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>a</kbd> approve</span><span><kbd>x</kbd> reject</span></div>
+        <div class="hint" aria-hidden="true"><span><kbd>j</kbd><kbd>k</kbd> move</span><span><kbd>Enter</kbd> open</span>${ctx.readonly() ? '' : html`<span><kbd>a</kbd> approve</span><span><kbd>x</kbd> reject</span>`}</div>
       </div>`;
     const header = html`<div class="runs-head" aria-hidden="true">
       <span></span><span>Agent</span><span>Intent</span><span class="c-wt">Worktree</span><span class="r">Turns</span><span class="c-files r">Files</span><span class="r">Lines</span><span>In tree</span><span>Review</span><span class="r">Updated</span></div>`;
@@ -77,8 +77,8 @@ export async function mount(el, params, ctx) {
     const none = {
       pending: ['Nothing needs review', 'Every run has been approved or rejected. New runs appear here as soon as an agent changes a file.'],
       active: ['No run is active', 'Runs from agents that are working right now show up here.'],
-      approved: ['No approved runs', 'Approve a run from its page, or press a on a row.'],
-      rejected: ['No rejected runs', 'Reject a run from its page, or press x on a row.'],
+      approved: ['No approved runs', ctx.readonly() ? 'Runs show up here once someone approves them.' : 'Approve a run from its page, or press a on a row.'],
+      rejected: ['No rejected runs', ctx.readonly() ? 'Runs show up here once someone rejects them.' : 'Reject a run from its page, or press x on a row.'],
       all: ['No runs', ''],
     }[s.filter];
     render(el, html`${head}
@@ -114,7 +114,7 @@ export async function mount(el, params, ctx) {
 
   async function review(run, status) {
     const r = s.runs.find((x) => x.run === run);
-    if (!r) return;
+    if (!r || ctx.readonly()) return;
     const prev = r.review;
     const nextStatus = prev.status === status ? 'pending' : status;
     r.review = { ...prev, status: nextStatus, at: Date.now() };
@@ -122,6 +122,7 @@ export async function mount(el, params, ctx) {
     draw();
     try {
       r.review = await api.review(run, nextStatus);
+      ctx.emit('grapim:run-reviewed', { run, status: r.review?.status || nextStatus });
       ctx.toast(nextStatus === 'pending' ? `${r.label} needs review again.` : `${nextStatus === 'approved' ? 'Approved' : 'Rejected'} ${r.label}.`, {
         action: { label: 'Undo', fn: () => review(run, nextStatus) },
       });
@@ -147,7 +148,7 @@ export async function mount(el, params, ctx) {
 
   draw();
   await load();
-  if (s.selected && rows().some((r) => r.dataset.run === s.selected)) select(s.selected, document.activeElement === el || document.activeElement === document.body);
+  if (s.selected && rows().some((r) => r.dataset.run === s.selected)) select(s.selected, (document.activeElement === el || document.activeElement === document.body) && ctx.mayFocus());
 
   return {
     refresh: load,
@@ -160,7 +161,7 @@ export async function mount(el, params, ctx) {
       if (e.key === 'j' || e.key === 'ArrowDown') { move(1); return true; }
       if (e.key === 'k' || e.key === 'ArrowUp') { move(-1); return true; }
       if (e.key === 'Enter' && s.selected && !e.target.closest?.('a,button')) { navigate(runHref(s.selected)); return true; }
-      if (!s.selected || !s.runs) return false;
+      if (!s.selected || !s.runs || ctx.readonly()) return false;
       const r = s.runs.find((x) => x.run === s.selected);
       if (!r) return false;
       if (e.key === 'a') { review(r.run, 'approved'); return true; }
@@ -171,7 +172,7 @@ export async function mount(el, params, ctx) {
     },
     commands() {
       const r = s.runs?.find((x) => x.run === s.selected);
-      if (!r) return [];
+      if (!r || ctx.readonly()) return [];
       return [
         { label: `Approve ${r.label}`, hint: 'a', run: () => review(r.run, 'approved') },
         { label: `Reject ${r.label}`, hint: 'x', run: () => review(r.run, 'rejected') },

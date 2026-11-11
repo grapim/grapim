@@ -23,7 +23,9 @@ export const term = (s) => String(s).replace(/\r(?!\n)|[\x00-\x08\x0b\x0c\x0e-\x
 
 const HELP = `grapim: lets many coding agents work in one repo without overwriting each other.
 
-  grapim init                 install the Claude Code hooks in this repo (.claude/settings.local.json)
+  grapim init [--no-intents]  install the Claude Code hooks in this repo (.claude/settings.local.json)
+                               and, in a git repo, the post-commit and pre-push hooks that keep AI
+                               provenance as git notes (--no-intents: notes without prompts)
   grapim status [--watch]     who is active, what they are doing, which files they hold
   grapim log [-n 30]          recent claims, edits (+/- lines), blocks and undos
   grapim claim <files..> [--intent "..."] [--ttl 30]
@@ -32,6 +34,11 @@ const HELP = `grapim: lets many coding agents work in one repo without overwriti
 
   grapim runs                 every agent run: intent, turns, files, +/- lines, still in the tree?
   grapim blame <file>         which run and turn wrote each line that differs from HEAD
+  grapim blame <file> --history
+                               every line, committed or not: agent run, turn and prompt, or human
+  grapim provenance record [<commit>] | show [<commit>] | stats [<rev-range>] | push [<remote>]
+                               AI provenance notes (refs/notes/grapim): write one for a commit,
+                               print one, AI share per agent and file, push the notes
   grapim undo <run> [--turn N] [--yes]
                                remove one run's (or one turn's) changes, keep everyone else's.
                                <run> is a run id, label or session id prefix. Without --yes it
@@ -53,6 +60,11 @@ const HELP = `grapim: lets many coding agents work in one repo without overwriti
                                push this repo's runs, changes and events to a team hub
                                (token from --token or $GRAPIM_HUB_TOKEN)
   grapim hub                  run the team hub server (configured from env, see .env.example)
+  grapim folder <workspace-url> <dir> [--watch] [--once] [--force] [--token-env NAME]
+                               keep a local folder and a workspace in sync both ways (token from
+                               $GRAPIM_WORKSPACE_TOKEN; edits on both sides merge or keep both)
+  grapim provenance pr <base>..<head> [--json]
+                               the AI provenance summary a pull request gets (git blame + notes)
   grapim hook                 Claude Code hook entry point (reads JSON on stdin)
 
   --agent <name>  act as this agent (default: $GRAPIM_AGENT, or human:<your user name>)
@@ -64,7 +76,7 @@ function parse(argv) {
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (['--watch', '--all', '--json', '--yes', '--help', '-h', '--approve', '--reject', '--pending'].includes(a)) flags[a.replace(/^-+/, '')] = true;
+    if (['--watch', '--all', '--json', '--yes', '--help', '-h', '--approve', '--reject', '--pending', '--history', '--hook', '--no-intents'].includes(a)) flags[a.replace(/^-+/, '')] = true;
     else if (a.startsWith('--')) flags[a.slice(2)] = argv[++i];
     else if (a === '-n') flags.n = argv[++i];
     else rest.push(a);
@@ -134,6 +146,11 @@ async function blameCmd(store, rest, flags) {
   if (!file) {
     console.error(`${rest[0]} is not inside a repo or folder Grapim tracks.`);
     return 1;
+  }
+  if (flags.history) {
+    // Every line, committed (git blame + provenance notes) or not (the ledger).
+    const { blameHistoryCmd } = await import('./provenance/cli.js');
+    return blameHistoryCmd(store, ws, file, flags, { term });
   }
   const b = blame(store, ws, file);
   console.log(flags.json ? JSON.stringify(b, null, 2) : term(blameText(b)));
@@ -298,6 +315,18 @@ export async function main(argv) {
     return serveMain(args); // null while serving: the server keeps the process alive
   }
 
+  if (cmd === 'folder') {
+    // Its own flag parsing too (--watch, --once and --force take no value).
+    const { folderMain } = await import('./folder-sync.js');
+    return folderMain(args);
+  }
+
+  if (cmd === 'provenance' && args[0] === 'pr') {
+    // The pull request summary (docs/provenance.md section 4), from git alone.
+    const { prCommand } = await import('./provenance/pr-command.js');
+    return prCommand(args.slice(1), { out: (s) => process.stdout.write(term(s)) });
+  }
+
   const ws = resolveWorkspace(process.cwd());
   const agent = flags.agent || process.env.GRAPIM_AGENT || `human:${os.userInfo().username}`;
   const label = agent;
@@ -306,6 +335,17 @@ export async function main(argv) {
     const file = installHooks(ws.root);
     console.log(`Claude Code hooks installed in ${file}`);
     console.log(`Shared state: ${ws.stateDir}${ws.isGit ? ' (shared by every worktree of this repo)' : ''}`);
+    if (ws.isGit) {
+      // Commit provenance: post-commit records a note, pre-push pushes the notes.
+      const { installGitHooks } = await import('./provenance/hooks.js');
+      try {
+        const g = installGitHooks(ws.root, { bin: BIN, intents: flags['no-intents'] ? false : null });
+        console.log(`Git hooks for commit provenance installed in ${g.dir} (post-commit, pre-push${g.chained.length ? `; chained to your existing ${g.chained.join(', ')}` : ''})`);
+        console.log(g.intents ? 'Notes include the first line of each prompt. To leave prompts out: grapim init --no-intents' : 'Notes leave prompts out (grapim.notes.intents=false).');
+      } catch (err) {
+        console.error(`Could not install the git hooks for commit provenance: ${err.message}`);
+      }
+    }
     console.log('\nFor Codex, add to ~/.codex/config.toml:');
     console.log(`  [mcp_servers.grapim]\n  command = "node"\n  args = ["${BIN}", "mcp"]`);
     console.log('\nFor Cursor, add to .cursor/mcp.json:');
@@ -324,8 +364,8 @@ export async function main(argv) {
     }
     const syncStore = new Store(ws.stateDir);
     const say = (r) => {
-      const n = r.changes + r.events;
-      if (n || !flags.watch) console.log(`Synced ${r.changes} change${r.changes === 1 ? '' : 's'}, ${r.events} event${r.events === 1 ? '' : 's'} and ${r.blobs} file version${r.blobs === 1 ? '' : 's'} to ${new URL(hubUrl).host}.`);
+      const n = r.changes + r.events + (r.notes ?? 0);
+      if (n || !flags.watch) console.log(`Synced ${r.changes} change${r.changes === 1 ? '' : 's'}, ${r.events} event${r.events === 1 ? '' : 's'}, ${r.blobs} file version${r.blobs === 1 ? '' : 's'} and ${r.notes ?? 0} provenance note${r.notes === 1 ? '' : 's'} to ${new URL(hubUrl).host}.`);
     };
     if (!flags.watch) {
       try {
@@ -402,6 +442,10 @@ export async function main(argv) {
         return await branchCmd(store, ws, rest, flags, agent);
       case 'review':
         return await reviewCmd(store, rest, flags, agent);
+      case 'provenance': {
+        const { provenanceMain } = await import('./provenance/cli.js');
+        return await provenanceMain(store, ws, rest, flags, { term });
+      }
       default:
         console.error(`Unknown command: ${cmd}\n\n${HELP}`);
         return 1;

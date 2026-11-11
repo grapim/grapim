@@ -12,8 +12,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { history } from './attribution.js';
-import { lineCounts } from './diff.js';
-import { sha1, snapshot } from './ledger.js';
+import { countLines, sha1, snapshot } from './ledger.js';
 import { rootKey } from './workspace.js';
 
 const idPart = (run) => run.slice(run.indexOf(':') + 1);
@@ -191,7 +190,7 @@ function applyFile(store, plan, f, actor, undoRun) {
   writeFile(abs, f.end);
   const label = `undo ${plan.run.label || plan.run.run}`;
   const ref = { root: f.root, root_key: rootKey(f.root), path_key: f.path_key, path: f.path };
-  store.recordChange({ ...ref, run: undoRun, label, turn: 0, untracked: false, ...lineCounts(now.buf, f.end.buf) }, now, f.end);
+  store.recordChange({ ...ref, run: undoRun, label, turn: 0, untracked: false, ...countLines(store, now.buf, f.end.buf) }, now, f.end);
   store.recordUndo(actor, f.path, `${f.action}: ${plan.run.label || plan.run.run}${plan.turn === null ? '' : ` turn ${plan.turn}`}`);
   return f;
 }

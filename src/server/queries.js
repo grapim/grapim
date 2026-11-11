@@ -34,6 +34,18 @@ export function fileHistory(store, ws, key) {
     .all(rootKey(ws.root), key);
 }
 
+// The changes feed: recorded changes to files in this worktree with an id
+// above `after`, in id order, at most `limit`. sha is the content after the
+// change (null: deleted; "untracked": over 2 MB or not a regular file).
+export function changesAfter(store, ws, after, limit) {
+  return store.db
+    .prepare(
+      `SELECT id, path, after_sha AS sha, ts, run, COALESCE(label, run) AS label
+       FROM changes WHERE root_key = ? AND id > ? ORDER BY id LIMIT ?`,
+    )
+    .all(rootKey(ws.root), after, limit);
+}
+
 // The newest change of each file in this worktree: Map(path_key -> { ts, label, run }).
 export function lastChanges(store, ws) {
   const rows = store.db

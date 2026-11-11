@@ -2,8 +2,14 @@
 // `grapim serve`. With no /api here, the UI switches to mock mode by itself.
 //   node ui/dev-server.mjs [--port 7421]
 // Zero dependencies.
+//
+// Embedding, for ui/embed-demo.html: the hub injects
+//   <meta name="grapim-embed-origin" content="…"> and <meta name="grapim-embed-mode" content="…">
+// into index.html for an embed session. Here, ?embed_origin= and ?embed_mode=
+// on the page URL stand in for the hub and inject the same tags. Dev only:
+// the desk itself never reads these from the URL.
 
-import { createReadStream, statSync } from 'node:fs';
+import { createReadStream, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +36,18 @@ createServer((req, res) => {
   let st;
   try { st = statSync(file); } catch { res.writeHead(404, { 'content-type': 'text/plain' }).end('Not found'); return; }
   if (!st.isFile()) { res.writeHead(404).end('Not found'); return; }
+  const origin = url.searchParams.get('embed_origin');
+  const mode = url.searchParams.get('embed_mode');
+  if (path.basename(file) === 'index.html' && (origin !== null || mode !== null)) {
+    const attr = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+    const tags = [
+      origin !== null ? `<meta name="grapim-embed-origin" content="${attr(origin)}">` : '',
+      mode !== null ? `<meta name="grapim-embed-mode" content="${attr(mode)}">` : '',
+    ].join('\n  ');
+    const page = readFileSync(file, 'utf8').replace(/<meta charset="utf-8">/i, (m) => `${m}\n  ${tags}`);
+    res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-store' }).end(page);
+    return;
+  }
   res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
   createReadStream(file).pipe(res);
 }).listen(PORT, '127.0.0.1', () => console.log(`Review desk (mock data): http://127.0.0.1:${PORT}/?mock=1`));

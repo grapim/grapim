@@ -109,3 +109,16 @@ test('init merges into existing settings and is idempotent', () => {
   assert.equal(s.hooks.PreToolUse[0].hooks[0].command, 'echo mine');
   assert.equal(s.hooks.SessionEnd.length, 1);
 });
+
+test('hooks installed twice (plugin and init) count one prompt as one turn', async () => {
+  const { main } = repoWithWorktree();
+  const p = { hook_event_name: 'UserPromptSubmit', session_id: 'dddd4444', cwd: main, prompt: 'Add a /health route' };
+  hook(p);
+  hook(p);
+  hook({ ...p, prompt: 'Now add tests' });
+  const { Store } = await import('../src/store.js');
+  const { resolveWorkspace } = await import('../src/workspace.js');
+  const s = new Store(resolveWorkspace(main).stateDir);
+  assert.equal(s.turn('claude-code:dddd4444'), 2);
+  s.close();
+});

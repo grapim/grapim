@@ -3,7 +3,10 @@
 // export mount(el, params, ctx) → { refresh?, destroy?, onKey?, commands? }.
 
 import { api, conn, init, onStatus, onTick } from './api.js';
+import * as embed from './embed.js';
 import { ago, icon, registerAgents } from './views/shared.js';
+
+const EMBED = embed.EMBED;
 
 // ---------------------------------------------------------------- render helper
 
@@ -32,7 +35,7 @@ export function render(el, view) {
   const key = el.contains(document.activeElement) ? document.activeElement?.dataset?.key : null;
   el.__html = next;
   el.innerHTML = next;
-  if (key) el.querySelector(`[data-key="${CSS.escape(key)}"]`)?.focus({ preventScroll: true });
+  if (key && embed.mayFocus()) el.querySelector(`[data-key="${CSS.escape(key)}"]`)?.focus({ preventScroll: true });
   return true;
 }
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -88,7 +91,7 @@ async function route() {
     render(viewEl, html`<div class="error" role="alert"><div><h3>This page failed to load</h3>
       <p>${err?.message || String(err)}</p><p>Reload the page. If it keeps happening, the UI files may be out of date: restart <code>grapim serve</code>.</p></div></div>`);
   }
-  if (!sameView && document.activeElement === document.body) viewEl.focus({ preventScroll: true });
+  if (!sameView && document.activeElement === document.body && embed.mayFocus()) viewEl.focus({ preventScroll: true });
   if (!sameView) window.scrollTo(0, 0);
 }
 
@@ -126,6 +129,13 @@ function renderShell() {
   })}`;
   render($('#nav-side'), nav);
   render($('#nav-top'), nav);
+  if (EMBED) {
+    render($('#nav-embed'), html`${NAV.map((n) => {
+      const count = n.id === 'runs' ? counts?.unreviewed : null;
+      return html`<a href="${n.href}" data-nav="${n.id}"><span>${n.label}</span>${
+        count ? html`<span class="count num" title="${count} runs need review">${count}</span>` : ''}</a>`;
+    })}`);
+  }
   setNav(current?.name);
 
   if (o) {
@@ -150,6 +160,20 @@ function renderShell() {
   c.querySelector('.txt').textContent =
     { live: 'Live · updates as agents work', reconnecting: 'Reconnecting to grapim serve…', mock: 'Sample data', connecting: 'Connecting…' }[conn.state] || conn.state;
 
+  // Embedded, the state is one word in the header, and the "run grapim serve"
+  // banner is not shown: the host's customers never run the server.
+  if (EMBED) {
+    const ce = $('#conn-embed');
+    const [word, tip] = {
+      live: ['Live', 'Updates as agents work'], reconnecting: ['Reconnecting…', 'Lost the live connection; trying again'],
+      mock: ['Sample data', 'Showing sample data, not a real workspace'], connecting: ['Connecting…', ''],
+    }[conn.state] || [conn.state, ''];
+    ce.dataset.state = conn.state;
+    ce.title = tip;
+    ce.querySelector('.txt').textContent = word;
+    return;
+  }
+
   if (conn.mode === 'mock') {
     render($('#banner'), html`<div class="banner" role="note">${icon('info', 'sm')}<span>${conn.reason === 'requested'
       ? html`Sample data. To see your own repo, run <code>grapim serve</code> in it and open <code>http://127.0.0.1:7420</code>.`
@@ -160,6 +184,8 @@ function renderShell() {
 export async function refreshShell() {
   try {
     const [o, runs] = await Promise.all([api.overview(), api.runs()]);
+    // A server that says readonly after the first paint: redraw without the buttons.
+    if (embed.readOverview(o)) setTimeout(() => current?.view?.refresh?.());
     shell.overview = o;
     shell.runs = runs;
     shell.error = null;
@@ -175,9 +201,12 @@ export async function refreshShell() {
 // ---------------------------------------------------------------- theme
 
 function getTheme() {
+  if (EMBED) return embed.embedTheme;
   try { return localStorage.getItem('grapim.theme') || 'system'; } catch { return 'system'; }
 }
+// Embedded, the host owns the theme (?theme=), so there is nothing to change or save.
 export function setTheme(t) {
+  if (EMBED) return;
   try { if (t === 'system') localStorage.removeItem('grapim.theme'); else localStorage.setItem('grapim.theme', t); } catch {}
   if (t === 'system') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = t;
@@ -230,11 +259,12 @@ const KEYS = [
   ['Diffs and files', [['Unified / split', 's'], ['Mark next file viewed', 'v'], ['Show this list', '?']]],
 ];
 export function openHelp() {
+  const keys = embed.readonly() ? KEYS.filter(([g]) => g !== 'Review a run') : KEYS;
   openDialog(html`
     <div class="dlg">
       <div class="dlg-head"><h2 class="dlg-title" id="dlg-title">Keyboard shortcuts</h2>
         <p class="dlg-lead">Every action also has a button. Shortcuts are off while you type in a field.</p></div>
-      <div class="dlg-body"><div class="keys">${KEYS.map(([group, items]) => html`
+      <div class="dlg-body"><div class="keys">${keys.map(([group, items]) => html`
         <section><h3>${group}</h3><ul>${items.map(([what, keys]) => html`
           <li><span>${what}</span><span>${keys.split(' ').map((k) => html`<kbd>${k}</kbd>`)}</span></li>`)}</ul></section>`)}
       </div></div>
@@ -252,7 +282,14 @@ export const ctx = {
   shell,
   refreshShell,
   openDialog,
+  // Readonly (an embed session, or the server said so): no review, undo,
+  // restore or branch. The server refuses them too; this keeps them off screen.
+  readonly: embed.readonly,
+  mayFocus: embed.mayFocus,
+  embedded: EMBED,
+  emit: embed.emit,
   async openUndo(run, turn = null) {
+    if (embed.readonly()) return false;
     const m = await import('./views/undo.js');
     return m.openUndo(run, turn, ctx);
   },
@@ -270,6 +307,9 @@ async function openPalette() {
 }
 
 document.addEventListener('keydown', (e) => {
+  // Embedded, keys only count while the desk itself has focus; the host
+  // page's keys never reach here, and a stray synthetic one is ignored.
+  if (EMBED && !document.hasFocus()) return;
   const mod = e.metaKey || e.ctrlKey;
   if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
     e.preventDefault();
@@ -327,6 +367,12 @@ setInterval(() => {
 for (const el of document.querySelectorAll('kbd[data-mod]')) el.textContent = MOD;
 
 (async function start() {
+  // Embedded: the host can move the desk with grapim:navigate (from its origin only).
+  embed.start({
+    navigate: (r) => navigate(r.view === 'run' ? runHref(r.run)
+      : r.view === 'files' ? (r.path ? fileHref(r.path) : '#/files')
+      : r.view === 'runs' ? `#/runs${r.filter ? `?f=${r.filter}` : ''}` : '#/live'),
+  });
   renderShell();
   // Until the first data arrives: the page's shape, not a blank screen.
   render($('#view'), html`<div class="page-head"><div><span class="sk" style="width:120px;height:24px"></span><span class="sk" style="width:280px;margin-top:12px"></span></div></div>
@@ -337,7 +383,7 @@ for (const el of document.querySelectorAll('kbd[data-mod]')) el.textContent = MO
   await refreshShell();
   window.addEventListener('hashchange', route);
   if (!location.hash) history.replaceState(null, '', `${location.pathname}${location.search}#/live`);
-  route();
+  route().then(() => embed.ready({ view: current?.name }));
   // Warm the modules behind shortcuts, so the first Ctrl K or u opens at once.
   setTimeout(() => { import('./views/palette.js'); import('./views/undo.js'); }, 300);
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', renderShell);

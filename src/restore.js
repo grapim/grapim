@@ -17,8 +17,7 @@
 
 import path from 'node:path';
 import { history } from './attribution.js';
-import { lineCounts } from './diff.js';
-import { snapshot } from './ledger.js';
+import { countLines, snapshot } from './ledger.js';
 import { autoApprove } from './review.js';
 import { leavesRoot, writeFile } from './undo.js';
 import { rootKey } from './workspace.js';
@@ -67,7 +66,7 @@ export function planRestore(store, ws, file, sha, { actor = null } = {}) {
   const action = actionOf(now, v.sha);
   // The current file's content is not kept when it is binary or over 2 MB.
   const known = now.sha === null || now.buf !== null;
-  const counts = action === 'nothing' ? { added: 0, removed: 0 } : known ? lineCounts(now.buf, v.buf) : { added: null, removed: null };
+  const counts = action === 'nothing' ? { added: 0, removed: 0 } : known ? countLines(store, now.buf, v.buf) : { added: null, removed: null };
   const block = action === 'nothing' ? null : blocker(store, ws, file, actor);
   return {
     path: file.display,
@@ -104,7 +103,7 @@ export function applyRestore(store, ws, plan, actor, { expect } = {}) {
   const label = `restore ${plan.path} ${plan.sha.slice(0, 8)}`;
   const untracked = now.sha !== null && !now.buf;
   const ref = { root: ws.root, root_key: rootKey(ws.root), path_key: plan.path_key, path: plan.path };
-  store.recordChange({ ...ref, run, label, turn: 0, untracked, ...(untracked ? {} : lineCounts(now.buf, plan.version.buf)) }, now, plan.version);
+  store.recordChange({ ...ref, run, label, turn: 0, untracked, ...(untracked ? {} : countLines(store, now.buf, plan.version.buf)) }, now, plan.version);
   store.recordEvent(actor, 'restore', plan.path, `${plan.sha.slice(0, 12)} ${run}`, actor);
   autoApprove(store, run, actor);
   return { ...plan, run, label };
