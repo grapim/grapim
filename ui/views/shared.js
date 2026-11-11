@@ -114,6 +114,22 @@ export const icon = (name, cls = '') => raw(`<svg class="icon ${cls}" viewBox="0
 
 // ---------------------------------------------------------------- blocks
 
+// A cloud workspace on the hub is served under /w/<team>/<name>/; a local
+// `grapim serve` is served at the root. Empty states say different things.
+const WS_PATH = /^\/w\/([^/]+)\/([^/]+)\//.exec(location.pathname);
+export const IS_CLOUD = !!WS_PATH;
+const syncCmd = () => `grapim folder ${location.origin}${WS_PATH[0]} ./${decodeURIComponent(WS_PATH[2])} --watch`;
+const tokensLink = () => html`<a href="/hub/teams/${WS_PATH[1]}/workspaces">workspace page in the hub</a>`;
+
+// What to do so agents show up: hooks in a local repo, a token for a cloud workspace.
+export const setupHint = (what) =>
+  IS_CLOUD
+    ? {
+        body: html`${what} Create a workspace token on the ${tokensLink()}, then connect an agent over HTTPS or MCP, or sync a local folder.`,
+        cmd: syncCmd(),
+      }
+    : { body: html`${what} Run <code>grapim init</code> in your repo, then start a Claude Code session.`, cmd: 'grapim init' };
+
 // An empty state always names the exact next command.
 export const empty = (title, body, cmd) => html`
   <div class="empty">

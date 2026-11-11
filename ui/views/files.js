@@ -7,7 +7,7 @@
 import { api } from '../api.js';
 import { fileHref, html, navigate, raw, render, runHref } from '../app.js';
 import { diffTexts, highlight, langOf, renderDiff } from './diff.js';
-import { agentChip, ago, colorOf, empty, errorBlock, exact, icon, pluralize, sk, when } from './shared.js';
+import { agentChip, ago, colorOf, empty, errorBlock, exact, icon, pluralize, setupHint, sk, when } from './shared.js';
 
 // Tree state survives moving between files (and is dropped when the worktree changes).
 const tree = { open: new Set(['']), dirs: new Map(), errors: new Map(), worktree: null };
@@ -253,7 +253,7 @@ export async function mount(el, params, ctx) {
         <div class="section-head" style="padding:12px 16px 0;margin:0"><h2 class="section-title" id="recent-h">Recently edited</h2></div>
         ${!evs ? html`<div style="padding:16px">${sk('50%')}</div>` : items.length ? html`<table class="table"><tbody>${items.map((e) => html`<tr>
           <td class="mono"><a href="${fileHref(e.path)}">${e.path}</a></td><td>${agentChip(e.label)}</td><td class="r muted">${when(e.ts)}</td></tr>`)}</tbody></table>`
-          : empty('No agent has edited a file yet', html`Edits show up here once an agent changes a file. Run <code>grapim init</code> in your repo, then start a Claude Code session.`)}
+          : empty('No agent has edited a file yet', setupHint('Edits show up here once an agent changes a file.').body)}
       </section>`;
   }
 

@@ -4,7 +4,7 @@
 
 import { api } from '../api.js';
 import { fileHref, html, render, runHref } from '../app.js';
-import { agentChip, clock, colorOf, empty, errorBlock, exact, icon, isMainWorktree, sk, until, when, worktreeQuery } from './shared.js';
+import { agentChip, clock, colorOf, empty, errorBlock, exact, icon, IS_CLOUD, isMainWorktree, setupHint, sk, until, when, worktreeQuery } from './shared.js';
 
 const FRESH_MS = 90_000; // an agent seen in the last 90 s counts as working this moment
 
@@ -29,9 +29,8 @@ export async function mount(el, _params, ctx) {
 
   function agents(ov) {
     if (!ov.agents.length) {
-      return html`<section class="panel">${empty('No agents are working right now',
-        html`Agents show up here the moment they start. If none ever do, check that hooks are installed in this worktree.`,
-        'grapim init')}</section>`;
+      const h = setupHint('Agents show up here the moment they start.');
+      return html`<section class="panel">${empty('No agents are working right now', h.body, h.cmd)}</section>`;
     }
     const list = [...ov.agents].sort((a, b) => b.last_seen - a.last_seen);
     return html`
@@ -113,7 +112,7 @@ export async function mount(el, _params, ctx) {
           <li class="feed-item ${e.kind} ${prev !== null && e.id > prev ? 'new' : ''}">
             <time datetime="${new Date(e.ts).toISOString()}" title="${exact(e.ts)}">${clock(e.ts)}</time>
             <p class="what">${actor(e)} ${line(e, ov)}</p>
-          </li>`)}</ol>` : empty('Nothing has happened yet', 'Claims, edits, blocks and undos appear here as they happen.', 'grapim status --watch')}
+          </li>`)}</ol>` : empty('Nothing has happened yet', 'Claims, edits, blocks and undos appear here as they happen.', IS_CLOUD ? '' : 'grapim status --watch')}
       </section>`;
   }
 

@@ -4,7 +4,7 @@
 
 import { api } from '../api.js';
 import { html, navigate, render, runHref } from '../app.js';
-import { agentChip, empty, errorBlock, icon, plusMinus, pluralize, reviewBadge, runTitle, sk, treeBadge, treeText, when } from './shared.js';
+import { agentChip, empty, errorBlock, icon, plusMinus, pluralize, reviewBadge, runTitle, setupHint, sk, treeBadge, treeText, when } from './shared.js';
 
 const FILTERS = [
   { id: 'pending', label: 'Needs review', test: (r) => r.review.status === 'pending' },
@@ -69,9 +69,8 @@ export async function mount(el, params, ctx) {
         <div class="row" aria-hidden="true"><span>${sk('12px', 12)}</span><span>${sk('110px')}</span><span>${sk('70%')}</span><span class="c-wt">${sk('70px')}</span><span>${sk('16px')}</span><span class="c-files">${sk('16px')}</span><span>${sk('60px')}</span><span>${sk('60px', 20)}</span><span>${sk('80px', 20)}</span><span>${sk('40px')}</span></div>`)}</section>`);
     }
     if (!s.runs.length) {
-      return render(el, html`${head}<section class="panel">${empty('No runs yet',
-        html`Run <code>grapim init</code> in your repo, then start a Claude Code session. Every session that edits a file shows up here.`,
-        'grapim init')}</section>`);
+      const h = setupHint('Every agent session that edits a file shows up here.');
+      return render(el, html`${head}<section class="panel">${empty('No runs yet', h.body, h.cmd)}</section>`);
     }
     const list = visible();
     const none = {
