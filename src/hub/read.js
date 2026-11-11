@@ -47,7 +47,7 @@ export class TeamRead {
     const cut = this.cutoff(team);
     return this.db
       .prepare(
-        `SELECT r.id, r.name, r.created_at, r.last_sync_at,
+        `SELECT r.id, COALESCE(r.github, r.name) AS name, r.name AS folder, r.github, r.created_at, r.last_sync_at,
                 (SELECT COUNT(*) FROM machines m WHERE m.team_id = r.team_id AND m.repo_id = r.id) AS machines,
                 (SELECT COUNT(DISTINCT c.machine || '|' || c.run) FROM h_changes c WHERE c.team_id = r.team_id AND c.repo_id = r.id AND c.ts >= ?) AS runs,
                 (SELECT MAX(c.ts) FROM h_changes c WHERE c.team_id = r.team_id AND c.repo_id = r.id) AS last_change_ts
@@ -58,7 +58,8 @@ export class TeamRead {
 
   repo(team, repoId) {
     if (typeof repoId !== 'string' || !/^[0-9a-f]{40}$/.test(repoId)) return null;
-    return this.db.prepare('SELECT * FROM repos WHERE team_id = ? AND id = ?').get(team.id, repoId) ?? null;
+    const r = this.db.prepare('SELECT * FROM repos WHERE team_id = ? AND id = ?').get(team.id, repoId);
+    return r ? { ...r, folder: r.name, name: r.github || r.name } : null;
   }
 
   #blobs(teamId, budget = DIFF_BUDGET) {

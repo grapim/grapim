@@ -78,7 +78,7 @@ export class Reports {
   }
 
   repos(team) {
-    return this.db.prepare('SELECT id, name FROM repos WHERE team_id = ? ORDER BY name COLLATE NOCASE LIMIT 1000').all(team.id);
+    return this.db.prepare('SELECT id, COALESCE(github, name) AS name FROM repos WHERE team_id = ? ORDER BY 2 COLLATE NOCASE LIMIT 1000').all(team.id);
   }
 
   historyFrom(team) {

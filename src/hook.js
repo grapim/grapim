@@ -13,6 +13,7 @@
 //
 // Ledger failures are written to stderr and never block the edit.
 
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { DEFAULT_TTL_MS, Store } from './store.js';
 import { fileKey, resolveWorkspace } from './workspace.js';
@@ -28,7 +29,8 @@ const rootOf = (p) => path.parse(p).root.toLowerCase();
 
 function agentOf(input) {
   const id = String(input.session_id || 'unknown');
-  return { agent: `claude-code:${id}`, label: `claude ${id.slice(0, 8)}` };
+  const short = /^[0-9a-f]{8}/i.test(id) ? id.slice(0, 8).toLowerCase() : crypto.createHash('sha1').update(id).digest('hex').slice(0, 8);
+  return { agent: `claude-code:${id}`, label: `claude ${short}` };
 }
 
 function ttlMs(env) {
