@@ -38,4 +38,4 @@ const P = {
 export const icon = (name, cls = '') => raw(`<svg class="icon${cls ? ` ${cls}` : ''}" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">${P[name] ?? ''}</svg>`);
 
 // The product mark: the same diamond on the hub, the desk and the favicon.
-export const LOGO = raw('<svg class="logo" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false"><path d="M10 1.5 18.5 10 10 18.5 1.5 10Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 6 14 10 10 14 6 10Z" fill="currentColor"/></svg>');
+export const LOGO = raw('<svg class="logo" viewBox="0 0 64 64" width="18" height="18" aria-hidden="true" focusable="false"><rect x="25" y="9" width="30" height="30" rx="5" transform="rotate(45 40 24)" fill="none" stroke="currentColor" stroke-width="5"/><rect x="6" y="26" width="34" height="34" rx="8" fill="currentColor"/></svg>');

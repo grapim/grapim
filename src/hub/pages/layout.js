@@ -139,7 +139,7 @@ function profileMenu({ user, team, me, csrf, shell }) {
         ${plan(me)}
         ${avatar(user, 48)}
         <p class="profile-name">${user.name || user.login}</p>
-        <p class="profile-sub">@${user.login} · ${owner ? 'Team owner' : 'Team member'}</p>
+        <p class="profile-sub">@${user.login} · ${owner ? 'Owner' : 'Member'} of ${team.name}</p>
       </div>
       <a class="menu-item" href="${base}/settings">${icon('settings')}<span class="menu-title">Team settings</span></a>
       <a class="menu-item" href="${base}/settings#billing">${icon('usage')}<span class="menu-title">Plan and usage</span></a>
@@ -147,6 +147,7 @@ function profileMenu({ user, team, me, csrf, shell }) {
       <div class="menu-sep" role="separator"></div>
       ${shell.teams.map((t) => html`<a class="menu-item" href="/hub/teams/${t.id}" ${t.id === team.id ? html`aria-current="true"` : ''}>
         <span class="team-mark" aria-hidden="true">${t.name.slice(0, 1).toUpperCase()}</span><span class="menu-title">${t.name}</span>${t.id === team.id ? icon('check', 'menu-check') : ''}</a>`)}
+      <a class="menu-item" href="/hub">${icon('updown')}<span class="menu-title">All teams</span></a>
       <a class="menu-item" href="/hub#new-team">${icon('plus')}<span class="menu-title">Create a team</span></a>
       <div class="menu-sep" role="separator"></div>
       <div class="profile-foot">
@@ -169,14 +170,6 @@ function shellPage({ title, user, team, csrf, crumbs, body, wide, shell }) {
 <div class="app">
   <aside class="side" aria-label="Team">
     <a class="brand" href="/hub">${LOGO}<span>Grapim</span></a>
-    <details class="switcher" data-menu>
-      <summary class="switch" aria-label="${`Team: ${team.name}. Switch team`}">
-        <span class="team-mark" aria-hidden="true">${team.name.slice(0, 1).toUpperCase()}</span>
-        <span class="switch-text"><span class="switch-name">${team.name}</span><span class="switch-sub">${me.role} · ${plan(me)}</span></span>
-        ${icon('updown', 'switch-chev')}
-      </summary>
-      <div class="menu">${teamMenu(shell, team)}</div>
-    </details>
     <button class="search-btn" type="button" data-action="palette">${icon('search')}<span>Jump to…</span>${MOD}</button>
     <nav class="nav" aria-label="Team sections">${navLinks(team, shell, current)}</nav>
     <div class="side-foot">
