@@ -81,9 +81,13 @@ export async function createHub(options = {}) {
 
   const statics = {
     '/hub/static/hub.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, 'hub.css'))],
+    '/hub/static/theme.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, 'theme.js'))],
     '/hub/static/hub.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, 'hub.js'))],
     // The design tokens the review desk uses too (ui/tokens.css): one source, no drift.
     '/hub/static/tokens.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'tokens.css'))],
+    // Self-hosted type (ui/fonts, SIL OFL): tokens.css asks for fonts/<file> next to itself.
+    ...Object.fromEntries(['inter-latin.woff2', 'inter-latin-ext.woff2', 'jetbrains-mono-latin.woff2'].map((f) => [
+      `/hub/static/fonts/${f}`, ['font/woff2', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'fonts', f))]])),
     '/hub/static/favicon.svg': ['image/svg+xml', fs.readFileSync(path.join(PAGES, 'favicon.svg'))],
   };
 

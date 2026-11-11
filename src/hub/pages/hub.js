@@ -490,3 +490,16 @@ if (dupForm) {
   input.addEventListener('input', check);
   check();
 }
+
+// Theme (System, Light, Dark) in the profile menu; the same key as the desk.
+function currentTheme() { try { return localStorage.getItem('grapim.theme') || 'system'; } catch { return 'system'; } }
+function paintThemeButtons() { for (const b of $$('[data-theme-set]')) b.setAttribute('aria-pressed', String(b.dataset.themeSet === currentTheme())); }
+document.addEventListener('click', (e) => {
+  const b = e.target.closest?.('[data-theme-set]');
+  if (!b) return;
+  const t = b.dataset.themeSet;
+  try { if (t === 'system') localStorage.removeItem('grapim.theme'); else localStorage.setItem('grapim.theme', t); } catch {}
+  if (t === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  paintThemeButtons();
+});
+paintThemeButtons();

@@ -114,6 +114,7 @@ function head(title) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>${title ? `${title} · Grapim` : 'Grapim'}</title>
+<script src="/hub/static/theme.js"></script>
 <link rel="icon" href="/hub/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/hub/static/tokens.css">
 <link rel="stylesheet" href="/hub/static/hub.css">
@@ -124,6 +125,37 @@ function head(title) {
 // Content width: data tables and diffs use the wide column (true); settings
 // and tabbed pages a middle one ('mid'); forms and prose a readable column.
 const wrapClass = (wide) => (wide === true ? 'wrap wrap-wide' : wide === 'mid' ? 'wrap wrap-mid' : 'wrap');
+
+// The profile menu (bottom of the sidebar), as Railway, Linear and Vercel do it:
+// who you are in this team, its settings, your teams, the theme, Sign out.
+function profileMenu({ user, team, me, csrf, shell }) {
+  const base = `/hub/teams/${team.id}`;
+  const owner = (me.role ?? shell.role) === 'owner';
+  const themeBtn = (t, label, ic) => html`<button type="button" data-theme-set="${t}" aria-pressed="false" aria-label="${label} theme" title="${label}">${icon(ic)}</button>`;
+  return html`<details class="profile" data-menu>
+    <summary class="profile-btn" aria-label="${`Account: ${user.login}. Open menu`}">${avatar(user)}<span class="login">${user.name || user.login}</span>${icon('updown', 'switch-chev')}</summary>
+    <div class="menu menu-up profile-menu">
+      <div class="profile-card">
+        ${plan(me)}
+        ${avatar(user, 48)}
+        <p class="profile-name">${user.name || user.login}</p>
+        <p class="profile-sub">@${user.login} · ${owner ? 'Team owner' : 'Team member'}</p>
+      </div>
+      <a class="menu-item" href="${base}/settings">${icon('settings')}<span class="menu-title">Team settings</span></a>
+      <a class="menu-item" href="${base}/settings#billing">${icon('usage')}<span class="menu-title">Plan and usage</span></a>
+      <a class="menu-item" href="${base}/settings#tokens">${icon('key')}<span class="menu-title">Machine tokens</span></a>
+      <div class="menu-sep" role="separator"></div>
+      ${shell.teams.map((t) => html`<a class="menu-item" href="/hub/teams/${t.id}" ${t.id === team.id ? html`aria-current="true"` : ''}>
+        <span class="team-mark" aria-hidden="true">${t.name.slice(0, 1).toUpperCase()}</span><span class="menu-title">${t.name}</span>${t.id === team.id ? icon('check', 'menu-check') : ''}</a>`)}
+      <a class="menu-item" href="/hub#new-team">${icon('plus')}<span class="menu-title">Create a team</span></a>
+      <div class="menu-sep" role="separator"></div>
+      <div class="profile-foot">
+        <div class="seg icons theme-seg" role="group" aria-label="Theme">${themeBtn('system', 'System', 'system')}${themeBtn('light', 'Light', 'sun')}${themeBtn('dark', 'Dark', 'moon')}</div>
+        <form method="post" action="/hub/logout">${csrfField(csrf)}<button class="signout" type="submit">Sign out${icon('power')}</button></form>
+      </div>
+    </div>
+  </details>`;
+}
 
 const MOD = html`<kbd class="mod">Ctrl</kbd><kbd>K</kbd>`;
 
@@ -148,7 +180,7 @@ function shellPage({ title, user, team, csrf, crumbs, body, wide, shell }) {
     <button class="search-btn" type="button" data-action="palette">${icon('search')}<span>Jump to…</span>${MOD}</button>
     <nav class="nav" aria-label="Team sections">${navLinks(team, shell, current)}</nav>
     <div class="side-foot">
-      <div class="me">${avatar(user)}<span class="login">${user.login}</span>${signOut}</div>
+      ${profileMenu({ user, team, me, csrf, shell })}
     </div>
   </aside>
   <div class="main">
