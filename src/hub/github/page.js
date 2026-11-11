@@ -74,7 +74,7 @@ export function githubPage({ user, csrf, team, configured, problems = [], instal
     csrf,
     team,
     crumbs: [{ label: 'Settings', href: `/hub/teams/${team.id}/settings` }, { label: 'GitHub' }],
-    body: html`${head(team, 'settings')}
+    body: html`${head(team, 'settings', { title: 'GitHub', sub: html`Pull request comments and the Grapim check. <a href="/hub/teams/${team.id}/settings#github">Back to settings</a>` })}
 ${notice ? html`<p class="notice" role="status">${notice}</p>` : ''}
 ${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
 ${!configured

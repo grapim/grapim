@@ -29,6 +29,7 @@ import { createConnectors } from './connectors.js';
 import { createComputePool } from './compute-pool.js';
 import { createPlatform } from './platform/index.js';
 import { createGitHubApp } from './github/index.js';
+import { createOverview } from './overview.js';
 import { createWorkspaceStorage, defaultStorageUrl, loadStorage } from './workspace-storage.js';
 import { createTeamStorage } from './team-storage.js';
 import { Workspaces } from './workspaces.js';
@@ -81,6 +82,9 @@ export async function createHub(options = {}) {
   const statics = {
     '/hub/static/hub.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, 'hub.css'))],
     '/hub/static/hub.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, 'hub.js'))],
+    // The design tokens the review desk uses too (ui/tokens.css): one source, no drift.
+    '/hub/static/tokens.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'tokens.css'))],
+    '/hub/static/favicon.svg': ['image/svg+xml', fs.readFileSync(path.join(PAGES, 'favicon.svg'))],
   };
 
   // Cloud workspaces at /w/<team>/<name>/, and their files in storage.
@@ -114,6 +118,8 @@ export async function createHub(options = {}) {
   hub.github = createGitHubApp(hub, { env, fetch: fetchImpl, ...(options.github ?? {}) });
   hub.github.routes(router);
   hub.teamStorage.routes(router);
+  // The team shell and home page (src/hub/pages/team.js): read-only queries.
+  hub.overview = createOverview(hub);
 
   const wantsJson = (p) => p.startsWith('/hub/api/') || p.startsWith('/hub/stripe/');
 
@@ -260,6 +266,17 @@ export async function createHub(options = {}) {
           throw notFound();
         }
         if (o.owner && ctx.member.role !== 'owner') throw new HttpError(403, 'forbidden', 'Only a team owner can do that.');
+      }
+      // A team page draws the shell around it (src/hub/pages/layout.js): the
+      // team switcher, the review count and the palette, for this member only.
+      // Not enumerable, so no JSON answer ever carries it.
+      if (ctx.member && ctx.session && !ctx.json) {
+        const user = ctx.session.user;
+        const teamId = ctx.member.team.id;
+        Object.defineProperty(user, 'shell', {
+          value: (team) => (team?.id === teamId ? hub.overview.shell(user, ctx.member.team, pathname, ctx.member.role) : null),
+          enumerable: false,
+        });
       }
       if (o.workspace) {
         ctx.workspace = hub.workspaces.byId(ctx.member.team.id, params.ws);

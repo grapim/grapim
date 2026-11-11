@@ -363,7 +363,7 @@ function teaserBody({ team, role, csrf, teaser, billing, seatsUsed }) {
   const owner = role === 'owner';
   const has = t.commits > 0;
   return html`<section class="card teaser" aria-labelledby="teaser-title">
-  <p class="eyebrow" id="teaser-title">Last week · ${shortDay(t.week)} – ${shortDay(t.week_end)}</p>
+  <h2 class="card-title" id="teaser-title">Last week · ${shortDay(t.week)} – ${shortDay(t.week_end)}</h2>
   ${has
     ? html`<p class="teaser-big"><span class="teaser-num">${pct(t.share)}</span> of added lines were written by AI agents</p>
   <p class="muted">${n(t.ai_in_share)} AI lines of ${n(t.added)} added, in ${n(t.commits)} commit${t.commits === 1 ? '' : 's'} with provenance from ${n(t.repos_with_provenance)} of ${n(t.repos_total)} repo${t.repos_total === 1 ? '' : 's'}. ${n(t.human)} human lines.${t.repos_not_recorded ? ` ${n(t.repos_not_recorded)} repo${t.repos_not_recorded === 1 ? ' has' : 's have'} no notes: unknown, not counted.` : ''}</p>`

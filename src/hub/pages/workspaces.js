@@ -1,10 +1,14 @@
 // Cloud workspaces in the team pages: the list (with create), and one
-// workspace's page (open it, connect agents, tokens, rename, delete).
+// workspace's page: a header (size, last activity, Open review desk) and
+// tabs for its activity, how to connect an agent, its tokens, integrations,
+// and settings (rename, delete).
 
 import { csrfField, layout } from './layout.js';
 import { date, html, time } from './html.js';
 import { head, reveal } from './team.js';
 import { connectorCards } from './connectors.js';
+import { icon } from './icons.js';
+import { code, delta, emptyState } from './parts.js';
 
 const mb = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round((n || 0) / 1024))} KB`);
 const deskPath = (team, ws) => `/w/${team.id}/${ws.name}/`;
@@ -39,26 +43,34 @@ export function workspacesPage({ user, csrf, team, workspaces, limit, notice = n
     user,
     csrf,
     team,
+    wide: true,
     crumbs: [{ label: 'Workspaces' }],
-    body: html`${head(team, 'workspaces')}
+    body: html`${head(team, 'workspaces', { sub: 'A workspace is a folder that lives on the hub. Any agent, anywhere, reads and writes it with a workspace token, over HTTPS or MCP. Every write is recorded, can be reviewed in the desk, and can be undone.' })}
 ${notices({ notice, error })}
-<section class="card" aria-labelledby="ws-title">
+${workspaces.length
+  ? html`<div class="table-wrap">
+<table class="table">
+  <caption class="sr-only">Workspaces of ${team.name}</caption>
+  <thead><tr><th scope="col">Workspace</th><th scope="col" class="num">Size</th><th scope="col">Last activity</th><th scope="col" class="hide-sm">Created</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead>
+  <tbody>
+  ${workspaces.map(
+    (w) => html`<tr>
+    <th scope="row"><a class="strong" href="/hub/teams/${team.id}/workspaces/${w.id}">${w.name}</a></th>
+    <td class="num">${mb(w.bytes)}</td>
+    <td>${time(w.last_activity ?? w.created_at)}</td>
+    <td class="hide-sm">${date(w.created_at)}</td>
+    <td class="cell-action"><a class="btn btn-sm" href="${deskPath(team, w)}">Open</a></td>
+  </tr>`,
+  )}
+  </tbody>
+</table>
+</div>`
+  : emptyState('No workspaces yet', 'Create one below. Agents connect to it with a workspace token.')}
+<section class="card card-narrow" aria-labelledby="ws-new-title">
   <div class="card-head">
-    <h2 id="ws-title" class="card-title">Workspaces</h2>
-    <span class="muted">${workspaces.length} of ${unlimited ? 'unlimited' : limit} on the ${team.plan} plan</span>
+    <h2 id="ws-new-title" class="card-title">New workspace</h2>
+    <span class="muted small">${workspaces.length} of ${unlimited ? 'unlimited' : limit} on the ${team.plan} plan</span>
   </div>
-  <p class="card-sub">A workspace is a folder that lives on the hub. Any agent, anywhere, reads and writes it with a workspace token, over HTTPS or MCP. Every write is recorded, can be reviewed in the desk, and can be undone.</p>
-  ${workspaces.length
-    ? html`<ul class="list list-flush">
-    ${workspaces.map(
-      (w) => html`<li class="row">
-      <span class="row-main"><a class="row-title strong" href="/hub/teams/${team.id}/workspaces/${w.id}">${w.name}</a></span>
-      <span class="row-meta hide-sm">${mb(w.bytes)} · created ${date(w.created_at)}</span>
-      <a class="btn btn-sm" href="${deskPath(team, w)}">Open</a>
-    </li>`,
-    )}
-  </ul>`
-    : html`<p class="muted small">No workspaces yet.</p>`}
   ${full
     ? html`<p class="fine">The ${team.plan} plan includes ${limit} workspace${limit === 1 ? '' : 's'}. An owner can upgrade in <a href="/hub/teams/${team.id}/settings#billing">Settings</a>.</p>`
     : html`<form method="post" action="/hub/teams/${team.id}/workspaces" class="inline-form">
@@ -76,110 +88,67 @@ ${notices({ notice, error })}
   });
 }
 
+// A segmented control that shows one panel at a time: radio buttons (so the
+// keyboard and screen readers know it) and CSS, no script. items: [[key, label, body]].
+function switcher(name, label, items, selected = items[0][0]) {
+  return html`<div class="segpanels">
+  <div class="seg seg-switch" role="radiogroup" aria-label="${label}">
+    ${items.map(([k, l]) => html`<label class="seg-item"><input class="sr-only" type="radio" name="${name}" value="${k}" ${k === selected ? html`checked` : ''}>${l}</label>`)}
+  </div>
+  <div class="switch-panels">${items.map(([k, , body]) => html`<div class="switch-panel" data-panel="${k}">${body}</div>`)}</div>
+</div>`;
+}
+
 // "Mount as a drive": the WebDAV address and the exact steps per OS
 // (src/server/webdav.js, docs/workspaces.md).
-function driveCard(url, ws) {
+function drivePanel(url, ws) {
   const dav = `${url}dav/`;
   const davs = dav.replace(/^https:/, 'davs:').replace(/^http:/, 'dav:');
-  return html`<section class="card" id="drive" aria-labelledby="drive-title">
-  <div class="card-head">
-    <h2 id="drive-title" class="card-title">Mount as a drive</h2>
-  </div>
-  <p class="card-sub">Open this workspace in File Explorer, Finder or Files like a network drive, with nothing to install. Sign in with any user name and a workspace token as the password; a read token mounts it read-only. Every save is recorded as <code>token-name/dav-windows</code> (or <code>dav-macos</code>, <code>dav-linux</code>) and can be undone.</p>
-  <pre class="code" tabindex="0"><code>${dav}</code></pre>
-  <details class="howto" open>
-    <summary>Windows</summary>
-    <ol class="steps">
+  return html`<p class="card-sub">Mount as a drive: open this workspace in File Explorer, Finder or Files like a network drive, with nothing to install. Sign in with any user name and a workspace token as the password; a read token mounts it read-only. Every save is recorded as <code>token-name/dav-windows</code> (or <code>dav-macos</code>, <code>dav-linux</code>) and can be undone.</p>
+  ${code(dav, 'Drive address')}
+  ${switcher('os', 'Operating system', [
+    [
+      'windows',
+      'Windows',
+      html`<ol class="steps">
       <li>In File Explorer, right-click <strong>This PC</strong> and choose <strong>Map network drive</strong>.</li>
       <li>Pick a drive letter and paste the address above as the Folder. (Or click <strong>Connect to a Web site that you can use to store your documents and pictures</strong> to add it without a letter.)</li>
       <li>Sign in with any user name, such as <code>grapim</code>, and your workspace token as the password.</li>
     </ol>
-    <pre class="code" tabindex="0"><code># Or in PowerShell, with the token in $env:GRAPIM_WORKSPACE_TOKEN
+    ${code(`# Or in PowerShell, with the token in $env:GRAPIM_WORKSPACE_TOKEN
 net use Z: ${dav} /user:grapim $env:GRAPIM_WORKSPACE_TOKEN
 # or
-grapim mount ${url} Z:</code></pre>
-    <p class="fine">Windows refuses files over 50 MB on a web drive by default. To raise it, run as administrator <code>reg add HKLM\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters /v FileSizeLimitInBytes /t REG_DWORD /d 4294967295 /f</code>, then restart the WebClient service. Grapim takes files up to 32 MB each.</p>
-  </details>
-  <details class="howto">
-    <summary>macOS</summary>
-    <ol class="steps">
+grapim mount ${url} Z:`, 'PowerShell')}
+    <p class="fine">Windows refuses files over 50 MB on a web drive by default. To raise it, run as administrator <code>reg add HKLM\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters /v FileSizeLimitInBytes /t REG_DWORD /d 4294967295 /f</code>, then restart the WebClient service. Grapim takes files up to 32 MB each.</p>`,
+    ],
+    [
+      'macos',
+      'macOS',
+      html`<ol class="steps">
       <li>In Finder, choose <strong>Go</strong> &gt; <strong>Connect to Server</strong> (Command K).</li>
       <li>Paste the address above and click Connect.</li>
       <li>Choose Registered User, enter any name and your workspace token as the password.</li>
-    </ol>
-  </details>
-  <details class="howto">
-    <summary>Linux</summary>
-    <ol class="steps">
+    </ol>`,
+    ],
+    [
+      'linux',
+      'Linux',
+      html`<ol class="steps">
       <li>GNOME Files: <strong>Other Locations</strong> &gt; <strong>Connect to Server</strong>, enter <code>${davs}</code>, then any user name and your token.</li>
       <li>Or davfs2 (<code>sudo apt install davfs2</code>):</li>
     </ol>
-    <pre class="code" tabindex="0"><code>echo "${dav} grapim $GRAPIM_WORKSPACE_TOKEN" | sudo tee -a /etc/davfs2/secrets &gt;/dev/null
+    ${code(`echo "${dav} grapim $GRAPIM_WORKSPACE_TOKEN" | sudo tee -a /etc/davfs2/secrets >/dev/null
 sudo chmod 600 /etc/davfs2/secrets
 sudo mkdir -p /mnt/${ws.name}
-sudo mount -t davfs -o uid=$(id -u),gid=$(id -g) ${dav} /mnt/${ws.name}</code></pre>
-  </details>
-</section>`;
+sudo mount -t davfs -o uid=$(id -u),gid=$(id -g) ${dav} /mnt/${ws.name}`, 'davfs2')}`,
+    ],
+  ])}`;
 }
 
-export function workspacePage({ user, csrf, team, role, ws, tokens, origin, connectors = [], revealed = null, notice = null, error = null }) {
-  const owner = role === 'owner';
-  const url = `${origin}${deskPath(team, ws)}`;
-  return layout({
-    title: `${ws.name} · ${team.name}`,
-    user,
-    csrf,
-    team,
-    crumbs: [{ label: 'Workspaces', href: `/hub/teams/${team.id}/workspaces` }, { label: ws.name }],
-    body: html`${head(team, 'workspaces')}
-${notices({ notice, error })}
-<section class="card" aria-labelledby="open-title">
-  <div class="card-head">
-    <h2 id="open-title" class="card-title">${ws.name}</h2>
-    <a class="btn btn-primary btn-sm" href="${deskPath(team, ws)}">Open review desk</a>
-  </div>
-  <dl class="stats">
-    <div><dt>Size</dt><dd>${mb(ws.bytes)}</dd></div>
-    <div><dt>Created</dt><dd>${date(ws.created_at)}</dd></div>
-  </dl>
-  <details class="howto" open>
-    <summary>Connect an agent</summary>
-    <pre class="code" tabindex="0"><code>export GRAPIM_WORKSPACE_TOKEN=gws_…   # a write token, created below
-
-# Files over HTTPS
-curl -X PUT ${url}fs/notes.md \\
-  -H "Authorization: Bearer $GRAPIM_WORKSPACE_TOKEN" \\
-  -H "X-Grapim-Agent: my-agent" --data-binary @notes.md
-
-# MCP (Claude Code)
-claude mcp add --transport http ${ws.name} ${url}mcp \\
-  --header "Authorization: Bearer $GRAPIM_WORKSPACE_TOKEN" \\
-  --header "X-Grapim-Agent: claude"
-
-# Keep a local folder in sync
-grapim folder ${url} ./${ws.name} --watch</code></pre>
-  </details>
-</section>
-
-${driveCard(url, ws)}
-
-${connectorCards(connectors, { team, ws, csrf, owner })}
-
-<section class="card" id="tokens" aria-labelledby="wst-title">
-  <div class="card-head">
-    <h2 id="wst-title" class="card-title">Workspace tokens</h2>
-  </div>
-  <p class="card-sub">A token works for this workspace only. A read token can list and read; a write token can also write, delete, undo, restore, review and branch. Limit it to some folders and it sees nothing else. Its agents appear as <code>token-name/agent</code>. ${owner ? 'You see every token of this workspace.' : 'You see your own tokens.'}</p>
-  ${revealed
-    ? reveal({
-        id: 'reveal-wstoken',
-        title: `Token ${revealed.name} (${revealed.scope}${revealed.scopes?.length ? `, ${revealed.scopes.length} folder rule${revealed.scopes.length === 1 ? '' : 's'}` : ''})`,
-        value: revealed.value,
-        hint: 'Copy it now. Only a hash is stored, so it cannot be shown again. Put it in GRAPIM_WORKSPACE_TOKEN where the agent runs.',
-      })
-    : ''}
-  <form method="post" action="/hub/teams/${team.id}/workspaces/${ws.id}/tokens" class="token-form">
+function tokenForm({ team, ws, csrf, from, compact = false }) {
+  return html`<form method="post" action="/hub/teams/${team.id}/workspaces/${ws.id}/tokens" class="token-form">
     ${csrfField(csrf)}
+    <input type="hidden" name="from" value="${from}">
     <div class="inline-form">
       <label class="sr-only" for="wst-name">Token name</label>
       <input id="wst-name" name="name" type="text" maxlength="40" placeholder="Token name, e.g. ci or e2b" required autocomplete="off" spellcheck="false">
@@ -188,9 +157,11 @@ ${connectorCards(connectors, { team, ws, csrf, owner })}
         <option value="write">Read and write</option>
         <option value="read">Read only</option>
       </select>
-      <button class="btn" type="submit">Create token</button>
+      <button class="btn ${compact ? 'btn-primary' : ''}" type="submit">Create token</button>
     </div>
-    <details class="howto">
+    ${compact
+      ? ''
+      : html`<details class="howto">
       <summary>Limit to folders</summary>
       <p class="fine">Leave empty for the whole workspace. Otherwise the token sees only these paths: <code>docs/**</code> is the docs folder and everything in it, <code>*</code> matches within one name. The most specific path wins, so <code>docs/**</code> read with <code>docs/drafts/**</code> read and write lets an agent read the docs and change only the drafts.</p>
       <div class="scope-rows">
@@ -204,8 +175,61 @@ ${connectorCards(connectors, { team, ws, csrf, owner })}
         </select>
       </div>`)}
       </div>
-    </details>
-  </form>
+    </details>`}
+  </form>`;
+}
+
+const revealBox = (revealed) =>
+  revealed
+    ? reveal({
+        id: 'reveal-wstoken',
+        title: `Token ${revealed.name} (${revealed.scope}${revealed.scopes?.length ? `, ${revealed.scopes.length} folder rule${revealed.scopes.length === 1 ? '' : 's'}` : ''})`,
+        value: revealed.value,
+        hint: 'Copy it now. Only a hash is stored, so it cannot be shown again. Put it in GRAPIM_WORKSPACE_TOKEN where the agent runs.',
+      })
+    : '';
+
+function connectTab({ team, ws, csrf, url, tokens, revealed }) {
+  // The snippets name a token you can see (the one just made, else the newest), never its secret.
+  const named = revealed?.name ?? [...tokens].sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))[0]?.name ?? null;
+  const tokenLine = `export GRAPIM_WORKSPACE_TOKEN=gws_…   # ${named ? `the token "${named}"` : 'a write token'}`;
+  return html`${revealBox(revealed)}
+${!tokens.length && !revealed
+  ? html`<section class="card" aria-labelledby="first-token">
+  <div class="card-head"><h2 id="first-token" class="card-title">Create a token first</h2></div>
+  <p class="card-sub">An agent connects with a workspace token. A write token can also delete, undo, restore, review and branch. It is shown once.</p>
+  ${tokenForm({ team, ws, csrf, from: 'connect', compact: true })}
+</section>`
+  : ''}
+<section class="card" aria-labelledby="connect-title">
+  <div class="card-head"><h2 id="connect-title" class="card-title">Connect an agent</h2>${named ? html`<span class="muted small">Using the token <span class="mono">${named}</span></span>` : ''}</div>
+  ${switcher('connect', 'How to connect', [
+    ['https', 'HTTPS', html`<p class="card-sub">Read and write files with plain HTTP requests. Name the agent in X-Grapim-Agent; its runs appear as <code>${named ?? 'token-name'}/agent</code>.</p>
+      ${code(`${tokenLine}
+curl -X PUT ${url}fs/notes.md \\
+  -H "Authorization: Bearer $GRAPIM_WORKSPACE_TOKEN" \\
+  -H "X-Grapim-Agent: my-agent" --data-binary @notes.md`, 'HTTPS')}`],
+    ['mcp', 'MCP', html`<p class="card-sub">Give Claude Code, Cursor or any MCP client the workspace as a server.</p>
+      ${code(`${tokenLine}
+claude mcp add --transport http ${ws.name} ${url}mcp \\
+  --header "Authorization: Bearer $GRAPIM_WORKSPACE_TOKEN" \\
+  --header "X-Grapim-Agent: claude"`, 'MCP')}`],
+    ['folder', 'Folder sync', html`<p class="card-sub">Keep a local folder in sync both ways, for agents that work on files on disk.</p>
+      ${code(`${tokenLine}
+grapim folder ${url} ./${ws.name} --watch`, 'Folder sync')}`],
+    ['drive', 'Mount as drive', drivePanel(url, ws)],
+  ])}
+</section>`;
+}
+
+function tokensTab({ team, ws, csrf, owner, tokens, revealed }) {
+  return html`<section class="card" id="tokens" aria-labelledby="wst-title">
+  <div class="card-head">
+    <h2 id="wst-title" class="card-title">Workspace tokens</h2>
+  </div>
+  <p class="card-sub">A token works for this workspace only. A read token can list and read; a write token can also write, delete, undo, restore, review and branch. Limit it to some folders and it sees nothing else. Its agents appear as <code>token-name/agent</code>. ${owner ? 'You see every token of this workspace.' : 'You see your own tokens.'}</p>
+  ${revealBox(revealed)}
+  ${tokenForm({ team, ws, csrf, from: 'tokens' })}
   ${tokens.length
     ? html`<ul class="list list-flush">
     ${tokens.map(
@@ -217,9 +241,11 @@ ${connectorCards(connectors, { team, ws, csrf, owner })}
     )}
   </ul>`
     : ''}
-</section>
+</section>`;
+}
 
-<section class="card" id="rename" aria-labelledby="rename-title">
+function settingsTab({ team, ws, csrf, owner }) {
+  return html`<section class="card" id="rename" aria-labelledby="rename-title">
   <div class="card-head">
     <h2 id="rename-title" class="card-title">Rename</h2>
   </div>
@@ -231,7 +257,6 @@ ${connectorCards(connectors, { team, ws, csrf, owner })}
     <button class="btn" type="submit">Rename</button>
   </form>
 </section>
-
 ${owner
   ? html`<section class="card card-danger" id="delete" aria-labelledby="delete-title">
   <div class="card-head">
@@ -245,6 +270,84 @@ ${owner
     <button class="btn btn-sm btn-danger" type="submit">Delete</button>
   </form>
 </section>`
-  : ''}`,
+  : html`<p class="fine">Only a team owner can delete this workspace.</p>`}`;
+}
+
+const REVIEW = { pending: ['Needs review', 'pending'], approved: ['Approved', 'ok'], rejected: ['Rejected', 'danger'] };
+
+function activityTab({ team, ws, activity }) {
+  const desk = deskPath(team, ws);
+  if (activity?.error) return html`<p class="notice" role="status">${activity.error}</p>`;
+  const runs = activity?.runs ?? [];
+  if (!runs.length) {
+    return emptyState('No agent has written here yet', 'Runs show up here once an agent connects with a token and writes a file.', html`<p class="empty-actions"><a class="btn" href="/hub/teams/${team.id}/workspaces/${ws.id}/connect">Connect an agent</a></p>`);
+  }
+  return html`<div class="table-wrap">
+<table class="table">
+  <caption class="sr-only">Recent runs in ${ws.name}, newest first</caption>
+  <thead><tr><th scope="col">Run</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num">Lines</th><th scope="col">Review</th><th scope="col">Last change</th></tr></thead>
+  <tbody>
+  ${runs.map((r) => {
+    const [label, tone] = REVIEW[r.review] ?? REVIEW.pending;
+    return html`<tr>
+    <th scope="row" class="cell-run"><a class="run-link" href="${`${desk}#/runs/${encodeURIComponent(r.run)}`}"><span class="run-intent">${r.intent || r.label}</span></a><span class="run-sub">${r.intent ? html`<span class="agent-name">${r.label}</span>` : html`<span class="muted">No prompt recorded</span>`}</span></th>
+    <td class="num hide-sm">${r.files}</td>
+    <td class="num">${delta(r.added, r.removed)}</td>
+    <td><span class="badge badge-${tone}">${label}</span></td>
+    <td>${time(r.last_ts)}</td>
+  </tr>`;
+  })}
+  </tbody>
+</table>
+</div>
+${activity.changes?.length
+  ? html`<h2 class="section-title">Recent changes</h2>
+<ul class="feed feed-card">${activity.changes.map(
+    (c) => html`<li class="feed-row"><span class="feed-what"><span class="agent-name">${c.label || c.run}</span> <span class="muted">changed</span> <a class="mono link" href="${`${desk}#/files/${c.path.split('/').map(encodeURIComponent).join('/')}`}">${c.path}</a> ${c.added === null ? '' : delta(c.added ?? 0, c.removed ?? 0)}</span>${time(c.ts)}</li>`,
+  )}</ul>`
+  : ''}
+<p class="fine">Review, undo, restore and branch these runs in the <a href="${desk}">review desk</a>.</p>`;
+}
+
+export const WORKSPACE_TABS = ['activity', 'connect', 'tokens', 'integrations', 'settings'];
+
+export function workspacePage({ user, csrf, team, role, ws, tokens, origin, connectors = [], activity = null, lastActivity = null, tab = 'activity', revealed = null, notice = null, error = null }) {
+  const owner = role === 'owner';
+  const url = `${origin}${deskPath(team, ws)}`;
+  const base = `/hub/teams/${team.id}/workspaces/${ws.id}`;
+  const tabs = [
+    ['activity', 'Activity', base],
+    ['connect', 'Connect', `${base}/connect`],
+    ['tokens', 'Tokens', `${base}/tokens`],
+    ...(connectors.length ? [['integrations', 'Integrations', `${base}/integrations`]] : []),
+    ['settings', 'Settings', `${base}/settings`],
+  ];
+  const current = tabs.some(([k]) => k === tab) ? tab : 'activity';
+  const body = {
+    activity: () => activityTab({ team, ws, activity }),
+    connect: () => connectTab({ team, ws, csrf, url, tokens, revealed }),
+    tokens: () => tokensTab({ team, ws, csrf, owner, tokens, revealed }),
+    integrations: () => connectorCards(connectors, { team, ws, csrf, owner }),
+    settings: () => settingsTab({ team, ws, csrf, owner }),
+  }[current]();
+  return layout({
+    title: `${ws.name} · ${team.name}`,
+    user,
+    csrf,
+    team,
+    wide: current === 'activity' ? true : 'mid',
+    crumbs: [{ label: 'Workspaces', href: `/hub/teams/${team.id}/workspaces` }, { label: ws.name }],
+    body: html`${head(team, 'workspaces', {
+      title: ws.name,
+      sub: html`<span class="num">${mb(ws.bytes)}</span> · created ${date(ws.created_at)} · last activity ${time(lastActivity ?? ws.created_at)}`,
+      actions: html`<a class="btn btn-primary" href="${deskPath(team, ws)}">Open review desk ${icon('external')}</a>`,
+    })}
+<nav class="tabs" aria-label="Workspace">
+  ${tabs.map(([k, label, href]) => html`<a class="tab" href="${href}" ${k === current ? html`aria-current="page"` : ''}>${label}${k === 'tokens' && tokens.length ? html` <span class="num muted">${tokens.length}</span>` : ''}</a>`)}
+</nav>
+${notices({ notice, error })}
+${body}`,
   });
 }
+
+

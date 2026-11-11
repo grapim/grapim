@@ -368,7 +368,7 @@ test('a token scoped to docs/** (read) and docs/drafts/** (write): /fs reads, wr
   assert.equal(JSON.parse(page.text).files.length, 4);
 
   // The token list shows each token's folders.
-  const settings = await owner.req(`/hub/teams/${ws.team}/workspaces/${ws.id}`);
+  const settings = await owner.req(`/hub/teams/${ws.team}/workspaces/${ws.id}/tokens`);
   assert.match(settings.text, /docs\/\*\* · read/);
   assert.match(settings.text, /docs\/drafts\/\*\* · write/);
   assert.match(settings.text, /Limit to folders/);

@@ -18,7 +18,7 @@ const FILTERS = [
 const memory = { selected: null };
 
 export async function mount(el, params, ctx) {
-  const s = { runs: null, error: null, filter: params.f || 'pending', keep: new Set(), selected: memory.selected };
+  const s = { runs: null, error: null, filter: params.f || 'pending', keep: new Set(), selected: memory.selected, fresh: new Set() };
   ctx.setTitle('Runs');
 
   const visible = () => {
@@ -33,7 +33,7 @@ export async function mount(el, params, ctx) {
   };
 
   const row = (r) => html`
-    <a class="row" href="${runHref(r.run)}" data-key="run:${r.run}" data-run="${r.run}" aria-selected="${s.selected === r.run}">
+    <a class="row ${s.fresh.has(r.run) ? 'new' : ''}" href="${runHref(r.run)}" data-key="run:${r.run}" data-run="${r.run}" aria-selected="${s.selected === r.run}">
       <span class="c-glyph">${glyph(r)}</span>
       <span class="c-agent">${agentChip(r.label, { title: r.run })}</span>
       <span class="c-intent intent" title="${runTitle(r) || ''}">${runTitle(r) || html`<span class="muted">No intent recorded</span>`}</span>
@@ -87,7 +87,11 @@ export async function mount(el, params, ctx) {
 
   async function load() {
     try {
-      s.runs = await api.runs();
+      const next = await api.runs();
+      // A run that arrives while the list is open is highlighted once.
+      const known = s.runs ? new Set(s.runs.map((r) => r.run)) : null;
+      s.fresh = known ? new Set(next.filter((r) => !known.has(r.run)).map((r) => r.run)) : new Set();
+      s.runs = next;
       s.error = null;
     } catch (e) {
       s.error = e;

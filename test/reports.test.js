@@ -419,7 +419,8 @@ test('gating: free and team get 402 with last week\'s AI share only; governance 
     assert.match(page.text, /42%<\/span> of added lines were written by AI agents/);
     assert.match(page.text, /Governance/);
     assert.match(page.text, /\$40/);
-    assert.doesNotMatch(page.text, /Export CSV|class="kpis"|codex 7/, `${plan}: no report beyond the teaser`);
+    // The shell's Ctrl K palette lists the team's runs; the report itself must not.
+    assert.doesNotMatch(page.text.replace(/<template id="palette-src">[\s\S]*?<\/template>/, ''), /Export CSV|class="kpis"|codex 7/, `${plan}: no report beyond the teaser`);
   }
   db.prepare("UPDATE teams SET plan = 'governance' WHERE id = ?").run(A);
   assert.equal((await alice.req(`/hub/api/teams/${A}/reports/agents?${RANGE}`)).status, 200);

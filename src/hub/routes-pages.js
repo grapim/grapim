@@ -5,8 +5,9 @@ import { safeNext } from './auth.js';
 import { HttpError, redirect, sendHtml } from './http.js';
 import { invitePage, pickerPage, signInPage } from './pages/account.js';
 import { repoPage, runPage } from './pages/repo.js';
-import { reposPage, settingsPage } from './pages/team.js';
-import { SCOPE_ROWS, workspacePage, workspacesPage } from './pages/workspaces.js';
+import { overviewPage, reposPage, reviewsPage, settingsPage } from './pages/team.js';
+import { SCOPE_ROWS, WORKSPACE_TABS, workspacePage, workspacesPage } from './pages/workspaces.js';
+import { getReview } from '../review.js';
 import { cleanTemplate } from './templates.js';
 
 // The "Limit to folders" rows of the token form (scope_path_<i>,
@@ -100,7 +101,7 @@ export function pageRoutes(router, hub) {
 
   router.get('/hub', (ctx) => {
     if (!ctx.session) return html(ctx, signInPage({}));
-    html(ctx, pickerPage({ user: ctx.session.user, csrf: ctx.session.csrf, teams: teams.forUser(ctx.session.user.id) }));
+    html(ctx, pickerPage({ user: ctx.session.user, csrf: ctx.session.csrf, teams: hub.overview.teamsOf(ctx.session.user.id) }));
   });
 
   router.get('/hub/login', (ctx) => {
@@ -143,7 +144,7 @@ export function pageRoutes(router, hub) {
         redirect(ctx.res, `/hub/teams/${team.id}/settings`);
       } catch (err) {
         if (!(err instanceof HttpError)) throw err;
-        html(ctx, pickerPage({ user: ctx.session.user, csrf: ctx.session.csrf, teams: teams.forUser(ctx.session.user.id), error: err.message }), err.status);
+        html(ctx, pickerPage({ user: ctx.session.user, csrf: ctx.session.csrf, teams: hub.overview.teamsOf(ctx.session.user.id), error: err.message }), err.status);
       }
     },
     FORM,
@@ -171,11 +172,70 @@ export function pageRoutes(router, hub) {
 
   // ---- Team ----
 
+  // The team home: what needs me now, or the setup checklist for a new team.
   router.get(
     '/hub/teams/:team',
     (ctx) => {
-      const { team } = ctx.member;
-      html(ctx, reposPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, repos: read.repos(team), origin: config.origin, limits: limits(team) }));
+      const team = teams.get(ctx.member.team.id);
+      const ov = hub.overview;
+      const userId = ctx.session.user.id;
+      const setup = ov.setup(team);
+      const runs = setup.empty ? [] : ov.runs(team, userId);
+      let teaser = null;
+      try {
+        teaser = setup.empty ? null : hub.reports.teaser(team);
+      } catch (err) {
+        if (!(err instanceof HttpError)) throw err; // over the compute budget: the page shows the rest
+      }
+      html(
+        ctx,
+        overviewPage({
+          user: ctx.session.user,
+          csrf: ctx.session.csrf,
+          team,
+          role: ctx.member.role,
+          origin: config.origin,
+          setup,
+          waiting: runs.filter((r) => r.waiting && !r.mine),
+          mine: runs.filter((r) => r.waiting && r.mine),
+          pulls: setup.empty ? { enforced: false, list: [] } : ov.pulls(team),
+          teaser,
+          active: setup.empty ? [] : ov.activeAgents(team),
+          activity: setup.empty ? [] : ov.activity(team),
+          repos: read.repos(team),
+          workspaces: ov.workspaces(team).sort((a, b) => b.last_activity - a.last_activity),
+        }),
+      );
+    },
+    TEAM,
+  );
+
+  router.get(
+    '/hub/teams/:team/repos',
+    (ctx) => {
+      const team = teams.get(ctx.member.team.id);
+      const waiting = new Map();
+      for (const r of hub.overview.runs(team, ctx.session.user.id)) if (r.waiting) waiting.set(r.repo_id, (waiting.get(r.repo_id) ?? 0) + 1);
+      html(ctx, reposPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, repos: read.repos(team), origin: config.origin, limits: limits(team), waiting }));
+    },
+    TEAM,
+  );
+
+  // The review inbox: synced runs that need a hub review.
+  router.get(
+    '/hub/teams/:team/reviews',
+    (ctx) => {
+      const team = teams.get(ctx.member.team.id);
+      const all = hub.overview.runs(team, ctx.session.user.id);
+      const groups = {
+        yours: all.filter((r) => r.waiting && !r.mine),
+        mine: all.filter((r) => r.waiting && r.mine),
+        done: all.filter((r) => !r.waiting),
+      };
+      const f = ctx.url.searchParams.get('f');
+      const filter = Object.hasOwn(groups, f) ? f : 'yours';
+      const counts = Object.fromEntries(Object.entries(groups).map(([k, v]) => [k, v.length]));
+      html(ctx, reviewsPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, filter, runs: groups[filter].slice(0, 200), counts }));
     },
     TEAM,
   );
@@ -259,11 +319,26 @@ export function pageRoutes(router, hub) {
 
   function renderWorkspaces(ctx, extra = {}, status = 200) {
     const team = teams.get(ctx.member.team.id);
-    html(ctx, workspacesPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, workspaces: workspaces.live(team.id), limit: workspaces.limitOf(team), ...extra }), status);
+    html(ctx, workspacesPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, workspaces: hub.overview.workspaces(team), limit: workspaces.limitOf(team), ...extra }), status);
+  }
+
+  // The Activity tab: the workspace's newest runs and changes, read from its
+  // ledger (the same engine the desk uses). A workspace being restored says so.
+  function workspaceActivity(ws) {
+    try {
+      const store = hub.mount.engineFor(ws).store;
+      const runs = store.runs().slice(0, 20).map((r) => ({ ...r, review: getReview(store, r.run)?.status ?? 'pending' }));
+      const changes = store.db.prepare('SELECT c.run, COALESCE(a.label, c.label) AS label, c.path, c.added, c.removed, c.ts FROM changes c LEFT JOIN agents a ON a.agent = c.run ORDER BY c.id DESC LIMIT 12').all();
+      return { runs, changes };
+    } catch (err) {
+      if (err instanceof HttpError || typeof err?.status === 'number') return { error: err.message };
+      throw err;
+    }
   }
 
   function renderWorkspace(ctx, extra = {}, status = 200) {
     const ws = workspaces.byId(ctx.member.team.id, ctx.workspace.id) ?? ctx.workspace;
+    const tab = extra.tab ?? 'activity';
     html(
       ctx,
       workspacePage({
@@ -275,11 +350,17 @@ export function pageRoutes(router, hub) {
         tokens: workspaces.tokens(ws, wsActor(ctx)),
         origin: config.origin,
         connectors: hub.connectors?.status(ws) ?? [], // SaaS connectors (src/hub/connectors.js)
+        lastActivity: hub.overview.workspaceActivity(ws),
+        activity: tab === 'activity' ? workspaceActivity(ws) : null,
         ...extra,
+        tab,
       }),
       status,
     );
   }
+  // A form's way back to the tab it was posted from.
+  const tabFrom = (ctx, fallback) => (WORKSPACE_TABS.includes(ctx.form?.from) ? ctx.form.from : fallback);
+  const onTab = (tab) => (ctx, extra = {}, status) => renderWorkspace(ctx, { tab, ...extra }, status);
 
   // Errors a person can fix are shown on the page they came from.
   async function onPage(ctx, render, fn) {
@@ -313,11 +394,14 @@ export function pageRoutes(router, hub) {
   );
 
   router.get('/hub/teams/:team/workspaces/:ws', (ctx) => renderWorkspace(ctx), WS);
+  for (const tab of WORKSPACE_TABS.filter((t) => t !== 'activity')) {
+    router.get(`/hub/teams/:team/workspaces/:ws/${tab}`, (ctx) => renderWorkspace(ctx, { tab }), WS);
+  }
 
   router.post(
     '/hub/teams/:team/workspaces/:ws/rename',
     (ctx) =>
-      onPage(ctx, renderWorkspace, async () => {
+      onPage(ctx, onTab('settings'), async () => {
         const ws = workspaces.rename(ctx.member.team.id, ctx.workspace.id, ctx.form.name);
         // The open engine serves the old address: close it, the next request opens the new one.
         await hub.mount.close(ws.id);
@@ -329,7 +413,7 @@ export function pageRoutes(router, hub) {
   router.post(
     '/hub/teams/:team/workspaces/:ws/delete',
     (ctx) =>
-      onPage(ctx, renderWorkspace, async () => {
+      onPage(ctx, onTab('settings'), async () => {
         const ws = ctx.workspace;
         if (String(ctx.form.confirm ?? '').trim() !== ws.name) throw new HttpError(400, 'bad_request', `Type ${ws.name} exactly to delete this workspace.`);
         // Its engine holds the folder's files open: close it before the move,
@@ -346,9 +430,9 @@ export function pageRoutes(router, hub) {
   router.post(
     '/hub/teams/:team/workspaces/:ws/tokens',
     (ctx) =>
-      onPage(ctx, renderWorkspace, () => {
+      onPage(ctx, onTab(tabFrom(ctx, 'tokens')), () => {
         const t = workspaces.createToken(ctx.workspace, wsActor(ctx), ctx.form.name, ctx.form.scope, { scopes: scopeRows(ctx.form) });
-        renderWorkspace(ctx, { revealed: { value: t.token, name: t.name, scope: t.scope, scopes: t.scopes } });
+        renderWorkspace(ctx, { tab: tabFrom(ctx, 'tokens'), revealed: { value: t.token, name: t.name, scope: t.scope, scopes: t.scopes } });
       }),
     WS_FORM,
   );
@@ -356,9 +440,9 @@ export function pageRoutes(router, hub) {
   router.post(
     '/hub/teams/:team/workspaces/:ws/tokens/:wstoken/revoke',
     (ctx) =>
-      onPage(ctx, renderWorkspace, () => {
+      onPage(ctx, onTab('tokens'), () => {
         workspaces.revokeToken(ctx.workspace, wsActor(ctx), ctx.params.wstoken);
-        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/workspaces/${ctx.workspace.id}#tokens`);
+        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/workspaces/${ctx.workspace.id}/tokens`);
       }),
     WS_FORM,
   );
@@ -366,14 +450,14 @@ export function pageRoutes(router, hub) {
   // ---- SaaS connectors (docs/connectors.md): owners connect, test, sync and disconnect ----
 
   const connectorName = (form) => String(form.connector ?? '');
-  const backTo = (ctx) => `/hub/teams/${ctx.member.team.id}/workspaces/${ctx.workspace.id}#connectors`;
+  const backTo = (ctx) => `/hub/teams/${ctx.member.team.id}/workspaces/${ctx.workspace.id}/integrations`;
 
   router.post(
     '/hub/teams/:team/workspaces/:ws/connectors/connect',
     (ctx) =>
-      onPage(ctx, renderWorkspace, async () => {
+      onPage(ctx, onTab('integrations'), async () => {
         const info = await hub.connectors.connect(ctx.workspace, wsActor(ctx), connectorName(ctx.form), ctx.form.token);
-        renderWorkspace(ctx, { notice: `Connected to ${info.name}${info.workspace ? ` in ${info.workspace}` : ''}. The first sync is running; reload in a minute to see the pages.` });
+        renderWorkspace(ctx, { tab: 'integrations', notice: `Connected to ${info.name}${info.workspace ? ` in ${info.workspace}` : ''}. The first sync is running; reload in a minute to see the pages.` });
       }),
     { ...WS_FORM, owner: true },
   );
@@ -381,9 +465,9 @@ export function pageRoutes(router, hub) {
   router.post(
     '/hub/teams/:team/workspaces/:ws/connectors/test',
     (ctx) =>
-      onPage(ctx, renderWorkspace, async () => {
+      onPage(ctx, onTab('integrations'), async () => {
         const info = await hub.connectors.test(ctx.workspace, connectorName(ctx.form));
-        renderWorkspace(ctx, { notice: `The connection works: ${info.name}${info.workspace ? ` in ${info.workspace}` : ''}.` });
+        renderWorkspace(ctx, { tab: 'integrations', notice: `The connection works: ${info.name}${info.workspace ? ` in ${info.workspace}` : ''}.` });
       }),
     { ...WS_FORM, owner: true },
   );
@@ -391,7 +475,7 @@ export function pageRoutes(router, hub) {
   router.post(
     '/hub/teams/:team/workspaces/:ws/connectors/sync',
     (ctx) =>
-      onPage(ctx, renderWorkspace, async () => {
+      onPage(ctx, onTab('integrations'), async () => {
         await hub.connectors.syncNow(ctx.workspace, connectorName(ctx.form)).catch((err) => {
           throw new HttpError(400, 'bad_request', err.message);
         });
@@ -403,9 +487,9 @@ export function pageRoutes(router, hub) {
   router.post(
     '/hub/teams/:team/workspaces/:ws/connectors/disconnect',
     (ctx) =>
-      onPage(ctx, renderWorkspace, () => {
+      onPage(ctx, onTab('integrations'), () => {
         hub.connectors.disconnect(ctx.workspace, connectorName(ctx.form));
-        renderWorkspace(ctx, { notice: 'Disconnected. Syncing stopped; the files and their history stay in the workspace.' });
+        renderWorkspace(ctx, { tab: 'integrations', notice: 'Disconnected. Syncing stopped; the files and their history stay in the workspace.' });
       }),
     { ...WS_FORM, owner: true },
   );
@@ -416,7 +500,10 @@ export function pageRoutes(router, hub) {
     '/hub/teams/:team/repos/:repo',
     (ctx) => {
       const { team } = ctx.member;
-      html(ctx, repoPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, repo: ctx.repo, overview: read.overview(team, ctx.repo), runs: read.runs(team, ctx.repo) }));
+      const runs = read.runs(team, ctx.repo);
+      // Hub review state per run (src/hub/reviews.js), for the Review column.
+      const reviews = hub.github?.reviews && runs.length ? hub.github.reviews.latest(team, [ctx.repo.id], runs.map((r) => r.run)) : new Map();
+      html(ctx, repoPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, repo: ctx.repo, overview: read.overview(team, ctx.repo), runs, reviews }));
     },
     { ...TEAM, repo: true },
   );

@@ -21,24 +21,29 @@ export function signInPage({ next = '/hub', error = null }) {
 }
 
 export function pickerPage({ user, csrf, teams, error = null }) {
+  // Two teams can share a name: the created date, role and id tell them apart.
+  const names = new Map();
+  for (const t of teams) names.set(t.name.toLowerCase(), (names.get(t.name.toLowerCase()) ?? 0) + 1);
   return layout({
     title: 'Teams',
     user,
     csrf,
     body: html`<header class="page-head">
-  <h1>Teams</h1>
+  <div class="page-head-main"><h1>Teams</h1><p class="page-sub">Teams you belong to. Open one to see its runs, reviews and workspaces.</p></div>
 </header>
 ${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
 ${teams.length
-  ? html`<ul class="list" aria-label="Your teams">
+  ? html`<ul class="list team-list" aria-label="Your teams">
   ${teams.map(
-    (t) => html`<li class="row row-link">
+    (t) => html`<li class="row row-link" data-team-name="${t.name}">
     <a href="/hub/teams/${t.id}" class="row-main">
       <span class="team-mark" aria-hidden="true">${t.name.slice(0, 1).toUpperCase()}</span>
-      <span class="row-title">${t.name}</span>
+      <span class="team-text">
+        <span class="row-title">${t.name}${names.get(t.name.toLowerCase()) > 1 ? html` <span class="sha mono">${t.id.slice(0, 6)}</span>` : ''}</span>
+        <span class="row-sub">${t.created_at ? html`Created ${date(t.created_at)} · ` : ''}${t.repos} repo${t.repos === 1 ? '' : 's'} · ${t.members} member${t.members === 1 ? '' : 's'}</span>
+      </span>
     </a>
-    <span class="row-meta">${t.repos} repo${t.repos === 1 ? '' : 's'} · ${t.members} member${t.members === 1 ? '' : 's'}</span>
-    <span class="badge">${t.role}</span>
+    <span class="badge ${t.role === 'owner' ? 'badge-role' : ''}">${t.role === 'owner' ? 'Owner' : 'Member'}</span>
     <span class="badge badge-plan">${t.plan}</span>
   </li>`,
   )}
@@ -47,14 +52,15 @@ ${teams.length
   <p class="empty-title">No teams yet</p>
   <p class="muted">Create one for your team, or open the invite link a teammate sent you.</p>
 </div>`}
-<section class="card" aria-labelledby="new-team">
-  <h2 id="new-team" class="card-title">Create a team</h2>
-  <form method="post" action="/hub/teams" class="inline-form">
+<section class="card" id="new-team" aria-labelledby="new-team-title">
+  <h2 id="new-team-title" class="card-title">Create a team</h2>
+  <form method="post" action="/hub/teams" class="inline-form" data-dup-check>
     ${csrfField(csrf)}
     <label class="sr-only" for="team-name">Team name</label>
-    <input id="team-name" name="name" type="text" required maxlength="80" placeholder="Team name, e.g. Acme platform" autocomplete="organization">
+    <input id="team-name" name="name" type="text" required maxlength="80" placeholder="Team name, e.g. Acme platform" autocomplete="organization" aria-describedby="team-name-dup">
     <button class="btn btn-primary" type="submit">Create team</button>
   </form>
+  <p class="fine warn-text" id="team-name-dup" role="status" hidden></p>
 </section>`,
   });
 }
@@ -66,8 +72,7 @@ export function invitePage({ user, csrf, token, invite }) {
     csrf,
     body: html`<section class="auth">
   ${invite
-    ? html`<p class="eyebrow">Invitation</p>
-  <h1>Join ${invite.team.name}</h1>
+    ? html`<h1>Join ${invite.team.name}</h1>
   <p class="lede">You'll see the agent runs that ${invite.team.name}'s machines sync, and can connect your own. This link works once and expires on ${date(invite.expires_at)}.</p>
   <form method="post" action="/hub/invite/accept">
     ${csrfField(csrf)}

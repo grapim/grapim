@@ -1,0 +1,174 @@
+/* Grapim design tokens, shared by the review desk (ui/styles.css) and the
+   hub (src/hub/pages/hub.css, which loads this file as /hub/static/tokens.css),
+   so the two cannot drift. Colour, type, radius, shadow, focus and motion.
+   Light by default, dark from the system or from [data-theme]. */
+
+:root {
+  color-scheme: light;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #f3f3f0;
+  --surface-3: #e9e9e5;
+  --border: #e3e3de;
+  --border-strong: #cfcfc8;
+  --text: #1a1a17;
+  --text-2: #55554e;
+  --text-3: #6b6b63;
+  --accent: #4048c8;
+  --accent-hover: #3239b0;
+  --accent-text: #3a42bd;
+  --accent-bg: #ecedfc;
+  --on-accent: #ffffff;
+  --focus: #4048c8;
+
+  --add-text: #17723a;
+  --add-bg: #e6f5ea;
+  --add-strong: #c5e9cf;
+  --del-text: #b42a25;
+  --del-bg: #fcebea;
+  --del-strong: #f6cdca;
+  --warn-text: #8a5600;
+  --warn-bg: #fdf2dc;
+  --warn-border: #f0d39b;
+  --danger: #b42a25;
+  --danger-hover: #9c211d;
+  --danger-bg: #fcebea;
+  --ok-text: #17723a;
+  --ok-bg: #e6f5ea;
+
+  /* Agent colours: distinct hues, each at least 3:1 against the surface. */
+  --a0: #0d8073;
+  --a1: #b06400;
+  --a2: #8446cc;
+  --a3: #c0336f;
+  --a4: #1b6fb8;
+  --a5: #687a0e;
+  --a6: #c4492a;
+  --a7: #4f5aa6;
+  --outside: #8a8a82;
+
+  --code-kw: #8b2fc9;
+  --code-str: #1a6e3a;
+  --code-num: #a05a00;
+  --code-com: #6b6b63;
+  --code-fn: #2a55b5;
+
+  --shadow-1: 0 1px 2px rgb(20 20 15 / 0.06);
+  --shadow-pop: 0 1px 2px rgb(20 20 15 / 0.08), 0 12px 32px -8px rgb(20 20 15 / 0.24);
+  --radius: 6px;
+  --radius-lg: 10px;
+  --sidebar: 232px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f0f11;
+  --surface: #161618;
+  --surface-2: #1d1d20;
+  --surface-3: #27272b;
+  --border: #26262a;
+  --border-strong: #37373d;
+  --text: #ededee;
+  --text-2: #b0b0b6;
+  --text-3: #93939a;
+  --accent: #8a90f7;
+  --accent-hover: #a2a7fa;
+  --accent-text: #a5aaff;
+  --accent-bg: #23244a;
+  --on-accent: #0f0f11;
+  --focus: #8a90f7;
+  --add-text: #63d57f;
+  --add-bg: rgb(46 160 67 / 0.14);
+  --add-strong: rgb(46 160 67 / 0.32);
+  --del-text: #ff8078;
+  --del-bg: rgb(248 81 73 / 0.13);
+  --del-strong: rgb(248 81 73 / 0.32);
+  --warn-text: #f2b552;
+  --warn-bg: rgb(242 181 82 / 0.1);
+  --warn-border: rgb(242 181 82 / 0.32);
+  --danger: #f2655d;
+  --danger-hover: #ff7d76;
+  --danger-bg: rgb(248 81 73 / 0.13);
+  --ok-text: #63d57f;
+  --ok-bg: rgb(46 160 67 / 0.14);
+  --a0: #3ec9b8;
+  --a1: #f0a640;
+  --a2: #b993f6;
+  --a3: #f27bb0;
+  --a4: #62aef0;
+  --a5: #b6cc4c;
+  --a6: #f58b6c;
+  --a7: #9da6e6;
+  --outside: #85858c;
+  --code-kw: #c9a0ff;
+  --code-str: #8fd6a2;
+  --code-num: #f0b46a;
+  --code-com: #8e8e96;
+  --code-fn: #8cb8ff;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px -8px rgb(0 0 0 / 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f0f11;
+    --surface: #161618;
+    --surface-2: #1d1d20;
+    --surface-3: #27272b;
+    --border: #26262a;
+    --border-strong: #37373d;
+    --text: #ededee;
+    --text-2: #b0b0b6;
+    --text-3: #93939a;
+    --accent: #8a90f7;
+    --accent-hover: #a2a7fa;
+    --accent-text: #a5aaff;
+    --accent-bg: #23244a;
+    --on-accent: #0f0f11;
+    --focus: #8a90f7;
+    --add-text: #63d57f;
+    --add-bg: rgb(46 160 67 / 0.14);
+    --add-strong: rgb(46 160 67 / 0.32);
+    --del-text: #ff8078;
+    --del-bg: rgb(248 81 73 / 0.13);
+    --del-strong: rgb(248 81 73 / 0.32);
+    --warn-text: #f2b552;
+    --warn-bg: rgb(242 181 82 / 0.1);
+    --warn-border: rgb(242 181 82 / 0.32);
+    --danger: #f2655d;
+    --danger-hover: #ff7d76;
+    --danger-bg: rgb(248 81 73 / 0.13);
+    --ok-text: #63d57f;
+    --ok-bg: rgb(46 160 67 / 0.14);
+    --a0: #3ec9b8;
+    --a1: #f0a640;
+    --a2: #b993f6;
+    --a3: #f27bb0;
+    --a4: #62aef0;
+    --a5: #b6cc4c;
+    --a6: #f58b6c;
+    --a7: #9da6e6;
+    --outside: #85858c;
+    --code-kw: #c9a0ff;
+    --code-str: #8fd6a2;
+    --code-num: #f0b46a;
+    --code-com: #8e8e96;
+    --code-fn: #8cb8ff;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px -8px rgb(0 0 0 / 0.6);
+  }
+}
+
+/* Motion: one vocabulary for the desk and the hub. Operate surfaces move
+   little and fast: ease-out, 120 to 240 ms, transform and opacity only. */
+:root {
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 240ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}

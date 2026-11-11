@@ -509,7 +509,7 @@ test('a token minted with a TTL stops at expires_at; tokens made in the hub UI k
   assert.equal((await agent(h, tok.token, `${base}api/overview`)).status, 401, 'expired');
   assert.equal((await agent(h, forever, `${base}api/overview`)).status, 200, 'no expires_at: never expires');
   // Expired tokens leave the list.
-  assert.doesNotMatch((await p.owner.req(`/hub/teams/${p.team}/workspaces/${ws.id}`)).text, new RegExp(tok.name));
+  assert.doesNotMatch((await p.owner.req(`/hub/teams/${p.team}/workspaces/${ws.id}/tokens`)).text, new RegExp(tok.name));
 });
 
 test('agent_name pins the run identity in the ledger, over /fs and MCP', async (t) => {

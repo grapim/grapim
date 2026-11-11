@@ -619,7 +619,8 @@ test('in the hub: connect with a sealed token bound to its workspace, sync, push
   const pagePath = `/hub/teams/${team}/workspaces/${wsA}`;
 
   // Not connected: the steps and the form.
-  const empty = await b.req(pagePath);
+  // The Integrations tab of the workspace page.
+  const empty = await b.req(`${pagePath}/integrations`);
   assert.match(empty.text, /Connect Notion/);
   assert.match(empty.text, /notion\.so\/profile\/integrations/);
   assert.match(empty.text, /name="token" type="password"/);
@@ -659,7 +660,7 @@ test('in the hub: connect with a sealed token bound to its workspace, sync, push
   const got = await agent('GET', `/fs/${rel}`);
   assert.equal(got.status, 200, got.text);
   assert.match(got.text, /\nQ1\n\nQ2\n$/);
-  const shown = await b.req(pagePath);
+  const shown = await b.req(`${pagePath}/integrations`);
   assert.match(shown.text, /badge-ok">Connected/);
   assert.match(shown.text, /Grapim test/);
   assert.ok(!shown.text.includes(fake.token));

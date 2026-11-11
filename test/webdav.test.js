@@ -567,7 +567,8 @@ test('hub: Basic auth with a workspace token; 401 challenge with the realm; read
   assert.equal(withCookie.status, 401);
 
   // The workspace page shows the address and the steps.
-  const page = await ws.browser.req(`/hub/teams/${ws.team}/workspaces/${ws.id}`);
+  // The Connect tab, "Mount as drive".
+  const page = await ws.browser.req(`/hub/teams/${ws.team}/workspaces/${ws.id}/connect`);
   assert.match(page.text, /Mount as a drive/);
   assert.ok(page.text.includes(`${ORIGIN}${ws.base}/dav/`), 'the drive address');
   assert.match(page.text, /Map network drive/);

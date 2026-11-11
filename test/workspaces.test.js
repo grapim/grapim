@@ -213,8 +213,11 @@ test('a workspace: created as a git repo, written by a token, reviewed, blamed a
   assert.match(second.text, /free plan includes 1 workspace/);
 
   const writer = await createWsToken(alice, ws, 'writer', 'write');
-  const page = await alice.req(`/hub/teams/${team}/workspaces/${ws.id}`);
-  assert.doesNotMatch(page.text, /gws_[A-Za-z0-9_-]{20,}/, 'the token is shown once');
+  for (const tab of ['', '/connect', '/tokens']) {
+    const page = await alice.req(`/hub/teams/${team}/workspaces/${ws.id}${tab}`);
+    assert.equal(page.status, 200);
+    assert.doesNotMatch(page.text, /gws_[A-Za-z0-9_-]{20,}/, 'the token is shown once');
+  }
   assert.equal(h.hub.db.prepare('SELECT COUNT(*) AS n FROM workspace_tokens WHERE token_hash = ?').get(crypto.createHash('sha256').update(writer).digest('hex')).n, 1);
 
   // A write token PUTs a file; the run is http:<token-name>/<agent>.

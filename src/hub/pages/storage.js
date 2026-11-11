@@ -40,34 +40,50 @@ function moveBlock({ team, csrf, status, providers }) {
   </div>`;
 }
 
-function field(id, label, hint, { value = '', placeholder = '', type = 'text', required = false } = {}) {
-  return html`<div class="storage-field">
+// only: the providers a field applies to (data-only, read by hub.css), or all.
+function field(id, label, hint, { value = '', placeholder = '', type = 'text', required = false, only = null } = {}) {
+  return html`<div class="storage-field" ${only ? html`data-only="${only}"` : ''}>
     <label for="${id}">${label}</label>
     <input id="${id}" name="${id.replace(/^storage-/, '').replace(/-/g, '_')}" type="${type}" value="${value}" placeholder="${placeholder}" autocomplete="off" spellcheck="false" ${required ? html`required` : ''}>
     ${hint ? html`<span class="fine">${hint}</span>` : ''}
   </div>`;
 }
 
+// A hint for one provider only.
+const per = (only, text) => html`<span class="fine" data-only="${only}">${text}</span>`;
+
+// The form shows only the fields of the chosen provider (hub.css, from the
+// select's checked option; without :has every field shows, with its hint).
 function form({ team, csrf, status, providers, values }) {
   const v = { provider: 's3', bucket: '', prefix: '', endpoint: '', region: '', account: '', ...values };
   return html`<form method="post" action="/hub/teams/${team.id}/storage" class="storage-form">
     ${csrfField(csrf)}
-    <div class="storage-field">
+    <div class="storage-field storage-provider">
       <label for="storage-provider">Provider</label>
       <select id="storage-provider" name="provider">
         ${Object.entries(providers).map(([k, name]) => html`<option value="${k}" ${v.provider === k ? html`selected` : ''}>${name}</option>`)}
       </select>
     </div>
-    ${field('storage-bucket', 'Bucket or container', null, { value: v.bucket, placeholder: PLACEHOLDER.bucket, required: true })}
+    ${field('storage-account', 'Storage account', 'The account name, as the Azure portal shows it.', { value: v.account, placeholder: 'mystorageaccount', only: 'azure' })}
+    <div class="storage-field">
+      <label for="storage-bucket"><span data-only="s3 r2 gcs">Bucket</span><span data-only="azure">Container</span><span class="no-has">Bucket or container</span></label>
+      <input id="storage-bucket" name="bucket" type="text" value="${v.bucket}" placeholder="${PLACEHOLDER.bucket}" autocomplete="off" spellcheck="false" required>
+    </div>
+    ${field('storage-region', 'Region', 'S3 only, e.g. eu-west-1.', { value: v.region, placeholder: 'us-east-1', only: 's3' })}
+    <div class="storage-field">
+      <label for="storage-endpoint"><span data-only="r2">Account endpoint</span><span data-only="s3 gcs azure">Endpoint</span><span class="no-has">Endpoint</span></label>
+      <input id="storage-endpoint" name="endpoint" type="text" value="${v.endpoint}" placeholder="${PLACEHOLDER.endpoint}" autocomplete="off" spellcheck="false">
+      ${per('r2', 'Required: https://<account_id>.r2.cloudflarestorage.com, from the R2 page in Cloudflare.')}
+      ${per('s3', 'Optional, for an S3-compatible service. Empty: AWS for the region. https only.')}
+      ${per('gcs', 'Optional. Empty: https://storage.googleapis.com.')}
+      ${per('azure', 'Optional. Empty: https://<account>.blob.core.windows.net.')}
+    </div>
     ${field('storage-prefix', 'Prefix', 'Optional. Everything goes under it.', { value: v.prefix, placeholder: PLACEHOLDER.prefix })}
-    ${field('storage-endpoint', 'Endpoint', 'Required for R2. Optional for S3, GCS and Azure. https only.', { value: v.endpoint, placeholder: PLACEHOLDER.endpoint })}
-    ${field('storage-region', 'Region', 'S3 only, e.g. eu-west-1.', { value: v.region, placeholder: 'us-east-1' })}
-    ${field('storage-account', 'Storage account', 'Azure only.', { value: v.account, placeholder: 'mystorageaccount' })}
     <fieldset class="storage-secrets">
       <legend>Credentials <span class="fine">Encrypted at rest, never shown again.</span></legend>
-      ${field('storage-access-key-id', 'Access key ID', 'S3, R2, or a GCS HMAC key.', { type: 'password' })}
-      ${field('storage-secret-access-key', 'Secret access key', null, { type: 'password' })}
-      ${field('storage-account-key', 'Account key', 'Azure only.', { type: 'password' })}
+      ${field('storage-access-key-id', 'Access key ID', html`<span data-only="s3">An IAM access key.</span><span data-only="r2">An R2 API token's access key ID.</span><span data-only="gcs">A GCS HMAC key of a service account.</span>`, { type: 'password', only: 's3 r2 gcs' })}
+      ${field('storage-secret-access-key', 'Secret access key', null, { type: 'password', only: 's3 r2 gcs' })}
+      ${field('storage-account-key', 'Account key', 'Azure only: an access key of the storage account.', { type: 'password', only: 'azure' })}
     </fieldset>
     <p class="storage-actions"><button class="btn btn-primary" type="submit">Test and save</button>
       <span class="fine">Grapim writes, reads, lists and deletes a test object first. ${status.config ? 'The same bucket with new keys replaces the keys; another bucket starts a move.' : 'Then it copies the files the hub keeps for this team, and switches when the copy is complete.'}</span></p>

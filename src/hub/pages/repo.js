@@ -1,19 +1,26 @@
-// The read-only desk for one synced repo: who is active, every run, and a
-// run's net diff per file. The same data as the JSON API, server rendered.
+// One synced repo: who is active, and every run with its hub review state;
+// and one run, reviewed like a pull request: a sticky header with its review
+// state and Approve / Reject, its turns, and its net diff per file. The same
+// data as the JSON API, server rendered, styled like the review desk's run view.
 
+import { pullUrl } from '../overview.js';
 import { csrfField, layout } from './layout.js';
 import { html, time } from './html.js';
+import { icon } from './icons.js';
+import { agent, delta, plural, reviewBadge } from './parts.js';
+import { kindOf } from '../reports/notes.js';
 
-const IN_TREE = { all: ['In tree', 'ok'], some: ['Partly', 'warn'], none: ['Gone', 'muted'] };
+const IN_TREE = { all: ['In tree', 'ok'], some: ['Partly in tree', 'warn'], none: ['Not in tree', 'muted'] };
 
 function treeBadge(v) {
-  const [label, tone] = IN_TREE[v] ?? ['Unknown', 'muted'];
-  return html`<span class="badge badge-${tone}">${label}</span>`;
+  const [label, tone] = IN_TREE[v] ?? ['Tree state unknown', 'muted'];
+  return html`<span class="badge badge-outline badge-${tone}">${label}</span>`;
 }
 
-const delta = (a, r) => html`<span class="delta"><span class="plus">+${a}</span> <span class="minus">−${r}</span></span>`;
+// review: Map(run -> { status, stale, ... }) from the hub's reviews, or empty.
+const statusOf = (h) => (!h ? 'pending' : h.stale ? 'stale' : h.status);
 
-export function repoPage({ user, csrf, team, repo, overview, runs }) {
+export function repoPage({ user, csrf, team, repo, overview, runs, reviews = new Map() }) {
   const base = `/hub/teams/${team.id}/repos/${repo.id}`;
   return layout({
     title: repo.name,
@@ -21,21 +28,19 @@ export function repoPage({ user, csrf, team, repo, overview, runs }) {
     csrf,
     team,
     wide: true,
-    crumbs: [{ label: repo.name }],
+    crumbs: [{ label: 'Repos', href: `/hub/teams/${team.id}/repos` }, { label: repo.name }],
     body: html`<header class="page-head">
-  <h1>${repo.name} <span class="sha mono">${repo.id.slice(0, 7)}</span></h1>
-  <p class="muted">${overview.counts.runs} run${overview.counts.runs === 1 ? '' : 's'} · ${overview.counts.agents} agent${overview.counts.agents === 1 ? '' : 's'} active in the last hour · read-only on the hub</p>
+  <div class="page-head-main">
+    <h1>${repo.name} <span class="sha mono">${repo.id.slice(0, 7)}</span></h1>
+    <p class="page-sub">${plural(overview.counts.runs, 'run')} in the history window · ${plural(overview.counts.agents, 'agent')} active in the last hour</p>
+  </div>
 </header>
 ${overview.agents.length
-  ? html`<section class="card" aria-labelledby="active-title">
-  <h2 id="active-title" class="card-title">Active now</h2>
-  <ul class="list list-flush">
+  ? html`<section class="panel" aria-labelledby="active-title">
+  <div class="panel-head"><h2 id="active-title" class="panel-title">Active now <span class="num muted">${overview.agents.length}</span></h2></div>
+  <ul class="plain-list">
   ${overview.agents.map(
-    (a) => html`<li class="row">
-    <span class="row-main"><span class="dot" aria-hidden="true"></span><span class="row-title">${a.label}</span><span class="muted">${a.machine}${a.worktree ? ` · ${a.worktree}` : ''}</span></span>
-    <span class="row-meta truncate">${a.intent || ''}</span>
-    <span class="row-meta">${time(a.last_seen)}</span>
-  </li>`,
+    (a) => html`<li class="plain-row"><span class="live" aria-hidden="true"></span><span class="plain-main">${agent(a.label, kindOf(a.agent))}<span class="muted small truncate">${a.intent || ''}</span></span><span class="muted small hide-sm">${a.machine}${a.worktree ? ` · ${a.worktree}` : ''}</span>${time(a.last_seen)}</li>`,
   )}
   </ul>
 </section>`
@@ -44,16 +49,16 @@ ${runs.length
   ? html`<div class="table-wrap">
 <table class="table">
   <caption class="sr-only">Agent runs in ${repo.name}, newest first</caption>
-  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Working on</th><th scope="col" class="hide-sm">Machine</th><th scope="col" class="num">Files</th><th scope="col" class="num">Lines</th><th scope="col">In tree</th><th scope="col">Last</th></tr></thead>
+  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Machine</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num">Lines</th><th scope="col" class="hide-sm">In tree</th><th scope="col">Review</th><th scope="col">Last</th></tr></thead>
   <tbody>
   ${runs.map(
     (r) => html`<tr>
-    <th scope="row"><a class="strong" href="${`${base}/runs/${encodeURIComponent(r.run)}?machine=${encodeURIComponent(r.machine)}`}">${r.label}</a>${r.active ? html` <span class="dot" title="active" aria-label="active"></span>` : ''}</th>
-    <td class="hide-sm truncate">${r.intent || html`<span class="muted">—</span>`}</td>
+    <th scope="row" class="cell-run"><a class="run-link" href="${`${base}/runs/${encodeURIComponent(r.run)}?machine=${encodeURIComponent(r.machine)}`}"><span class="run-intent">${r.intent || r.label}</span></a><span class="run-sub">${agent(r.label, kindOf(r.run))}${r.active ? html`<span class="live" title="Active" aria-label="active"></span>` : ''}</span></th>
     <td class="hide-sm">${r.machine}${r.worktree ? html`<span class="muted"> · ${r.worktree}</span>` : ''}</td>
-    <td class="num">${r.files}</td>
+    <td class="num hide-sm">${r.files}</td>
     <td class="num">${delta(r.added, r.removed)}</td>
-    <td>${treeBadge(r.in_tree)}</td>
+    <td class="hide-sm">${treeBadge(r.in_tree)}</td>
+    <td>${reviewBadge(statusOf(reviews.get(r.run)))}</td>
     <td>${time(r.last_ts)}</td>
   </tr>`,
   )}
@@ -65,10 +70,10 @@ ${runs.length
 }
 
 function diffTable(d) {
-  return html`<table class="diff">
+  return html`<div class="diff"><table>
   ${d.hunks.map(
     (h) => html`<tbody>
-    <tr class="hunk"><td colspan="3">@@ −${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@</td></tr>
+    <tr class="hunk"><td class="ln" aria-hidden="true"></td><td class="ln" aria-hidden="true"></td><td class="src">@@ −${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@</td></tr>
     ${(() => {
       let o = h.oldStart;
       let n = h.newStart;
@@ -81,78 +86,130 @@ function diffTable(d) {
     })()}
   </tbody>`,
   )}
-</table>`;
+</table></div>`;
 }
 
-const STATE = { in_tree: ['In tree', 'ok'], partial: ['Partly', 'warn'], gone: ['Gone', 'muted'] };
+const STATE = { in_tree: ['In tree', 'ok'], partial: ['Partly in tree', 'warn'], gone: ['Not in tree', 'muted'] };
+const fileId = (p) => `file-${p.replace(/[^a-zA-Z0-9]+/g, '-')}`;
 
 // The hub review of a run (docs/provenance.md section 6): the only approval
 // the require_review policy counts. review: from hub.github.reviewPanel.
-function reviewCard({ csrf, team, repo, run, review }) {
+function reviewState(review) {
   const h = review.hub;
-  const [label, tone] = !h
-    ? ['Not reviewed', 'muted']
-    : h.stale
-      ? ['Changed since review', 'warn']
-      : h.status === 'approved'
-        ? ['Approved', 'ok']
-        : ['Rejected', 'danger'];
+  return !h ? 'pending' : h.stale ? 'stale' : h.status;
+}
+
+function reviewActions({ review, state }) {
+  if (review.mine) return html`<span class="muted small">You synced this run</span>`;
+  return html`<button class="btn ${state === 'approved' ? '' : 'btn-primary'}" type="submit" form="review-form" name="status" value="approved">${icon('check')}Approve</button>
+    <button class="btn btn-danger" type="submit" form="review-form" name="status" value="rejected">${icon('x')}Reject</button>`;
+}
+
+function reviewPanel({ csrf, team, repo, run, review }) {
+  const h = review.hub;
   const action = `/hub/teams/${team.id}/repos/${repo.id}/runs/${encodeURIComponent(run.run)}/decision`;
-  return html`<section class="card review-card" id="review" aria-labelledby="review-title">
-  <div class="card-head"><h2 id="review-title" class="card-title">Review</h2><span class="badge badge-${tone}">${label}</span></div>
+  return html`<section class="panel review-panel" id="review" aria-labelledby="review-title">
+  <div class="panel-head"><h2 id="review-title" class="panel-title">Review</h2>${reviewBadge(reviewState(review))}</div>
+  <div class="panel-body">
   ${review.done ? html`<p class="notice" role="status">${review.done === 'approved' ? 'Approved.' : 'Rejected.'} Open pull requests with this run are checked again.</p>` : ''}
-  <p class="card-sub">${h
+  <p>${h
     ? html`${h.status === 'approved' ? 'Approved' : 'Rejected'} by <span class="strong">${h.reviewer_login || 'a member'}</span> ${time(h.reviewed_at)}${h.note ? html`: ${h.note}` : ''}.${h.stale ? ' The run changed after that, so it needs a new review.' : ''}`
     : 'Nobody has reviewed this run in the hub yet.'}
   ${review.enforced && !(h && h.status === 'approved' && !h.stale) ? ' Pull requests with its lines fail the Grapim check until it is approved here.' : ''}</p>
+  ${review.pulls.length
+    ? html`<p class="pulls">${icon('pr')}<span>In pull requests: ${review.pulls.map((p, i) => {
+        const url = pullUrl(p);
+        return html`${i ? ', ' : ''}${url ? html`<a class="link mono" href="${url}" rel="noopener noreferrer">${p.owner}/${p.name}#${p.number}</a>` : html`<code>${p.owner}/${p.name}#${p.number}</code>`}`;
+      })}</span></p>`
+    : ''}
   ${review.local && review.local.status !== 'pending' ? html`<p class="fine">${review.local.status === 'approved' ? 'Approved' : 'Rejected'} locally by ${review.local.login || review.local.machine} with <code>grapim review</code>. Shown for information: it does not count for the policy.</p>` : ''}
-  ${review.pulls.length ? html`<p class="fine">In pull requests: ${review.pulls.map((p, i) => html`${i ? ', ' : ''}<code>${p.owner}/${p.name}#${p.number}</code>`)}.</p>` : ''}
   <p class="fine">Synced by ${review.owners.length ? review.owners.join(', ') : 'nobody'}. The person who synced a run cannot review it.</p>
   ${review.mine
     ? html`<p class="muted small">You synced this run, so another member has to review it.</p>`
-    : html`<form method="post" action="${action}" class="review-form">
+    : html`<form method="post" action="${action}" class="review-form" id="review-form">
     ${csrfField(csrf)}
     <input type="hidden" name="machine" value="${run.machine}">
-    <label for="review-note">Note (optional)</label>
+    <label for="review-note">Note (optional), sent with Approve or Reject</label>
     <textarea id="review-note" name="note" maxlength="1000" rows="2"></textarea>
-    <div class="review-actions">
-      <button class="btn btn-primary" type="submit" name="status" value="approved">Approve</button>
-      <button class="btn btn-danger" type="submit" name="status" value="rejected">Reject</button>
-    </div>
   </form>`}
+  </div>
 </section>`;
 }
 
 export function runPage({ user, csrf, team, repo, detail, review = null }) {
   const r = detail.run;
+  const state = review ? reviewState(review) : null;
+  const add = detail.files.reduce((n, f) => n + (f.added ?? 0), 0);
+  const del = detail.files.reduce((n, f) => n + (f.removed ?? 0), 0);
+  const many = detail.files.length > 1;
   return layout({
     title: r.label,
     user,
     csrf,
     team,
     wide: true,
-    crumbs: [{ label: repo.name, href: `/hub/teams/${team.id}/repos/${repo.id}` }, { label: r.label }],
-    body: html`<header class="page-head">
-  <h1>${r.label} ${treeBadge(r.in_tree)}</h1>
-  <p class="muted">${r.machine}${r.worktree ? ` · ${r.worktree}` : ''} · ${r.turns} turn${r.turns === 1 ? '' : 's'} · ${r.files} file${r.files === 1 ? '' : 's'} · ${delta(r.added, r.removed)} · last edit ${time(r.last_ts)}</p>
-  <p class="fine">To undo this run, run <code>grapim undo ${r.run.split(':').pop().slice(0, 8)}</code> on ${r.machine}. The hub never changes code.</p>
+    crumbs: [{ label: 'Repos', href: `/hub/teams/${team.id}/repos` }, { label: repo.name, href: `/hub/teams/${team.id}/repos/${repo.id}` }, { label: r.label }],
+    body: html`<header class="run-bar">
+  <div class="run-bar-main">
+    <h1 class="run-title">${r.intent || r.label}</h1>
+    ${state ? reviewBadge(state) : ''}
+  </div>
+  ${review ? html`<div class="run-bar-actions" role="group" aria-label="Review">${reviewActions({ review, state })}</div>` : ''}
 </header>
+<div class="run-meta">
+  ${agent(r.label, kindOf(r.run))}
+  <span>${r.machine}${r.worktree ? ` · ${r.worktree}` : ''}</span>
+  <span>${plural(r.turns, 'turn')}</span>
+  <span>${plural(r.files, 'file')} ${delta(r.added, r.removed)}</span>
+  <span>last edit ${time(r.last_ts)}</span>
+  ${treeBadge(r.in_tree)}
+  ${r.active ? html`<span class="badge badge-pending"><span class="live" aria-hidden="true"></span>Active</span>` : ''}
+</div>
+<p class="fine">Undo runs on the machine that made the edits: <code>grapim undo ${r.run.split(':').pop().slice(0, 8)}</code> on ${r.machine}. The hub never changes code.</p>
+${review ? reviewPanel({ csrf, team, repo, run: r, review }) : ''}
 ${detail.turns.length
-  ? html`<ol class="turns" aria-label="Turns">
-  ${detail.turns.map((t) => html`<li><span class="turn-n">Turn ${t.turn}</span><span class="truncate">${t.intent || html`<span class="muted">no prompt recorded</span>`}</span><span class="muted">${t.files.length} file${t.files.length === 1 ? '' : 's'}</span></li>`)}
-</ol>`
+  ? html`<section aria-labelledby="turns-title">
+  <h2 id="turns-title" class="section-title">Turns <span class="num muted">${detail.turns.length}</span></h2>
+  <ol class="panel turns" aria-label="Turns">
+  ${detail.turns.map(
+    (t) => html`<li>
+    <span class="turn-n">${t.turn}</span>
+    <div class="turn-body">
+      ${t.intent ? html`<p class="turn-intent">${t.intent}</p>` : html`<p class="muted">No prompt recorded</p>`}
+      <div class="chips">${t.files.map((p) => html`<a class="chip" href="#${fileId(p)}" title="${`Jump to ${p}`}">${p}</a>`)}</div>
+    </div>
+    <span class="turn-side">${time(t.ts)}</span>
+  </li>`,
+  )}
+  </ol>
+</section>`
   : ''}
-${detail.files.map((f) => {
-  const [label, tone] = STATE[f.state] ?? ['Unknown', 'muted'];
-  return html`<section class="file" aria-label="${f.path}">
-  <header class="file-head">
-    <span class="mono strong truncate">${f.path}</span>
-    <span class="file-meta">${delta(f.added, f.removed)} <span class="badge badge-${tone}">${label}</span></span>
-  </header>
-  ${f.diff ? (f.diff.hunks.length ? diffTable(f.diff) : html`<p class="muted small pad">No net change.</p>`) : html`<p class="muted small pad">Content not kept (binary or over 2 MB).</p>`}
-</section>`;
-})}
-${review ? reviewCard({ csrf, team, repo, run: r, review }) : ''}`,
+<section aria-labelledby="files-title">
+  <div class="files-head">
+    <h2 id="files-title" class="section-title">Files changed <span class="num muted">${detail.files.length}</span> ${delta(add, del)}</h2>
+    <label class="toggle"><input type="checkbox" id="wrap-lines" data-pref="wrap"> Wrap long lines</label>
+  </div>
+  <div class="changes ${many ? '' : 'single'}">
+    ${many
+      ? html`<nav class="ftree panel" aria-label="Changed files">${detail.files.map(
+          (f) => html`<a href="#${fileId(f.path)}" title="${f.path}">${icon('file')}<span class="p"><bdi>${f.path}</bdi></span>${f.diff ? html`<span class="delta"><span class="plus">+${f.added}</span></span>` : ''}</a>`,
+        )}</nav>`
+      : ''}
+    <div class="file-list">
+    ${detail.files.map((f) => {
+      const [label, tone] = STATE[f.state] ?? ['Tree state unknown', 'muted'];
+      return html`<details class="file panel" id="${fileId(f.path)}" open>
+  <summary class="file-head">
+    ${icon('chev', 'chev')}
+    <span class="file-path" title="${f.path}">${f.path}</span>
+    <span class="file-meta">${f.diff ? delta(f.added, f.removed) : html`<span class="badge badge-outline">Binary or large</span>`} <span class="badge badge-outline badge-${tone}">${label}</span></span>
+  </summary>
+  ${f.diff ? (f.diff.hunks.length ? diffTable(f.diff) : html`<p class="file-note">No net change.</p>`) : html`<p class="file-note">Content not kept (binary or over 2 MB).</p>`}
+</details>`;
+    })}
+    </div>
+  </div>
+</section>`,
   });
 }
 
