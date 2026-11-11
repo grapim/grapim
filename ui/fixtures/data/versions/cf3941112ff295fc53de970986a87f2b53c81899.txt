@@ -1,0 +1,33 @@
+import type { Context, Middleware } from './types';
+
+type Handler = (ctx: Context) => Promise<void>;
+
+export class Router {
+  #routes: { method: string; pattern: RegExp; keys: string[]; handler: Handler }[] = [];
+
+  get(path: string, handler: Handler) {
+    this.#add('GET', path, handler);
+  }
+
+  post(path: string, handler: Handler) {
+    this.#add('POST', path, handler);
+  }
+
+  #add(method: string, path: string, handler: Handler) {
+    const keys: string[] = [];
+    const pattern = new RegExp('^' + path.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
+    this.#routes.push({ method, pattern, keys, handler });
+  }
+
+  middleware(): Middleware {
+    return async (ctx, next) => {
+      for (const r of this.#routes) {
+        const m = r.method === ctx.method && r.pattern.exec(ctx.path);
+        if (!m) continue;
+        r.keys.forEach((k, i) => (ctx.params[k] = decodeURIComponent(m[i + 1])));
+        return r.handler(ctx);
+      }
+      await next();
+    };
+  }
+}

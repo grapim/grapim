@@ -1,0 +1,24 @@
+import type { Config } from './config';
+import type { Middleware } from './types';
+
+export function createApp(config: Config) {
+  const stack: Middleware[] = [];
+  return {
+    config,
+    use(mw: Middleware | { middleware(): Middleware }) {
+      stack.push('middleware' in mw ? mw.middleware() : mw);
+    },
+    callback() {
+      return compose(stack);
+    },
+  };
+}
+
+function compose(stack: Middleware[]) {
+  return (req: unknown, res: unknown) => {
+    // Adapts node:http to Context and runs the stack in order.
+    void req;
+    void res;
+    void stack;
+  };
+}

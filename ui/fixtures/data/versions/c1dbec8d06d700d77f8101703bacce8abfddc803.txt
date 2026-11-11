@@ -1,0 +1,29 @@
+import { cached } from './cache';
+import { db } from './db';
+import type { Money } from './types';
+
+export interface Product {
+  sku: string;
+  name: string;
+  price: Money;
+  stock: number;
+}
+
+export const getProduct = cached('product', async (sku: string): Promise<Product | undefined> => {
+  const row = await db.one('select * from products where sku = $1', [sku]);
+  return row ? toProduct(row) : undefined;
+});
+
+export async function listProducts({ limit = 20 } = {}): Promise<Product[]> {
+  const rows = await db.many('select * from products order by name limit $1', [limit]);
+  return rows.map(toProduct);
+}
+
+function toProduct(row: Record<string, unknown>): Product {
+  return {
+    sku: String(row.sku),
+    name: String(row.name),
+    price: { amount: Number(row.price_cents), currency: 'USD' },
+    stock: Number(row.stock),
+  };
+}

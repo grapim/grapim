@@ -1,0 +1,20 @@
+{
+  "applied": false,
+  "run": "undo:1794382320000",
+  "label": "undo claude 0c4d5e6f",
+  "turn": null,
+  "files": [
+    {
+      "path": "src/cache.ts",
+      "root": "C:/Users/alex/code/shop-api",
+      "action": "restore",
+      "reason": null
+    },
+    {
+      "path": "src/products.ts",
+      "root": "C:/Users/alex/code/shop-api",
+      "action": "revert",
+      "reason": null
+    }
+  ]
+}

@@ -1,0 +1,238 @@
+{
+  "run": {
+    "run": "mcp:codex-4121",
+    "label": "codex 4121",
+    "worktree": "shop-api",
+    "intent": "Rename the app logger to log",
+    "turns": 2,
+    "files": 2,
+    "added": 7,
+    "removed": 4,
+    "in_tree": "all",
+    "first_ts": 1794388540000,
+    "last_ts": 1794389100000,
+    "active": true,
+    "review": {
+      "status": "pending",
+      "note": null,
+      "at": null,
+      "by": null
+    },
+    "branch": null
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "intent": "Rename the app logger to log",
+      "ts": 1794388540000,
+      "files": [
+        "src/log.ts",
+        "src/server.ts"
+      ]
+    },
+    {
+      "turn": 2,
+      "intent": "Keep a deprecated logger alias until every caller is moved",
+      "ts": 1794389080000,
+      "files": [
+        "src/log.ts"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "src/log.ts",
+      "added": 4,
+      "removed": 1,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 12,
+            "oldLines": 9,
+            "newStart": 12,
+            "newLines": 12,
+            "lines": [
+              {
+                "t": " ",
+                "s": "  process.stdout.write(JSON.stringify(line) + '\\n');"
+              },
+              {
+                "t": " ",
+                "s": "}"
+              },
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": "-",
+                "s": "export const logger = {"
+              },
+              {
+                "t": "+",
+                "s": "export const log = {"
+              },
+              {
+                "t": " ",
+                "s": "  debug: (m: string, f?: Fields) => write('debug', m, f),"
+              },
+              {
+                "t": " ",
+                "s": "  info: (m: string, f?: Fields) => write('info', m, f),"
+              },
+              {
+                "t": " ",
+                "s": "  warn: (m: string, f?: Fields) => write('warn', m, f),"
+              },
+              {
+                "t": " ",
+                "s": "  error: (m: string, f?: Fields) => write('error', m, f),"
+              },
+              {
+                "t": " ",
+                "s": "};"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "/** @deprecated Use `log`. Kept until every caller is migrated. */"
+              },
+              {
+                "t": "+",
+                "s": "export const logger = log;"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/server.ts",
+      "added": 3,
+      "removed": 3,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 1,
+            "oldLines": 7,
+            "newStart": 1,
+            "newLines": 7,
+            "lines": [
+              {
+                "t": " ",
+                "s": "import { createServer } from 'node:http';"
+              },
+              {
+                "t": " ",
+                "s": "import { createApp } from './app';"
+              },
+              {
+                "t": " ",
+                "s": "import { routes } from './routes';"
+              },
+              {
+                "t": "-",
+                "s": "import { logger } from './log';"
+              },
+              {
+                "t": "+",
+                "s": "import { log } from './log';"
+              },
+              {
+                "t": " ",
+                "s": "import { loadConfig } from './config';"
+              },
+              {
+                "t": " ",
+                "s": "import { requestId } from './middleware/requestId';"
+              },
+              {
+                "t": " ",
+                "s": ""
+              }
+            ]
+          },
+          {
+            "oldStart": 14,
+            "oldLines": 7,
+            "newStart": 14,
+            "newLines": 7,
+            "lines": [
+              {
+                "t": " ",
+                "s": "  const started = performance.now();"
+              },
+              {
+                "t": " ",
+                "s": "  await next();"
+              },
+              {
+                "t": " ",
+                "s": "  const ms = Math.round(performance.now() - started);"
+              },
+              {
+                "t": "-",
+                "s": "  logger.info(`${ctx.method} ${ctx.path} ${ctx.status} ${ms}ms`, { requestId: ctx.requestId });"
+              },
+              {
+                "t": "+",
+                "s": "  log.info(`${ctx.method} ${ctx.path} ${ctx.status} ${ms}ms`, { requestId: ctx.requestId });"
+              },
+              {
+                "t": " ",
+                "s": "});"
+              },
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": " ",
+                "s": "app.use(routes);"
+              }
+            ]
+          },
+          {
+            "oldStart": 22,
+            "oldLines": 5,
+            "newStart": 22,
+            "newLines": 5,
+            "lines": [
+              {
+                "t": " ",
+                "s": "const port = Number(process.env.PORT ?? 8080);"
+              },
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": " ",
+                "s": "createServer(app.callback()).listen(port, () => {"
+              },
+              {
+                "t": "-",
+                "s": "  logger.info(`shop-api listening on :${port}`);"
+              },
+              {
+                "t": "+",
+                "s": "  log.info(`shop-api listening on :${port}`);"
+              },
+              {
+                "t": " ",
+                "s": "});"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

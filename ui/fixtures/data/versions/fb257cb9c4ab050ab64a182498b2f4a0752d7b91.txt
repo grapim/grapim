@@ -1,0 +1,17 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomUUID } from 'node:crypto';
+import type { Middleware } from '../types';
+
+const store = new AsyncLocalStorage<string>();
+
+/** The id of the request being handled, or undefined outside a request. */
+export const currentRequestId = () => store.getStore();
+
+export function requestId(header = 'x-request-id'): Middleware {
+  return async (ctx, next) => {
+    const incoming = ctx.headers.get(header);
+    const id = incoming && incoming.length <= 64 ? incoming : randomUUID();
+    ctx.requestId = id;
+    await store.run(id, next);
+  };
+}

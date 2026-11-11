@@ -1,0 +1,54 @@
+[
+  {
+    "name": "src",
+    "path": "src",
+    "type": "dir",
+    "size": 0,
+    "last_change": {
+      "ts": 1794389220000,
+      "label": "claude 1a2b3c4d",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911"
+    },
+    "held_by": null
+  },
+  {
+    "name": "test",
+    "path": "test",
+    "type": "dir",
+    "size": 0,
+    "last_change": {
+      "ts": 1794389280000,
+      "label": "claude 1a2b3c4d",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911"
+    },
+    "held_by": null
+  },
+  {
+    "name": "package.json",
+    "path": "package.json",
+    "type": "file",
+    "size": 349,
+    "last_change": {
+      "ts": 1794381480000,
+      "label": "cursor 3e9a",
+      "run": "mcp:cursor-3e9a"
+    },
+    "held_by": null
+  },
+  {
+    "name": "README.md",
+    "path": "README.md",
+    "type": "file",
+    "size": 164,
+    "last_change": null,
+    "held_by": null
+  },
+  {
+    "name": "tsconfig.json",
+    "path": "tsconfig.json",
+    "type": "file",
+    "size": 212,
+    "last_change": null,
+    "held_by": null
+  }
+]

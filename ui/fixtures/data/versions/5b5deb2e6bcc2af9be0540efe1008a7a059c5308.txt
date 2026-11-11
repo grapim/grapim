@@ -1,0 +1,20 @@
+import { currentRequestId } from './middleware/requestId';
+
+type Level = 'debug' | 'info' | 'warn' | 'error';
+type Fields = Record<string, unknown>;
+
+const order: Record<Level, number> = { debug: 10, info: 20, warn: 30, error: 40 };
+const threshold = order[(process.env.LOG_LEVEL as Level) ?? 'info'] ?? order.info;
+
+function write(level: Level, message: string, fields: Fields = {}) {
+  if (order[level] < threshold) return;
+  const line = { t: new Date().toISOString(), level, message, requestId: currentRequestId(), ...fields };
+  process.stdout.write(JSON.stringify(line) + '\n');
+}
+
+export const log = {
+  debug: (m: string, f?: Fields) => write('debug', m, f),
+  info: (m: string, f?: Fields) => write('info', m, f),
+  warn: (m: string, f?: Fields) => write('warn', m, f),
+  error: (m: string, f?: Fields) => write('error', m, f),
+};

@@ -1,0 +1,45 @@
+{
+  "path": "src/checkout/cart.ts",
+  "base": "HEAD",
+  "changes": 1,
+  "exists": true,
+  "untracked": false,
+  "lines": [
+    {
+      "line": 24,
+      "text": "  return structuredClone(cart);",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 1
+    },
+    {
+      "line": 31,
+      "text": "  const existing = cart.items.find((i) => i.sku === item.sku);",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 1
+    },
+    {
+      "line": 32,
+      "text": "  if (existing) existing.qty += item.qty;",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 1
+    },
+    {
+      "line": 33,
+      "text": "  else cart.items.push({ sku: item.sku, qty: item.qty, price: product.price });",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 1
+    },
+    {
+      "line": 39,
+      "text": "  return structuredClone(cart);",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 1
+    }
+  ],
+  "removed": 3
+}

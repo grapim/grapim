@@ -1,0 +1,170 @@
+[
+  {
+    "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+    "label": "claude 1a2b3c4d",
+    "worktree": "shop-api",
+    "intent": "Add a /billing route with tests",
+    "turns": 3,
+    "files": 3,
+    "added": 99,
+    "removed": 0,
+    "in_tree": "all",
+    "first_ts": 1794387820000,
+    "last_ts": 1794389280000,
+    "active": true,
+    "review": {
+      "status": "pending",
+      "note": null,
+      "at": null,
+      "by": null
+    },
+    "branch": null
+  },
+  {
+    "run": "mcp:codex-4121",
+    "label": "codex 4121",
+    "worktree": "shop-api",
+    "intent": "Rename the app logger to log",
+    "turns": 2,
+    "files": 2,
+    "added": 7,
+    "removed": 4,
+    "in_tree": "all",
+    "first_ts": 1794388540000,
+    "last_ts": 1794389100000,
+    "active": true,
+    "review": {
+      "status": "pending",
+      "note": null,
+      "at": null,
+      "by": null
+    },
+    "branch": null
+  },
+  {
+    "run": "http:e2b-5d0c",
+    "label": "e2b-5d0c",
+    "worktree": "shop-api",
+    "intent": "Make the checkout tests pass on Node 22",
+    "turns": 2,
+    "files": 2,
+    "added": 15,
+    "removed": 3,
+    "in_tree": "all",
+    "first_ts": 1794388060000,
+    "last_ts": 1794388980000,
+    "active": true,
+    "review": {
+      "status": "pending",
+      "note": null,
+      "at": null,
+      "by": null
+    },
+    "branch": null
+  },
+  {
+    "run": "claude-code:9f8e7d6c-2b1a-4e3d-8c7b-0a9f8e7d6c5b",
+    "label": "claude 9f8e7d6c",
+    "worktree": "shop-api-header",
+    "intent": "Fix the header on mobile: add a menu button and collapse the nav under 640px",
+    "turns": 1,
+    "files": 2,
+    "added": 35,
+    "removed": 1,
+    "in_tree": "all",
+    "first_ts": 1794388840000,
+    "last_ts": 1794388920000,
+    "active": true,
+    "review": {
+      "status": "pending",
+      "note": null,
+      "at": null,
+      "by": null
+    },
+    "branch": null
+  },
+  {
+    "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+    "label": "claude 77ab12ef",
+    "worktree": "shop-api",
+    "intent": "Add a request-id middleware and put the id in every log line",
+    "turns": 2,
+    "files": 4,
+    "added": 26,
+    "removed": 2,
+    "in_tree": "some",
+    "first_ts": 1794386080000,
+    "last_ts": 1794386580000,
+    "active": false,
+    "review": {
+      "status": "pending",
+      "note": null,
+      "at": null,
+      "by": null
+    },
+    "branch": null
+  },
+  {
+    "run": "undo:1794382320000",
+    "label": "undo claude 0c4d5e6f",
+    "worktree": "shop-api",
+    "intent": null,
+    "turns": 1,
+    "files": 2,
+    "added": 2,
+    "removed": 20,
+    "in_tree": "all",
+    "first_ts": 1794382300000,
+    "last_ts": 1794382320000,
+    "active": false,
+    "review": {
+      "status": "pending",
+      "note": null,
+      "at": null,
+      "by": null
+    },
+    "branch": null
+  },
+  {
+    "run": "mcp:cursor-3e9a",
+    "label": "cursor 3e9a",
+    "worktree": "shop-api",
+    "intent": "Bump zod to v4 and fix the schema errors",
+    "turns": 1,
+    "files": 2,
+    "added": 3,
+    "removed": 3,
+    "in_tree": "all",
+    "first_ts": 1794381460000,
+    "last_ts": 1794381600000,
+    "active": false,
+    "review": {
+      "status": "approved",
+      "note": "Checked the zod 4 migration guide; issues[] is the new name.",
+      "at": 1794383340000,
+      "by": "human:alex"
+    },
+    "branch": "grapim/cursor-3e9a"
+  },
+  {
+    "run": "claude-code:0c4d5e6f-1a2b-4c3d-9e8f-7a6b5c4d3e2f",
+    "label": "claude 0c4d5e6f",
+    "worktree": "shop-api",
+    "intent": "Try a Redis cache for product lookups",
+    "turns": 2,
+    "files": 2,
+    "added": 20,
+    "removed": 2,
+    "in_tree": "none",
+    "first_ts": 1794377980000,
+    "last_ts": 1794378840000,
+    "active": false,
+    "review": {
+      "status": "rejected",
+      "note": "Not adding Redis for this. Undone.",
+      "at": 1794382260000,
+      "by": "human:alex"
+    },
+    "branch": null
+  }
+]

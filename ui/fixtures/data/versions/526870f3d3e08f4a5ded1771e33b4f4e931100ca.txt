@@ -1,0 +1,15 @@
+import { createClient } from 'redis';
+
+const client = createClient({ url: process.env.REDIS_URL });
+client.connect().catch(() => {});
+
+export function cached<A extends string, R>(prefix: string, fn: (arg: A) => Promise<R>) {
+  return async (arg: A): Promise<R> => {
+    const key = `${prefix}:${arg}`;
+    const hit = await client.get(key).catch(() => null);
+    if (hit) return JSON.parse(hit) as R;
+    const value = await fn(arg);
+    await client.set(key, JSON.stringify(value)).catch(() => {});
+    return value;
+  };
+}

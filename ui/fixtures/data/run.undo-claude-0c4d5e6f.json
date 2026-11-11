@@ -1,0 +1,214 @@
+{
+  "run": {
+    "run": "undo:1794382320000",
+    "label": "undo claude 0c4d5e6f",
+    "worktree": "shop-api",
+    "intent": null,
+    "turns": 1,
+    "files": 2,
+    "added": 2,
+    "removed": 20,
+    "in_tree": "all",
+    "first_ts": 1794382300000,
+    "last_ts": 1794382320000,
+    "active": false,
+    "review": {
+      "status": "pending",
+      "note": null,
+      "at": null,
+      "by": null
+    },
+    "branch": null
+  },
+  "turns": [
+    {
+      "turn": 0,
+      "intent": null,
+      "ts": 1794382300000,
+      "files": [
+        "src/cache.ts",
+        "src/products.ts"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "src/cache.ts",
+      "added": 0,
+      "removed": 17,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 1,
+            "oldLines": 17,
+            "newStart": 0,
+            "newLines": 0,
+            "lines": [
+              {
+                "t": "-",
+                "s": "import { createClient } from 'redis';"
+              },
+              {
+                "t": "-",
+                "s": ""
+              },
+              {
+                "t": "-",
+                "s": "const client = createClient({ url: process.env.REDIS_URL });"
+              },
+              {
+                "t": "-",
+                "s": "client.connect().catch(() => {});"
+              },
+              {
+                "t": "-",
+                "s": ""
+              },
+              {
+                "t": "-",
+                "s": "const TTL_SECONDS = 60;"
+              },
+              {
+                "t": "-",
+                "s": ""
+              },
+              {
+                "t": "-",
+                "s": "export function cached<A extends string, R>(prefix: string, fn: (arg: A) => Promise<R>) {"
+              },
+              {
+                "t": "-",
+                "s": "  return async (arg: A): Promise<R> => {"
+              },
+              {
+                "t": "-",
+                "s": "    const key = `${prefix}:${arg}`;"
+              },
+              {
+                "t": "-",
+                "s": "    const hit = await client.get(key).catch(() => null);"
+              },
+              {
+                "t": "-",
+                "s": "    if (hit) return JSON.parse(hit) as R;"
+              },
+              {
+                "t": "-",
+                "s": "    const value = await fn(arg);"
+              },
+              {
+                "t": "-",
+                "s": "    await client.set(key, JSON.stringify(value), { EX: TTL_SECONDS }).catch(() => {});"
+              },
+              {
+                "t": "-",
+                "s": "    return value;"
+              },
+              {
+                "t": "-",
+                "s": "  };"
+              },
+              {
+                "t": "-",
+                "s": "}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/products.ts",
+      "added": 2,
+      "removed": 3,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 1,
+            "oldLines": 4,
+            "newStart": 1,
+            "newLines": 3,
+            "lines": [
+              {
+                "t": "-",
+                "s": "import { cached } from './cache';"
+              },
+              {
+                "t": " ",
+                "s": "import { db } from './db';"
+              },
+              {
+                "t": " ",
+                "s": "import type { Money } from './types';"
+              },
+              {
+                "t": " ",
+                "s": ""
+              }
+            ]
+          },
+          {
+            "oldStart": 9,
+            "oldLines": 10,
+            "newStart": 8,
+            "newLines": 10,
+            "lines": [
+              {
+                "t": " ",
+                "s": "  stock: number;"
+              },
+              {
+                "t": " ",
+                "s": "}"
+              },
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": "-",
+                "s": "export const getProduct = cached('product', async (sku: string): Promise<Product | undefined> => {"
+              },
+              {
+                "t": "+",
+                "s": "export async function getProduct(sku: string): Promise<Product | undefined> {"
+              },
+              {
+                "t": " ",
+                "s": "  const row = await db.one('select * from products where sku = $1', [sku]);"
+              },
+              {
+                "t": " ",
+                "s": "  return row ? toProduct(row) : undefined;"
+              },
+              {
+                "t": "-",
+                "s": "});"
+              },
+              {
+                "t": "+",
+                "s": "}"
+              },
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": " ",
+                "s": "export async function listProducts({ limit = 20 } = {}): Promise<Product[]> {"
+              },
+              {
+                "t": " ",
+                "s": "  const rows = await db.many('select * from products order by name limit $1', [limit]);"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

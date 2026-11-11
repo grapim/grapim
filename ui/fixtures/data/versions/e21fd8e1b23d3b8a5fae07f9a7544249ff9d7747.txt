@@ -1,0 +1,19 @@
+import { useState } from 'react';
+import { CartButton } from './CartButton';
+import './header.css';
+
+export function Header({ cartCount }: { cartCount: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <header className="header">
+      <a className="header__logo" href="/">Shop</a>
+      <nav className="header__nav">
+        <a href="/new">New</a>
+        <a href="/men">Men</a>
+        <a href="/women">Women</a>
+        <a href="/sale">Sale</a>
+      </nav>
+      <CartButton count={cartCount} />
+    </header>
+  );
+}

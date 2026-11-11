@@ -1,0 +1,14 @@
+[
+  {
+    "name": "invoice.ts",
+    "path": "src/billing/invoice.ts",
+    "type": "file",
+    "size": 1478,
+    "last_change": {
+      "ts": 1794389160000,
+      "label": "claude 1a2b3c4d",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911"
+    },
+    "held_by": "claude 1a2b3c4d"
+  }
+]

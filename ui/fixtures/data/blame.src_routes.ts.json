@@ -1,0 +1,171 @@
+{
+  "path": "src/routes.ts",
+  "base": "HEAD",
+  "changes": 2,
+  "exists": true,
+  "untracked": false,
+  "lines": [
+    {
+      "line": 4,
+      "text": "import { createInvoice, getInvoice, refundInvoice } from './billing/invoice';",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 34,
+      "text": "",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 35,
+      "text": "routes.post('/billing/invoices', async (ctx) => {",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 36,
+      "text": "  const { cartId } = ctx.body as { cartId: string };",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 37,
+      "text": "  const invoice = await createInvoice(cartId);",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 38,
+      "text": "  ctx.status = 201;",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 39,
+      "text": "  ctx.body = invoice;",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 40,
+      "text": "});",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 41,
+      "text": "",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 42,
+      "text": "routes.get('/billing/invoices/:id', async (ctx) => {",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 43,
+      "text": "  const invoice = await getInvoice(ctx.params.id);",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 44,
+      "text": "  if (!invoice) {",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 45,
+      "text": "    ctx.status = 404;",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 46,
+      "text": "    ctx.body = { error: 'not_found' };",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 47,
+      "text": "    return;",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 48,
+      "text": "  }",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 49,
+      "text": "  ctx.body = invoice;",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 50,
+      "text": "});",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 1
+    },
+    {
+      "line": 51,
+      "text": "",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 52,
+      "text": "routes.post('/billing/invoices/:id/refund', async (ctx) => {",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 53,
+      "text": "  const { amount } = ctx.body as { amount?: number };",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 54,
+      "text": "  ctx.body = await refundInvoice(ctx.params.id, amount);",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 55,
+      "text": "});",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    }
+  ],
+  "removed": 0
+}

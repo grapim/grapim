@@ -1,0 +1,17 @@
+{
+  "path": "package.json",
+  "base": "HEAD",
+  "changes": 1,
+  "exists": true,
+  "untracked": false,
+  "lines": [
+    {
+      "line": 12,
+      "text": "    \"zod\": \"^4.1.5\"",
+      "run": "mcp:cursor-3e9a",
+      "label": "cursor 3e9a",
+      "turn": 1
+    }
+  ],
+  "removed": 1
+}

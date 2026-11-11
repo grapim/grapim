@@ -1,0 +1,35 @@
+[
+  {
+    "id": 11,
+    "ts": 1794386580000,
+    "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+    "label": "claude 77ab12ef",
+    "turn": 2,
+    "added": 3,
+    "removed": 1,
+    "before_sha": "8e30845ff5ccb48bce1e2b4097f9846d9b09c803",
+    "after_sha": "ae320b9a06360ea7732fd38903e3c4da85225701"
+  },
+  {
+    "id": 16,
+    "ts": 1794388560000,
+    "run": "mcp:codex-4121",
+    "label": "codex 4121",
+    "turn": 1,
+    "added": 1,
+    "removed": 1,
+    "before_sha": "ae320b9a06360ea7732fd38903e3c4da85225701",
+    "after_sha": "5b5deb2e6bcc2af9be0540efe1008a7a059c5308"
+  },
+  {
+    "id": 21,
+    "ts": 1794389100000,
+    "run": "mcp:codex-4121",
+    "label": "codex 4121",
+    "turn": 2,
+    "added": 3,
+    "removed": 0,
+    "before_sha": "5b5deb2e6bcc2af9be0540efe1008a7a059c5308",
+    "after_sha": "56bbb23e4d3b634fd84c4803005d0f9c02318ed4"
+  }
+]

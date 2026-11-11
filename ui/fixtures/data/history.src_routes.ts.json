@@ -1,0 +1,24 @@
+[
+  {
+    "id": 13,
+    "ts": 1794387900000,
+    "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+    "label": "claude 1a2b3c4d",
+    "turn": 1,
+    "added": 18,
+    "removed": 0,
+    "before_sha": "84c0086685be310132d337ac60bb70a6a9fabd17",
+    "after_sha": "423108ea838291b841581cfaadc936be1504e1d5"
+  },
+  {
+    "id": 23,
+    "ts": 1794389220000,
+    "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+    "label": "claude 1a2b3c4d",
+    "turn": 3,
+    "added": 6,
+    "removed": 1,
+    "before_sha": "423108ea838291b841581cfaadc936be1504e1d5",
+    "after_sha": "a9bea0dbfa3bdcd06eb28dd5a1686d18f58325b8"
+  }
+]

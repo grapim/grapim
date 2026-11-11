@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Grapim</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%231a1a17'/%3E%3Cpath d='M10.9 5.2A3.6 3.6 0 1 0 10.9 10.8' stroke='%23fff' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <script>
+    // Apply the saved theme before first paint, so there is no flash.
+    try { const t = localStorage.getItem('grapim.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+  </script>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#view">Skip to content</a>
+  <div class="app">
+    <aside class="sidebar" aria-label="Primary">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">C</span><span class="brand-name">Grapim</span></div>
+      <div class="repo" id="repo"><div class="repo-name"><span class="sk" style="width:96px"></span></div><div class="repo-meta"><span class="sk" style="width:140px;margin-top:6px"></span></div></div>
+      <button class="search-btn" type="button" data-action="palette">
+        <svg class="icon sm" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span>Jump to…</span><kbd data-mod>Ctrl</kbd><kbd>K</kbd>
+      </button>
+      <nav class="nav" id="nav-side" aria-label="Views"></nav>
+      <div class="sidebar-foot">
+        <div class="conn" id="conn" data-state="connecting" role="status"><span class="pip"></span><span class="txt">Connecting…</span></div>
+        <div class="foot-row">
+          <div class="seg icons" id="theme-side" role="group" aria-label="Theme"></div>
+          <button class="help-btn" type="button" data-action="help"><kbd>?</kbd> Shortcuts</button>
+        </div>
+      </div>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-row">
+          <span class="brand-mark" aria-hidden="true">C</span>
+          <span class="repo-inline" id="repo-inline">Grapim</span>
+          <button class="icon-btn" type="button" data-action="palette" aria-label="Search or jump to">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+          <button class="icon-btn" type="button" data-action="theme-cycle" id="theme-top" aria-label="Theme"></button>
+        </div>
+        <nav class="nav" id="nav-top" aria-label="Views"></nav>
+      </header>
+      <div id="banner"></div>
+      <main class="view" id="view" tabindex="-1"></main>
+    </div>
+  </div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <dialog id="dialog" aria-labelledby="dlg-title"></dialog>
+  <noscript><p style="padding:24px">The review desk needs JavaScript.</p></noscript>
+</body>
+</html>

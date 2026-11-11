@@ -1,0 +1,129 @@
+{
+  "path": "src/middleware/requestId.ts",
+  "base": "HEAD",
+  "changes": 1,
+  "exists": true,
+  "untracked": false,
+  "lines": [
+    {
+      "line": 1,
+      "text": "import { AsyncLocalStorage } from 'node:async_hooks';",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 2,
+      "text": "import { randomUUID } from 'node:crypto';",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 3,
+      "text": "import type { Middleware } from '../types';",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 4,
+      "text": "",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 5,
+      "text": "const store = new AsyncLocalStorage<string>();",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 6,
+      "text": "",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 7,
+      "text": "/** The id of the request being handled, or undefined outside a request. */",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 8,
+      "text": "export const currentRequestId = () => store.getStore();",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 9,
+      "text": "",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 10,
+      "text": "export function requestId(header = 'x-request-id'): Middleware {",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 11,
+      "text": "  return async (ctx, next) => {",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 12,
+      "text": "    const incoming = ctx.headers.get(header);",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 13,
+      "text": "    const id = incoming && incoming.length <= 64 ? incoming : randomUUID();",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 14,
+      "text": "    ctx.requestId = id;",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 15,
+      "text": "    await store.run(id, next);",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 16,
+      "text": "  };",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 17,
+      "text": "}",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    }
+  ],
+  "removed": 0
+}

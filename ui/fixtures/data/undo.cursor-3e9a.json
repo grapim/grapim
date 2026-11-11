@@ -1,0 +1,20 @@
+{
+  "applied": false,
+  "run": "mcp:cursor-3e9a",
+  "label": "cursor 3e9a",
+  "turn": null,
+  "files": [
+    {
+      "path": "package.json",
+      "root": "C:/Users/alex/code/shop-api",
+      "action": "revert",
+      "reason": null
+    },
+    {
+      "path": "src/schema.ts",
+      "root": "C:/Users/alex/code/shop-api",
+      "action": "revert",
+      "reason": null
+    }
+  ]
+}

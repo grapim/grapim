@@ -1,0 +1,24 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { addToCart, resetCarts } from '../src/checkout/cart';
+import { createInvoice, getInvoice } from '../src/billing/invoice';
+
+describe('billing', () => {
+  beforeEach(() => resetCarts());
+
+  it('creates an open invoice for the cart total', async () => {
+    await addToCart('c1', { sku: 'tee-black-m', qty: 2 });
+    const invoice = await createInvoice('c1');
+    expect(invoice.status).toBe('open');
+    expect(invoice.total).toEqual({ amount: 5800, currency: 'USD' });
+  });
+
+  it('refuses to invoice an empty cart', async () => {
+    await expect(createInvoice('empty')).rejects.toThrow('empty cart');
+  });
+
+  it('finds an invoice by id', async () => {
+    await addToCart('c2', { sku: 'mug-white', qty: 1 });
+    const { id } = await createInvoice('c2');
+    expect(await getInvoice(id)).toMatchObject({ id, cartId: 'c2' });
+  });
+});

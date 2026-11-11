@@ -1,0 +1,8 @@
+# shop-api
+
+The store API behind shop.example. Node 22, TypeScript, Postgres.
+
+    npm install
+    npm run dev
+
+Tests: `npm test`. Type check: `npm run typecheck`.

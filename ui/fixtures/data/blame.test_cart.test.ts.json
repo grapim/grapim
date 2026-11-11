@@ -1,0 +1,80 @@
+{
+  "path": "test/cart.test.ts",
+  "base": "HEAD",
+  "changes": 1,
+  "exists": true,
+  "untracked": false,
+  "lines": [
+    {
+      "line": 18,
+      "text": "",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 2
+    },
+    {
+      "line": 19,
+      "text": "  it('merges the same sku into one line', async () => {",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 2
+    },
+    {
+      "line": 20,
+      "text": "    await addToCart('c', { sku: 'mug-white', qty: 1 });",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 2
+    },
+    {
+      "line": 21,
+      "text": "    const cart = await addToCart('c', { sku: 'mug-white', qty: 2 });",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 2
+    },
+    {
+      "line": 22,
+      "text": "    expect(cart.items).toEqual([expect.objectContaining({ sku: 'mug-white', qty: 3 })]);",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 2
+    },
+    {
+      "line": 23,
+      "text": "  });",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 2
+    },
+    {
+      "line": 24,
+      "text": "",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 2
+    },
+    {
+      "line": 25,
+      "text": "  it('starts empty', async () => {",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 2
+    },
+    {
+      "line": 26,
+      "text": "    expect(await getCart('nobody')).toMatchObject({ items: [], total: { amount: 0 } });",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 2
+    },
+    {
+      "line": 27,
+      "text": "  });",
+      "run": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "turn": 2
+    }
+  ],
+  "removed": 0
+}

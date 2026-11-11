@@ -1,0 +1,40 @@
+import { getProduct } from '../products';
+import type { Money } from '../types';
+
+export interface CartItem {
+  sku: string;
+  qty: number;
+  price: Money;
+}
+
+export interface Cart {
+  id: string;
+  items: CartItem[];
+  total: Money;
+}
+
+const carts = new Map<string, Cart>();
+
+export function resetCarts() {
+  carts.clear();
+}
+
+export async function getCart(id: string): Promise<Cart> {
+  const cart = carts.get(id) ?? { id, items: [], total: { amount: 0, currency: 'USD' } };
+  return structuredClone(cart);
+}
+
+export async function addToCart(id: string, item: { sku: string; qty: number }): Promise<Cart> {
+  const product = await getProduct(item.sku);
+  if (!product) throw new Error(`Unknown sku ${item.sku}`);
+  const cart = carts.get(id) ?? { id, items: [], total: { amount: 0, currency: 'USD' } };
+  const existing = cart.items.find((i) => i.sku === item.sku);
+  if (existing) existing.qty += item.qty;
+  else cart.items.push({ sku: item.sku, qty: item.qty, price: product.price });
+  cart.total = {
+    amount: cart.items.reduce((sum, i) => sum + i.price.amount * i.qty, 0),
+    currency: 'USD',
+  };
+  carts.set(id, cart);
+  return structuredClone(cart);
+}

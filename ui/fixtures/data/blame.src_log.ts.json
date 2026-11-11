@@ -1,0 +1,59 @@
+{
+  "path": "src/log.ts",
+  "base": "HEAD",
+  "changes": 3,
+  "exists": true,
+  "untracked": false,
+  "lines": [
+    {
+      "line": 1,
+      "text": "import { currentRequestId } from './middleware/requestId';",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 2
+    },
+    {
+      "line": 2,
+      "text": "",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 2
+    },
+    {
+      "line": 11,
+      "text": "  const line = { t: new Date().toISOString(), level, message, requestId: currentRequestId(), ...fields };",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 2
+    },
+    {
+      "line": 15,
+      "text": "export const log = {",
+      "run": "mcp:codex-4121",
+      "label": "codex 4121",
+      "turn": 1
+    },
+    {
+      "line": 21,
+      "text": "",
+      "run": "mcp:codex-4121",
+      "label": "codex 4121",
+      "turn": 2
+    },
+    {
+      "line": 22,
+      "text": "/** @deprecated Use `log`. Kept until every caller is migrated. */",
+      "run": "mcp:codex-4121",
+      "label": "codex 4121",
+      "turn": 2
+    },
+    {
+      "line": 23,
+      "text": "export const logger = log;",
+      "run": "mcp:codex-4121",
+      "label": "codex 4121",
+      "turn": 2
+    }
+  ],
+  "removed": 2
+}

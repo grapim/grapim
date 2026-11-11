@@ -1,0 +1,152 @@
+{
+  "repo": "shop-api",
+  "root": "C:/Users/alex/code/shop-api",
+  "worktrees": [
+    {
+      "name": "shop-api",
+      "root": "C:/Users/alex/code/shop-api",
+      "branch": "main"
+    },
+    {
+      "name": "shop-api-header",
+      "root": "C:/Users/alex/code/shop-api-header",
+      "branch": "agent/header-mobile"
+    }
+  ],
+  "agents": [
+    {
+      "agent": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "worktree": "shop-api",
+      "intent": "Handle refunds too, partial and full",
+      "last_seen": 1794389388000,
+      "files": [
+        "src/routes.ts",
+        "src/billing/invoice.ts",
+        "test/billing.test.ts"
+      ]
+    },
+    {
+      "agent": "mcp:codex-4121",
+      "label": "codex 4121",
+      "worktree": "shop-api",
+      "intent": "Keep a deprecated logger alias until every caller is moved",
+      "last_seen": 1794389364000,
+      "files": [
+        "src/log.ts",
+        "src/server.ts"
+      ]
+    },
+    {
+      "agent": "claude-code:9f8e7d6c-2b1a-4e3d-8c7b-0a9f8e7d6c5b",
+      "label": "claude 9f8e7d6c",
+      "worktree": "shop-api-header",
+      "intent": "Fix the header on mobile: add a menu button and collapse the nav under 640px",
+      "last_seen": 1794389316000,
+      "files": [
+        "web/Header.tsx",
+        "web/header.css"
+      ]
+    },
+    {
+      "agent": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "worktree": "shop-api",
+      "intent": "Also cover merging the same sku and the empty cart",
+      "last_seen": 1794389346000,
+      "files": [
+        "src/checkout/cart.ts",
+        "test/cart.test.ts"
+      ]
+    }
+  ],
+  "leases": [
+    {
+      "path": "src/routes.ts",
+      "agent": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "worktree": "shop-api",
+      "intent": "Handle refunds too, partial and full",
+      "acquired_at": 1794387896000,
+      "expires_at": 1794391020000
+    },
+    {
+      "path": "src/billing/invoice.ts",
+      "agent": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "worktree": "shop-api",
+      "intent": "Handle refunds too, partial and full",
+      "acquired_at": 1794387836000,
+      "expires_at": 1794390960000
+    },
+    {
+      "path": "test/billing.test.ts",
+      "agent": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "worktree": "shop-api",
+      "intent": "Handle refunds too, partial and full",
+      "acquired_at": 1794388316000,
+      "expires_at": 1794391080000
+    },
+    {
+      "path": "src/log.ts",
+      "agent": "mcp:codex-4121",
+      "label": "codex 4121",
+      "worktree": "shop-api",
+      "intent": "Keep a deprecated logger alias until every caller is moved",
+      "acquired_at": 1794388556000,
+      "expires_at": 1794390900000
+    },
+    {
+      "path": "src/server.ts",
+      "agent": "mcp:codex-4121",
+      "label": "codex 4121",
+      "worktree": "shop-api",
+      "intent": "Keep a deprecated logger alias until every caller is moved",
+      "acquired_at": 1794388616000,
+      "expires_at": 1794390420000
+    },
+    {
+      "path": "web/Header.tsx",
+      "agent": "claude-code:9f8e7d6c-2b1a-4e3d-8c7b-0a9f8e7d6c5b",
+      "label": "claude 9f8e7d6c",
+      "worktree": "shop-api-header",
+      "intent": "Fix the header on mobile: add a menu button and collapse the nav under 640px",
+      "acquired_at": 1794388856000,
+      "expires_at": 1794390660000
+    },
+    {
+      "path": "web/header.css",
+      "agent": "claude-code:9f8e7d6c-2b1a-4e3d-8c7b-0a9f8e7d6c5b",
+      "label": "claude 9f8e7d6c",
+      "worktree": "shop-api-header",
+      "intent": "Fix the header on mobile: add a menu button and collapse the nav under 640px",
+      "acquired_at": 1794388916000,
+      "expires_at": 1794390720000
+    },
+    {
+      "path": "src/checkout/cart.ts",
+      "agent": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "worktree": "shop-api",
+      "intent": "Also cover merging the same sku and the empty cart",
+      "acquired_at": 1794388076000,
+      "expires_at": 1794389880000
+    },
+    {
+      "path": "test/cart.test.ts",
+      "agent": "http:e2b-5d0c",
+      "label": "e2b-5d0c",
+      "worktree": "shop-api",
+      "intent": "Also cover merging the same sku and the empty cart",
+      "acquired_at": 1794388976000,
+      "expires_at": 1794390780000
+    }
+  ],
+  "counts": {
+    "agents": 4,
+    "leases": 9,
+    "runs": 8,
+    "unreviewed": 6
+  }
+}

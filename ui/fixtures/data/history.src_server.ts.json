@@ -1,0 +1,24 @@
+[
+  {
+    "id": 10,
+    "ts": 1794386220000,
+    "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+    "label": "claude 77ab12ef",
+    "turn": 1,
+    "added": 4,
+    "removed": 1,
+    "before_sha": "2e1ea57590225d5f47e35c6ace654dc65bfb3f05",
+    "after_sha": "d06887506311e383da5d094cabe0f8ab8465ddf5"
+  },
+  {
+    "id": 17,
+    "ts": 1794388620000,
+    "run": "mcp:codex-4121",
+    "label": "codex 4121",
+    "turn": 1,
+    "added": 3,
+    "removed": 3,
+    "before_sha": "b3176bebc7313879a0ff27d40655c59fe465bcac",
+    "after_sha": "8e7af43b6f6f72d4d822fb32a21b4f4b2d56989c"
+  }
+]

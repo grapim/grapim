@@ -1,0 +1,551 @@
+{
+  "run": {
+    "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+    "label": "claude 1a2b3c4d",
+    "worktree": "shop-api",
+    "intent": "Add a /billing route with tests",
+    "turns": 3,
+    "files": 3,
+    "added": 99,
+    "removed": 0,
+    "in_tree": "all",
+    "first_ts": 1794387820000,
+    "last_ts": 1794389280000,
+    "active": true,
+    "review": {
+      "status": "pending",
+      "note": null,
+      "at": null,
+      "by": null
+    },
+    "branch": null
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "intent": "Add a /billing route with tests",
+      "ts": 1794387820000,
+      "files": [
+        "src/billing/invoice.ts",
+        "src/routes.ts"
+      ]
+    },
+    {
+      "turn": 2,
+      "intent": "Now write the tests for it",
+      "ts": 1794388300000,
+      "files": [
+        "test/billing.test.ts"
+      ]
+    },
+    {
+      "turn": 3,
+      "intent": "Handle refunds too, partial and full",
+      "ts": 1794389140000,
+      "files": [
+        "src/billing/invoice.ts",
+        "src/routes.ts",
+        "test/billing.test.ts"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "src/billing/invoice.ts",
+      "added": 43,
+      "removed": 0,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 43,
+            "lines": [
+              {
+                "t": "+",
+                "s": "import { randomUUID } from 'node:crypto';"
+              },
+              {
+                "t": "+",
+                "s": "import { getCart } from '../checkout/cart';"
+              },
+              {
+                "t": "+",
+                "s": "import type { Money } from '../types';"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "export interface Invoice {"
+              },
+              {
+                "t": "+",
+                "s": "  id: string;"
+              },
+              {
+                "t": "+",
+                "s": "  cartId: string;"
+              },
+              {
+                "t": "+",
+                "s": "  total: Money;"
+              },
+              {
+                "t": "+",
+                "s": "  status: 'open' | 'paid' | 'refunded' | 'void';"
+              },
+              {
+                "t": "+",
+                "s": "  refunded?: Money;"
+              },
+              {
+                "t": "+",
+                "s": "  createdAt: string;"
+              },
+              {
+                "t": "+",
+                "s": "}"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "const invoices = new Map<string, Invoice>();"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "export async function createInvoice(cartId: string): Promise<Invoice> {"
+              },
+              {
+                "t": "+",
+                "s": "  const cart = await getCart(cartId);"
+              },
+              {
+                "t": "+",
+                "s": "  if (cart.items.length === 0) throw new Error('Cannot invoice an empty cart');"
+              },
+              {
+                "t": "+",
+                "s": "  const invoice: Invoice = {"
+              },
+              {
+                "t": "+",
+                "s": "    id: `inv_${randomUUID().slice(0, 12)}`,"
+              },
+              {
+                "t": "+",
+                "s": "    cartId,"
+              },
+              {
+                "t": "+",
+                "s": "    total: cart.total,"
+              },
+              {
+                "t": "+",
+                "s": "    status: 'open',"
+              },
+              {
+                "t": "+",
+                "s": "    createdAt: new Date().toISOString(),"
+              },
+              {
+                "t": "+",
+                "s": "  };"
+              },
+              {
+                "t": "+",
+                "s": "  invoices.set(invoice.id, invoice);"
+              },
+              {
+                "t": "+",
+                "s": "  return invoice;"
+              },
+              {
+                "t": "+",
+                "s": "}"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "export async function getInvoice(id: string): Promise<Invoice | undefined> {"
+              },
+              {
+                "t": "+",
+                "s": "  return invoices.get(id);"
+              },
+              {
+                "t": "+",
+                "s": "}"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "export async function refundInvoice(id: string, amount?: number): Promise<Invoice> {"
+              },
+              {
+                "t": "+",
+                "s": "  const invoice = invoices.get(id);"
+              },
+              {
+                "t": "+",
+                "s": "  if (!invoice) throw new Error(`No invoice ${id}`);"
+              },
+              {
+                "t": "+",
+                "s": "  if (invoice.status !== 'paid') throw new Error(`Invoice ${id} is ${invoice.status}, not paid`);"
+              },
+              {
+                "t": "+",
+                "s": "  const refund = amount ?? invoice.total.amount;"
+              },
+              {
+                "t": "+",
+                "s": "  if (refund <= 0 || refund > invoice.total.amount) throw new Error('Refund must be between 0 and the invoice total');"
+              },
+              {
+                "t": "+",
+                "s": "  invoice.refunded = { amount: refund, currency: invoice.total.currency };"
+              },
+              {
+                "t": "+",
+                "s": "  invoice.status = refund === invoice.total.amount ? 'refunded' : 'paid';"
+              },
+              {
+                "t": "+",
+                "s": "  return invoice;"
+              },
+              {
+                "t": "+",
+                "s": "}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/routes.ts",
+      "added": 23,
+      "removed": 0,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 1,
+            "oldLines": 6,
+            "newStart": 1,
+            "newLines": 7,
+            "lines": [
+              {
+                "t": " ",
+                "s": "import { Router } from './router';"
+              },
+              {
+                "t": " ",
+                "s": "import { getProduct, listProducts } from './products';"
+              },
+              {
+                "t": " ",
+                "s": "import { addToCart, getCart } from './checkout/cart';"
+              },
+              {
+                "t": "+",
+                "s": "import { createInvoice, getInvoice, refundInvoice } from './billing/invoice';"
+              },
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": " ",
+                "s": "export const routes = new Router();"
+              },
+              {
+                "t": " ",
+                "s": ""
+              }
+            ]
+          },
+          {
+            "oldStart": 30,
+            "oldLines": 3,
+            "newStart": 31,
+            "newLines": 25,
+            "lines": [
+              {
+                "t": " ",
+                "s": "  ctx.body = await addToCart(ctx.params.id, ctx.body as { sku: string; qty: number });"
+              },
+              {
+                "t": " ",
+                "s": "  ctx.status = 201;"
+              },
+              {
+                "t": " ",
+                "s": "});"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "routes.post('/billing/invoices', async (ctx) => {"
+              },
+              {
+                "t": "+",
+                "s": "  const { cartId } = ctx.body as { cartId: string };"
+              },
+              {
+                "t": "+",
+                "s": "  const invoice = await createInvoice(cartId);"
+              },
+              {
+                "t": "+",
+                "s": "  ctx.status = 201;"
+              },
+              {
+                "t": "+",
+                "s": "  ctx.body = invoice;"
+              },
+              {
+                "t": "+",
+                "s": "});"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "routes.get('/billing/invoices/:id', async (ctx) => {"
+              },
+              {
+                "t": "+",
+                "s": "  const invoice = await getInvoice(ctx.params.id);"
+              },
+              {
+                "t": "+",
+                "s": "  if (!invoice) {"
+              },
+              {
+                "t": "+",
+                "s": "    ctx.status = 404;"
+              },
+              {
+                "t": "+",
+                "s": "    ctx.body = { error: 'not_found' };"
+              },
+              {
+                "t": "+",
+                "s": "    return;"
+              },
+              {
+                "t": "+",
+                "s": "  }"
+              },
+              {
+                "t": "+",
+                "s": "  ctx.body = invoice;"
+              },
+              {
+                "t": "+",
+                "s": "});"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "routes.post('/billing/invoices/:id/refund', async (ctx) => {"
+              },
+              {
+                "t": "+",
+                "s": "  const { amount } = ctx.body as { amount?: number };"
+              },
+              {
+                "t": "+",
+                "s": "  ctx.body = await refundInvoice(ctx.params.id, amount);"
+              },
+              {
+                "t": "+",
+                "s": "});"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "test/billing.test.ts",
+      "added": 33,
+      "removed": 0,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 33,
+            "lines": [
+              {
+                "t": "+",
+                "s": "import { describe, it, expect, beforeEach } from 'vitest';"
+              },
+              {
+                "t": "+",
+                "s": "import { addToCart, resetCarts } from '../src/checkout/cart';"
+              },
+              {
+                "t": "+",
+                "s": "import { createInvoice, getInvoice, refundInvoice } from '../src/billing/invoice';"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "describe('billing', () => {"
+              },
+              {
+                "t": "+",
+                "s": "  beforeEach(() => resetCarts());"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "  it('creates an open invoice for the cart total', async () => {"
+              },
+              {
+                "t": "+",
+                "s": "    await addToCart('c1', { sku: 'tee-black-m', qty: 2 });"
+              },
+              {
+                "t": "+",
+                "s": "    const invoice = await createInvoice('c1');"
+              },
+              {
+                "t": "+",
+                "s": "    expect(invoice.status).toBe('open');"
+              },
+              {
+                "t": "+",
+                "s": "    expect(invoice.total).toEqual({ amount: 5800, currency: 'USD' });"
+              },
+              {
+                "t": "+",
+                "s": "  });"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "  it('refuses to invoice an empty cart', async () => {"
+              },
+              {
+                "t": "+",
+                "s": "    await expect(createInvoice('empty')).rejects.toThrow('empty cart');"
+              },
+              {
+                "t": "+",
+                "s": "  });"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "  it('finds an invoice by id', async () => {"
+              },
+              {
+                "t": "+",
+                "s": "    await addToCart('c2', { sku: 'mug-white', qty: 1 });"
+              },
+              {
+                "t": "+",
+                "s": "    const { id } = await createInvoice('c2');"
+              },
+              {
+                "t": "+",
+                "s": "    expect(await getInvoice(id)).toMatchObject({ id, cartId: 'c2' });"
+              },
+              {
+                "t": "+",
+                "s": "  });"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "  it('refunds part of a paid invoice', async () => {"
+              },
+              {
+                "t": "+",
+                "s": "    await addToCart('c3', { sku: 'tee-black-m', qty: 1 });"
+              },
+              {
+                "t": "+",
+                "s": "    const invoice = await createInvoice('c3');"
+              },
+              {
+                "t": "+",
+                "s": "    invoice.status = 'paid';"
+              },
+              {
+                "t": "+",
+                "s": "    const refunded = await refundInvoice(invoice.id, 1000);"
+              },
+              {
+                "t": "+",
+                "s": "    expect(refunded.refunded).toEqual({ amount: 1000, currency: 'USD' });"
+              },
+              {
+                "t": "+",
+                "s": "    expect(refunded.status).toBe('paid');"
+              },
+              {
+                "t": "+",
+                "s": "  });"
+              },
+              {
+                "t": "+",
+                "s": "});"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

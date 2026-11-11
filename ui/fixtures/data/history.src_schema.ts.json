@@ -1,0 +1,13 @@
+[
+  {
+    "id": 5,
+    "ts": 1794381600000,
+    "run": "mcp:cursor-3e9a",
+    "label": "cursor 3e9a",
+    "turn": 1,
+    "added": 2,
+    "removed": 2,
+    "before_sha": "db126303d66af8b3f7e1ec05c2bef9be56a402a5",
+    "after_sha": "061cff3739196a8017e74de4b5c0a2c0116aa6da"
+  }
+]

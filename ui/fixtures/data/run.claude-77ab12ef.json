@@ -1,0 +1,357 @@
+{
+  "run": {
+    "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+    "label": "claude 77ab12ef",
+    "worktree": "shop-api",
+    "intent": "Add a request-id middleware and put the id in every log line",
+    "turns": 2,
+    "files": 4,
+    "added": 26,
+    "removed": 2,
+    "in_tree": "some",
+    "first_ts": 1794386080000,
+    "last_ts": 1794386580000,
+    "active": false,
+    "review": {
+      "status": "pending",
+      "note": null,
+      "at": null,
+      "by": null
+    },
+    "branch": null
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "intent": "Add a request-id middleware and put the id in every log line",
+      "ts": 1794386080000,
+      "files": [
+        "src/middleware/requestId.ts",
+        "src/types.ts",
+        "src/server.ts"
+      ]
+    },
+    {
+      "turn": 2,
+      "intent": "Also add the id from inside the logger so callers do not have to",
+      "ts": 1794386560000,
+      "files": [
+        "src/log.ts"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "src/middleware/requestId.ts",
+      "added": 17,
+      "removed": 0,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 0,
+            "oldLines": 0,
+            "newStart": 1,
+            "newLines": 17,
+            "lines": [
+              {
+                "t": "+",
+                "s": "import { AsyncLocalStorage } from 'node:async_hooks';"
+              },
+              {
+                "t": "+",
+                "s": "import { randomUUID } from 'node:crypto';"
+              },
+              {
+                "t": "+",
+                "s": "import type { Middleware } from '../types';"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "const store = new AsyncLocalStorage<string>();"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "/** The id of the request being handled, or undefined outside a request. */"
+              },
+              {
+                "t": "+",
+                "s": "export const currentRequestId = () => store.getStore();"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "export function requestId(header = 'x-request-id'): Middleware {"
+              },
+              {
+                "t": "+",
+                "s": "  return async (ctx, next) => {"
+              },
+              {
+                "t": "+",
+                "s": "    const incoming = ctx.headers.get(header);"
+              },
+              {
+                "t": "+",
+                "s": "    const id = incoming && incoming.length <= 64 ? incoming : randomUUID();"
+              },
+              {
+                "t": "+",
+                "s": "    ctx.requestId = id;"
+              },
+              {
+                "t": "+",
+                "s": "    await store.run(id, next);"
+              },
+              {
+                "t": "+",
+                "s": "  };"
+              },
+              {
+                "t": "+",
+                "s": "}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/types.ts",
+      "added": 2,
+      "removed": 0,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 2,
+            "oldLines": 6,
+            "newStart": 2,
+            "newLines": 8,
+            "lines": [
+              {
+                "t": " ",
+                "s": "  method: string;"
+              },
+              {
+                "t": " ",
+                "s": "  path: string;"
+              },
+              {
+                "t": " ",
+                "s": "  status: number;"
+              },
+              {
+                "t": "+",
+                "s": "  requestId: string;"
+              },
+              {
+                "t": "+",
+                "s": "  headers: Headers;"
+              },
+              {
+                "t": " ",
+                "s": "  params: Record<string, string>;"
+              },
+              {
+                "t": " ",
+                "s": "  query: URLSearchParams;"
+              },
+              {
+                "t": " ",
+                "s": "  body: unknown;"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/server.ts",
+      "added": 4,
+      "removed": 1,
+      "untracked": false,
+      "state": "partial",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 3,
+            "oldLines": 15,
+            "newStart": 3,
+            "newLines": 18,
+            "lines": [
+              {
+                "t": " ",
+                "s": "import { routes } from './routes';"
+              },
+              {
+                "t": " ",
+                "s": "import { logger } from './log';"
+              },
+              {
+                "t": " ",
+                "s": "import { loadConfig } from './config';"
+              },
+              {
+                "t": "+",
+                "s": "import { requestId } from './middleware/requestId';"
+              },
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": " ",
+                "s": "const config = loadConfig(process.env);"
+              },
+              {
+                "t": " ",
+                "s": "const app = createApp(config);"
+              },
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": "+",
+                "s": "app.use(requestId());"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": " ",
+                "s": "app.use(async (ctx, next) => {"
+              },
+              {
+                "t": " ",
+                "s": "  const started = performance.now();"
+              },
+              {
+                "t": " ",
+                "s": "  await next();"
+              },
+              {
+                "t": " ",
+                "s": "  const ms = Math.round(performance.now() - started);"
+              },
+              {
+                "t": "-",
+                "s": "  logger.info(`${ctx.method} ${ctx.path} ${ctx.status} ${ms}ms`);"
+              },
+              {
+                "t": "+",
+                "s": "  logger.info(`${ctx.method} ${ctx.path} ${ctx.status} ${ms}ms`, { requestId: ctx.requestId });"
+              },
+              {
+                "t": " ",
+                "s": "});"
+              },
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": " ",
+                "s": "app.use(routes);"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/log.ts",
+      "added": 3,
+      "removed": 1,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 1,
+            "oldLines": 3,
+            "newStart": 1,
+            "newLines": 5,
+            "lines": [
+              {
+                "t": "+",
+                "s": "import { currentRequestId } from './middleware/requestId';"
+              },
+              {
+                "t": "+",
+                "s": ""
+              },
+              {
+                "t": " ",
+                "s": "type Level = 'debug' | 'info' | 'warn' | 'error';"
+              },
+              {
+                "t": " ",
+                "s": "type Fields = Record<string, unknown>;"
+              },
+              {
+                "t": " ",
+                "s": ""
+              }
+            ]
+          },
+          {
+            "oldStart": 6,
+            "oldLines": 7,
+            "newStart": 8,
+            "newLines": 7,
+            "lines": [
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": " ",
+                "s": "function write(level: Level, message: string, fields: Fields = {}) {"
+              },
+              {
+                "t": " ",
+                "s": "  if (order[level] < threshold) return;"
+              },
+              {
+                "t": "-",
+                "s": "  const line = { t: new Date().toISOString(), level, message, ...fields };"
+              },
+              {
+                "t": "+",
+                "s": "  const line = { t: new Date().toISOString(), level, message, requestId: currentRequestId(), ...fields };"
+              },
+              {
+                "t": " ",
+                "s": "  process.stdout.write(JSON.stringify(line) + '\\n');"
+              },
+              {
+                "t": " ",
+                "s": "}"
+              },
+              {
+                "t": " ",
+                "s": ""
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

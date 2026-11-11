@@ -1,0 +1,55 @@
+import { Router } from './router';
+import { getProduct, listProducts } from './products';
+import { addToCart, getCart } from './checkout/cart';
+import { createInvoice, getInvoice, refundInvoice } from './billing/invoice';
+
+export const routes = new Router();
+
+routes.get('/health', async (ctx) => {
+  ctx.body = { ok: true };
+});
+
+routes.get('/products', async (ctx) => {
+  ctx.body = await listProducts({ limit: Number(ctx.query.get('limit') ?? 20) });
+});
+
+routes.get('/products/:id', async (ctx) => {
+  const product = await getProduct(ctx.params.id);
+  if (!product) {
+    ctx.status = 404;
+    ctx.body = { error: 'not_found' };
+    return;
+  }
+  ctx.body = product;
+});
+
+routes.get('/cart/:id', async (ctx) => {
+  ctx.body = await getCart(ctx.params.id);
+});
+
+routes.post('/cart/:id/items', async (ctx) => {
+  ctx.body = await addToCart(ctx.params.id, ctx.body as { sku: string; qty: number });
+  ctx.status = 201;
+});
+
+routes.post('/billing/invoices', async (ctx) => {
+  const { cartId } = ctx.body as { cartId: string };
+  const invoice = await createInvoice(cartId);
+  ctx.status = 201;
+  ctx.body = invoice;
+});
+
+routes.get('/billing/invoices/:id', async (ctx) => {
+  const invoice = await getInvoice(ctx.params.id);
+  if (!invoice) {
+    ctx.status = 404;
+    ctx.body = { error: 'not_found' };
+    return;
+  }
+  ctx.body = invoice;
+});
+
+routes.post('/billing/invoices/:id/refund', async (ctx) => {
+  const { amount } = ctx.body as { amount?: number };
+  ctx.body = await refundInvoice(ctx.params.id, amount);
+});

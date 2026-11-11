@@ -1,0 +1,19 @@
+export interface Context {
+  method: string;
+  path: string;
+  status: number;
+  requestId: string;
+  headers: Headers;
+  params: Record<string, string>;
+  query: URLSearchParams;
+  body: unknown;
+  state: Record<string, unknown>;
+}
+
+export type Next = () => Promise<void>;
+export type Middleware = (ctx: Context, next: Next) => Promise<void>;
+
+export interface Money {
+  amount: number; // minor units
+  currency: 'USD' | 'EUR' | 'TWD';
+}

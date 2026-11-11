@@ -1,0 +1,241 @@
+{
+  "path": "test/billing.test.ts",
+  "base": "HEAD",
+  "changes": 2,
+  "exists": true,
+  "untracked": false,
+  "lines": [
+    {
+      "line": 1,
+      "text": "import { describe, it, expect, beforeEach } from 'vitest';",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 2,
+      "text": "import { addToCart, resetCarts } from '../src/checkout/cart';",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 3,
+      "text": "import { createInvoice, getInvoice, refundInvoice } from '../src/billing/invoice';",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 4,
+      "text": "",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 5,
+      "text": "describe('billing', () => {",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 6,
+      "text": "  beforeEach(() => resetCarts());",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 7,
+      "text": "",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 8,
+      "text": "  it('creates an open invoice for the cart total', async () => {",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 9,
+      "text": "    await addToCart('c1', { sku: 'tee-black-m', qty: 2 });",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 10,
+      "text": "    const invoice = await createInvoice('c1');",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 11,
+      "text": "    expect(invoice.status).toBe('open');",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 12,
+      "text": "    expect(invoice.total).toEqual({ amount: 5800, currency: 'USD' });",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 13,
+      "text": "  });",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 14,
+      "text": "",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 15,
+      "text": "  it('refuses to invoice an empty cart', async () => {",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 16,
+      "text": "    await expect(createInvoice('empty')).rejects.toThrow('empty cart');",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 17,
+      "text": "  });",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 18,
+      "text": "",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 19,
+      "text": "  it('finds an invoice by id', async () => {",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 20,
+      "text": "    await addToCart('c2', { sku: 'mug-white', qty: 1 });",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 21,
+      "text": "    const { id } = await createInvoice('c2');",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 22,
+      "text": "    expect(await getInvoice(id)).toMatchObject({ id, cartId: 'c2' });",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 23,
+      "text": "  });",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    },
+    {
+      "line": 24,
+      "text": "",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 25,
+      "text": "  it('refunds part of a paid invoice', async () => {",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 26,
+      "text": "    await addToCart('c3', { sku: 'tee-black-m', qty: 1 });",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 27,
+      "text": "    const invoice = await createInvoice('c3');",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 28,
+      "text": "    invoice.status = 'paid';",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 29,
+      "text": "    const refunded = await refundInvoice(invoice.id, 1000);",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 30,
+      "text": "    expect(refunded.refunded).toEqual({ amount: 1000, currency: 'USD' });",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 31,
+      "text": "    expect(refunded.status).toBe('paid');",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 32,
+      "text": "  });",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 3
+    },
+    {
+      "line": 33,
+      "text": "});",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911",
+      "label": "claude 1a2b3c4d",
+      "turn": 2
+    }
+  ],
+  "removed": 0
+}

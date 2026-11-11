@@ -1,0 +1,18 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { addToCart, getCart, resetCarts } from '../src/checkout/cart';
+
+describe('cart', () => {
+  beforeEach(() => resetCarts());
+
+  it('adds an item and totals it', async () => {
+    const cart = await addToCart('a', { sku: 'tee-black-m', qty: 2 });
+    expect(cart.total.amount).toBe(5800);
+  });
+
+  it('returns a copy, not the stored cart', async () => {
+    await addToCart('b', { sku: 'mug-white', qty: 1 });
+    const cart = await getCart('b');
+    cart.items.length = 0;
+    expect((await getCart('b')).items).toHaveLength(1);
+  });
+});

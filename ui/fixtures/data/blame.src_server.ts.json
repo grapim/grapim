@@ -1,0 +1,59 @@
+{
+  "path": "src/server.ts",
+  "base": "HEAD",
+  "changes": 2,
+  "exists": true,
+  "untracked": false,
+  "lines": [
+    {
+      "line": 4,
+      "text": "import { log } from './log';",
+      "run": "mcp:codex-4121",
+      "label": "codex 4121",
+      "turn": 1
+    },
+    {
+      "line": 6,
+      "text": "import { requestId } from './middleware/requestId';",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 11,
+      "text": "app.use(requestId());",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 12,
+      "text": "",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 17,
+      "text": "  log.info(`${ctx.method} ${ctx.path} ${ctx.status} ${ms}ms`, { requestId: ctx.requestId });",
+      "run": "mcp:codex-4121",
+      "label": "codex 4121",
+      "turn": 1
+    },
+    {
+      "line": 22,
+      "text": "const port = Number(process.env.PORT ?? 8080);",
+      "run": null,
+      "label": "outside agents",
+      "turn": null
+    },
+    {
+      "line": 25,
+      "text": "  log.info(`shop-api listening on :${port}`);",
+      "run": "mcp:codex-4121",
+      "label": "codex 4121",
+      "turn": 1
+    }
+  ],
+  "removed": 4
+}

@@ -1,0 +1,32 @@
+import { Router } from './router';
+import { getProduct, listProducts } from './products';
+import { addToCart, getCart } from './checkout/cart';
+
+export const routes = new Router();
+
+routes.get('/health', async (ctx) => {
+  ctx.body = { ok: true };
+});
+
+routes.get('/products', async (ctx) => {
+  ctx.body = await listProducts({ limit: Number(ctx.query.get('limit') ?? 20) });
+});
+
+routes.get('/products/:id', async (ctx) => {
+  const product = await getProduct(ctx.params.id);
+  if (!product) {
+    ctx.status = 404;
+    ctx.body = { error: 'not_found' };
+    return;
+  }
+  ctx.body = product;
+});
+
+routes.get('/cart/:id', async (ctx) => {
+  ctx.body = await getCart(ctx.params.id);
+});
+
+routes.post('/cart/:id/items', async (ctx) => {
+  ctx.body = await addToCart(ctx.params.id, ctx.body as { sku: string; qty: number });
+  ctx.status = 201;
+});

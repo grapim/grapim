@@ -1,0 +1,35 @@
+[
+  {
+    "id": 1,
+    "ts": 1794378000000,
+    "run": "claude-code:0c4d5e6f-1a2b-4c3d-9e8f-7a6b5c4d3e2f",
+    "label": "claude 0c4d5e6f",
+    "turn": 1,
+    "added": 15,
+    "removed": 0,
+    "before_sha": null,
+    "after_sha": "526870f3d3e08f4a5ded1771e33b4f4e931100ca"
+  },
+  {
+    "id": 3,
+    "ts": 1794378840000,
+    "run": "claude-code:0c4d5e6f-1a2b-4c3d-9e8f-7a6b5c4d3e2f",
+    "label": "claude 0c4d5e6f",
+    "turn": 2,
+    "added": 3,
+    "removed": 1,
+    "before_sha": "526870f3d3e08f4a5ded1771e33b4f4e931100ca",
+    "after_sha": "093809d7a6e293ddeffb62f08fe0c2251228ca56"
+  },
+  {
+    "id": 6,
+    "ts": 1794382320000,
+    "run": "undo:1794382320000",
+    "label": "undo claude 0c4d5e6f",
+    "turn": 0,
+    "added": 0,
+    "removed": 17,
+    "before_sha": "093809d7a6e293ddeffb62f08fe0c2251228ca56",
+    "after_sha": null
+  }
+]

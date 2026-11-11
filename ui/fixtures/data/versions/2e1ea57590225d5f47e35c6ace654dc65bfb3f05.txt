@@ -1,0 +1,23 @@
+import { createServer } from 'node:http';
+import { createApp } from './app';
+import { routes } from './routes';
+import { logger } from './log';
+import { loadConfig } from './config';
+
+const config = loadConfig(process.env);
+const app = createApp(config);
+
+app.use(async (ctx, next) => {
+  const started = performance.now();
+  await next();
+  const ms = Math.round(performance.now() - started);
+  logger.info(`${ctx.method} ${ctx.path} ${ctx.status} ${ms}ms`);
+});
+
+app.use(routes);
+
+const port = Number(process.env.PORT ?? 3000);
+
+createServer(app.callback()).listen(port, () => {
+  logger.info(`shop-api listening on :${port}`);
+});

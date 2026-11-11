@@ -1,0 +1,43 @@
+import { randomUUID } from 'node:crypto';
+import { getCart } from '../checkout/cart';
+import type { Money } from '../types';
+
+export interface Invoice {
+  id: string;
+  cartId: string;
+  total: Money;
+  status: 'open' | 'paid' | 'refunded' | 'void';
+  refunded?: Money;
+  createdAt: string;
+}
+
+const invoices = new Map<string, Invoice>();
+
+export async function createInvoice(cartId: string): Promise<Invoice> {
+  const cart = await getCart(cartId);
+  if (cart.items.length === 0) throw new Error('Cannot invoice an empty cart');
+  const invoice: Invoice = {
+    id: `inv_${randomUUID().slice(0, 12)}`,
+    cartId,
+    total: cart.total,
+    status: 'open',
+    createdAt: new Date().toISOString(),
+  };
+  invoices.set(invoice.id, invoice);
+  return invoice;
+}
+
+export async function getInvoice(id: string): Promise<Invoice | undefined> {
+  return invoices.get(id);
+}
+
+export async function refundInvoice(id: string, amount?: number): Promise<Invoice> {
+  const invoice = invoices.get(id);
+  if (!invoice) throw new Error(`No invoice ${id}`);
+  if (invoice.status !== 'paid') throw new Error(`Invoice ${id} is ${invoice.status}, not paid`);
+  const refund = amount ?? invoice.total.amount;
+  if (refund <= 0 || refund > invoice.total.amount) throw new Error('Refund must be between 0 and the invoice total');
+  invoice.refunded = { amount: refund, currency: invoice.total.currency };
+  invoice.status = refund === invoice.total.amount ? 'refunded' : 'paid';
+  return invoice;
+}

@@ -1,0 +1,24 @@
+{
+  "path": "src/schema.ts",
+  "base": "HEAD",
+  "changes": 1,
+  "exists": true,
+  "untracked": false,
+  "lines": [
+    {
+      "line": 9,
+      "text": "  cartId: z.uuid(),",
+      "run": "mcp:cursor-3e9a",
+      "label": "cursor 3e9a",
+      "turn": 1
+    },
+    {
+      "line": 15,
+      "text": "    const first = result.error.issues[0];",
+      "run": "mcp:cursor-3e9a",
+      "label": "cursor 3e9a",
+      "turn": 1
+    }
+  ],
+  "removed": 2
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "name": "requestId.ts",
+    "path": "src/middleware/requestId.ts",
+    "type": "file",
+    "size": 603,
+    "last_change": {
+      "ts": 1794386100000,
+      "label": "claude 77ab12ef",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812"
+    },
+    "held_by": null
+  }
+]

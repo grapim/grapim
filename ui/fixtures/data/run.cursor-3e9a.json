@@ -1,0 +1,166 @@
+{
+  "run": {
+    "run": "mcp:cursor-3e9a",
+    "label": "cursor 3e9a",
+    "worktree": "shop-api",
+    "intent": "Bump zod to v4 and fix the schema errors",
+    "turns": 1,
+    "files": 2,
+    "added": 3,
+    "removed": 3,
+    "in_tree": "all",
+    "first_ts": 1794381460000,
+    "last_ts": 1794381600000,
+    "active": false,
+    "review": {
+      "status": "approved",
+      "note": "Checked the zod 4 migration guide; issues[] is the new name.",
+      "at": 1794383340000,
+      "by": "human:alex"
+    },
+    "branch": "grapim/cursor-3e9a"
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "intent": "Bump zod to v4 and fix the schema errors",
+      "ts": 1794381460000,
+      "files": [
+        "package.json",
+        "src/schema.ts"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "package.json",
+      "added": 1,
+      "removed": 1,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 9,
+            "oldLines": 7,
+            "newStart": 9,
+            "newLines": 7,
+            "lines": [
+              {
+                "t": " ",
+                "s": "  },"
+              },
+              {
+                "t": " ",
+                "s": "  \"dependencies\": {"
+              },
+              {
+                "t": " ",
+                "s": "    \"redis\": \"^4.7.0\","
+              },
+              {
+                "t": "-",
+                "s": "    \"zod\": \"^3.23.8\""
+              },
+              {
+                "t": "+",
+                "s": "    \"zod\": \"^4.1.5\""
+              },
+              {
+                "t": " ",
+                "s": "  },"
+              },
+              {
+                "t": " ",
+                "s": "  \"devDependencies\": {"
+              },
+              {
+                "t": " ",
+                "s": "    \"tsx\": \"^4.19.2\","
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "src/schema.ts",
+      "added": 2,
+      "removed": 2,
+      "untracked": false,
+      "state": "in_tree",
+      "diff": {
+        "hunks": [
+          {
+            "oldStart": 6,
+            "oldLines": 13,
+            "newStart": 6,
+            "newLines": 13,
+            "lines": [
+              {
+                "t": " ",
+                "s": "});"
+              },
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": " ",
+                "s": "export const CreateInvoice = z.object({"
+              },
+              {
+                "t": "-",
+                "s": "  cartId: z.string().uuid(),"
+              },
+              {
+                "t": "+",
+                "s": "  cartId: z.uuid(),"
+              },
+              {
+                "t": " ",
+                "s": "});"
+              },
+              {
+                "t": " ",
+                "s": ""
+              },
+              {
+                "t": " ",
+                "s": "export function parse<T extends z.ZodTypeAny>(schema: T, input: unknown): z.infer<T> {"
+              },
+              {
+                "t": " ",
+                "s": "  const result = schema.safeParse(input);"
+              },
+              {
+                "t": " ",
+                "s": "  if (!result.success) {"
+              },
+              {
+                "t": "-",
+                "s": "    const first = result.error.errors[0];"
+              },
+              {
+                "t": "+",
+                "s": "    const first = result.error.issues[0];"
+              },
+              {
+                "t": " ",
+                "s": "    throw Object.assign(new Error(`${first.path.join('.')}: ${first.message}`), { status: 400 });"
+              },
+              {
+                "t": " ",
+                "s": "  }"
+              },
+              {
+                "t": " ",
+                "s": "  return result.data;"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

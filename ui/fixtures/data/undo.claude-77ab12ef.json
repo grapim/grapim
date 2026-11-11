@@ -1,0 +1,32 @@
+{
+  "applied": false,
+  "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+  "label": "claude 77ab12ef",
+  "turn": null,
+  "files": [
+    {
+      "path": "src/middleware/requestId.ts",
+      "root": "C:/Users/alex/code/shop-api",
+      "action": "delete",
+      "reason": null
+    },
+    {
+      "path": "src/types.ts",
+      "root": "C:/Users/alex/code/shop-api",
+      "action": "revert",
+      "reason": null
+    },
+    {
+      "path": "src/server.ts",
+      "root": "C:/Users/alex/code/shop-api",
+      "action": "conflict",
+      "reason": "later edits overlap this run's lines (1 conflicting hunk)"
+    },
+    {
+      "path": "src/log.ts",
+      "root": "C:/Users/alex/code/shop-api",
+      "action": "revert",
+      "reason": "held by codex 4121 right now, so --yes will skip it"
+    }
+  ]
+}

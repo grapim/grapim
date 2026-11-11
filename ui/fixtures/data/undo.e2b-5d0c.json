@@ -1,0 +1,20 @@
+{
+  "applied": false,
+  "run": "http:e2b-5d0c",
+  "label": "e2b-5d0c",
+  "turn": null,
+  "files": [
+    {
+      "path": "src/checkout/cart.ts",
+      "root": "C:/Users/alex/code/shop-api",
+      "action": "revert",
+      "reason": null
+    },
+    {
+      "path": "test/cart.test.ts",
+      "root": "C:/Users/alex/code/shop-api",
+      "action": "revert",
+      "reason": null
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "path": "src/types.ts",
+  "base": "HEAD",
+  "changes": 1,
+  "exists": true,
+  "untracked": false,
+  "lines": [
+    {
+      "line": 5,
+      "text": "  requestId: string;",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    },
+    {
+      "line": 6,
+      "text": "  headers: Headers;",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812",
+      "label": "claude 77ab12ef",
+      "turn": 1
+    }
+  ],
+  "removed": 0
+}

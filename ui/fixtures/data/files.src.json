@@ -1,0 +1,142 @@
+[
+  {
+    "name": "billing",
+    "path": "src/billing",
+    "type": "dir",
+    "size": 0,
+    "last_change": {
+      "ts": 1794389160000,
+      "label": "claude 1a2b3c4d",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911"
+    },
+    "held_by": null
+  },
+  {
+    "name": "checkout",
+    "path": "src/checkout",
+    "type": "dir",
+    "size": 0,
+    "last_change": {
+      "ts": 1794388080000,
+      "label": "e2b-5d0c",
+      "run": "http:e2b-5d0c"
+    },
+    "held_by": null
+  },
+  {
+    "name": "middleware",
+    "path": "src/middleware",
+    "type": "dir",
+    "size": 0,
+    "last_change": {
+      "ts": 1794386100000,
+      "label": "claude 77ab12ef",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812"
+    },
+    "held_by": null
+  },
+  {
+    "name": "app.ts",
+    "path": "src/app.ts",
+    "type": "file",
+    "size": 569,
+    "last_change": null,
+    "held_by": null
+  },
+  {
+    "name": "config.ts",
+    "path": "src/config.ts",
+    "type": "file",
+    "size": 390,
+    "last_change": null,
+    "held_by": null
+  },
+  {
+    "name": "db.ts",
+    "path": "src/db.ts",
+    "type": "file",
+    "size": 382,
+    "last_change": null,
+    "held_by": null
+  },
+  {
+    "name": "log.ts",
+    "path": "src/log.ts",
+    "type": "file",
+    "size": 935,
+    "last_change": {
+      "ts": 1794389100000,
+      "label": "codex 4121",
+      "run": "mcp:codex-4121"
+    },
+    "held_by": "codex 4121"
+  },
+  {
+    "name": "products.ts",
+    "path": "src/products.ts",
+    "type": "file",
+    "size": 786,
+    "last_change": {
+      "ts": 1794382320000,
+      "label": "undo claude 0c4d5e6f",
+      "run": "undo:1794382320000"
+    },
+    "held_by": null
+  },
+  {
+    "name": "router.ts",
+    "path": "src/router.ts",
+    "type": "file",
+    "size": 990,
+    "last_change": null,
+    "held_by": null
+  },
+  {
+    "name": "routes.ts",
+    "path": "src/routes.ts",
+    "type": "file",
+    "size": 1525,
+    "last_change": {
+      "ts": 1794389220000,
+      "label": "claude 1a2b3c4d",
+      "run": "claude-code:1a2b3c4d-6e0f-4b7a-9d21-58c3e0a4f911"
+    },
+    "held_by": "claude 1a2b3c4d"
+  },
+  {
+    "name": "schema.ts",
+    "path": "src/schema.ts",
+    "type": "file",
+    "size": 522,
+    "last_change": {
+      "ts": 1794381600000,
+      "label": "cursor 3e9a",
+      "run": "mcp:cursor-3e9a"
+    },
+    "held_by": null
+  },
+  {
+    "name": "server.ts",
+    "path": "src/server.ts",
+    "type": "file",
+    "size": 730,
+    "last_change": {
+      "ts": 1794388620000,
+      "label": "codex 4121",
+      "run": "mcp:codex-4121"
+    },
+    "held_by": "codex 4121"
+  },
+  {
+    "name": "types.ts",
+    "path": "src/types.ts",
+    "type": "file",
+    "size": 440,
+    "last_change": {
+      "ts": 1794386160000,
+      "label": "claude 77ab12ef",
+      "run": "claude-code:77ab12ef-90cd-4e1f-a2b3-c4d5e6f70812"
+    },
+    "held_by": null
+  }
+]

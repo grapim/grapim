@@ -1,0 +1,20 @@
+{
+  "applied": false,
+  "run": "claude-code:9f8e7d6c-2b1a-4e3d-8c7b-0a9f8e7d6c5b",
+  "label": "claude 9f8e7d6c",
+  "turn": null,
+  "files": [
+    {
+      "path": "web/Header.tsx",
+      "root": "C:/Users/alex/code/shop-api-header",
+      "action": "revert",
+      "reason": null
+    },
+    {
+      "path": "web/header.css",
+      "root": "C:/Users/alex/code/shop-api-header",
+      "action": "revert",
+      "reason": null
+    }
+  ]
+}
