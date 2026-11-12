@@ -48,13 +48,13 @@ test('render: attribution through blame and notes, headline, tables, unreviewed 
   assert.equal(stats.added, 10);
   assert.equal(stats.ai, 5, '4 lines of claude (orig 11-14) and 1 of codex');
   assert.deepEqual(stats.runs.map((r) => [r.label, r.lines, r.review]), [['claude 1a2b3c4d', 4, 'pending'], ['codex 4121', 1, 'approved']]);
-  assert.match(markdown, /\*\*50% of the added lines were written by AI agents\*\* \(5 of 10\): claude 1a2b3c4d 4, codex 4121 1/);
+  assert.match(markdown, /\*\*1 agent run of 2 not reviewed yet\.\*\* 50% of the added lines came from agent runs \(5 of 10\): claude 1a2b3c4d 4, codex 4121 1/);
   assert.match(markdown, /#### Not reviewed in Grapim\n\n- claude 1a2b3c4d: 4 lines in 1 file/);
   assert.match(markdown, /<details><summary>Per-file breakdown \(1 file\)<\/summary>/);
   // The hub's review status beats the note's snapshot.
   const r2 = renderSummary({ ...fixture(), reviews: { 'claude-code:1a2b3c4d': 'approved' } });
   assert.equal(r2.stats.unapproved.length, 0);
-  assert.match(r2.markdown, /Every AI-written line here comes from a run approved in Grapim/);
+  assert.match(r2.markdown, /Every agent run here was reviewed and approved in Grapim/);
   // No notes at all: human or unknown.
   assert.equal(renderSummary({ ...fixture(), notesByCommit: {} }).stats.ai, 0);
   assert.match(renderEmpty({ via: 'app' }), /grapim sync/);
@@ -583,7 +583,7 @@ test('PR flow end to end: files, GraphQL blame, provenanceFor, comment upsert, c
   assert.equal(s.comments.length, 1);
   const body = s.comments[0].body;
   assert.ok(body.startsWith(MARKER));
-  assert.match(body, /\*\*57% of the added lines were written by AI agents\*\* \(4 of 7\): claude aaaa1111 3, codex bbbb 1/);
+  assert.match(body, /57% of the added lines came from agent runs \(4 of 7\): claude aaaa1111 3, codex bbbb 1/);
   assert.doesNotMatch(body, /@octocat/, 'the intent cannot ping');
   assert.match(body, /Not reviewed in Grapim/);
   assert.equal(s.checks.length, 1);
@@ -613,7 +613,7 @@ test('PR flow end to end: files, GraphQL blame, provenanceFor, comment upsert, c
   assert.equal(s.checks[0].conclusion, 'failure');
   assert.match(s.checks[0].output.summary, /Approved locally by .* \(informational, does not count\)/);
   assert.match(s.comments[0].body, /Approved locally by a machine&#44; not in the hub/);
-  assert.doesNotMatch(s.comments[0].body, /Every AI-written line here comes from a run approved in Grapim/);
+  assert.doesNotMatch(s.comments[0].body, /Every agent run here was reviewed and approved in Grapim/);
   // Losing the plan makes the policy inert.
   gov = false;
   reviews.clear();
@@ -787,8 +787,8 @@ test('require_review: a self-approval is refused, a synced local approval does n
   assert.equal((await bob.post(`${runPath(RUN2)}/decision`, { status: 'approved' })).status, 303);
   await h.hub.github.queue.idle();
   assert.equal(check().conclusion, 'success', check().output.summary);
-  assert.equal(check().output.title, 'Every AI-written line is approved in the Grapim hub');
-  assert.match(s.comments[0].body, /Every AI-written line here comes from a run approved in Grapim/);
+  assert.equal(check().output.title, 'Every agent run is approved in the Grapim hub');
+  assert.match(s.comments[0].body, /Every agent run here was reviewed and approved in Grapim/);
   assert.match((await bob.req(`${runPath(RUN1)}?machine=alice-laptop`)).text, /Approved by <span class="strong">gov-bob<\/span>/);
 
   // 5. The run changes after the approval: the approval no longer covers it.

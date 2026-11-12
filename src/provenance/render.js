@@ -236,7 +236,11 @@ function headline(a) {
   const top = a.runs.slice(0, 5).map((r) => `${md(r.label, 60)} ${num(r.lines)}`);
   const rest = a.runs.slice(5);
   if (rest.length) top.push(`${plural(rest.length, 'more run')} ${num(rest.reduce((n, r) => n + r.lines, 0))}`);
-  return `**${share(a.ai, a.added)} of the added lines were written by AI agents** (${num(a.ai)} of ${num(a.added)}): ${top.join(', ')}`;
+  const open = a.runs.filter((r) => r.review !== 'approved').length;
+  const lead = open
+    ? `**${plural(open, 'agent run')} of ${a.runs.length} not reviewed yet.**`
+    : `**${a.runs.length === 1 ? 'The agent run' : `All ${a.runs.length} agent runs`} here ${a.runs.length === 1 ? 'is' : 'are'} reviewed.**`;
+  return `${lead} ${share(a.ai, a.added)} of the added lines came from agent runs (${num(a.ai)} of ${num(a.added)}): ${top.join(', ')}`;
 }
 
 const runRow = (r) => {
@@ -293,7 +297,7 @@ export function renderSummary({ files = [], notesByCommit = {}, blameByFile = {}
       if (cut.unreviewed) list.push(`- <sub>${plural(cut.unreviewed, 'more run')} not shown</sub>`);
       parts.push(list.join('\n'));
     } else {
-      parts.push('Every AI-written line here comes from a run approved in Grapim.');
+      parts.push('Every agent run here was reviewed and approved in Grapim.');
     }
   }
 

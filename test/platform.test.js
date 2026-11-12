@@ -474,7 +474,7 @@ test('Idempotency-Key: the same body replays the stored reply, a different body 
   const tk2 = await api(h, p.live, 'POST', `/v1/workspaces/${first.json.id}/tokens`, { scope: 'read' }, { 'Idempotency-Key': 'tok-1' });
   assert.equal(tk2.json.token, tk.json.token);
   assert.equal(h.hub.db.prepare('SELECT COUNT(*) AS n FROM workspace_tokens WHERE workspace_id = ?').get(first.json.id).n, 1);
-  assert.equal(h.hub.db.prepare("SELECT COUNT(*) AS n FROM platform_idempotency WHERE body LIKE '%gws_%'").get().n, 0);
+  assert.equal(h.hub.db.prepare("SELECT COUNT(*) AS n FROM platform_idempotency WHERE instr(body, 'gws_') > 0").get().n, 0);
 
   // A refusal is stored too.
   const bad = await api(h, p.live, 'POST', '/v1/workspaces', { name: 'Bad Name!' }, { 'Idempotency-Key': 'bad-1' });

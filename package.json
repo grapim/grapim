@@ -1,7 +1,31 @@
 {
   "name": "grapim",
   "version": "0.1.0",
-  "description": "See what every AI agent changed. Undo any agent run in one command. Stops agents from overwriting each other.",
+  "description": "Every AI change to your code has someone accountable for it. Records each Claude Code, Codex, Cursor and Gemini CLI edit as a run your team reviews, blames and undoes.",
+  "keywords": [
+    "ai",
+    "agents",
+    "claude-code",
+    "codex",
+    "cursor",
+    "gemini-cli",
+    "mcp",
+    "ai-code-review",
+    "provenance",
+    "blame",
+    "undo",
+    "code-review"
+  ],
+  "homepage": "https://grapim.com",
+  "bugs": {
+    "url": "https://app.grapim.com/support"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/twfly104/grapim.git"
+  },
+  "license": "Apache-2.0",
+  "author": "Grapim",
   "type": "module",
   "bin": {
     "grapim": "bin/grapim.js"
@@ -9,44 +33,28 @@
   "files": [
     "bin",
     "src",
+    "!src/hub",
     "ui",
     "!ui/screenshots",
+    "!ui/fixtures",
+    "!ui/dev-server.mjs",
+    "!ui/embed-demo.html",
     ".claude-plugin",
     "hooks",
     "skills",
-    "README.md",
+    "docs/cli.md",
     "docs/api.md",
     "docs/workspaces.md"
   ],
   "engines": {
     "node": ">=22.13"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "node --test \"test/*.test.js\" \"sdk/js/test/*.test.js\"",
     "test:sdk": "node --test \"sdk/js/test/*.test.js\""
   },
-  "license": "Apache-2.0",
-  "keywords": [
-    "ai",
-    "agents",
-    "claude-code",
-    "codex",
-    "cursor",
-    "mcp",
-    "multi-agent",
-    "worktree",
-    "blame",
-    "undo",
-    "code-review"
-  ],
-  "homepage": "https://grapim.com",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/twfly104/grapim.git"
-  },
-  "bugs": {
-    "url": "https://github.com/twfly104/grapim/issues"
-  },
-  "author": "Grapim",
   "mcpName": "io.github.twfly104/grapim"
 }

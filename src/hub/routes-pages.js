@@ -156,6 +156,11 @@ export function pageRoutes(router, hub) {
         if (config.teamCreators && !config.teamCreators.includes(String(u.id)) && !config.teamCreators.includes(u.login.toLowerCase())) {
           throw new HttpError(403, 'forbidden', 'This hub is in a private beta: creating teams is limited to invited accounts. Ask a team owner for an invite link.');
         }
+        // One person owns a handful of free teams at most (each comes with Ask Grapim credit).
+        const ownedFree = hub.db.prepare("SELECT COUNT(*) AS n FROM members m JOIN teams t ON t.id = m.team_id WHERE m.user_id = ? AND m.role = 'owner' AND t.plan = 'free'").get(u.id).n;
+        if (ownedFree >= config.maxFreeTeams) {
+          throw new HttpError(429, 'too_many_teams', `You already own ${ownedFree} free teams, the most one account can have. Use one of them, or ask us about a pilot plan at /hub/support.`);
+        }
         const team = teams.create(u, ctx.form.name);
         redirect(ctx.res, `/hub/teams/${team.id}?done=team_created`);
       } catch (err) {

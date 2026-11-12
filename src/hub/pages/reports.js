@@ -9,9 +9,9 @@ import { html } from './html.js';
 import { head } from './team.js';
 
 const NAMES = [
+  ['unreviewed', 'Merged without review'],
   ['ai-share', 'AI share'],
   ['agents', 'Agents'],
-  ['unreviewed', 'Unreviewed'],
   ['activity', 'Activity'],
 ];
 const KIND_LABEL = { 'claude-code': 'Claude Code', codex: 'Codex', cursor: 'Cursor', mcp: 'MCP agent', http: 'HTTP agent', other: 'Other agent' };
@@ -374,11 +374,11 @@ function teaserBody({ team, role, csrf, teaser, billing, seatsUsed }) {
   <div class="card-head"><h2 id="up-title" class="card-title">Governance</h2><span class="price"><b>$40</b> per seat a month, or $384 a year</span></div>
   <p class="card-sub">The record a manager needs before rolling AI agents out wider.</p>
   <ul class="checks">
-    <li><b>AI share</b> of added lines by week, repo and agent, back 365 days</li>
-    <li><b>Agents</b>: runs, undo rate, reject rate and median review time per agent</li>
-    <li><b>Unreviewed</b>: AI lines in commits from runs nobody approved</li>
-    <li><b>Activity</b>: runs, files, blocks and conflicts per day, and CSV export of every report</li>
     <li><b>Require review</b>: the Grapim GitHub check fails a pull request until a teammate, not the run's author, approves each agent run in the hub, and until every commit is recorded</li>
+    <li><b>Unreviewed</b>: AI lines in commits from runs nobody approved</li>
+    <li><b>Agents</b>: runs, undo rate, reject rate and median review time per agent</li>
+    <li><b>AI share</b> of added lines by week, repo and agent, back 365 days</li>
+    <li><b>Activity</b>: runs, files, blocks and conflicts per day, and CSV export of every report</li>
   </ul>
   ${billing.enabled && owner && billing.intervals.length
     ? html`<form method="post" action="/hub/billing/checkout" class="inline-form">
@@ -391,7 +391,9 @@ function teaserBody({ team, role, csrf, teaser, billing, seatsUsed }) {
     <select id="g-interval" name="interval">${billing.intervals.map((i) => html`<option value="${i}">${i === 'month' ? 'Monthly' : 'Yearly'}</option>`)}</select>
     <button class="btn btn-primary" type="submit">Upgrade to Governance</button>
   </form>`
-    : html`<p class="fine">${owner ? html`Upgrade from <a href="/hub/teams/${team.id}/settings#billing">Settings → Billing</a>.` : 'Ask a team owner to upgrade.'} You are on the ${team.plan} plan.</p>`}
+    : !billing.enabled
+      ? html`<p class="fine">You are on the ${team.plan} plan. During early access there is no checkout: Governance is available as a pilot. <a class="link" href="/hub/support?topic=pilot&amp;from=${encodeURIComponent(`/hub/teams/${team.id}/reports`)}">Talk to us</a>.</p>`
+      : html`<p class="fine">${owner ? html`Upgrade from <a href="/hub/teams/${team.id}/settings#billing">Settings → Billing</a>.` : 'Ask a team owner to upgrade.'} You are on the ${team.plan} plan.</p>`}
 </section>`;
 }
 

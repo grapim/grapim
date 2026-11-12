@@ -1,12 +1,15 @@
 {
   "name": "grapim",
-  "owner": { "name": "Grapim", "url": "https://grapim.com" },
-  "description": "Grapim for Claude Code: see what every agent changed, undo any agent's run.",
+  "owner": {
+    "name": "Grapim",
+    "url": "https://grapim.com"
+  },
+  "description": "Grapim for Claude Code: every AI change to your code has someone accountable for it.",
   "plugins": [
     {
       "name": "grapim",
       "source": "./",
-      "description": "Per-line blame and per-run undo for parallel coding agents, with a write guard across worktrees."
+      "description": "Records each Claude Code edit as a run you can blame, review and undo; stops agents from overwriting each other across worktrees."
     }
   ]
 }

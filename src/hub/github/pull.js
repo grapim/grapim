@@ -176,7 +176,7 @@ export function decide({ requireProvenance, runs, hubReviews, localReviews, plac
   if (unapproved.length) titles.push(`${plural(unapproved.length, 'agent run')} not approved in the Grapim hub`);
   if (missing.length) titles.push(`${plural(missing.length, 'commit')} not recorded`);
   if (incomplete.length) titles.push('not every added line could be checked');
-  const title = failing ? titles.join('; ') : 'Every AI-written line is approved in the Grapim hub';
+  const title = failing ? titles.join('; ') : 'Every agent run is approved in the Grapim hub';
 
   const out = [
     `**Policy: require review.** Every line an AI agent wrote must come from a run approved in the Grapim hub by a member other than the person who synced it.${requireProvenance ? ' Require provenance is on: every commit that adds lines needs a Grapim note (an empty note from a human-only commit counts).' : ''} Approvals made with \`grapim review\` on a machine are shown but do not count.`,
@@ -195,7 +195,7 @@ export function decide({ requireProvenance, runs, hubReviews, localReviews, plac
   }
   if (incomplete.length) out.push('#### Could not be checked', incomplete.map((s) => `- ${s}`).join('\n'));
   if (peopleLines) out.push(`${plural(peopleLines, 'line')} from undo, restore or folder-sync runs count as people's work and need no approval.`);
-  if (!failing) out.push(`Passed: every AI-written line comes from a run approved in the hub${requireProvenance ? ', and every commit that adds lines has a provenance note' : ''}.`);
+  if (!failing) out.push(`Passed: every agent run in this pull request was approved in the hub${requireProvenance ? ', and every commit that adds lines has a provenance note' : ''}.`);
   return { conclusion: failing ? 'failure' : 'success', title, summary: out.join('\n\n'), unapproved, unrecorded: missing };
 }
 
@@ -421,8 +421,8 @@ export async function processPullRequest(ctx, job) {
   const title = decision
     ? decision.title
     : stats.ai
-      ? `${pct || '<1'}% of added lines written by AI agents`
-      : 'No AI-written lines found';
+      ? (stats.unapproved.length ? `${plural(stats.unapproved.length, 'agent run')} of ${stats.runs.length} not reviewed (${pct || '<1'}% of added lines from agents)` : `All ${plural(stats.runs.length, 'agent run')} reviewed (${pct || '<1'}% of added lines from agents)`)
+      : 'No agent runs found';
   const body = markdown.replace(`${MARKER}\n`, '');
   const check = await upsertCheck(gh, repoPath, head, {
     conclusion: decision ? decision.conclusion : 'neutral',

@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      # The tests make real git repos and commits.
+      - name: Git identity for test commits
+        run: |
+          git config --global user.name "Grapim CI"
+          git config --global user.email "ci@grapim.invalid"
+          git config --global init.defaultBranch main
+
+      - uses: actions/checkout@v5
+
+      # 22.x: the floor in package.json engines (>=22.13).
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.x
+
+      - name: Versions
+        run: |
+          node --version
+          npm --version
+          git --version
+
+      # Nothing to install: grapim has no dependencies. test/package.test.js
+      # also checks what `npm pack` would publish.
+      - name: Test
+        run: npm test

@@ -136,7 +136,7 @@ function envFor(r, api, { fork = false, extra = {} } = {}) {
 test('action/dist is the bundled copy of src/provenance', () => {
   assert.deepEqual(bundleCheck(), [], 'run: node action/bundle.mjs');
   const yml = fs.readFileSync(new URL('../action/action.yml', import.meta.url), 'utf8');
-  assert.match(yml, /using: node20/);
+  assert.match(yml, /using: node24/);
   assert.match(yml, /main: index\.mjs/);
   // Zero dependencies: only node: builtins and ./dist.
   const src = fs.readFileSync(new URL('../action/index.mjs', import.meta.url), 'utf8');
@@ -158,7 +158,7 @@ test('action: fetches the notes, blames the PR, posts one comment and updates it
   // Added: app.js lines 1, 4-7 (5) + README line 2 + new.js 1-2 = 8. AI: claude 3 (moved to 4-6), codex 2.
   assert.equal(out.stats.added, 8);
   assert.equal(out.stats.ai, 5);
-  assert.match(body, /\*\*63% of the added lines were written by AI agents\*\* \(5 of 8\): claude 1a2b3c4d 3, codex 4121 2/);
+  assert.match(body, /63% of the added lines came from agent runs \(5 of 8\): claude 1a2b3c4d 3, codex 4121 2/);
   assert.doesNotMatch(body, /@octocat|\]\(|https:\/\//);
   assert.match(body, /- claude 1a2b3c4d: 3 lines in 1 file/);
   assert.match(git(ci, 'rev-parse', 'refs/notes/grapim'), /^[0-9a-f]{40}$/, 'the action fetched the notes');

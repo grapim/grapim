@@ -153,6 +153,8 @@ function profileMenu({ user, team, me, csrf, shell }) {
       <a class="menu-item" href="${base}/settings">${icon('settings')}<span class="menu-title">Team settings</span></a>
       <a class="menu-item" href="${base}/settings#billing">${icon('usage')}<span class="menu-title">Plan and usage</span></a>
       <a class="menu-item" href="${base}/settings#tokens">${icon('key')}<span class="menu-title">Machine tokens</span></a>
+      <a class="menu-item" href="/docs">${icon('repo')}<span class="menu-title">Docs</span></a>
+      <a class="menu-item" href="/hub/support">${icon('help')}<span class="menu-title">Help and feedback</span></a>
       <div class="menu-sep" role="separator"></div>
       ${shell.teams.map((t) => html`<a class="menu-item" href="/hub/teams/${t.id}" title="${`${t.name} · ${t.role} · created ${date(t.created_at)}`}" ${t.id === team.id ? html`aria-current="true"` : ''}>
         <span class="team-mark" aria-hidden="true">${t.name.slice(0, 1).toUpperCase()}</span><span class="menu-title">${t.name}${shell.teams.filter((o) => o.name.toLowerCase() === t.name.toLowerCase()).length > 1 ? html` <span class="sha mono">${t.id.slice(0, 6)}</span>` : ''}</span>${t.id === team.id ? icon('check', 'menu-check') : ''}</a>`)}
@@ -254,7 +256,7 @@ export function layout({ title, user = null, team = null, csrf = null, crumbs = 
 <a class="skip" href="#main">Skip to content</a>
 <header class="top">
   <nav class="crumbs" aria-label="Breadcrumb">
-    <a class="brand" href="/hub">${LOGO}<span>Grapim</span></a>
+    <a class="brand" href="${user ? '/hub' : '/'}">${LOGO}<span>Grapim</span></a>
     ${team ? html`<span class="slash" aria-hidden="true">/</span><a class="crumb" href="/hub/teams/${team.id}">${team.name}</a>` : ''}
     ${crumbs.map((c) => html`<span class="slash" aria-hidden="true">/</span>${c.href ? html`<a class="crumb" href="${c.href}">${c.label}</a>` : html`<span class="crumb current" aria-current="page">${c.label}</span>`}`)}
   </nav>
@@ -286,7 +288,7 @@ export function errorPage({ status, message, user = null, csrf = null }) {
   <p class="muted num">Error ${status}</p>
   <h1>${heading}</h1>
   <p class="lede">${bare ? fallback : message}</p>
-  <p><a class="btn" href="/hub">Back to your teams</a></p>
+  <p>${user ? html`<a class="btn" href="/hub">Back to your teams</a>` : html`<a class="btn" href="/">Go to the home page</a> <a class="btn btn-ghost" href="/docs">Read the docs</a>`}</p>
 </section>`,
   });
 }

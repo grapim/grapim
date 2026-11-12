@@ -61,7 +61,7 @@ export function githubSection({ team, csrf, configured, installations, policy, a
     ? 'The GitHub App is not configured on this hub.'
     : installations.length
       ? html`Pull requests in ${installations.map((i, n) => html`${n ? ', ' : ''}<span class="strong">${i.account_login || `installation ${i.id}`}</span>`)} get a provenance comment and a "${checkName}" check.`
-      : 'Install the Grapim GitHub App so pull requests get a comment with the share of AI-written lines, per agent run, prompt and review.'}</p>
+      : 'Install the Grapim GitHub App so each pull request lists its agent runs, what each was asked to do and who reviewed it, with a check that can block merging until they are reviewed.'}</p>
   <h3 class="card-title small">Require review before merge</h3>
   ${policyForm({ team, csrf, policy, allowed, from: 'settings', slug, checkName })}
 </section>`;
@@ -88,7 +88,7 @@ ${!configured
     <h2 id="gh-title" class="card-title">GitHub App</h2>
     <form method="post" action="/hub/teams/${team.id}/github/install">${csrfField(csrf)}<button class="btn btn-sm btn-primary" type="submit">Install on GitHub</button></form>
   </div>
-  <p class="card-sub">Each pull request in a linked account gets one comment, updated on every push, with the share of added lines written by AI agents and a row per agent run, and a "${checkName}" check. It reads the provenance this team synced; a repo maps to its GitHub name through its <code>origin</code> remote.</p>
+  <p class="card-sub">Each pull request in a linked account gets one comment, updated on every push, listing each agent run (what it was asked, its lines, who reviewed it) and the share of added lines from agents, and a "${checkName}" check. It reads the provenance this team synced; a repo maps to its GitHub name through its <code>origin</code> remote.</p>
   ${installations.length
     ? html`<ul class="list list-flush">
     ${installations.map(

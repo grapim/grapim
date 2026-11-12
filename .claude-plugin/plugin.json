@@ -2,16 +2,31 @@
   "name": "grapim",
   "displayName": "Grapim",
   "version": "0.1.0",
-  "description": "See what every AI agent changed and undo any agent's run. Stops agents from overwriting each other, records which session wrote each uncommitted line, and gives you per-run blame, undo, branches and a review desk.",
-  "author": { "name": "Grapim", "url": "https://grapim.com" },
+  "description": "Every AI change to your code has someone accountable for it. Records each Claude Code edit as a run (session, prompt, turn, lines) that you can blame, review, send to your team and undo on its own.",
+  "author": {
+    "name": "Grapim",
+    "url": "https://grapim.com"
+  },
   "homepage": "https://grapim.com",
   "repository": "https://github.com/twfly104/grapim",
   "license": "Apache-2.0",
-  "keywords": ["agents", "multi-agent", "worktrees", "blame", "undo", "review", "codex", "cursor"],
+  "keywords": [
+    "agents",
+    "multi-agent",
+    "worktrees",
+    "blame",
+    "undo",
+    "review",
+    "codex",
+    "cursor"
+  ],
   "mcpServers": {
     "grapim": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/grapim.js", "mcp"]
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bin/grapim.js",
+        "mcp"
+      ]
     }
   }
 }

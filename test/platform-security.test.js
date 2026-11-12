@@ -143,8 +143,11 @@ test('H1: webhook DNS runs on c-ares with a time limit, never on the libuv threa
     sock.close();
   }
   // Whatever resolver is given, vet() has its own deadline.
-  const guard = new Promise((_, reject) => setTimeout(() => reject(new Error('vet() hung')), 3000).unref());
+  // The guard timer stays ref'd: vet()'s own deadline is unref'd (a server keeps the process alive), so here something must.
+  let guardTimer;
+  const guard = new Promise((_, reject) => { guardTimer = setTimeout(() => reject(new Error('vet() hung')), 3000); });
   const err = await Promise.race([vet('https://hang.example.com/x', () => new Promise(() => {}), { timeoutMs: 100 }).then(() => null, (e) => e), guard]);
+  clearTimeout(guardTimer);
   assert.ok(err instanceof UrlRefused);
   assert.equal(err.code, 'url_unresolvable');
 });

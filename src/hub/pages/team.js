@@ -46,8 +46,8 @@ function checklist({ team, csrf, role, origin, setup, compact = false }) {
   const STEPS = {
     cli: {
       title: 'Install Grapim in a repo',
-      body: html`In each repo your agents work in. It records every edit Claude Code, Codex or Cursor makes, with the run that made it.`,
-      action: code('npx grapim init'),
+      body: html`Run it in each repo your agents work in. It sets up Claude Code, Codex, Cursor and Gemini CLI, and records every edit they make as an agent run: the agent, the prompt and the lines.`,
+      action: code('npm install -g grapim\ngrapim init'),
       link: null,
     },
     token: {
@@ -70,8 +70,8 @@ function checklist({ team, csrf, role, origin, setup, compact = false }) {
     github: {
       title: 'Turn on the pull request check',
       body: owner
-        ? html`Install the GitHub App. Each pull request gets a comment showing which lines AI agents wrote, and a check that can block merging until every agent run is reviewed.`
-        : html`An owner of ${team.name} installs it. Pull requests then get a provenance comment and check.`,
+        ? html`Install the GitHub App. Each pull request gets a comment listing its agent runs and whether each one is approved, and a check that can block merging until every run is.`
+        : html`An owner of ${team.name} installs it. Pull requests then get a comment listing their agent runs, and a check.`,
       action: owner ? html`<a class="btn" href="${base}/github">Connect GitHub</a>` : '',
       link: owner ? `${base}/github` : null,
     },
@@ -135,12 +135,12 @@ function shareBlock(team, teaser) {
   const pct = (r) => (r === null || r === undefined || !Number.isFinite(r) ? null : `${(r * 100).toFixed(r > 0 && r < 0.1 ? 1 : 0)}%`);
   const share = teaser.commits ? pct(teaser.share) : null;
   return html`<section class="panel" aria-labelledby="share-title">
-  <div class="panel-head"><h2 id="share-title" class="panel-title">AI share, last week</h2><a class="link small" href="/hub/teams/${team.id}/reports">Reports</a></div>
+  <div class="panel-head"><h2 id="share-title" class="panel-title">Code from agents, last week</h2><a class="link small" href="/hub/teams/${team.id}/reports">Reports</a></div>
   <div class="panel-body">
     ${share
       ? html`<p class="share"><span class="share-num num">${share}</span> of added lines were written by AI agents</p>
     <p class="muted small">${teaser.ai_in_share.toLocaleString('en-US')} of ${teaser.added.toLocaleString('en-US')} lines, ${plural(teaser.commits, 'commit')} with provenance from ${teaser.repos_with_provenance} of ${plural(teaser.repos_total, 'repo')}.</p>`
-      : html`<p class="muted small">No commit had provenance last week. Run <code>grapim init</code> in each repo and commit as usual; next week this shows the share.</p>`}
+      : html`<p class="muted small">No commit with provenance last week. Commits made in repos with <code>grapim init</code> count here from the week after.</p>`}
   </div>
 </section>`;
 }
@@ -155,7 +155,7 @@ export function overviewPage({ toast = null, user, csrf, team, role, origin, set
       team,
       toast,
       crumbs: [{ label: 'Overview' }],
-      body: html`${head(team, 'overview', { title: `Set up ${team.name}`, sub: 'Grapim records which agent run wrote each line of your code, what it was asked to do, and who reviewed it. Pull requests with unreviewed agent lines are flagged on GitHub.' })}
+      body: html`${head(team, 'overview', { title: `Set up ${team.name}`, sub: 'Every AI change to your code gets someone accountable for it: Grapim records each agent run and what it was asked to do, a teammate reviews it here, and pull requests with unreviewed runs are held on GitHub.' })}
 ${checklist({ team, csrf, role, origin, setup })}
 <p class="setup-also">${icon('workspace')}<span>Agents also writing docs or data, outside a repo? A <a class="link" href="${base}/workspaces">workspace</a> is a shared folder where every write is recorded, reviewable and undoable too.</span></p>`,
     });
@@ -175,7 +175,7 @@ ${checklist({ team, csrf, role, origin, setup })}
       <div class="panel-head"><h2 id="needs-title" class="panel-title">Needs your review <span class="num muted">${waiting.length}</span></h2><a class="link small" href="${base}/reviews">All reviews</a></div>
       ${waiting.length
         ? html`<ul class="items">${waiting.slice(0, 6).map((r) => runRow(team, r))}</ul>`
-        : html`<p class="panel-empty">Nothing waits for you. ${mine.length ? html`${plural(mine.length, 'run')} you synced ${mine.length === 1 ? 'waits' : 'wait'} for another member.` : 'New agent runs show up here once a machine syncs them.'}</p>`}
+        : html`<p class="panel-empty">Nothing waits for you. ${mine.length ? html`${plural(mine.length, 'run')} you synced ${mine.length === 1 ? 'waits' : 'wait'} for another member.${setup.members < 2 ? html` <a class="link" href="${base}/settings#members">Invite a teammate</a> to review ${mine.length === 1 ? 'it' : 'them'}.` : ''}` : 'New agent runs show up here once a machine syncs them.'}</p>`}
     </section>
     ${pulls.list.length
       ? html`<section class="panel" aria-labelledby="prs-title">
@@ -323,7 +323,7 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
     ${team.period_end ? html`<div><dt>Renews</dt><dd>${date(team.period_end)}</dd></div>` : ''}
   </dl>
   ${!billing.enabled
-    ? html`<p class="fine">Billing is not set up on this hub.</p>`
+    ? html`<p class="fine">Grapim is in early access: there is no checkout and nothing is charged. For a Team or Governance pilot (Require review and reports), <a class="link" href="/hub/support?topic=pilot&amp;from=${encodeURIComponent(`/hub/teams/${team.id}/settings`)}">talk to us</a>.</p>`
     : !owner
       ? html`<p class="fine">Only an owner can change the plan.</p>`
       : html`<div class="billing-actions">

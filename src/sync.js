@@ -260,7 +260,8 @@ async function post(fetchImpl, origin, token, body) {
       signal: AbortSignal.timeout(60_000),
     });
   } catch (err) {
-    throw new SyncError(`Could not reach the hub at ${origin}: ${err.cause?.code || err.message}`);
+    const why = err.name === 'TimeoutError' ? 'no answer in 60 s' : err.cause?.code || err.cause?.errors?.[0]?.code || err.cause?.message || err.message;
+    throw new SyncError(`Could not reach the hub at ${origin} (${why}). Check the address and your connection, then run grapim sync again.`);
   }
   const data = await res.json().catch(() => null);
   return { status: res.status, data };
@@ -301,7 +302,7 @@ export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = gl
     }
     if (status !== 200 || !data?.cursor) {
       const msg = data?.error?.message || `the hub answered ${status}`;
-      throw new SyncError(status === 401 ? `The hub rejected the token: ${msg}` : `Sync failed: ${msg}`, status, data?.error?.code ?? null);
+      throw new SyncError(status === 401 ? `The hub rejected the token: ${msg} Create a new one in the hub (Settings, Machine tokens) and put it in GRAPIM_HUB_TOKEN.` : `Sync failed: ${msg}`, status, data?.error?.code ?? null);
     }
     cursor = { changes: data.cursor.changes, events: data.cursor.events, agents: data.cursor.agents };
     notes = n.state;

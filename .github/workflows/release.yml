@@ -1,0 +1,82 @@
+name: Release
+
+# Publishes grapim to npm when a version tag is pushed:
+#
+#   npm version 0.1.1        (or edit package.json), commit
+#   git tag v0.1.1 && git push origin main v0.1.1
+#
+# Needs the repository secret NPM_TOKEN: a granular npm access token with
+# read and write access to the grapim package (npmjs.com, Access Tokens).
+#
+# Provenance (the "Built and signed on GitHub Actions" badge on npmjs.com)
+# needs a public source repository: npm refuses it from a private one, so it
+# is only requested when this repository is public.
+#
+# Later, npm trusted publishing (OIDC) can replace the token: on npmjs.com,
+# package grapim, Settings, Trusted Publisher: GitHub Actions, this repo,
+# workflow release.yml. Then remove NODE_AUTH_TOKEN below. It needs npm
+# 11.5.1 or newer, which the "Update npm" step installs.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # signs the provenance statement
+    steps:
+      - name: Git identity for test commits
+        run: |
+          git config --global user.name "Grapim CI"
+          git config --global user.email "ci@grapim.invalid"
+          git config --global init.defaultBranch main
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.x
+          registry-url: https://registry.npmjs.org
+
+      - name: Update npm
+        run: npm install -g npm@11
+
+      - name: The tag matches package.json
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${version}. Tag v${version}, or change the version."
+            exit 1
+          fi
+
+      - name: Test
+        run: npm test
+
+      - name: Package contents
+        run: npm pack --dry-run
+
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PROVENANCE: ${{ github.event.repository.private && 'false' || 'true' }}
+        run: |
+          # A version with a hyphen (0.2.0-beta.1) goes to the "next" tag, not "latest".
+          tag=latest
+          case "${GITHUB_REF_NAME}" in *-*) tag=next ;; esac
+          if [ "$PROVENANCE" = "true" ]; then
+            npm publish --access public --tag "$tag" --provenance
+          else
+            echo "::warning::The repository is private, so this release has no npm provenance."
+            npm publish --access public --tag "$tag"
+          fi

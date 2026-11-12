@@ -272,6 +272,6 @@ export function reportRoutes(router, hub) {
     });
     sendHtml(ctx.res, error ? 400 : 200, body);
   };
-  router.get('/hub/teams/:team/reports', (ctx) => page(ctx, 'ai-share'), TEAM);
+  router.get('/hub/teams/:team/reports', (ctx) => page(ctx, 'unreviewed'), TEAM);
   for (const name of REPORTS) router.get(`/hub/teams/:team/reports/${name}`, (ctx) => page(ctx, name), TEAM);
 }

@@ -1,95 +1,14 @@
 # Grapim
 
-See what every AI agent changed. Undo any agent's run in one command.
+**Every AI change to your code has someone accountable for it.**
 
-Run five coding agents in one repo: none of them overwrites another's work, every uncommitted line is traced to the agent run that wrote it, and any run can be undone while everyone else's work stays.
-
-Before an agent edits a file, Grapim claims that file for it. If another agent already holds the file, the edit is stopped and the agent is told who has it and what they are doing, so it moves on to other work. Claims are shared across every git worktree of the repo, so two agents in two worktrees are stopped before they write the same file, not at merge time.
-
-```
-$ grapim status
-Grapim · shop-api · 3 agents active · 4 files claimed
-
-AGENT            WORKTREE   WORKING ON                         LAST SEEN
-claude 1a2b3c4d  billing    Add a /billing route with tests    12s ago
-claude 9f8e7d6c  header     Fix the header on mobile           40s ago
-codex 4121       main       rename the app logger              2m ago
-
-FILE                HELD BY          WORKTREE  FOR                              SINCE
-src/routes.ts       claude 1a2b3c4d  billing   Add a /billing route with tests  6m
-src/billing.ts      claude 1a2b3c4d  billing   Add a /billing route with tests  5m
-web/Header.tsx      claude 9f8e7d6c  header    Fix the header on mobile         3m
-src/log.ts          codex 4121       main      rename the app logger            2m
-```
-
-Status: prototype, phase 0. Node 22.13 or newer, no dependencies.
-
-## Install
-
-Pick one. Node 22.13 or newer, no other dependencies.
-
-**Claude Code plugin** (hooks for every repo, plus the MCP tools and a skill):
-
-```
-/plugin marketplace add twfly104/grapim
-/plugin install grapim@grapim
-```
-
-**npm, per repo:**
-
-```bash
-cd your-repo
-npx grapim init
-```
-
-That installs the Claude Code hooks in `.claude/settings.local.json` (run it in each worktree; the file is not committed). Use the plugin or `init`, not both; if both are installed, Grapim still counts each prompt once.
-
-**Codex, Cursor and any MCP client:** add an MCP server that runs `npx grapim mcp` (see below).
-
-## Try it
-
-Every Claude Code session in the repo now:
-
-- records what it is working on (its latest prompt),
-- is told at each prompt which files other agents hold,
-- claims each file before it edits it, and is stopped if someone else holds it,
-- gives its files back when the session ends. Claims also expire after 30 minutes without edits.
-
-Watch it live in a spare terminal: `grapim status --watch`.
-
-### Codex, Cursor and other agents
-
-They use the MCP server instead of hooks. `grapim init` prints the config. The agent gets seven tools: `claim_files`, `release_files`, `who_is_editing`, `set_intent`, `recent_activity`, `list_runs`, `who_wrote`. Their claims and Claude Code's live in the same place, so a Codex agent and a Claude Code agent coordinate with each other.
-
-### By hand
-
-```bash
-grapim claim src/routes.ts --intent "add /billing"   # exit code 3 if someone holds it
-grapim release                                       # give back everything you hold
-grapim log                                           # who claimed, edited (+/- lines), was stopped
-```
-
-`GRAPIM_MODE=warn` lets edits through and warns the agent right after instead of blocking.
-
-## Who wrote this, and taking one agent's work back out
-
-Grapim keeps a ledger of every edit an agent makes: which run (one agent session) and which turn (one prompt) changed which file, with the file's content before and after. That answers two questions plain locks cannot:
+Grapim records every change your coding agents make as a *run*: which agent, which prompt, which turn, which lines. Your team reviews and approves runs at [app.grapim.com](https://app.grapim.com), pull requests that hold unreviewed agent runs fail their check, and any single run can be undone without touching anyone else's work.
 
 ```
 $ grapim runs
-RUN              WORKTREE  WORKING ON                       TURNS  FILES  +   -   IN TREE  LAST
-claude 9f8e7d6c  main      Fix the header on mobile         1      1      +1  -1  yes      1m ago
-claude 1a2b3c4d  main      Add a /billing route with tests  1      2      +5  -1  yes      3m ago
-
-$ grapim blame src/app.js
-src/app.js · 4 lines differ from HEAD
-
- 2  claude 1a2b3c4d  turn 1  | const v1 = billing();
- 3  claude 1a2b3c4d  turn 1  | const v1b = 2;
-12  claude 9f8e7d6c  turn 1  | const v10 = header();
-14  outside agents           | // added by sed
-
-2 lines removed (not shown).
+RUN              WORKTREE  WORKING ON                       TURNS  FILES  +    -   IN TREE  REVIEW    LAST
+codex 019a3c3e   main      Rename the logger                1      3      +9   -9  yes      approved  1m ago
+claude 1a2b3c4d  billing   Add a /billing route with tests  2      2      +41  -1  yes      pending   3m ago
 
 $ grapim undo 1a2b
 Undo claude 1a2b3c4d · 2 files
@@ -100,63 +19,77 @@ Undo claude 1a2b3c4d · 2 files
 Nothing was changed. Run again with --yes to apply the 2 clean ones.
 ```
 
-- `grapim runs` lists every run that changed something: its intent, how many turns, files touched, lines added and removed, and whether its changes are still in the working tree (`yes`, `partly`, `no`, or `?` when it cannot tell).
-- `grapim blame <file>` shows, for each line of the working file that differs from HEAD, the run and turn that wrote it. Lines that changed but match no recorded edit are `outside agents`: a human, or a Bash `sed`.
-- `grapim undo <run> [--turn N] [--yes]` removes one run's changes (or one turn's) from every file it touched and keeps everyone else's later work. `<run>` is a run id, a label, or a session id prefix (`1a2b`). Without `--yes` it only prints the plan. Undo needs git on PATH (it uses `git merge-file`).
-- `runs`, `blame` and `undo` take `--json`. MCP agents get `list_runs` and `who_wrote`; undo is deliberately CLI only.
+Node.js 22.13 or newer. No dependencies. No telemetry.
 
-### How the ledger records
-
-- Claude Code: PreToolUse, once the edit is allowed, snapshots the file as it is. PostToolUse snapshots it again and writes one change row. The two are paired by `tool_use_id` (falling back to session + file). The pending snapshot lives in SQLite, since each hook call is its own process. Each prompt (UserPromptSubmit) starts a new turn.
-- MCP agents: `claim_files` snapshots each file, `release_files` (or disconnecting) records what changed since. A new intent starts a new turn.
-- File contents are stored once each, by sha1, in a `blobs` table in the same SQLite file. Files over 2 MB or binary (a NUL byte in the first 8 KB) still get a change row, marked untracked, without content.
-- Files are read and written as raw bytes, never through git filters, so CRLF and LF stay exactly as they were.
-- A ledger failure never blocks an edit: it is written to stderr and the edit goes through.
-
-### How blame works
-
-Start from the file's first recorded content, replay its recorded changes in order with a line diff (Myers, in `src/diff.js`), and carry each line's author forward. If a change's before-snapshot does not match the replayed state, someone outside the agents changed the file in between, and the new lines get `outside agents`. The same happens for the step from the last recorded change to the working file. Then the lines that differ from HEAD are shown. The comparison with HEAD ignores line endings, because with `core.autocrlf` HEAD has LF and the working file CRLF.
-
-### How undo works
-
-For each file the run touched, its changes are cut into segments: stretches where nobody else changed the file between two of its edits. Newest first, each segment is reverted with `git merge-file -p` (current = the working file, base = the segment's after, other = its before), through temp files in the OS temp folder that are deleted afterwards. A clean merge is the working file with exactly that segment's edits taken out.
-
-- If the file is still exactly what the run left, the before-content is written back directly, without git.
-- A file the run created and nobody changed since is deleted. A file the run deleted is restored.
-- If someone else later edited the same or adjacent lines, the merge conflicts: that file is not touched, and undo says so. Other files still go ahead.
-- A file another agent holds right now is skipped, and so is a file that changed between the plan and the write.
-- The undo itself is recorded as a run (`undo claude 1a2b3c4d`) and an `undo` event in `grapim log`, so blame stays right afterwards.
-
-## How it works
-
-- State is one SQLite file in `<git-common-dir>/grapim/state.db`, which every worktree of the repo shares. Outside git it is `.grapim/` in the current folder.
-- Each claim runs in a `BEGIN IMMEDIATE` transaction, so when many agents claim the same file at the same moment, exactly one wins. `test/concurrency.test.js` races 30 processes for one file, 5 rounds, and checks this.
-- A multi-file claim is all or nothing.
-- If Grapim itself fails (a broken database, bad input), the hook lets the edit through. It never stops an agent because of its own bug.
-
-## Known limits of this prototype
-
-- Only edits through Claude Code's Edit, Write, MultiEdit and NotebookEdit tools are caught. A `sed -i` or `echo >` through Bash is not claimed, and in blame it shows as `outside agents`.
-- The ledger attributes whatever changed between the before- and after-snapshot. A shell command that changes the same file while an agent's edit is in flight is credited to that agent. For MCP agents the window is from claim to release, and edits made without claiming are `outside agents`.
-- Undo reverts a run's edits, not its side effects: files changed through Bash, generated files and installed packages are not in the ledger.
-- `git merge-file` treats edits on adjacent lines as a conflict, so undo is conservative: two agents editing neighbouring lines means the file is left for you.
-- Undo cannot revert binary files or files over 2 MB (their content is not stored). Blame on them says who changed them, not which lines.
-- A line diff guesses when lines repeat (a lone `}`): blame can credit such a line to the wrong run. When a change rewrites more than about 2000 lines at once, its middle is treated as fully replaced.
-- Blame compares with HEAD by path; on Windows the path's case must match git's.
-- Blobs are never cleaned up. The ledger grows with every edit until you delete `state.db`.
-- Claims are per file. Two agents changing different functions in one file are treated as a conflict.
-- Subagents inside one Claude Code session share its session id, so they count as one agent.
-- One machine only. Cross-machine sync is the paid cloud part, later.
-- Each hook call takes about 0.4 s on Windows (Node start plus two git calls). Fine for now; a compiled daemon would bring it near zero.
-
-## Verify it in a real Claude Code session
-
-1. In a test repo, run `grapim init`, then `grapim claim app.js --agent codex-alice --intent "rename the logger"`.
-2. Open a new Claude Code session in that repo and ask it to add a comment to the top of `app.js` and of another file.
-3. Expected: the other file is edited, `app.js` is not, and Claude says `app.js` is held by codex-alice for "rename the logger". `grapim log` shows the block.
-
-## Tests
+## Quickstart
 
 ```bash
-npm test
+npm install -g grapim
+cd your-repo
+grapim init
 ```
+
+`grapim init` finds the coding agents you use (Claude Code, Codex CLI, Cursor, Gemini CLI) and hooks each one in, merged into your existing config. From then on, every edit they make in this repo is recorded on your machine. Restart any agent that was already running.
+
+Send the runs to your team for review:
+
+1. Sign in at [app.grapim.com](https://app.grapim.com), then Settings, Machine tokens, and create a token.
+2. Give it to grapim and start syncing:
+
+   ```bash
+   export GRAPIM_HUB_TOKEN=cmh_...      # PowerShell: $env:GRAPIM_HUB_TOKEN = "cmh_..."
+   grapim sync --watch
+   ```
+
+Runs appear in the hub's Reviews within seconds. A teammate (not the person who synced the run) approves or rejects each one there; with the GitHub App installed, pull requests holding unapproved runs fail the Grapim check. See the [quickstart](https://app.grapim.com/docs) for the whole path.
+
+> Why not `npx grapim init`? The hooks call grapim on every edit, and npx runs packages from a cache folder npm clears. `grapim init` run through npx points the hooks at your global install, or asks you to make one.
+
+## Supported agents
+
+| Agent | How Grapim sees its edits | What `grapim init` writes | Stops an edit to a file another agent holds | Status |
+| --- | --- | --- | --- | --- |
+| Claude Code | Native hooks: `PreToolUse` / `PostToolUse` on Edit, Write, MultiEdit, NotebookEdit | `.claude/settings.local.json` | Yes | Stable |
+| Codex CLI | Native hooks: `PreToolUse` / `PostToolUse` on `apply_patch` | `.codex/hooks.json`. Codex runs project hooks only after you trust them: run `/hooks` in Codex once. | Yes | Beta |
+| Cursor | Native hooks: `afterFileEdit`, `beforeSubmitPrompt`, `sessionEnd` | `.cursor/hooks.json` | No: Cursor reports an edit after it happens, so a clash is recorded, not stopped | Beta |
+| Gemini CLI | Native hooks: `BeforeTool` / `AfterTool` on `write_file`, `replace` | `.gemini/settings.json` | Yes | Beta |
+| Other MCP clients | The `grapim mcp` server: the agent calls `claim_files` before editing and `release_files` after | nothing; add `grapim mcp` as a stdio MCP server | Yes, when the agent calls the tools | Works only if the agent cooperates |
+| GitHub Copilot coding agent | Not recorded as runs. Its commits reach your pull requests like any other. | nothing | No | Not supported |
+
+Beta: built from each agent's published hook reference and tested with its documented payloads, not yet across every version of the agent. Tell us when something is missed.
+
+What no hook sees, for any agent: files changed by shell commands the agent runs (`sed -i`, a code generator, `npm install`). Those lines show as `outside agents` in `grapim blame`.
+
+`grapim init --agents claude,codex,cursor,gemini` (or `all`) sets up agents it did not find. A config file `init` creates is added to `.git/info/exclude`, since it holds a path on your machine. A file that is not valid JSON is left alone and reported.
+
+## What you can do with runs
+
+```bash
+grapim runs                      # every agent run: intent, turns, files, +/- lines, still in the tree?
+grapim blame src/app.js          # which run and turn wrote each line that differs from HEAD
+grapim blame src/app.js --history  # every line, committed or not: agent, prompt, or human
+grapim undo <run> [--turn N]     # take one run (or one turn) back out; prints the plan, --yes applies it
+grapim branch <run>              # put one run's changes on their own git branch
+grapim review <run> --approve    # or --reject, --pending, with --note "..."
+grapim status --watch            # which agents are active and which files they hold right now
+grapim serve --open              # the review desk in your browser, on this machine
+```
+
+In a git repo, `grapim init` also installs `post-commit` and `pre-push` hooks that keep AI provenance as git notes (`refs/notes/grapim`), so a commit still says which lines an agent wrote after the uncommitted state is gone. They chain to hooks you already have and never fail a commit or a push. `grapim init --no-intents` leaves prompts out of the notes.
+
+When two agents work in the same repo, or in two worktrees of it, the one that reaches a file second is stopped before it writes and told who holds it and why, so it moves on to other work.
+
+## Privacy
+
+- Runs, file versions and prompts stay in `.git/grapim/` on your machine until you run `grapim sync`.
+- `grapim sync` sends them only to the hub you name (default `https://app.grapim.com`), with your machine token.
+- No telemetry. grapim connects to a server only when you run `sync`, `folder` or `mount`.
+
+## Docs and support
+
+- Docs: [app.grapim.com/docs](https://app.grapim.com/docs). Every command: [docs/cli.md](docs/cli.md), or `grapim --help`.
+- Questions, bugs and ideas: [app.grapim.com/support](https://app.grapim.com/support).
+
+## License
+
+[Apache-2.0](LICENSE)

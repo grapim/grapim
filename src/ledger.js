@@ -1,7 +1,9 @@
 // Records who changed what: a before-snapshot when an agent starts an edit,
 // an after-snapshot when it finishes, and one change row joining the two.
 //
-// Claude Code: PreToolUse begins, PostToolUse finishes, paired by tool_use_id.
+// Claude Code, Codex, Gemini CLI: the hook before a file tool begins, the hook
+// after it finishes, paired by tool_use_id when there is one. Cursor: both at
+// once, from afterFileEdit (beginEditFrom).
 // MCP agents: claim_files begins, release_files (or disconnect) finishes.
 // Files are read as raw bytes, never through git, so CRLF is kept exactly.
 
@@ -58,6 +60,16 @@ export function beginEdit(store, { run, label, ws, file, id = null, keep = false
   const ref = fileRef(ws, file);
   const snap = snapshot(path.join(ws.root, file.display));
   store.beginChange({ ...ref, id: id || fallbackId(run, ref), run, label, snap }, { keep });
+}
+
+// The same, from a known before-content instead of the disk (Cursor tells us
+// about an edit only after it: src/hook.js works the before out). null: the
+// file did not exist.
+export function beginEditFrom(store, { run, label, ws, file, id = null }, before) {
+  const ref = fileRef(ws, file);
+  const snap =
+    before === null ? { sha: null, buf: null } : before.length > MAX_BYTES ? { sha: UNTRACKED, buf: null } : { sha: sha1(before), buf: isBinary(before) ? null : before };
+  store.beginChange({ ...ref, id: id || fallbackId(run, ref), run, label, snap });
 }
 
 function stats(store, p, after) {

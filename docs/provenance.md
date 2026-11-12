@@ -77,7 +77,7 @@ This is shared by three builders: provenance (client plus hub ingest), GitHub in
 
 ## 5. The GitHub Action (`action/`)
 
-- `action/action.yml` uses `node20`, and `action/index.mjs` is self-contained with zero dependencies. It may import `../src/provenance/*` only if the files are bundled into `action/dist/`; provide a small bundling script that copies them.
+- `action/action.yml` uses `node24` (GitHub runners dropped Node 20 on 2026-09-23), and `action/index.mjs` is self-contained with zero dependencies. It may import `../src/provenance/*` only if the files are bundled into `action/dist/`; provide a small bundling script that copies them.
 - **Steps**:
   - fetch `refs/notes/grapim` and enough history (`fetch-depth: 0`, or an explicit fetch of the base);
   - compute the summary with `git blame` on the PR head;

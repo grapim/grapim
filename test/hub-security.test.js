@@ -539,6 +539,55 @@ test('HUB_TEAM_CREATORS limits who can create teams; invited people still join',
   assert.equal(h.hub.teams.seatsUsed(A), 2);
 });
 
+test('open sign-up: anyone may create teams, up to HUB_MAX_FREE_TEAMS free ones each; platforms stay gated by HUB_PLATFORM_CREATORS', async (t) => {
+  const h = await startHub({ env: { HUB_MAX_FREE_TEAMS: '2', HUB_PLATFORM_CREATORS: 'pf-boss' } });
+  t.after(h.close);
+  const dan = await signIn(h, 'open-dan');
+  const A = await createTeam(dan, 'One');
+  await createTeam(dan, 'Two');
+  const third = await dan.post('/hub/teams', { name: 'Three' });
+  assert.equal(third.status, 429);
+  assert.match(third.text, /already own 2 free teams/);
+  // An invite into someone else's team is not capped.
+  const erin = await signIn(h, 'open-erin');
+  await createTeam(erin, 'Erin one');
+  await joinTeam(dan, erin, A);
+  assert.equal(h.hub.teams.seatsUsed(A), 2);
+  // Platforms: only HUB_PLATFORM_CREATORS, even though team creation is open.
+  assert.equal(h.hub.platform.keys.mayEnable({ id: 1, login: 'open-dan' }), false);
+  assert.equal(h.hub.platform.keys.mayEnable({ id: 2, login: 'PF-Boss' }), true);
+});
+
+test('help and feedback: messages are kept, escaped, capped per day, and only HUB_ADMINS read them', async (t) => {
+  const h = await startHub({ env: { HUB_ADMINS: 'Help-Admin' } });
+  t.after(h.close);
+  const fay = await signIn(h, 'help-fay');
+  const admin = await signIn(h, 'help-admin');
+  assert.equal((await fay.req('/hub/support')).status, 200);
+  assert.equal((await fay.post('/hub/support', { topic: 'bug', body: '' })).status, 400);
+  const sent = await fay.post('/hub/support', { topic: 'bug', body: 'The <script>alert(1)</script> page broke', page: '/hub/teams/x/reviews' });
+  assert.equal(sent.status, 303);
+  assert.equal((await fay.req('/hub/admin/support')).status, 404, 'not an admin');
+  const page = (await admin.req('/hub/admin/support')).text;
+  assert.match(page, /@help-fay/);
+  assert.match(page, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.doesNotMatch(page, /<script>alert/);
+  assert.match(page, /\/hub\/teams\/x\/reviews/);
+  for (let i = 0; i < 9; i++) await fay.post('/hub/support', { topic: 'idea', body: `idea ${i}` });
+  const over = await fay.post('/hub/support', { topic: 'idea', body: 'one too many' });
+  assert.equal(over.status, 429);
+  assert.equal(h.hub.db.prepare('SELECT COUNT(*) AS n FROM support_messages').get().n, 10);
+  // Pilot plans: only an admin, and the team gets Governance with status "pilot".
+  const T = await createTeam(fay, 'Pilot team');
+  assert.equal((await fay.post('/hub/admin/teams/plan', { team: T, plan: 'governance' })).status, 404);
+  assert.equal((await admin.post('/hub/admin/teams/plan', { team: T, plan: 'premium' })).status, 400);
+  assert.equal((await admin.post('/hub/admin/teams/plan', { team: T, plan: 'governance' })).status, 303);
+  assert.deepEqual([h.hub.teams.get(T).plan, h.hub.teams.get(T).plan_status], ['governance', 'pilot']);
+  // A page outside the hub is dropped, not stored.
+  await admin.post('/hub/support', { topic: 'help', body: 'x', page: 'https://evil.example/' });
+  assert.equal(h.hub.db.prepare('SELECT page FROM support_messages WHERE login = ?').get('help-admin').page, null);
+});
+
 // ---------------------------------------------------------------- XSS
 
 test('synced strings and names are escaped on every page; no inline script', async (t) => {

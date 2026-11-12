@@ -74,6 +74,8 @@ const hub = await createHub({
     HUB_URL: ORIGIN,
     HUB_SECRET: crypto.createHash('sha256').update(`dev-hub ${dataDir}`).digest('hex'),
     HUB_DATA: dataDir,
+    // demo can open Support messages at /hub/admin/support.
+    HUB_ADMINS: 'demo',
     GITHUB_CLIENT_ID: 'dev-client',
     GITHUB_CLIENT_SECRET: 'dev-secret',
     GITHUB_APP_ID: '424242',

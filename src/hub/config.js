@@ -64,10 +64,17 @@ export function loadConfig(env = process.env) {
 
   // Who may create teams. Unset: anyone who signs in with GitHub. For a
   // private beta, list GitHub logins or numeric user ids, comma separated.
-  const creators = String(env.HUB_TEAM_CREATORS ?? '')
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
+  const list = (v) => String(v ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const creators = list(env.HUB_TEAM_CREATORS);
+  // Who may turn a team into a platform (a closed beta). Unset: the same
+  // people as team creation, so opening sign-ups never opens platforms by
+  // itself when this is set.
+  const platformCreators = list(env.HUB_PLATFORM_CREATORS);
+  // Who reads Help and feedback messages (/hub/admin/support).
+  const admins = list(env.HUB_ADMINS);
+  // Free teams one person may own (each has its own Ask Grapim credit).
+  const maxFree = env.HUB_MAX_FREE_TEAMS === undefined || env.HUB_MAX_FREE_TEAMS === '' ? 5 : Number(env.HUB_MAX_FREE_TEAMS);
+  if (!Number.isInteger(maxFree) || maxFree < 1) throw new ConfigError('grapim hub: HUB_MAX_FREE_TEAMS must be a whole number, 1 or more.');
 
   const storageMb = env.HUB_TEAM_STORAGE_MB === undefined || env.HUB_TEAM_STORAGE_MB === '' ? 1024 : Number(env.HUB_TEAM_STORAGE_MB);
   if (!Number.isInteger(storageMb) || storageMb < 1) throw new ConfigError('grapim hub: HUB_TEAM_STORAGE_MB must be a whole number of megabytes.');
@@ -98,6 +105,9 @@ export function loadConfig(env = process.env) {
     // proxy appended to X-Forwarded-For. Only trust it when told to.
     trustProxy: env.TRUST_PROXY === '1' || env.TRUST_PROXY === 'true',
     teamCreators: creators.length ? Object.freeze(creators) : null,
+    platformCreators: platformCreators.length ? Object.freeze(platformCreators) : null,
+    maxFreeTeams: maxFree,
+    admins: admins.length ? Object.freeze(admins) : null,
     teamStorageBytes: storageMb * 1024 * 1024,
     platformStorageBytes: platformMb * 1024 * 1024,
   };

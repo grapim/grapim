@@ -7,6 +7,7 @@
 // A team route answers 404 to anyone who is not a member, exactly as for a
 // team that does not exist, so ids cannot be probed.
 
+import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -36,7 +37,9 @@ import { Workspaces } from './workspaces.js';
 import { errorPage } from './pages/layout.js';
 import { apiRoutes } from './routes-api.js';
 import { createAgent } from './agent/index.js';
+import { supportRoutes } from './support.js';
 import { pageRoutes } from './routes-pages.js';
+import { siteRoutes, siteStatics } from './routes-site.js';
 
 const PAGES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'pages');
 
@@ -80,6 +83,7 @@ export async function createHub(options = {}) {
   // per team, never on this event loop (security review of workspaces, M7).
   hub.compute = createComputePool({ log, ...(options.compute ?? {}) });
 
+  const staticTags = new Map();
   const statics = {
     '/hub/static/hub.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, 'hub.css'))],
     '/hub/static/theme.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, 'theme.js'))],
@@ -96,6 +100,8 @@ export async function createHub(options = {}) {
     '/hub/static/sidebar.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'sidebar.js'))],
     '/hub/static/shell.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'shell.css'))],
     '/hub/static/favicon.svg': ['image/svg+xml', fs.readFileSync(path.join(PAGES, 'favicon.svg'))],
+    // The public site (src/hub/routes-site.js): its stylesheet, script and screenshots.
+    ...siteStatics(),
   };
 
   // Cloud workspaces at /w/<team>/<name>/, and their files in storage.
@@ -122,10 +128,13 @@ export async function createHub(options = {}) {
   hub.agent = createAgent(hub, { env, ...(options.agent ?? {}) });
 
   const router = new Router();
+  // The landing page and docs first: their / answers signed-out visitors (signed in: /hub).
+  siteRoutes(router, hub);
   pageRoutes(router, hub);
   apiRoutes(router, hub);
   reportRoutes(router, hub);
   hub.agent.routes(router);
+  supportRoutes(router, hub);
   // Grapim for platforms (docs/platform.md): /v1 has its own router; its hub pages join this one.
   hub.platform = createPlatform(hub, { env, fetch: fetchImpl, ...(options.platform ?? {}) });
   hub.platform.pageRoutes(router);
@@ -223,8 +232,19 @@ export async function createHub(options = {}) {
 
       if (statics[pathname] && (req.method === 'GET' || req.method === 'HEAD')) {
         const [type, body] = statics[pathname];
-        res.writeHead(200, { 'Content-Type': type, 'Content-Length': body.length, 'Cache-Control': 'public, max-age=300' });
-        res.end(body);
+        // Static URLs carry no version, so CSS and JS are cached briefly;
+        // images and fonts change rarely and keep a day. The ETag makes a
+        // revalidation a 304 with no body.
+        let tag = staticTags.get(pathname);
+        if (!tag) staticTags.set(pathname, (tag = `"${crypto.createHash('sha1').update(body).digest('base64url').slice(0, 16)}"`));
+        const cache = /^(image|font)\//.test(type) ? 'public, max-age=86400' : 'public, max-age=300';
+        if (req.headers['if-none-match'] === tag) {
+          res.writeHead(304, { ETag: tag, 'Cache-Control': cache });
+          res.end();
+        } else {
+          res.writeHead(200, { 'Content-Type': type, 'Content-Length': body.length, 'Cache-Control': cache, ETag: tag });
+          res.end(body);
+        }
         ctx.routeName = 'static';
         return;
       }

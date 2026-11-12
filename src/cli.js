@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -5,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { Store } from './store.js';
 import { fileKey, resolveWorkspace } from './workspace.js';
 import { ago, blameText, logText, restoreText, runsText, statusText, undoText, who } from './format.js';
-import { runHook } from './hook.js';
+import { runHook, SOURCES } from './hook.js';
+import { AGENTS, ConfigError, NAMES, detectAgents, parseAgentList, setupAgent } from './agents.js';
 
 // Loaded on demand, so the hook (run on every edit) starts as fast as it can.
 const attribution = () => import('./attribution.js');
@@ -21,45 +23,65 @@ const BIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'bi
 // Newlines, tabs and CRLF stay.
 export const term = (s) => String(s).replace(/\r(?!\n)|[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, '�');
 
-const HELP = `grapim: lets many coding agents work in one repo without overwriting each other.
+export const HUB = 'https://app.grapim.com';
+export const DOCS = 'https://app.grapim.com/docs';
 
-  grapim init [--no-intents]  install the Claude Code hooks in this repo (.claude/settings.local.json)
-                               and, in a git repo, the post-commit and pre-push hooks that keep AI
-                               provenance as git notes (--no-intents: notes without prompts)
-  grapim status [--watch]     who is active, what they are doing, which files they hold
-  grapim log [-n 30]          recent claims, edits (+/- lines), blocks and undos
-  grapim claim <files..> [--intent "..."] [--ttl 30]
-  grapim release [files..]    release files (all of yours if none given)
-  grapim intent "<text>"      say what you are working on
+const HELP = `grapim: every AI change to your code has someone accountable for it.
 
-  grapim runs                 every agent run: intent, turns, files, +/- lines, still in the tree?
-  grapim blame <file>         which run and turn wrote each line that differs from HEAD
+Usage: grapim <command> [options]
+
+Get started
+  grapim init [--agents <list>] [--no-intents]
+                               record every edit your coding agents make in this repo: sets up
+                               the agents found here (Claude Code, Codex, Cursor, Gemini CLI;
+                               --agents claude,codex,cursor,gemini or all to choose) and, in a
+                               git repo, the git hooks that keep AI provenance as git notes
+                               (--no-intents: notes without prompts)
+  grapim sync [--watch] [--hub <url>]
+                               send this repo's runs to your team's hub for review (default
+                               ${HUB}; machine token from $GRAPIM_HUB_TOKEN)
+
+Review and undo agent runs
+  grapim runs                  every agent run: intent, turns, files, +/- lines, still in the tree?
+  grapim review <run> --approve|--reject|--pending [--note "..."]
+                               mark a run reviewed on this machine (without a flag, show its
+                               review). The pull request check counts approvals in the hub only
+  grapim undo <run> [--turn N] [--yes]
+                               remove one run's (or one turn's) changes, keep everyone else's.
+                               <run> is a run id, label or session id prefix. Without --yes it
+                               only prints the plan. Needs git (for git merge-file).
+  grapim branch <run>          put one run's changes on a new git branch (grapim/<label>) from
+                               HEAD, without touching your working tree, index or HEAD
+  grapim restore <file> <sha> [--yes]
+                               put a file back to a version from its history (a sha prefix
+                               from /api/files/history or the desk). Without --yes it only
+                               prints the plan. Recorded as its own run, so it can be undone
+  grapim blame <file>          which run and turn wrote each line that differs from HEAD
   grapim blame <file> --history
                                every line, committed or not: agent run, turn and prompt, or human
   grapim provenance record [<commit>] | show [<commit>] | stats [<rev-range>] | push [<remote>]
                                AI provenance notes (refs/notes/grapim): write one for a commit,
                                print one, AI share per agent and file, push the notes
-  grapim undo <run> [--turn N] [--yes]
-                               remove one run's (or one turn's) changes, keep everyone else's.
-                               <run> is a run id, label or session id prefix. Without --yes it
-                               only prints the plan. Needs git (for git merge-file).
-  grapim restore <file> <sha> [--yes]
-                               put a file back to a version from its history (a sha prefix
-                               from /api/files/history or the desk). Without --yes it only
-                               prints the plan. Recorded as its own run, so it can be undone
-  grapim branch <run>         put one run's changes on a new git branch (grapim/<label>) from
-                               HEAD, without touching your working tree, index or HEAD
-  grapim review <run> --approve|--reject|--pending [--note "..."]
-                               mark a run reviewed (without a flag, show its review)
-  (runs, blame, undo, restore, branch and review take --json)
-  grapim mcp                  run the MCP server (for Codex, Cursor and other agents)
+  grapim provenance pr <base>..<head> [--json]
+                               the summary a pull request gets: its agent runs, their review
+                               and lines (git blame + notes)
+  (runs, review, undo, branch, restore, blame, provenance and status take --json)
+
+Coordinate agents
+  grapim status [--watch]      who is active, what they are doing, which files they hold
+  grapim log [-n 30]           recent claims, edits (+/- lines), blocks and undos
+  grapim claim <files..> [--intent "..."] [--ttl 30]
+  grapim release [files..]     release files (all of yours if none given)
+  grapim intent "<text>"       say what you are working on
+
+Servers and integrations
+  grapim mcp                   run the MCP server (for agents without hooks: they call
+                               claim_files and release_files themselves)
   grapim serve [--port 7420] [--host 127.0.0.1] [--open]
                                the review desk, JSON API, agent workspace (/fs) and MCP over
                                HTTP (/mcp). A --host other than loopback needs $GRAPIM_TOKEN
-  grapim sync --hub <url> [--token <t>] [--watch]
-                               push this repo's runs, changes and events to a team hub
-                               (token from --token or $GRAPIM_HUB_TOKEN)
-  grapim hub                  run the team hub server (configured from env, see .env.example)
+  grapim hub                   run the team hub server (from a source checkout only; configured
+                               from env, see .env.example)
   grapim folder <workspace-url> <dir> [--watch] [--once] [--force] [--token-env NAME]
                                keep a local folder and a workspace in sync both ways (token from
                                $GRAPIM_WORKSPACE_TOKEN; edits on both sides merge or keep both)
@@ -67,13 +89,18 @@ const HELP = `grapim: lets many coding agents work in one repo without overwriti
                                the workspace as a network drive (WebDAV): on Windows with a
                                letter it runs net use, elsewhere it prints the steps (token
                                from $GRAPIM_WORKSPACE_TOKEN, never the command line)
-  grapim provenance pr <base>..<head> [--json]
-                               the AI provenance summary a pull request gets (git blame + notes)
-  grapim hook                 Claude Code hook entry point (reads JSON on stdin)
+  grapim hook [--from codex|cursor|gemini]
+                               the agent hook entry point (reads JSON on stdin; grapim init
+                               sets it up)
 
+Options
   --agent <name>  act as this agent (default: $GRAPIM_AGENT, or human:<your user name>)
+  --version       print the version
   Env: GRAPIM_MODE=warn  warn after the edit instead of blocking it
-       GRAPIM_TTL_MINUTES  how long a claim lasts without edits (default 30)`;
+       GRAPIM_TTL_MINUTES  how long a claim lasts without edits (default 30)
+
+No telemetry: grapim connects to a server only when you run sync, folder or mount.
+Docs: ${DOCS}   Help: https://app.grapim.com/support`;
 
 function parse(argv) {
   const flags = {};
@@ -94,38 +121,124 @@ async function readStdin() {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-function hookEntry(command) {
-  return { type: 'command', command, timeout: 20 };
+// The Claude Code hooks alone (the API before `grapim init` set up other agents).
+export function installHooks(root, bin = BIN) {
+  return setupAgent('claude', root, { bin }).file;
 }
 
-export function installHooks(root, bin = BIN) {
-  const dir = path.join(root, '.claude');
-  const file = path.join(dir, 'settings.local.json');
-  fs.mkdirSync(dir, { recursive: true });
-  let settings = {};
-  if (fs.existsSync(file)) {
-    const raw = fs.readFileSync(file, 'utf8').trim();
-    if (raw) settings = JSON.parse(raw);
+export function version() {
+  try {
+    return JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+  } catch {
+    return 'unknown';
   }
-  const command = `node "${bin}" hook`;
-  const isOurs = (h) => typeof h?.command === 'string' && /grapim(\.js)?"? hook$/.test(h.command);
-  settings.hooks ??= {};
-  const want = {
-    SessionStart: undefined,
-    UserPromptSubmit: undefined,
-    PreToolUse: 'Edit|Write|MultiEdit|NotebookEdit',
-    PostToolUse: 'Edit|Write|MultiEdit|NotebookEdit',
-    SessionEnd: undefined,
-  };
-  for (const [event, matcher] of Object.entries(want)) {
-    const groups = (settings.hooks[event] ?? [])
-      .map((g) => ({ ...g, hooks: (g.hooks ?? []).filter((h) => !isOurs(h)) }))
-      .filter((g) => g.hooks.length);
-    groups.push({ ...(matcher ? { matcher } : {}), hooks: [hookEntry(command)] });
-    settings.hooks[event] = groups;
+}
+
+// npx, pnpm dlx and bunx run a package from a cache folder they may clear:
+// hooks pointing there would stop recording without a word.
+export const isTemporaryInstall = (bin) => /\/_npx\/|\/dlx[-/]|\/bunx-/.test(String(bin).replace(/\\/g, '/'));
+
+// bin/grapim.js of a global npm install, or null.
+function globalBin() {
+  try {
+    const root = execFileSync('npm', ['root', '-g'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], shell: process.platform === 'win32', timeout: 15000, windowsHide: true }).trim();
+    const bin = path.join(root, 'grapim', 'bin', 'grapim.js');
+    return root && fs.existsSync(bin) ? bin.split(path.sep).join('/') : null;
+  } catch {
+    return null;
   }
-  fs.writeFileSync(file, JSON.stringify(settings, null, 2) + '\n');
-  return file;
+}
+
+const pad = (s, n) => s + ' '.repeat(Math.max(1, n - s.length));
+
+// `grapim init`. Options are for tests: home (where agents keep their config),
+// bin (the grapim.js hooks run), findGlobal, out and err.
+export async function initCmd(ws, flags, { home = os.homedir(), bin = BIN, findGlobal = globalBin, out = console.log, err = console.error } = {}) {
+  if (isTemporaryInstall(bin)) {
+    const lasting = findGlobal();
+    if (!lasting) {
+      err(
+        [
+          'grapim init needs grapim installed: npx runs it from a temporary folder that npm clears,',
+          'and hooks pointing there would stop recording without telling you. Install it, then init:',
+          '',
+          '  npm install -g grapim',
+          '  grapim init',
+        ].join('\n'),
+      );
+      return 1;
+    }
+    bin = lasting;
+  }
+  let chosen;
+  const found = detectAgents(ws.root, { home });
+  if (flags.agents !== undefined) {
+    try {
+      chosen = parseAgentList(flags.agents);
+    } catch (e) {
+      err(e.message);
+      return 1;
+    }
+  } else chosen = AGENTS.filter((id) => found[id]);
+  const fallback = !chosen.length;
+  if (fallback) chosen = ['claude'];
+
+  const rows = [];
+  const problems = [];
+  let tracked = [];
+  for (const id of chosen) {
+    try {
+      const r = setupAgent(id, ws.root, { bin, isGit: ws.isGit });
+      rows.push([NAMES[id], `${r.rel}${r.changed ? '' : ' (already set up)'}${r.note ? `. ${r.note}` : ''}`]);
+      if (r.git === 'tracked' && r.changed) tracked.push(r.rel);
+    } catch (e) {
+      if (!(e instanceof ConfigError)) throw e;
+      problems.push(`${NAMES[id]}: ${e.message}`);
+    }
+  }
+  let intents = null;
+  if (ws.isGit) {
+    // Commit provenance: post-commit records a note, pre-push pushes the notes.
+    const { installGitHooks } = await import('./provenance/hooks.js');
+    try {
+      const g = installGitHooks(ws.root, { bin, intents: flags['no-intents'] ? false : null });
+      rows.push(['Git', `post-commit and pre-push hooks keep AI provenance as git notes${g.chained.length ? ` (chained to your existing ${g.chained.join(', ')})` : ''}`]);
+      intents = g.intents;
+    } catch (e) {
+      problems.push(`Git: could not install the hooks for commit provenance: ${e.message}`);
+    }
+  }
+
+  const lines = [];
+  if (rows.length) {
+    lines.push(`Grapim is set up in ${ws.repo}. Every change these agents make is recorded as a run:`, '');
+    for (const [name, what] of rows) lines.push(`  ${pad(name, 13)}${what}`);
+  }
+  const missing = AGENTS.filter((id) => !chosen.includes(id));
+  if (fallback) lines.push('', `No coding agent found in this repo or your home folder, so Claude Code was set up. To choose: grapim init --agents ${AGENTS.join(',')}`);
+  else if (missing.length && flags.agents === undefined) lines.push('', `Not found: ${missing.map((id) => NAMES[id]).join(', ')}. To add one anyway: grapim init --agents ${missing[0]}`);
+  if (tracked.length) lines.push('', `${tracked.join(', ')} ${tracked.length > 1 ? 'are' : 'is'} committed in this repo and now holds a path on this machine: keep that change out of your commits.`);
+  if (intents !== null) lines.push('', intents ? 'Notes include the first line of each prompt. To leave prompts out: grapim init --no-intents' : 'Notes leave prompts out (grapim.notes.intents=false).');
+  const agentsSet = rows.some(([n]) => n !== 'Git');
+  if (agentsSet) {
+    const setToken = process.platform === 'win32' ? '$env:GRAPIM_HUB_TOKEN = "cmh_..."' : 'export GRAPIM_HUB_TOKEN=cmh_...';
+    lines.push(
+      '',
+      'Restart any agent that is already running so it loads the hooks.',
+      '',
+      'Next',
+      '  See the runs on this machine:  grapim runs',
+      '  Review them with your team:',
+      `    1. Sign in at ${HUB} and create a machine token (Settings, Machine tokens; create a team first if you have none)`,
+      `    2. ${setToken}`,
+      '    3. grapim sync --watch',
+      '',
+      `Docs: ${DOCS}`,
+    );
+    out(lines.join('\n'));
+  }
+  for (const p of problems) err(p);
+  return problems.length && !rows.some(([n]) => n !== 'Git') ? 1 : 0;
 }
 
 async function runsCmd(store, flags) {
@@ -273,10 +386,99 @@ async function reviewCmd(store, rest, flags, agent) {
   return 0;
 }
 
+// The options each command reads (beyond --agent and --help). serve, folder,
+// mount and provenance pr parse their own.
+const OPTIONS = {
+  init: ['agents', 'no-intents'],
+  sync: ['watch', 'hub', 'token'],
+  status: ['watch', 'json'],
+  log: ['n'],
+  claim: ['intent', 'ttl'],
+  release: [],
+  intent: [],
+  runs: ['json'],
+  blame: ['json', 'history'],
+  undo: ['turn', 'yes', 'json'],
+  restore: ['yes', 'json'],
+  branch: ['json'],
+  review: ['approve', 'reject', 'pending', 'note', 'json'],
+  provenance: ['json', 'hook'],
+  hook: ['from'],
+  mcp: [],
+  hub: [],
+};
+const OWN_PARSER = ['serve', 'folder', 'mount'];
+const COMMANDS = [...Object.keys(OPTIONS), ...OWN_PARSER];
+
+// The closest known command to a typo, or null (edit distance 2 at most).
+function closest(word) {
+  const d = (a, b) => {
+    const m = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j++) m[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) m[i][j] = Math.min(m[i - 1][j] + 1, m[i][j - 1] + 1, m[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return m[a.length][b.length];
+  };
+  const best = COMMANDS.map((c) => [c, d(String(word).toLowerCase(), c)]).sort((x, y) => x[1] - y[1])[0];
+  return best && best[1] <= 2 ? best[0] : null;
+}
+
+// One command's lines from HELP, for `grapim <command> --help`.
+export function commandHelp(cmd) {
+  const lines = HELP.split('\n');
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith(`  grapim ${cmd} `) && lines[i] !== `  grapim ${cmd}`) continue;
+    out.push(lines[i]);
+    while (i + 1 < lines.length && /^ {31}\S/.test(lines[i + 1])) out.push(lines[++i]);
+  }
+  if (!out.length) return null;
+  return [
+    'Usage:',
+    ...out,
+    ...(['claim', 'release', 'intent', 'undo', 'restore', 'branch', 'review'].includes(cmd) ? ['', '  --agent <name>  act as this agent (default: $GRAPIM_AGENT, or human:<your user name>)'] : []),
+    '',
+    `All commands: grapim --help   Docs: ${DOCS}/cli`,
+  ].join('\n');
+}
+
 export async function main(argv) {
   const [cmd, ...args] = argv;
+  if (cmd === '--version' || cmd === '-v' || cmd === 'version') {
+    console.log(version());
+    return 0;
+  }
+  if (cmd && cmd !== 'help' && cmd.startsWith('-') && cmd !== '--help' && cmd !== '-h') {
+    console.error(`Unknown option ${cmd}. Options go after the command, like grapim runs --json. See grapim --help.`);
+    return 1;
+  }
+  if (cmd && cmd !== 'help' && cmd !== '--help' && cmd !== '-h' && !COMMANDS.includes(cmd)) {
+    const near = closest(cmd);
+    console.error(`Unknown command: ${term(cmd)}.${near ? ` Did you mean grapim ${near}?` : ''} See grapim --help for the list.`);
+    return 1;
+  }
+  if (cmd === 'help' && args[0]) {
+    const one = commandHelp(args[0]);
+    console.log(one ?? HELP);
+    return 0;
+  }
+  if (OWN_PARSER.includes(cmd)) {
+    // Parsed by the command itself below.
+  } else {
+    const { flags: given } = parse(args);
+    if ((given.help || given.h) && cmd) {
+      console.log(commandHelp(cmd) ?? HELP);
+      return 0;
+    }
+    const known = new Set([...(OPTIONS[cmd] ?? []), 'agent', 'help', 'h']);
+    const bad = Object.keys(given).filter((k) => !known.has(k));
+    if (cmd && bad.length) {
+      const opts = OPTIONS[cmd]?.map((o) => (o === 'n' ? '-n' : `--${o}`)) ?? [];
+      console.error(`grapim ${cmd} has no option ${bad.map((k) => (k === 'n' ? '-n' : `--${term(k)}`)).join(', ')}.${opts.length ? ` It takes ${opts.join(', ')}.` : ''} See grapim ${cmd} --help.`);
+      return 1;
+    }
+  }
   const { flags, rest } = parse(args);
-  if (!cmd || cmd === 'help' || flags.help || flags.h) {
+  if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h' || flags.help || flags.h) {
     console.log(HELP);
     return 0;
   }
@@ -288,8 +490,9 @@ export async function main(argv) {
     } catch {
       return 0;
     }
+    const from = SOURCES.includes(flags.from) ? flags.from : 'claude';
     try {
-      const r = runHook(input);
+      const r = runHook(input, process.env, () => Date.now(), from);
       // Other agents' intents and labels are in here, shown to Claude and the user.
       if (r.stdout) process.stdout.write(term(r.stdout));
       if (r.stderr) process.stderr.write(term(r.stderr));
@@ -309,6 +512,11 @@ export async function main(argv) {
 
   if (cmd === 'hub') {
     // The team cloud service. Configured only from env (see .env.example).
+    // Not in the npm package: the hub runs at app.grapim.com.
+    if (!fs.existsSync(new URL('./hub/index.js', import.meta.url))) {
+      console.error(`The team hub server is not part of the grapim package. Your team's hub is ${HUB}: send runs to it with grapim sync.`);
+      return 1;
+    }
     const { startHub } = await import('./hub/index.js');
     return startHub(process.env); // null while serving, 1 if the config is incomplete
   }
@@ -341,35 +549,30 @@ export async function main(argv) {
   const agent = flags.agent || process.env.GRAPIM_AGENT || `human:${os.userInfo().username}`;
   const label = agent;
 
-  if (cmd === 'init') {
-    const file = installHooks(ws.root);
-    console.log(`Claude Code hooks installed in ${file}`);
-    console.log(`Shared state: ${ws.stateDir}${ws.isGit ? ' (shared by every worktree of this repo)' : ''}`);
-    if (ws.isGit) {
-      // Commit provenance: post-commit records a note, pre-push pushes the notes.
-      const { installGitHooks } = await import('./provenance/hooks.js');
-      try {
-        const g = installGitHooks(ws.root, { bin: BIN, intents: flags['no-intents'] ? false : null });
-        console.log(`Git hooks for commit provenance installed in ${g.dir} (post-commit, pre-push${g.chained.length ? `; chained to your existing ${g.chained.join(', ')}` : ''})`);
-        console.log(g.intents ? 'Notes include the first line of each prompt. To leave prompts out: grapim init --no-intents' : 'Notes leave prompts out (grapim.notes.intents=false).');
-      } catch (err) {
-        console.error(`Could not install the git hooks for commit provenance: ${err.message}`);
-      }
-    }
-    console.log('\nFor Codex, add to ~/.codex/config.toml:');
-    console.log(`  [mcp_servers.grapim]\n  command = "node"\n  args = ["${BIN}", "mcp"]`);
-    console.log('\nFor Cursor, add to .cursor/mcp.json:');
-    console.log(`  { "mcpServers": { "grapim": { "command": "node", "args": ["${BIN}", "mcp"] } } }`);
-    console.log('\nWatch it live: grapim status --watch');
-    return 0;
-  }
+  if (cmd === 'init') return initCmd(ws, flags);
 
   if (cmd === 'sync') {
     const { SyncError, syncOnce, syncWatch } = await import('./sync.js');
-    const hubUrl = flags.hub || process.env.GRAPIM_HUB_URL;
+    const hubUrl = flags.hub || process.env.GRAPIM_HUB_URL || HUB;
     const token = flags.token || process.env.GRAPIM_HUB_TOKEN;
-    if (!hubUrl || !token) {
-      console.error('Usage: grapim sync --hub <url> [--token <t>] [--watch]. The token can come from $GRAPIM_HUB_TOKEN (better: it stays out of your shell history).');
+    if (!token) {
+      const set = process.platform === 'win32' ? '$env:GRAPIM_HUB_TOKEN = "cmh_..."' : 'export GRAPIM_HUB_TOKEN=cmh_...';
+      console.error(
+        [
+          `grapim sync needs a machine token. Create one at ${hubUrl} (Settings, Machine tokens), then:`,
+          '',
+          `  ${set}`,
+          '  grapim sync --watch',
+          '',
+          'The variable keeps the token out of your shell history; --token <t> works too.',
+        ].join('\n'),
+      );
+      return 1;
+    }
+    try {
+      new URL(hubUrl);
+    } catch {
+      console.error(`${hubUrl} is not a URL. Give the hub's address, like ${HUB}.`);
       return 1;
     }
     const syncStore = new Store(ws.stateDir);

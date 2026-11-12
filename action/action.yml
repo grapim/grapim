@@ -23,5 +23,5 @@ outputs:
   unreviewed-runs:
     description: Agent runs with lines in the pull request that are not approved in Grapim.
 runs:
-  using: node20
+  using: node24
   main: index.mjs

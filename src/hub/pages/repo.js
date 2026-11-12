@@ -138,7 +138,7 @@ function reviewPanel({ csrf, team, repo, run, review }) {
   ${review.local && review.local.status !== 'pending' ? html`<p class="fine">${review.local.status === 'approved' ? 'Approved' : 'Rejected'} locally by ${review.local.login || review.local.machine} with <code>grapim review</code>. Shown for information: it does not count for the policy.</p>` : ''}
   <p class="fine">Synced by ${review.owners.length ? review.owners.join(', ') : 'nobody'}. The person who synced a run cannot review it.</p>
   ${review.mine
-    ? html`<p class="muted small">You synced this run, so another member has to review it.</p>`
+    ? html`<p class="muted small">You synced this run, so another member has to review it. No one else in the team yet? <a class="link" href="/hub/teams/${team.id}/settings#members">Invite a teammate</a>.</p>`
     : html`<form method="post" action="${action}" class="review-form" id="review-form">
     ${csrfField(csrf)}
     <input type="hidden" name="machine" value="${run.machine}">
@@ -175,7 +175,7 @@ export function runPage({ user, csrf, team, repo, detail, review = null }) {
 <div class="run-meta">
   ${agent(r.label, kindOf(r.run))}
   <span>${r.machine}${r.worktree ? ` · ${r.worktree}` : ''}</span>
-  <span>${plural(r.turns, 'turn')}</span>
+  <span>${plural(r.turns, 'turn')}${detail.turns.length && detail.turns.length < r.turns ? `, ${detail.turns.length} with edits` : ''}</span>
   <span>${plural(r.files, 'file')} ${delta(r.added, r.removed)}</span>
   <span>last edit ${time(r.last_ts)}</span>
   ${treeBadge(r.in_tree)}

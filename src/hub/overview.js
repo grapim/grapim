@@ -158,7 +158,8 @@ export function createOverview(hub) {
       { key: 'sync', done: repos > 0 },
       ...(gh === null ? [] : [{ key: 'github', done: gh > 0 }]),
     ];
-    return { steps, done: steps.filter((s) => s.done).length, empty: repos === 0 && ws === 0, githubConfigured: gh !== null };
+    const members = q('SELECT COUNT(*) AS n FROM members WHERE team_id = ?').get(team.id).n;
+    return { steps, done: steps.filter((s) => s.done).length, empty: repos === 0 && ws === 0, githubConfigured: gh !== null, members };
   }
 
   // The teams the user belongs to, for the switcher (with created dates).

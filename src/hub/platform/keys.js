@@ -28,9 +28,10 @@ export class PlatformKeys {
 
   // ---- Platforms ----
 
-  // May this user turn teams into platforms? The same allowlist as team creation.
+  // May this user turn teams into platforms? HUB_PLATFORM_CREATORS, else the
+  // team creation allowlist.
   mayEnable(user) {
-    const c = this.config.teamCreators;
+    const c = this.config.platformCreators ?? this.config.teamCreators;
     return !c || c.includes(String(user.id)) || c.includes(String(user.login).toLowerCase());
   }
 
