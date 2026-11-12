@@ -941,3 +941,24 @@ input[aria-invalid="true"] { border-color: var(--danger); }
 @media (max-width: 860px) {
   .toast, html[data-agent="open"] .toast { left: 16px; right: 16px; max-width: none; bottom: max(16px, env(safe-area-inset-bottom)); }
 }
+
+/* Sidebar top: the Grapim mark (all teams) and the team you are in, which
+   switches teams, the way Vercel and Linear lead with the workspace. */
+.brand-row { display: flex; align-items: center; gap: 2px; min-width: 0; flex: 1; }
+.brand-mark-only { width: 32px; height: 32px; padding: 0; justify-content: center; }
+.brand-mark-only:hover { background: var(--surface-2); }
+.team-switch { position: relative; min-width: 0; flex: 1; }
+.team-switch-btn {
+  display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 6px; min-width: 0; cursor: pointer; list-style: none;
+  border-radius: var(--radius); color: var(--text); font-weight: 600; font-size: var(--fs-14); letter-spacing: -0.01em;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.team-switch-btn::-webkit-details-marker { display: none; }
+.team-switch-btn:hover, .team-switch[open] .team-switch-btn { background: var(--surface-2); }
+.team-switch-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-switch .switch-chev { width: 14px; height: 14px; flex: none; }
+.team-switch .team-menu { left: -34px; width: calc(var(--sidebar) - 24px); }
+
+/* Under the first-run steps: workspaces, as the second thing Grapim does. */
+.setup-also { display: flex; align-items: flex-start; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--text-2); max-width: 64ch; }
+.setup-also .icon { margin-top: 3px; color: var(--text-3); }

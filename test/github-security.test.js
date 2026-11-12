@@ -168,7 +168,7 @@ async function signIn(h, login, id = nextUser++) {
 
 async function createTeam(b, name) {
   const r = await b.post('/hub/teams', { name });
-  return r.location.match(/\/hub\/teams\/([^/]+)\/settings/)[1];
+  return r.location.match(/\/hub\/teams\/([^/?#]+)/)[1];
 }
 
 let delivery = 1;

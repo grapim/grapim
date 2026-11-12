@@ -50,7 +50,7 @@ const BILLING_STATUS = {
 // What a form did, said after its redirect as a toast (?done=<code>): a fixed
 // list, so the address can never put words on the page.
 const DONE = {
-  team_created: 'Team created. Invite your teammates or create a machine token below.',
+  team_created: 'Team created. Connect a repo below to start seeing what your agents change.',
   left: 'You left the team. Your machine tokens for it no longer work.',
   token_revoked: 'Token revoked. That machine can no longer sync.',
   invite_revoked: 'Invite link revoked.',
@@ -157,7 +157,7 @@ export function pageRoutes(router, hub) {
           throw new HttpError(403, 'forbidden', 'This hub is in a private beta: creating teams is limited to invited accounts. Ask a team owner for an invite link.');
         }
         const team = teams.create(u, ctx.form.name);
-        redirect(ctx.res, `/hub/teams/${team.id}/settings?done=team_created`);
+        redirect(ctx.res, `/hub/teams/${team.id}?done=team_created`);
       } catch (err) {
         if (!(err instanceof HttpError)) throw err;
         html(ctx, pickerPage({ user: ctx.session.user, csrf: ctx.session.csrf, teams: hub.overview.teamsOf(ctx.session.user.id), error: err.message }), err.status);
@@ -206,6 +206,7 @@ export function pageRoutes(router, hub) {
       html(
         ctx,
         overviewPage({
+          toast: doneText(ctx),
           user: ctx.session.user,
           csrf: ctx.session.csrf,
           team,

@@ -129,7 +129,7 @@ async function signIn(h, login) {
 }
 async function createTeam(b, name) {
   const r = await b.post('/hub/teams', { name });
-  return r.headers.get('location').match(/\/hub\/teams\/([^/]+)\/settings/)[1];
+  return r.headers.get('location').match(/\/hub\/teams\/([^/?#]+)/)[1];
 }
 async function createToken(b, team, name = 'laptop') {
   const r = await b.post(`/hub/teams/${team}/tokens`, { name });

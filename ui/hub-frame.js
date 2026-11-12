@@ -50,6 +50,9 @@ export async function mountHubFrame() {
     const a = el('a', { class: brand.className, href: teamBase, 'aria-label': `Back to ${team?.name ?? 'the team'}` });
     a.append(...brand.childNodes);
     brand.replaceWith(a);
+    // Inside the hub the sidebar leads with the team, as on team pages.
+    const name = a.querySelector('.brand-name');
+    if (name && team?.name) name.textContent = team.name;
   }
 
   // The top bar: where you are, and Ask Grapim.

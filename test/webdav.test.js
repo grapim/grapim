@@ -533,7 +533,7 @@ async function hubWorkspace(h, name = 'drive') {
   const state = new URL(start.headers.get('location')).searchParams.get('state');
   assert.equal((await b.req(`/hub/auth/callback?code=code-${id}&state=${state}`)).status, 303);
   const tr = await b.post('/hub/teams', { name: `Team ${id}` });
-  const team = tr.headers.get('location').match(/\/hub\/teams\/([^/]+)\/settings/)[1];
+  const team = tr.headers.get('location').match(/\/hub\/teams\/([^/?#]+)/)[1];
   const wr = await b.post(`/hub/teams/${team}/workspaces`, { name });
   assert.equal(wr.status, 303, wr.text);
   const wsId = wr.headers.get('location').match(/\/workspaces\/([^/]+)$/)[1];

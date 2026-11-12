@@ -9,7 +9,7 @@ export function signInPage({ next = '/hub', error = null }) {
     title: 'Sign in',
     body: html`<section class="auth">
   <h1>Sign in to Grapim</h1>
-  <p class="lede">See every agent's work across your team's machines: which run wrote each line, what it was asked to do, and what it changed.</p>
+  <p class="lede">See which AI agent wrote every line of your code, review each agent's run, and stop unreviewed agent code at the pull request.</p>
   ${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
   <a class="btn btn-primary btn-block" href="${href}">
     <svg class="gh" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
@@ -30,7 +30,7 @@ export function pickerPage({ user, csrf, teams, error = null, toast = null }) {
     csrf,
     toast,
     body: html`<header class="page-head">
-  <div class="page-head-main"><h1>Teams</h1><p class="page-sub">Teams you belong to. Open one to see its runs, reviews and workspaces.</p></div>
+  <div class="page-head-main"><h1>Teams</h1><p class="page-sub">Teams you belong to. Open one to review what its agents changed.</p></div>
 </header>
 ${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
 ${teams.length

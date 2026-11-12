@@ -129,7 +129,7 @@ async function workspace(h, login) {
   const b = new Browser(h.base);
   const start = await b.req('/hub/auth/github');
   await b.req(`/hub/auth/callback?code=code-${id}&state=${new URL(start.headers.get('location')).searchParams.get('state')}`);
-  const team = (await b.post('/hub/teams', { name: `${login} team` })).headers.get('location').match(/\/hub\/teams\/([^/]+)\/settings/)[1];
+  const team = (await b.post('/hub/teams', { name: `${login} team` })).headers.get('location').match(/\/hub\/teams\/([^/?#]+)/)[1];
   const wsId = (await b.post(`/hub/teams/${team}/workspaces`, { name: 'shared' })).headers.get('location').match(/\/workspaces\/([^/]+)$/)[1];
   const ws = { id: wsId, team, base: `/w/${team}/shared/` };
   const token = async (name, scope, rows = []) => {

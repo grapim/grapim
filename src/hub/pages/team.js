@@ -46,7 +46,7 @@ function checklist({ team, csrf, role, origin, setup, compact = false }) {
   const STEPS = {
     cli: {
       title: 'Install Grapim in a repo',
-      body: html`In each repo your agents work in. It adds the hooks that record every agent edit.`,
+      body: html`In each repo your agents work in. It records every edit Claude Code, Codex or Cursor makes, with the run that made it.`,
       action: code('npx grapim init'),
       link: null,
     },
@@ -63,14 +63,14 @@ function checklist({ team, csrf, role, origin, setup, compact = false }) {
     },
     sync: {
       title: 'Connect the machine',
-      body: html`Run this in the repo, with the token in the environment. Runs appear on this page as agents work.`,
+      body: html`Run this in the repo, with the token in the environment. Each agent run then shows up here to review.`,
       action: syncSnippet(origin),
       link: null,
     },
     github: {
-      title: 'Install the GitHub App',
+      title: 'Turn on the pull request check',
       body: owner
-        ? html`Pull requests get a comment with the share of AI-written lines per agent run, and a check that can require review.`
+        ? html`Install the GitHub App. Each pull request gets a comment showing which lines AI agents wrote, and a check that can block merging until every agent run is reviewed.`
         : html`An owner of ${team.name} installs it. Pull requests then get a provenance comment and check.`,
       action: owner ? html`<a class="btn" href="${base}/github">Connect GitHub</a>` : '',
       link: owner ? `${base}/github` : null,
@@ -145,7 +145,7 @@ function shareBlock(team, teaser) {
 </section>`;
 }
 
-export function overviewPage({ user, csrf, team, role, origin, setup, waiting, mine, pulls, teaser, active, activity, repos, workspaces }) {
+export function overviewPage({ toast = null, user, csrf, team, role, origin, setup, waiting, mine, pulls, teaser, active, activity, repos, workspaces }) {
   const base = `/hub/teams/${team.id}`;
   if (setup.empty) {
     return layout({
@@ -153,9 +153,11 @@ export function overviewPage({ user, csrf, team, role, origin, setup, waiting, m
       user,
       csrf,
       team,
+      toast,
       crumbs: [{ label: 'Overview' }],
-      body: html`${head(team, 'overview', { title: `Set up ${team.name}`, sub: 'Grapim records what each agent was asked, what it changed, and who reviewed it. Connect a machine and its runs appear here.' })}
-${checklist({ team, csrf, role, origin, setup })}`,
+      body: html`${head(team, 'overview', { title: `Set up ${team.name}`, sub: 'Grapim records which agent run wrote each line of your code, what it was asked to do, and who reviewed it. Pull requests with unreviewed agent lines are flagged on GitHub.' })}
+${checklist({ team, csrf, role, origin, setup })}
+<p class="setup-also">${icon('workspace')}<span>Agents also writing docs or data, outside a repo? A <a class="link" href="${base}/workspaces">workspace</a> is a shared folder where every write is recorded, reviewable and undoable too.</span></p>`,
     });
   }
   const left = setup.steps.some((s) => !s.done);

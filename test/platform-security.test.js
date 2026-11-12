@@ -100,7 +100,7 @@ async function platform(h, login) {
   const state = new URL(start.headers.get('location')).searchParams.get('state');
   assert.equal((await b.req(`/hub/auth/callback?code=code-${id}&state=${state}`)).status, 303);
   const r = await b.post('/hub/teams', { name: `${login} Inc` });
-  const team = r.headers.get('location').match(/\/hub\/teams\/([^/]+)\/settings/)[1];
+  const team = r.headers.get('location').match(/\/hub\/teams\/([^/?#]+)/)[1];
   assert.equal((await b.post(`/hub/teams/${team}/platform`)).status, 303);
   const key = async (name, mode) => (await b.post(`/hub/teams/${team}/platform/keys`, { name, mode })).text.match(/value="(gpk_(?:live|test)_[A-Za-z0-9_-]+)"/)[1];
   return { owner: b, userId: id, team, live: await key('backend', 'live'), test: await key('ci', 'test') };

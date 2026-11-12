@@ -611,7 +611,7 @@ test('in the hub: connect with a sealed token bound to its workspace, sync, push
   const b = new Browser(base);
   const start = await b.req('/hub/auth/github');
   await b.req(`/hub/auth/callback?code=c1&state=${new URL(start.headers.get('location')).searchParams.get('state')}`);
-  const team = (await b.post('/hub/teams', { name: 'Saas team' })).headers.get('location').match(/\/hub\/teams\/([^/]+)\//)[1];
+  const team = (await b.post('/hub/teams', { name: 'Saas team' })).headers.get('location').match(/\/hub\/teams\/([^/?#]+)/)[1];
   hub.db.prepare("UPDATE teams SET plan = 'team' WHERE id = ?").run(team);
   const mk = async (name) => (await b.post(`/hub/teams/${team}/workspaces`, { name })).headers.get('location').match(/\/workspaces\/([^/]+)$/)[1];
   const wsA = await mk('notes');

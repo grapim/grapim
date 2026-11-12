@@ -40,8 +40,8 @@ function sections(team, kind = team.kind) {
     { id: 'overview', label: 'Overview', href: base, icon: 'home', g: 'o' },
     { id: 'reviews', label: 'Reviews', href: `${base}/reviews`, icon: 'review', g: 'r' },
     { id: 'repos', label: 'Repos', href: `${base}/repos`, icon: 'repo', g: 'p' },
-    { id: 'workspaces', label: 'Workspaces', href: `${base}/workspaces`, icon: 'workspace', g: 'w' },
     { id: 'reports', label: 'Reports', href: `${base}/reports`, icon: 'reports', g: 'a' },
+    { id: 'workspaces', label: 'Workspaces', href: `${base}/workspaces`, icon: 'workspace', g: 'w' },
     { id: 'settings', label: 'Settings', href: `${base}/settings`, icon: 'settings', g: 's' },
   ];
   // A platform team (docs/platform.md) gets its API keys, webhooks and usage as a section.
@@ -199,7 +199,13 @@ function shellPage({ title, user, team, csrf, crumbs, body, wide, shell, toast }
 <a class="skip" href="#main">Skip to content</a>
 <div class="app">
   <aside class="side" aria-label="Team">
-    <a class="brand" href="/hub">${LOGO}<span>Grapim</span></a>
+    <div class="brand-row">
+      <a class="brand brand-mark-only" href="/hub" aria-label="Grapim, all teams" title="All teams">${LOGO}</a>
+      <details class="team-switch" data-menu>
+        <summary class="team-switch-btn" aria-label="${`Team: ${team.name}. Switch team`}"><span class="team-switch-name">${team.name}</span>${icon('updown', 'switch-chev')}</summary>
+        <div class="menu team-menu">${teamMenu(shell, team)}</div>
+      </details>
+    </div>
     <button class="search-btn" type="button" data-action="palette">${icon('search')}<span>Jump to…</span>${MOD}</button>
     <nav class="nav" aria-label="Team sections">${navLinks(team, shell, current)}</nav>
     <div class="side-foot">

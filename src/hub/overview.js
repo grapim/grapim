@@ -157,7 +157,6 @@ export function createOverview(hub) {
       { key: 'token', done: tokens > 0 },
       { key: 'sync', done: repos > 0 },
       ...(gh === null ? [] : [{ key: 'github', done: gh > 0 }]),
-      { key: 'workspace', done: ws > 0 },
     ];
     return { steps, done: steps.filter((s) => s.done).length, empty: repos === 0 && ws === 0, githubConfigured: gh !== null };
   }

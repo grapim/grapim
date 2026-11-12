@@ -113,7 +113,7 @@ async function signIn(h, login) {
 async function setup(h, login, name = 'ws') {
   const b = await signIn(h, login);
   const r = await b.post('/hub/teams', { name: `${login} team` });
-  const team = r.headers.get('location').match(/\/hub\/teams\/([^/]+)\/settings/)[1];
+  const team = r.headers.get('location').match(/\/hub\/teams\/([^/?#]+)/)[1];
   const c = await b.post(`/hub/teams/${team}/workspaces`, { name });
   assert.equal(c.status, 303, c.text);
   const id = c.headers.get('location').match(/\/workspaces\/([^/]+)$/)[1];

@@ -132,7 +132,7 @@ async function signIn(t, login = `user${nextId}`) {
 async function createTeam(b, name) {
   const r = await b.post('/hub/teams', { name });
   assert.equal(r.status, 303, r.text);
-  return r.headers.get('location').match(/\/hub\/teams\/([^/]+)\/settings/)[1];
+  return r.headers.get('location').match(/\/hub\/teams\/([^/?#]+)/)[1];
 }
 
 async function createWorkspace(b, team, name) {

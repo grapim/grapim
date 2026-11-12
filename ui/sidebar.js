@@ -91,7 +91,8 @@
     if (!side || !app || root.classList.contains('embed')) return;
 
     // The collapse button, in the sidebar next to the brand (under it on the rail).
-    const brand = side.querySelector('.brand');
+    // The brand (or the hub's logo-and-team row) shares a row with the collapse button.
+    const brand = side.querySelector('.brand-row') || side.querySelector('.brand');
     if (brand) {
       const row = document.createElement('div');
       row.className = 'side-head';
