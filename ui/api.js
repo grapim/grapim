@@ -447,8 +447,12 @@ export async function init() {
         primed = { at: Date.now(), body: await res.json() };
       }
     } catch {
-      useMock = true;
-      conn.reason = 'unreachable';
+      // On the hub the workspace is always real: a slow or failed first answer
+      // means reconnecting, never sample data in place of the team's files.
+      if (!CLOUD) {
+        useMock = true;
+        conn.reason = 'unreachable';
+      }
     }
   } else conn.reason = 'requested';
 

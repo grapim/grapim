@@ -146,7 +146,7 @@ export const empty = (title, body, cmd) => html`
   <div class="empty">
     <h3>${title}</h3>
     <p>${body}</p>
-    ${cmd ? html`<div class="cmd"><span class="muted" aria-hidden="true">$</span><code>${cmd}</code><button class="icon-btn sm" type="button" data-copy-text="${cmd}" aria-label="Copy the command" title="Copy">${icon('copy', 'sm')}</button></div>` : ''}
+    ${cmd ? html`<div class="cmd"><span class="muted" aria-hidden="true">$</span><code title="${cmd}">${cmd}</code><button class="icon-btn sm" type="button" data-copy-text="${cmd}" aria-label="Copy the command" title="Copy">${icon('copy', 'sm')}</button></div>` : ''}
   </div>`;
 
 // A human error, with a retry if one makes sense.
