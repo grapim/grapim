@@ -87,6 +87,12 @@ export function agentConfig(env = process.env) {
   return Object.freeze(cfg);
 }
 
+// "claude-sonnet-5-5" -> "Sonnet 5.5", for the panel.
+export function modelLabel(id) {
+  const m = /^claude-([a-z]+)-(\d+)(?:-(\d+))?$/.exec(String(id));
+  return m ? `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}${m[3] ? `.${m[3]}` : ''}` : String(id);
+}
+
 const dollars = (micros) => `$${(micros / MICROS).toFixed(2)}`;
 
 const TEAM = { auth: 'session', team: true };
@@ -177,8 +183,8 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
       if (!run) return null;
       return `a run page: run ${run}${machine ? ` on machine ${machine}` : ''} in the repo ${name} (repo_id ${repo.id}). "This run" means this one.`;
     }
-    if (c.kind === 'workspace' && clean(c.workspace_id, 40)) {
-      const ws = hub.workspaces.byId(team.id, c.workspace_id);
+    if (c.kind === 'workspace' && (clean(c.workspace_id, 40) || clean(c.workspace_name, 100))) {
+      const ws = c.workspace_id ? hub.workspaces.byId(team.id, c.workspace_id) : hub.workspaces.byName(team.id, c.workspace_name);
       return ws ? `the cloud workspace ${ws.name} (id ${ws.id}), ${base}/workspaces/${ws.id}. "This workspace" means this one.` : null;
     }
     const sections = { overview: 'the team overview', reviews: 'the review inbox', repos: 'the repo list', workspaces: 'the workspace list', reports: 'the reports', settings: 'the team settings', platform: 'the platform settings' };
@@ -309,8 +315,9 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
           configured: true,
           visible: true,
           model: cfg.model,
+          model_label: modelLabel(cfg.model),
           running: running.has(keyOf(ctx)),
-          conversation: conv ? { id: conv.id, items: display(conv.id) } : null,
+          conversation: conv ? { id: conv.id, items: display(conv.id), feedback: store.feedbackFor(conv.id, userId) } : null,
           usage: usageInfo(team),
         });
       },
@@ -406,6 +413,44 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
         json(ctx, { usage: usageInfo(team) });
       },
       { ...TEAM_FORM, owner: true },
+    );
+
+    // The person's earlier conversations, and reopening one to read or continue.
+    router.get(
+      '/hub/api/teams/:team/agent/conversations',
+      (ctx) => {
+        if (!cfg.configured) return json(ctx, { conversations: [] });
+        json(ctx, { conversations: store.history(ctx.member.team.id, ctx.member.userId) });
+      },
+      TEAM,
+    );
+
+    router.post(
+      '/hub/api/teams/:team/agent/open',
+      (ctx) => {
+        enabledFor(ctx);
+        const { team, userId } = ctx.member;
+        if (running.has(keyOf(ctx))) throw new HttpError(409, 'busy', 'Ask Grapim is still answering. Stop it or wait, then open another conversation.');
+        if (!store.reopen(team.id, userId, String(ctx.form.id ?? ''))) throw new HttpError(404, 'not_found', 'No such conversation.');
+        const conv = store.current(team.id, userId);
+        json(ctx, { conversation: { id: conv.id, items: display(conv.id), feedback: store.feedbackFor(conv.id, userId) } });
+      },
+      TEAM_FORM,
+    );
+
+    // A thumbs up or down on one answer, kept to see where answers go wrong.
+    router.post(
+      '/hub/api/teams/:team/agent/feedback',
+      (ctx) => {
+        enabledFor(ctx);
+        const turn = Number(ctx.form.turn);
+        const rating = Number(ctx.form.rating);
+        if (!Number.isInteger(turn) || turn < 1 || turn > 1000 || ![1, -1, 0].includes(rating)) throw new HttpError(400, 'bad_request', 'turn must be a question number and rating 1, -1 or 0.');
+        const note = String(ctx.form.note ?? '').replace(SECRET_LIKE, '[hidden]').replace(/[\x00-\x1f\x7f]+/g, ' ').trim().slice(0, 500) || null;
+        if (!store.feedback(ctx.member.team.id, ctx.member.userId, String(ctx.form.conversation ?? ''), turn, rating, note)) throw new HttpError(404, 'not_found', 'No such conversation.');
+        json(ctx, { ok: true });
+      },
+      TEAM_FORM,
     );
 
     router.post(

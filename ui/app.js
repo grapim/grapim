@@ -430,6 +430,8 @@ for (const el of document.querySelectorAll('kbd[data-mod]')) el.textContent = MO
   render($('#view'), html`<div class="page-head"><div><span class="sk" style="width:120px;height:24px"></span><span class="sk" style="width:280px;margin-top:12px"></span></div></div>
     <div class="panel" style="padding:16px">${[60, 80, 45, 70, 55].map((w) => html`<span class="sk" style="width:${w}%;margin:12px 0"></span>`)}</div>`);
   await init();
+  // On the hub: the team's top bar and Ask Grapim around the desk.
+  if (CLOUD && !EMBED) import('./hub-frame.js').then((m) => m.mountHubFrame()).catch(() => {});
   onStatus(renderShell);
   onTick(onLiveTick);
   await refreshShell();

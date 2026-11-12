@@ -329,6 +329,8 @@ test('roles: a member cannot do owner things on any team route, nor touch anothe
     'POST /hub/api/teams/:team/agent/stop',
     'POST /hub/api/teams/:team/agent/new',
     'POST /hub/api/teams/:team/agent/actions',
+    'POST /hub/api/teams/:team/agent/open',
+    'POST /hub/api/teams/:team/agent/feedback',
   ]);
   const before = JSON.stringify(db.prepare('SELECT * FROM invites').all()) + JSON.stringify(db.prepare('SELECT * FROM members').all());
   for (const r of h.hub.router.routes.filter((x) => x.opts.team && x.method === 'POST')) {

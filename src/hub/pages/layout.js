@@ -125,6 +125,7 @@ function head(title) {
 <link rel="stylesheet" href="/hub/static/tokens.css">
 <link rel="stylesheet" href="/hub/static/shell.css">
 <link rel="stylesheet" href="/hub/static/hub.css">
+<link rel="stylesheet" href="/hub/static/agent.css">
 <script src="/hub/static/hub.js" defer></script>
 <script src="/hub/static/agent.js"></script>
 </head>`;

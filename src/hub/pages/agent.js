@@ -39,6 +39,11 @@
     chev: `<path d="m6 4 4 4-4 4" ${S}/>`,
     down: `<path d="M8 3.5V12M4.5 8.5 8 12l3.5-3.5" ${S}/>`,
     external: `<path d="M9.5 2.5h4v4M13.5 2.5 8 8M12 9.5v3a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3" ${S}/>`,
+    clock: `<circle cx="8" cy="8" r="5.75" ${S}/><path d="M8 4.75V8l2.25 1.5" ${S}/>`,
+    back: `<path d="M12.5 8h-9M7.5 4 3.5 8l4 4" ${S}/>`,
+    copy: `<rect x="5.5" y="5.5" width="8" height="8" rx="1.5" ${S}/><path d="M10.5 3.5v-.25A.75.75 0 0 0 9.75 2.5h-6.5a.75.75 0 0 0-.75.75v6.5c0 .41.34.75.75.75h.25" ${S}/>`,
+    up: `<path d="M5.5 7v6.5H3.25a.75.75 0 0 1-.75-.75v-5a.75.75 0 0 1 .75-.75H5.5Zm0 0 2.6-4.3a1.1 1.1 0 0 1 2 .75L9.6 6.5h3a1.2 1.2 0 0 1 1.17 1.46l-1.05 4.55a1.2 1.2 0 0 1-1.17.99H5.5" ${S}/>`,
+    down2: `<path d="M5.5 9V2.5H3.25a.75.75 0 0 0-.75.75v5c0 .41.34.75.75.75H5.5Zm0 0 2.6 4.3a1.1 1.1 0 0 0 2-.75L9.6 9.5h3a1.2 1.2 0 0 0 1.17-1.46l-1.05-4.55A1.2 1.2 0 0 0 11.55 2.5H5.5" ${S}/>`,
   };
   const svg = (name, cls = '') => {
     const t = document.createElement('template');
@@ -202,6 +207,13 @@
   // ---------------------------------------------------------------- page context
 
   function pageContext() {
+    // The review desk of a cloud workspace: /w/<team>/<workspace>/.
+    const w = /^\/w\/[^/]+\/([^/]+)\//.exec(location.pathname);
+    if (w) {
+      let name = w[1];
+      try { name = decodeURIComponent(name); } catch {}
+      return { kind: 'workspace', workspace_name: name };
+    }
     const m = /^\/hub\/teams\/([^/]+)(?:\/(.*))?$/.exec(location.pathname);
     if (!m) return { kind: 'overview' };
     const parts = (m[2] || '').split('/').filter(Boolean).map((p) => { try { return decodeURIComponent(p); } catch { return p; } });
@@ -242,17 +254,19 @@
     const configured = panel.dataset.configured === '1';
     const api = `/hub/api/teams/${encodeURIComponent(team)}/agent`;
     const ctx = pageContext();
-    const state = { loaded: false, busy: false, items: [], usage: null, enabled: configured, reader: null };
+    const state = { loaded: false, busy: false, items: [], usage: null, enabled: configured, reader: null, conv: null, feedback: {}, history: false };
 
     // Header.
     const newBtn = el('button', { class: 'agent-icon-btn', type: 'button', 'aria-label': 'New conversation', title: 'New conversation' }, svg('plus'));
+    const historyBtn = el('button', { class: 'agent-icon-btn', type: 'button', 'aria-label': 'Past conversations', title: 'Past conversations', 'aria-pressed': 'false' }, svg('clock'));
+    const backBtn = el('button', { class: 'agent-icon-btn agent-back', type: 'button', 'aria-label': 'Back to the conversation', title: 'Back', hidden: true }, svg('back'));
     const closeBtn = el('button', { class: 'agent-icon-btn', type: 'button', 'aria-label': 'Close Ask Grapim', title: `Close  ${isMac ? '⌘' : 'Ctrl'} J` }, svg('x'));
     // The title names the conversation once there is one; "Working…" shows while it answers.
     const titleText = el('span', { class: 'agent-title-text', text: 'Ask Grapim' });
     const status = el('span', { class: 'agent-status ag-shimmer', 'aria-hidden': 'true', text: 'Working…' });
     const head = el('header', { class: 'agent-head' },
-      el('h2', { class: 'agent-title', id: 'agent-title' }, svg('spark', 'agent-mark'), titleText),
-      el('div', { class: 'agent-head-actions' }, status, configured ? newBtn : null, closeBtn));
+      el('div', { class: 'agent-head-start' }, backBtn, el('h2', { class: 'agent-title', id: 'agent-title' }, svg('spark', 'agent-mark'), titleText)),
+      el('div', { class: 'agent-head-actions' }, status, configured ? historyBtn : null, configured ? newBtn : null, closeBtn));
     function setTitle(text) {
       const t = String(text || '').replace(/\s+/g, ' ').trim();
       titleText.textContent = t ? (t.length > 48 ? `${t.slice(0, 47)}…` : t) : 'Ask Grapim';
@@ -271,7 +285,8 @@
     const send = el('button', { class: 'agent-send', type: 'submit', 'aria-label': 'Send' }, el('span', { class: 'agent-send-icons', 'aria-hidden': 'true' }, svg('send', 'i-send'), svg('stop', 'i-stop')));
     const chip = el('span', { class: 'agent-chip', title: 'Ask Grapim sees the page you are on' }, el('span', { class: 'agent-chip-dot', 'aria-hidden': 'true' }), contextLabel(ctx));
     const foot = el('p', { class: 'agent-foot' });
-    const form = el('form', { class: 'agent-compose' }, el('div', { class: 'agent-field' }, chip, el('div', { class: 'agent-row' }, input, send)), foot);
+    const modelTag = el('span', { class: 'agent-model', title: 'The model answering' });
+    const form = el('form', { class: 'agent-compose' }, el('div', { class: 'agent-field' }, el('div', { class: 'agent-field-top' }, chip, modelTag), el('div', { class: 'agent-row' }, input, send)), foot);
 
     const resize = el('div', { class: 'agent-resize', role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Resize Ask Grapim', 'aria-valuemin': String(MIN), 'aria-valuemax': String(MAX), 'aria-valuenow': String(width()), tabindex: '0', title: 'Drag to resize, double-click to reset' });
     panel.append(resize, el('div', { class: 'agent-card' }, head, body, ...(configured ? [form] : [])));
@@ -399,8 +414,125 @@
 
     function textMsg(text, live) {
       const n = el('div', { class: `ag-msg msg-text agent-md${live ? ' is-live' : ''}` });
+      n._raw = text;
       n.append(markdown(text));
       return n;
+    }
+
+    // Under the last text of each answer: Copy, and a thumbs up or down that
+    // is kept (per question) to see where answers go wrong.
+    function decorateAnswers() {
+      for (const r of log.querySelectorAll('.ag-answer-actions')) r.remove();
+      if (!state.conv) return;
+      let turn = 0;
+      let lastText = null;
+      const flushTurn = () => {
+        if (lastText && turn > 0) lastText.after(answerActions(turn, lastText));
+        lastText = null;
+      };
+      for (const n of [...log.children]) {
+        if (n.classList.contains('msg-user')) { flushTurn(); turn++; }
+        else if (n.classList.contains('msg-text') && !n.classList.contains('is-streaming')) lastText = n;
+      }
+      flushTurn();
+    }
+
+    function answerActions(turn, textNode) {
+      const row = el('div', { class: 'ag-answer-actions' });
+      const copy = el('button', { class: 'ag-act-btn', type: 'button', 'aria-label': 'Copy answer', title: 'Copy' }, svg('copy'));
+      copy.addEventListener('click', async () => {
+        const text = [];
+        for (let n = textNode; n && !n.classList.contains('msg-user'); n = n.previousElementSibling) if (n.classList.contains('msg-text')) text.unshift(n._raw ?? n.innerText);
+        try { await navigator.clipboard.writeText(text.join('\n\n')); copy.classList.add('is-done'); copy.title = 'Copied'; setTimeout(() => { copy.classList.remove('is-done'); copy.title = 'Copy'; }, 1400); } catch {}
+      });
+      const rate = (value, icon, label) => {
+        const b = el('button', { class: 'ag-act-btn', type: 'button', 'aria-label': label, title: label, 'aria-pressed': String(state.feedback[turn] === value) }, svg(icon));
+        b.addEventListener('click', async () => {
+          const next = state.feedback[turn] === value ? 0 : value;
+          state.feedback[turn] = next;
+          for (const x of row.querySelectorAll('[data-rate]')) x.setAttribute('aria-pressed', String(Number(x.dataset.rate) === next));
+          row.classList.toggle('is-rated', next !== 0);
+          try {
+            await fetch(`${api}/feedback`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ _csrf: csrf, conversation: state.conv, turn: String(turn), rating: String(next) }).toString() });
+          } catch {}
+        });
+        b.dataset.rate = String(value);
+        return b;
+      };
+      row.append(copy, rate(1, 'up', 'Good answer'), rate(-1, 'down2', 'Bad answer'));
+      if (state.feedback[turn]) row.classList.add('is-rated');
+      return row;
+    }
+
+    // ------------------------------------------------ past conversations
+
+    function since(ms) {
+      const s = Math.max(0, (Date.now() - ms) / 1000);
+      if (s < 60) return 'just now';
+      if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+      if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+      if (s < 86400 * 7) return `${Math.floor(s / 86400)}d ago`;
+      return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    function setHistory(on) {
+      state.history = on;
+      panel.classList.toggle('is-history', on);
+      backBtn.hidden = !on;
+      historyBtn.setAttribute('aria-pressed', String(on));
+      form.hidden = on;
+    }
+
+    async function showHistory() {
+      if (state.busy) return;
+      setHistory(true);
+      titleText.textContent = 'Past conversations';
+      log.replaceChildren(el('div', { class: 'agent-loading', role: 'status' }, thinkingRow('Loading')));
+      let list = [];
+      try {
+        const res = await fetch(`${api}/conversations`, { credentials: 'same-origin' });
+        list = (await res.json()).conversations ?? [];
+      } catch {
+        log.replaceChildren(noticeMsg('error', 'Could not load past conversations. Try again.'));
+        return;
+      }
+      if (!state.history) return;
+      if (!list.length) {
+        log.replaceChildren(el('div', { class: 'agent-empty' }, el('h3', { text: 'No conversations yet' }), el('p', { text: 'Questions you ask here are kept, so you can come back to an answer later.' })));
+        return;
+      }
+      const ul = el('ul', { class: 'ag-history', role: 'list' });
+      list.forEach((c, i) => {
+        const b = el('button', { class: `ag-history-item${c.open ? ' is-current' : ''}`, type: 'button' },
+          el('span', { class: 'ag-history-title', text: c.title, title: c.title }),
+          el('span', { class: 'ag-history-meta' }, c.open ? el('span', { class: 'ag-history-now', text: 'Current' }) : null, el('span', { text: `${c.questions} ${c.questions === 1 ? 'question' : 'questions'} · ${since(c.updated_at)}` })));
+        b.style.setProperty('--i', String(Math.min(i, 12)));
+        b.addEventListener('click', () => openConversation(c.id, c.open));
+        ul.append(el('li', {}, b));
+      });
+      log.replaceChildren(ul);
+      log.scrollTop = 0;
+    }
+
+    async function openConversation(id, isCurrent) {
+      if (isCurrent) return closeHistory();
+      try {
+        const res = await fetch(`${api}/open`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ _csrf: csrf, id }).toString() });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || 'failed');
+        setHistory(false);
+        state.conv = data.conversation.id;
+        state.feedback = data.conversation.feedback ?? {};
+        render(data.conversation.items);
+        input.focus();
+      } catch (e) {
+        log.prepend(noticeMsg('error', e.message === 'failed' ? 'Could not open that conversation.' : e.message, true));
+      }
+    }
+
+    function closeHistory() {
+      setHistory(false);
+      load();
     }
 
     function noticeMsg(kind, text, live) {
@@ -605,6 +737,7 @@
         else if (it.type === 'steps') log.append(stepsGroup(it.steps));
         else if (it.type === 'action') log.append(actionCard(it.action));
       }
+      decorateAnswers();
       pinned = true;
       log.scrollTop = log.scrollHeight;
     }
@@ -651,6 +784,9 @@
           return;
         }
         setUsage(data.usage);
+        state.conv = data.conversation?.id ?? null;
+        state.feedback = data.conversation?.feedback ?? {};
+        if (data.model_label) modelTag.textContent = data.model_label;
         render(data.conversation?.items ?? []);
         if (data.running) waitForRun();
       } catch {
@@ -765,6 +901,9 @@
       };
 
       const on = {
+        start(d) {
+          if (d.conversation && d.conversation !== state.conv) { state.conv = d.conversation; state.feedback = {}; }
+        },
         text(d) {
           clearThinking();
           if (group) {
@@ -867,6 +1006,7 @@
       if (group) settle(group);
       if (failed) retryRow(text);
       setBusy(false);
+      decorateAnswers();
       follow();
     }
 
@@ -897,6 +1037,9 @@
       try {
         await fetch(`${api}/new`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ _csrf: csrf }).toString() });
       } catch {}
+      state.conv = null;
+      state.feedback = {};
+      setHistory(false);
       render([]);
       input.focus();
     }
@@ -922,6 +1065,8 @@
         else ask(input.value);
       });
       newBtn.addEventListener('click', newConversation);
+      historyBtn.addEventListener('click', () => (state.history ? closeHistory() : showHistory()));
+      backBtn.addEventListener('click', closeHistory);
       // "Ask about this run" and other prompts a page offers.
       for (const b of document.querySelectorAll('[data-agent-ask]')) {
         b.hidden = false;

@@ -53,6 +53,15 @@ CREATE TABLE IF NOT EXISTS agent_usage (
   tool_calls         INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (team_id, user_id, day)
 );
+CREATE TABLE IF NOT EXISTS agent_feedback (
+  conversation_id TEXT NOT NULL,
+  turn            INTEGER NOT NULL,
+  user_id         INTEGER NOT NULL,
+  rating          INTEGER NOT NULL,
+  note            TEXT,
+  created_at      INTEGER NOT NULL,
+  PRIMARY KEY (conversation_id, turn, user_id)
+);
 CREATE TABLE IF NOT EXISTS agent_team_settings (
   team_id    TEXT PRIMARY KEY,
   cap_micros INTEGER,
@@ -104,6 +113,51 @@ export class AgentStore {
 
   close(teamId, userId) {
     this.db.prepare('UPDATE agent_conversations SET closed_at = ? WHERE team_id = ? AND user_id = ? AND closed_at IS NULL').run(this.now(), teamId, userId);
+  }
+
+  // The person's past conversations in this team, newest first: each one's
+  // first question (as they typed it), when it was last used, how many questions.
+  history(teamId, userId, limit = 50) {
+    const rows = this.db
+      .prepare(
+        `SELECT c.id, c.updated_at, c.closed_at,
+                (SELECT m.meta FROM agent_messages m WHERE m.conversation_id = c.id AND m.role = 'user' AND m.meta IS NOT NULL ORDER BY m.id LIMIT 1) AS first,
+                (SELECT COUNT(*) FROM agent_messages m WHERE m.conversation_id = c.id AND m.role = 'user' AND m.meta LIKE '{"text":%') AS questions
+         FROM agent_conversations c WHERE c.team_id = ? AND c.user_id = ? ORDER BY c.updated_at DESC LIMIT ?`,
+      )
+      .all(teamId, userId, limit);
+    return rows
+      .map((r) => ({ id: r.id, title: String(parse(r.first, {})?.text ?? '').slice(0, 200), updated_at: r.updated_at, open: r.closed_at === null, questions: r.questions }))
+      .filter((r) => r.title);
+  }
+
+  // Makes an earlier conversation the open one again (the current one is kept
+  // in the history). Only the person's own conversation in this team.
+  reopen(teamId, userId, id) {
+    const c = this.db.prepare('SELECT id FROM agent_conversations WHERE id = ? AND team_id = ? AND user_id = ?').get(String(id), teamId, userId);
+    if (!c) return false;
+    tx(this.db, () => {
+      this.close(teamId, userId);
+      this.db.prepare('UPDATE agent_conversations SET closed_at = NULL, updated_at = ? WHERE id = ?').run(this.now(), c.id);
+    });
+    return true;
+  }
+
+  // A thumbs up (1) or down (-1) on one answer, the turn-th question's answer.
+  feedback(teamId, userId, conversationId, turn, rating, note = null) {
+    const own = this.db.prepare('SELECT 1 FROM agent_conversations WHERE id = ? AND team_id = ? AND user_id = ?').get(String(conversationId), teamId, userId);
+    if (!own) return false;
+    this.db
+      .prepare(
+        `INSERT INTO agent_feedback (conversation_id, turn, user_id, rating, note, created_at) VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(conversation_id, turn, user_id) DO UPDATE SET rating = excluded.rating, note = excluded.note, created_at = excluded.created_at`,
+      )
+      .run(String(conversationId), turn, userId, rating, note, this.now());
+    return true;
+  }
+
+  feedbackFor(conversationId, userId) {
+    return Object.fromEntries(this.db.prepare('SELECT turn, rating FROM agent_feedback WHERE conversation_id = ? AND user_id = ?').all(String(conversationId), userId).map((r) => [r.turn, r.rating]));
   }
 
   // role: user | assistant (sent to the model) or notice (shown only).

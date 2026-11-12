@@ -86,6 +86,7 @@ export async function createHub(options = {}) {
     '/hub/static/hub.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, 'hub.js'))],
     // Ask Grapim's panel (src/hub/agent/): same-origin calls only, no inline code.
     '/hub/static/agent.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, 'agent.js'))],
+    '/hub/static/agent.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, 'agent.css'))],
     // The design tokens the review desk uses too (ui/tokens.css): one source, no drift.
     '/hub/static/tokens.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'tokens.css'))],
     // Self-hosted type (ui/fonts, SIL OFL): tokens.css asks for fonts/<file> next to itself.

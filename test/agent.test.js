@@ -616,3 +616,45 @@ test('input checks: empty and oversized messages, unknown proposals and bad stat
   assert.equal(r.status, 200);
   assert.doesNotMatch(h.fake.requests.at(-1).body.messages[0].content[0].text, /script|Page open/);
 });
+
+test('history: past conversations are listed per person, reopen to continue, and answers take a thumbs up or down', async (t) => {
+  const h = await startHub({ script: () => say('Here you go.') });
+  t.after(h.close);
+  const alice = await signIn(h, 'hist-alice');
+  const A = await createTeam(alice, 'History');
+  const bob = await signIn(h, 'hist-bob');
+  await joinTeam(alice, bob, A);
+
+  await alice.ask(A, 'First question');
+  const first = (await alice.req(`/hub/api/teams/${A}/agent`)).json();
+  assert.equal(first.model_label, 'Sonnet 5.5');
+  const firstId = first.conversation.id;
+  assert.equal((await alice.post(`/hub/api/teams/${A}/agent/new`)).status, 200);
+  await alice.ask(A, 'Second question');
+  await alice.ask(A, 'And a follow-up');
+
+  const list = (await alice.req(`/hub/api/teams/${A}/agent/conversations`)).json().conversations;
+  assert.deepEqual(list.map((c) => [c.title, c.questions, c.open]), [['Second question', 2, true], ['First question', 1, false]]);
+  // Bob sees only his own (none), and cannot open or rate Alice's.
+  assert.deepEqual((await bob.req(`/hub/api/teams/${A}/agent/conversations`)).json().conversations, []);
+  assert.equal((await bob.post(`/hub/api/teams/${A}/agent/open`, { id: firstId })).status, 404);
+  assert.equal((await bob.post(`/hub/api/teams/${A}/agent/feedback`, { conversation: firstId, turn: '1', rating: '1' })).status, 404);
+
+  // Reopening the first one makes it current; the second stays in the history.
+  const opened = (await alice.post(`/hub/api/teams/${A}/agent/open`, { id: firstId })).json();
+  assert.equal(opened.conversation.id, firstId);
+  assert.deepEqual(opened.conversation.items.filter((i) => i.type === 'user').map((i) => i.text), ['First question']);
+  const after = (await alice.req(`/hub/api/teams/${A}/agent/conversations`)).json().conversations;
+  assert.deepEqual(after.map((c) => [c.title, c.open]), [['First question', true], ['Second question', false]]);
+  await alice.ask(A, 'Continuing the first');
+  assert.equal((await alice.req(`/hub/api/teams/${A}/agent`)).json().conversation.items.filter((i) => i.type === 'user').length, 2);
+
+  // Feedback: kept per question, changeable, validated.
+  assert.equal((await alice.post(`/hub/api/teams/${A}/agent/feedback`, { conversation: firstId, turn: '1', rating: '-1', note: 'wrong repo cmh_abcdefghijklmnop' })).status, 200);
+  assert.equal((await alice.post(`/hub/api/teams/${A}/agent/feedback`, { conversation: firstId, turn: '2', rating: '1' })).status, 200);
+  assert.equal((await alice.post(`/hub/api/teams/${A}/agent/feedback`, { conversation: firstId, turn: '0', rating: '1' })).status, 400);
+  assert.equal((await alice.post(`/hub/api/teams/${A}/agent/feedback`, { conversation: firstId, turn: '1', rating: '5' })).status, 400);
+  assert.deepEqual((await alice.req(`/hub/api/teams/${A}/agent`)).json().conversation.feedback, { 1: -1, 2: 1 });
+  const note = h.hub.db.prepare('SELECT note FROM agent_feedback WHERE turn = 1').get().note;
+  assert.doesNotMatch(note, /cmh_/, 'token-looking text is stripped from notes');
+});
