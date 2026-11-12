@@ -30,6 +30,8 @@ import { createConnectors } from './connectors.js';
 import { createComputePool } from './compute-pool.js';
 import { createPlatform } from './platform/index.js';
 import { createGitHubApp } from './github/index.js';
+import { createNotifier } from './notify.js';
+import { evidenceRoutes } from './reports/evidence.js';
 import { createOverview } from './overview.js';
 import { createWorkspaceStorage, defaultStorageUrl, loadStorage } from './workspace-storage.js';
 import { createTeamStorage } from './team-storage.js';
@@ -138,9 +140,14 @@ export async function createHub(options = {}) {
   // Grapim for platforms (docs/platform.md): /v1 has its own router; its hub pages join this one.
   hub.platform = createPlatform(hub, { env, fetch: fetchImpl, ...(options.platform ?? {}) });
   hub.platform.pageRoutes(router);
+  // Slack notifications (src/hub/notify.js): before the App, which reports failed checks to it.
+  hub.notify = createNotifier(hub, options.notify ?? {});
+  hub.notify.routes(router);
   // The GitHub App (docs/provenance.md section 6): webhooks, linking, PR comments and checks.
   hub.github = createGitHubApp(hub, { env, fetch: fetchImpl, ...(options.github ?? {}) });
   hub.github.routes(router);
+  // Audit evidence export (src/hub/reports/evidence.js): every agent run in a date range.
+  evidenceRoutes(router, hub);
   hub.teamStorage.routes(router);
   // The team shell and home page (src/hub/pages/team.js): read-only queries.
   hub.overview = createOverview(hub);
@@ -362,6 +369,7 @@ export async function createHub(options = {}) {
       hub.agent.close();
       hub.platform.close();
       hub.github.close();
+      hub.notify.close();
       hub.teamStorage.close();
       const connectorsDone = hub.connectors.close();
       bus.emit('close');

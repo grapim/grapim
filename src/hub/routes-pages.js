@@ -59,6 +59,13 @@ const DONE = {
   renamed: 'Workspace renamed. Agents and synced folders need the new address.',
   wstoken_revoked: 'Token revoked. Agents using it stop working at once.',
   synced: 'Synced.',
+  slack_saved: 'Slack webhook saved. Send a test message to check it.',
+  slack_tested: 'Test message sent to Slack.',
+  slack_failed: 'Slack did not take the test message. See the card for what it answered.',
+  slack_removed: 'Slack notifications removed.',
+  rule_added: 'Rule added. It applies to the next check and every review from now on.',
+  rule_removed: 'Rule removed.',
+  scan_started: 'History scan started. It reads the last 90 days of merged pull requests.',
 };
 export const doneText = (ctx) => DONE[ctx.url?.searchParams.get('done')] ?? null;
 
@@ -86,6 +93,8 @@ export function pageRoutes(router, hub) {
         origin: config.origin,
         agent: hub.agent?.config.configured ? hub.agent.usageInfo(fresh, { people: role === 'owner' }) : null,
         github: role === 'owner' ? hub.github?.settingsSection(fresh, ctx.session.csrf) : null,
+        notifications: role === 'owner' ? (hub.github?.notifySection?.(fresh, ctx.session.csrf) ?? null) : null,
+        rules: hub.github?.rulesSection?.(fresh, ctx.session.csrf, role) ?? null,
         // A team's own bucket (src/hub/team-storage.js): owners only.
         storage: role === 'owner' ? (hub.teamStorage?.settingsSection(fresh, ctx.session.csrf) ?? null) : null,
         ...extra,

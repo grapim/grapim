@@ -109,6 +109,7 @@ const fileId = (p) => `file-${p.replace(/[^a-zA-Z0-9]+/g, '-')}`;
 // the require_review policy counts. review: from hub.github.reviewPanel.
 function reviewState(review) {
   const h = review.hub;
+  if (h && h.status === 'approved' && !h.stale && review.rules && !review.rules.ok) return 'pending';
   return !h ? 'pending' : h.stale ? 'stale' : h.status;
 }
 
@@ -126,9 +127,10 @@ function reviewPanel({ csrf, team, repo, run, review }) {
   <div class="panel-body">
   ${review.done ? html`<p class="notice" role="status">${review.done === 'approved' ? 'Approved.' : 'Rejected.'} Open pull requests with this run are checked again.</p>` : ''}
   <p>${h
-    ? html`${h.status === 'approved' ? 'Approved' : 'Rejected'} by <span class="strong">${h.reviewer_login || 'a member'}</span> ${time(h.reviewed_at)}${h.note ? html`: ${h.note}` : ''}.${h.stale ? ' The run changed after that, so it needs a new review.' : ''}`
+    ? html`${h.status === 'approved' ? 'Approved' : 'Rejected'} by <span class="strong">${h.reviewer_login || 'a member'}</span>${h.via === 'github' ? ' from the GitHub check' : ''} ${time(h.reviewed_at)}${h.note ? html`: ${h.note}` : ''}.${h.stale ? ' The run changed after that, so it needs a new review.' : ''}`
     : 'Nobody has reviewed this run in the hub yet.'}
-  ${review.enforced && !(h && h.status === 'approved' && !h.stale) ? ' Pull requests with its lines fail the Grapim check until it is approved here.' : ''}</p>
+  ${review.enforced && !(h && h.status === 'approved' && !h.stale && (!review.rules || review.rules.ok)) ? ' Pull requests with its lines fail the Grapim check until it is approved here.' : ''}</p>
+  ${review.rulesHtml ?? ''}
   ${review.pulls.length
     ? html`<p class="pulls">${icon('pr')}<span>In pull requests: ${review.pulls.map((p, i) => {
         const url = pullUrl(p);

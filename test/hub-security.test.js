@@ -214,6 +214,7 @@ test('every team route (enumerated from the router) is guarded, and answers 404 
     token: db.prepare('SELECT id FROM machine_tokens WHERE team_id = ?').get(A).id,
     user: String(alice.user.id),
     key: 'no-such-platform-key', // platform API keys (team A is not a platform; the team guard answers first)
+    rule: '1', // a path rule id (src/hub/rules.js)
   };
 
   // Structural guarantees, for every route the hub serves.
@@ -311,6 +312,7 @@ test('roles: a member cannot do owner things on any team route, nor touch anothe
     token: db.prepare('SELECT id FROM machine_tokens WHERE team_id = ?').get(A).id,
     user: String(alice.user.id),
     key: 'no-such-platform-key', // platform API keys (team A is not a platform; the team guard answers first)
+    rule: '1', // a path rule id (src/hub/rules.js)
   };
   assert.equal(db.prepare('SELECT role FROM members WHERE team_id = ? AND user_id = ?').get(A, bob.user.id).role, 'member', 'an invite grants member, never owner');
 
@@ -468,6 +470,7 @@ test('CSRF: every state-changing browser route (enumerated) refuses a missing to
     token: db.prepare('SELECT id FROM machine_tokens WHERE team_id = ?').get(A).id,
     user: '1',
     key: 'no-such-platform-key',
+    rule: '1', // a path rule id (src/hub/rules.js)
     repo: REPO_A, // the hub review route (docs/provenance.md section 6)
     run: RUN_A,
   };

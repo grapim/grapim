@@ -73,6 +73,31 @@ CREATE TABLE IF NOT EXISTS gh_pull_runs (
   PRIMARY KEY (installation_id, repo_gh_id, number, run)
 );
 CREATE INDEX IF NOT EXISTS gh_pull_runs_run ON gh_pull_runs(team_id, run);
+-- The "Approve" buttons on the check run (check run actions): GitHub keeps an
+-- identifier of at most 20 characters, so each button names a row here.
+-- Looked up only inside the team the clicking installation is linked to.
+CREATE TABLE IF NOT EXISTS gh_check_actions (
+  team_id    TEXT NOT NULL,
+  identifier TEXT NOT NULL,                     -- 'r' + 16 base64url characters (an HMAC of team, repo, run)
+  repo_gh_id INTEGER NOT NULL,                  -- the GitHub repository the check is on
+  repo_id    TEXT NOT NULL,                     -- the hub repo of the run
+  run        TEXT NOT NULL,
+  number     INTEGER NOT NULL,                  -- the pull request
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (team_id, identifier, repo_gh_id)
+);
+-- The agent runs of merged pull requests (copied from gh_pull_runs when the
+-- pull request closes merged), for the audit evidence.
+CREATE TABLE IF NOT EXISTS gh_merged_runs (
+  team_id   TEXT NOT NULL,
+  run       TEXT NOT NULL,
+  owner     TEXT NOT NULL,
+  name      TEXT NOT NULL,
+  number    INTEGER NOT NULL,
+  head_sha  TEXT,
+  merged_at INTEGER NOT NULL,
+  PRIMARY KEY (team_id, run, owner, name, number)
+);
 `;
 
 // Columns added after the first release: CREATE TABLE IF NOT EXISTS leaves

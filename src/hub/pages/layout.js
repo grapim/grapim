@@ -28,6 +28,8 @@ export const SETTINGS_SECTIONS = [
   { id: 'billing', label: 'Billing' },
   { id: 'ask-grapim', label: 'Ask Grapim' },
   { id: 'github', label: 'GitHub', owner: true },
+  { id: 'rules', label: 'Path rules' },
+  { id: 'notifications', label: 'Notifications', owner: true },
   { id: 'storage', label: 'Storage', owner: true },
   { id: 'platform', label: 'Platform', owner: true },
   { id: 'danger', label: 'Danger zone' },
@@ -55,7 +57,7 @@ function currentSection(team, pathname = '') {
   if (rest === null) return null;
   if (rest === '') return 'overview';
   const first = rest.split('/')[1];
-  if (['settings', 'github', 'storage'].includes(first)) return 'settings';
+  if (['settings', 'github', 'storage', 'rules'].includes(first)) return 'settings';
   return first;
 }
 

@@ -19,8 +19,8 @@ const CLI_SOURCE = path.join(HERE, '..', '..', 'cli.js');
 
 // The nav, in reading order. The first page is /docs itself.
 export const NAV = [
-  { group: 'Get started', pages: ['quickstart', 'concepts'] },
-  { group: 'Using Grapim', pages: ['reviews', 'github', 'undo', 'reports', 'ask-grapim', 'workspaces'] },
+  { group: 'Get started', pages: ['quickstart', 'concepts', 'compare'] },
+  { group: 'Using Grapim', pages: ['reviews', 'github', 'history', 'rules', 'notifications', 'undo', 'reports', 'ask-grapim', 'workspaces'] },
   { group: 'Reference', pages: ['cli', 'security', 'faq', 'support'] },
 ];
 export const ORDER = NAV.flatMap((g) => g.pages);

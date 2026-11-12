@@ -10,7 +10,17 @@
 //   POST /hub/teams/:team/github/policy    require_review / require_provenance on or off (owner; on needs the governance plan)
 //   POST /hub/teams/:team/repos/:repo/runs/:run/decision
 //                                          approve or reject a synced run (any member but the run's owner)
+//   GET  /hub/teams/:team/github/history   the 90-day AI history report (members)
+//   POST /hub/teams/:team/github/history/scan  start a scan (owner)
+//   GET  /hub/api/teams/:team/github/history[.csv]
+//   GET  /hub/teams/:team/rules            path rules (members see, owners edit)
+//   POST /hub/teams/:team/rules            add a rule (owner, governance)
+//   POST /hub/teams/:team/rules/:rule/delete
 // and settingsSection(team, csrf) for the settings page, reviewPanel(...) for the run page.
+//
+// The check run carries "Approve" buttons (check run actions) for the runs
+// still to approve; a click arrives as check_run.requested_action and is
+// recorded as the clicking GitHub user, a hub member, under the hub's rules.
 //
 // Without GITHUB_APP_* in env every route answers "not configured" and
 // nothing else changes. Pull request events are answered 202 at once and
@@ -21,6 +31,12 @@
 
 import { tx } from '../db.js';
 import { HttpError, readBody, redirect, sendHtml, sendJson } from '../http.js';
+import { PathRules } from '../rules.js';
+import { hmac } from '../secure.js';
+import { csvTable } from '../reports/csv.js';
+import { AGENTS } from './agents.js';
+import { historyCard, historyPage, notifyCard, rulesCard, rulesPage, rulesPanel } from './features-page.js';
+import { HistoryScans } from './history.js';
 import { HubReviews, MAX_NOTE } from '../reviews.js';
 import { AppAuth } from './auth.js';
 import { githubConfig } from './config.js';
@@ -48,7 +64,10 @@ const NOTICES = {
   policy: 'Saved.',
 };
 const REVIEW_FORM = { auth: 'session', csrf: true, team: true, repo: true };
+const TEAM_VIEW = { auth: 'session', team: true };
 const PULL_DAYS = 90;
+const NOTICE_MS = 10 * 60 * 1000;
+const LOGIN = /^[A-Za-z0-9-]{1,39}$/;
 
 // The governance plan, through billing's plan helpers when billing exposes
 // one; else off. A team that loses the plan keeps its setting, inert.
@@ -83,6 +102,84 @@ export function createGitHubApp(hub, options = {}) {
   const source = provenanceSource(hub, options, reviews);
   const governance = typeof options.governance === 'function' ? options.governance : defaultGovernance(hub);
   const stop = new AbortController();
+  const rules = new PathRules({ db, now });
+  const scans = new HistoryScans({ db, now, log, auth, apiBase, fetch: fetchImpl, sleep: options.sleep, maxWaitMs: options.maxWaitMs ?? RATE_WAIT_MS, signal: stop.signal, timers: options.historyTimers !== false, ...(options.rescanMs !== undefined ? { rescanMs: options.rescanMs } : {}) });
+  // Starts the 90-day scan; an install-time scan never fails the link.
+  const startScan = (teamId, userId, reason) => {
+    if (!auth) {
+      if (reason === 'manual') throw new HttpError(503, 'not_configured', 'The GitHub App is not configured on this hub.');
+      return null;
+    }
+    if (reason === 'manual' && !installs.forTeam(teamId).length) throw new HttpError(409, 'not_linked', 'Link a GitHub installation first.');
+    try {
+      return scans.start(teamId, userId, reason);
+    } catch (err) {
+      if (reason === 'manual') throw err;
+      return null;
+    }
+  };
+
+  // ---- Path rules (src/hub/rules.js): governance only ----
+
+  // The run's current approvals, without its owners (they cannot approve).
+  const currentApprovals = (team, repoIds, run) => {
+    const owners = reviews.owners(team, run);
+    return reviews.approvals(team, repoIds, run).filter((a) => !owners.has(a.user_id));
+  };
+  const evaluateRun = (team, repoIds, run, list = rules.list(team.id)) => rules.evaluate(team.id, repoIds, run, currentApprovals(team, repoIds, run), list);
+  // Map run -> evaluation, for the runs any rule applies to.
+  function rulesFor(team, repoIds, runIds) {
+    const out = new Map();
+    if (!governance(team)) return out;
+    const list = rules.list(team.id);
+    if (!list.length) return out;
+    for (const run of runIds.slice(0, 500)) {
+      const e = evaluateRun(team, repoIds, run, list);
+      if (e.rules.length) out.set(run, e);
+    }
+    return out;
+  }
+  source.rulesFor = async (team, repo, runIds) => rulesFor(team, [repo.id, ...(Array.isArray(repo.alt) ? repo.alt : [])], runIds);
+
+  // One decision, from the run page or the check's button: the same rules.
+  // Throws { code } errors: own_run, not_found, bad_request, not_approver.
+  function decideRun(team, repoId, run, status, userId, note, via = 'hub') {
+    let applied = [];
+    if (governance(team)) {
+      const list = rules.list(team.id);
+      if (list.length) {
+        const may = rules.mayApprove(team.id, [repoId], run, userId, list);
+        applied = may.rules;
+        if (status === 'approved' && !may.ok && reviews.headChange(team, repoId, run)) {
+          const names = [...new Set(may.rules.flatMap((r) => r.approvers))].map((id) => db.prepare('SELECT login FROM users WHERE id = ?').get(id)?.login ?? `user ${id}`);
+          throw Object.assign(new Error(`This run changed ${may.rules.map((r) => r.pattern).join(', ')}: only ${names.join(', ')} can approve it.`), { code: 'not_approver' });
+        }
+      }
+    }
+    const out = reviews.record(team, repoId, run, status, userId, note, { via, rules: applied });
+    return { ...out, queued: reevaluate(team.id, run) };
+  }
+
+  // ---- Check run buttons ----
+
+  // The button's identifier for a run: stable per (team, repo, run), at most
+  // 20 characters, stored so a click maps back inside this team only.
+  function actionFor({ team, repoGhId, repoId, run, number }) {
+    const identifier = `r${hmac(config.secret, 'gh-check-action', `${team.id}\n${repoId}\n${run}`).slice(0, 16)}`;
+    db.prepare(
+      `INSERT INTO gh_check_actions (team_id, identifier, repo_gh_id, repo_id, run, number, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(team_id, identifier, repo_gh_id) DO UPDATE SET number = excluded.number, created_at = excluded.created_at`,
+    ).run(team.id, identifier, repoGhId, repoId, run, number, now());
+    return identifier;
+  }
+  // A line the next check of a pull request shows (a refused click), kept 10 minutes.
+  const notices = new Map();
+  const noticeKey = (job) => `${job.installationId}:${job.repoId}:${job.number}`;
+  // Shown on every check of that pull request for 10 minutes, or until an approval from GitHub lands.
+  const noticeFor = (job) => {
+    const n = notices.get(noticeKey(job));
+    return n && now() - n.at < NOTICE_MS ? n.text : null;
+  };
 
   // require_provenance defaults on, together with require_review.
   const policy = (teamId) => db.prepare('SELECT require_review, require_provenance FROM gh_team_policy WHERE team_id = ?').get(teamId) ?? { require_review: 0, require_provenance: 1 };
@@ -134,7 +231,7 @@ export function createGitHubApp(hub, options = {}) {
     return queued;
   }
 
-  const jobCtx = { db, teams, auth, apiBase, fetch: fetchImpl, now, sleep: options.sleep, signal: stop.signal, slug: cfg.slug, source, origin: config.origin, requireReview, requireProvenance, track, maxWaitMs: options.maxWaitMs ?? RATE_WAIT_MS };
+  const jobCtx = { db, teams, auth, apiBase, fetch: fetchImpl, now, sleep: options.sleep, signal: stop.signal, slug: cfg.slug, source, origin: config.origin, requireReview, requireProvenance, track, actionFor, noticeFor, maxWaitMs: options.maxWaitMs ?? RATE_WAIT_MS };
   const queue = new JobQueue({
     concurrency: options.concurrency ?? 2,
     log,
@@ -143,6 +240,10 @@ export function createGitHubApp(hub, options = {}) {
       const r = await processPullRequest({ ...jobCtx, signal }, job);
       // No repo, owner or PR in the log line: the outcome only.
       log(r.skipped ? `github pr skipped: ${r.skipped}` : `github pr: comment ${r.comment.action}, check ${r.check.conclusion}${r.empty ? ' (no provenance)' : ''}`);
+      if (r.check?.conclusion === 'failure' && hub.notify) {
+        const teamId = installs.get(job.installationId)?.team_id;
+        if (teamId) await hub.notify.checkFailed({ teamId, owner: job.owner, name: job.name, number: job.number, headSha: job.headSha, title: r.title ?? '' }).catch(() => {});
+      }
       return r;
     },
   });
@@ -156,8 +257,11 @@ export function createGitHubApp(hub, options = {}) {
         return { ok: true };
       case 'installation':
         if (p.action === 'created') {
-          installs.created(inst, p.sender);
+          const before = installs.get(inst?.id)?.team_id ?? null;
+          const row = installs.created(inst, p.sender);
           if (Array.isArray(p.repositories)) installs.repos(inst?.id, p.repositories, []);
+          // A pending link completed by this event: read the team's last 90 days.
+          if (row?.team_id && !before) startScan(row.team_id, row.linked_by, 'install');
         } else if (p.action === 'deleted') {
           installs.deleted(inst);
           auth?.forget(inst?.id);
@@ -172,9 +276,19 @@ export function createGitHubApp(hub, options = {}) {
         return { ok: true };
       case 'pull_request': {
         if (p.action === 'closed') {
-          // Its runs no longer need re-evaluation after a review.
+          // Its runs no longer need re-evaluation after a review. Merged: kept
+          // as evidence that the runs reached the default branch's history.
           const row = installs.get(inst?.id);
-          if (row && Number.isSafeInteger(p.repository?.id) && Number.isSafeInteger(p.pull_request?.number)) forgetPull(row.id, p.repository.id, p.pull_request.number);
+          if (row && Number.isSafeInteger(p.repository?.id) && Number.isSafeInteger(p.pull_request?.number)) {
+            if (p.pull_request.merged === true && row.team_id) {
+              const at = Date.parse(p.pull_request.merged_at ?? '') || now();
+              db.prepare(
+                `INSERT OR IGNORE INTO gh_merged_runs (team_id, run, owner, name, number, head_sha, merged_at)
+                 SELECT team_id, run, owner, name, number, head_sha, ? FROM gh_pull_runs WHERE installation_id = ? AND repo_gh_id = ? AND number = ? AND team_id = ?`,
+              ).run(at, row.id, p.repository.id, p.pull_request.number, row.team_id);
+            }
+            forgetPull(row.id, p.repository.id, p.pull_request.number);
+          }
           return { ignored: 'action' };
         }
         if (!PR_ACTIONS.has(p.action) || p.pull_request?.draft) return { ignored: 'action' };
@@ -192,9 +306,56 @@ export function createGitHubApp(hub, options = {}) {
         const queued = queue.push(`${row.id}:${p.repository?.id}:${job.number}`, job, String(row.id));
         return queued ? { queued: true } : { ignored: 'busy' };
       }
+      case 'check_run':
+        return p.action === 'requested_action' ? onRequestedAction(p) : { ignored: 'action' };
       default:
         return { ignored: 'event' };
     }
+  }
+
+  // A click on an "Approve" button of our check. The webhook signature is
+  // verified; of the payload, only GitHub's own ids are trusted: the
+  // installation (-> the team), the repository id (must match the button's)
+  // and the sender's numeric id (-> the hub user, keyed by GitHub user id).
+  // The sender's login is never used to find anyone.
+  function onRequestedAction(p) {
+    const row = installs.get(p.installation?.id);
+    if (!row?.team_id || row.deleted_at || row.suspended_at) return { ignored: 'unlinked' };
+    const team = teams.get(row.team_id);
+    if (!team) return { ignored: 'unlinked' };
+    if (cfg.slug && p.check_run?.app?.slug !== undefined && p.check_run.app.slug !== cfg.slug) return { ignored: 'not_ours' };
+    const identifier = p.requested_action?.identifier;
+    if (typeof identifier !== 'string' || !/^r[A-Za-z0-9_-]{16}$/.test(identifier)) return { ignored: 'bad_action' };
+    const repoGh = p.repository?.id;
+    if (!Number.isSafeInteger(repoGh)) return { ignored: 'bad_action' };
+    const act = db.prepare('SELECT * FROM gh_check_actions WHERE team_id = ? AND identifier = ? AND repo_gh_id = ?').get(team.id, identifier, repoGh);
+    if (!act) return { ignored: 'unknown_action' };
+    const owner = String(p.repository?.owner?.login ?? '');
+    const name = String(p.repository?.name ?? '');
+    const headSha = String(p.check_run?.head_sha ?? '');
+    const job = { installationId: row.id, repoId: repoGh, owner, name, number: act.number, headSha };
+    const sender = p.sender ?? {};
+    const shown = typeof sender.login === 'string' && LOGIN.test(sender.login) ? sender.login : 'This GitHub user';
+    const refuse = (text, code) => {
+      notices.set(noticeKey(job), { text: `Not approved: ${text}`, at: now() });
+      if (auth && cfg.slug && /^[0-9a-f]{40}$/.test(headSha)) queue.push(`${row.id}:${repoGh}:${act.number}`, job, String(row.id));
+      log(`github approve button refused: ${code}`);
+      return { refused: code };
+    };
+    if (!Number.isSafeInteger(sender.id) || sender.id <= 0 || sender.type !== 'User') return refuse('only a person can approve a run.', 'not_a_user');
+    const member = teams.membership(team.id, sender.id);
+    if (!member) return refuse(`${shown} is not a member of this team in Grapim. Sign in to Grapim with GitHub and join the team, then click again.`, 'not_member');
+    try {
+      decideRun(team, act.repo_id, act.run, 'approved', sender.id, `Approved from the GitHub check on ${owner}/${name}#${act.number}`.slice(0, 200), 'github');
+    } catch (err) {
+      if (err?.code === 'own_run') return refuse(`${shown} synced this run, so another member has to approve it.`, 'own_run');
+      if (err?.code === 'not_approver') return refuse(err.message, 'not_approver');
+      if (err?.code === 'not_found' || err?.code === 'bad_request') return refuse('this run is no longer in the hub.', 'not_found');
+      throw err;
+    }
+    notices.delete(noticeKey(job));
+    log('github approve button: approved');
+    return { ok: true, approved: true };
   }
 
   async function webhook(ctx) {
@@ -252,6 +413,7 @@ export function createGitHubApp(hub, options = {}) {
         allowed: governance(team),
         slug: cfg.slug,
         checkName: CHECK_NAME,
+        history: historyInfo(team, ctx.session.csrf),
         notice: Object.hasOwn(NOTICES, code) ? NOTICES[code] : null,
         ...extra,
       }).toString(),
@@ -304,7 +466,8 @@ export function createGitHubApp(hub, options = {}) {
           if (found) row = installs.upsert(found, null);
         }
         if (row && installs.mayLink(row, user.id)) {
-          installs.link(teamId, id, user.id); // 409 if another team has it
+          const linked = installs.link(teamId, id, user.id); // 409 if another team has it
+          if (linked === 'linked') startScan(teamId, user.id, 'install');
           return redirect(ctx.res, `/hub/teams/${teamId}/github?done=linked`);
         }
         if (!row?.sender_id) {
@@ -333,7 +496,8 @@ export function createGitHubApp(hub, options = {}) {
       (ctx) =>
         onPage(ctx, () => {
           if (!cfg.configured) throw notConfigured();
-          installs.link(ctx.member.team.id, installationId(ctx.form.installation), ctx.session.user.id);
+          const linked = installs.link(ctx.member.team.id, installationId(ctx.form.installation), ctx.session.user.id);
+          if (linked === 'linked') startScan(ctx.member.team.id, ctx.session.user.id, 'install');
           back(ctx, 'linked');
         }),
       TEAM_FORM,
@@ -373,27 +537,164 @@ export function createGitHubApp(hub, options = {}) {
         const team = ctx.member.team;
         const status = ctx.form.status === 'approved' || ctx.form.status === 'rejected' ? ctx.form.status : null;
         const note = typeof ctx.form.note === 'string' ? ctx.form.note.slice(0, MAX_NOTE * 2) : null;
+        let queued;
         try {
-          reviews.record(team, ctx.repo.id, ctx.params.run, status, ctx.session.user.id, note);
+          ({ queued } = decideRun(team, ctx.repo.id, ctx.params.run, status, ctx.session.user.id, note, 'hub'));
         } catch (err) {
           if (err?.code === 'own_run') throw new HttpError(403, 'own_run', err.message);
+          if (err?.code === 'not_approver') throw new HttpError(403, 'not_approver', err.message);
           if (err?.code === 'not_found') throw new HttpError(404, 'not_found', err.message);
           if (err?.code === 'bad_request') throw new HttpError(400, 'bad_request', err.message);
           throw err;
         }
         // No run id, repo or user in the log line: the outcome only.
-        const queued = reevaluate(team.id, ctx.params.run);
         log(`hub review: ${status}, ${queued} pull request${queued === 1 ? '' : 's'} re-checked`);
         const machine = typeof ctx.form.machine === 'string' && /^[A-Za-z0-9._ -]{1,100}$/.test(ctx.form.machine) ? ctx.form.machine : null;
         redirect(ctx.res, `/hub/teams/${team.id}/repos/${ctx.repo.id}/runs/${encodeURIComponent(ctx.params.run)}?${machine ? `machine=${encodeURIComponent(machine)}&` : ''}done=${status}`);
       },
       REVIEW_FORM,
     );
+
+    // ---- The 90-day AI history scan ----
+
+    const linkedTo = (teamId) => installs.forTeam(teamId).length > 0;
+    const historyHtml = (ctx, extra = {}, status = 200) => {
+      const team = teams.get(ctx.member.team.id);
+      const report = scans.report(team.id);
+      const last = report?.scan;
+      const canScan = !last || last.status === 'failed' || (last.status === 'done' && now() - (last.finished_at ?? 0) >= scans.rescanMs);
+      const code = ctx.url.searchParams.get('done');
+      sendHtml(
+        ctx.res,
+        status,
+        historyPage({
+          user: ctx.session.user,
+          csrf: ctx.session.csrf,
+          team,
+          role: ctx.member.role,
+          report,
+          configured: cfg.configured,
+          linked: linkedTo(team.id),
+          canScan,
+          notice: code === 'scan' ? 'Scan started. It reads the last 90 days of merged pull requests in the background.' : null,
+          ...extra,
+        }).toString(),
+      );
+    };
+    router.get('/hub/teams/:team/github/history', (ctx) => {
+      hub.limit(ctx, 'read', ctx.member.userId);
+      historyHtml(ctx);
+    }, TEAM_VIEW);
+    router.post(
+      '/hub/teams/:team/github/history/scan',
+      (ctx) => {
+        try {
+          startScan(ctx.member.team.id, ctx.session.user.id, 'manual');
+        } catch (err) {
+          if (err instanceof HttpError && err.status < 500) return historyHtml(ctx, { error: err.message }, err.status);
+          throw err;
+        }
+        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/github/history?done=scan`);
+      },
+      TEAM_FORM,
+    );
+    router.get('/hub/api/teams/:team/github/history', (ctx) => {
+      hub.limit(ctx, 'read', ctx.member.userId);
+      const report = scans.report(ctx.member.team.id);
+      sendJson(ctx.res, 200, report ?? { scan: null });
+    }, TEAM_VIEW);
+    router.get('/hub/api/teams/:team/github/history.csv', (ctx) => {
+      hub.limit(ctx, 'read', ctx.member.userId);
+      // No scan yet: the header row alone.
+      const report = scans.report(ctx.member.team.id) ?? { prs: [], scan: { since: now() - 90 * 24 * 60 * 60 * 1000 } };
+      const body = csvTable(
+        ['repo', 'number', 'title', 'url', 'author', 'merged_at', 'agents', 'signals', 'approved_by_other', 'approvers'],
+        report.prs.map((p) => [
+          p.repo,
+          p.number,
+          p.title,
+          p.url,
+          p.author,
+          new Date(p.merged_at).toISOString(),
+          p.agents.map((a) => AGENTS[a.agent] ?? a.agent).join('; '),
+          [...new Set(p.agents.flatMap((a) => a.how))].join('; '),
+          p.approved_other ? 'yes' : 'no',
+          p.approvers.join('; '),
+        ]),
+      );
+      ctx.res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Length': Buffer.byteLength(body),
+        'Content-Disposition': `attachment; filename="grapim-ai-history-${new Date(report.scan.since).toISOString().slice(0, 10)}.csv"`,
+        'Cache-Control': 'no-store',
+      });
+      ctx.res.end(body);
+    }, TEAM_VIEW);
+
+    // ---- Path rules ----
+
+    const rulesHtml = (ctx, extra = {}, status = 200) => {
+      const team = teams.get(ctx.member.team.id);
+      sendHtml(ctx.res, status, rulesPageHtml(team, ctx, extra).toString());
+    };
+    router.get('/hub/teams/:team/rules', (ctx) => rulesHtml(ctx), TEAM_VIEW);
+    router.post(
+      '/hub/teams/:team/rules',
+      (ctx) => {
+        const team = teams.get(ctx.member.team.id);
+        const fromSettings = ctx.form.from === 'settings';
+        try {
+          if (!governance(team)) throw new HttpError(402, 'plan_required', 'Path rules are on the Governance plan.');
+          const approvers = Object.keys(ctx.form).filter((k) => /^approver_\d{1,12}$/.test(k) && ctx.form[k] === '1').map((k) => Number(k.slice(9)));
+          try {
+            rules.add(team.id, { pattern: ctx.form.pattern, approvals: ctx.form.approvals, approvers }, ctx.session.user.id);
+          } catch (err) {
+            if (err?.code === 'bad_request') throw new HttpError(400, 'bad_request', err.message);
+            throw err;
+          }
+        } catch (err) {
+          if (err instanceof HttpError && err.status < 500) {
+            if (fromSettings && hub.renderSettings) return hub.renderSettings(ctx, { error: err.message }, err.status);
+            return rulesHtml(ctx, { error: err.message }, err.status);
+          }
+          throw err;
+        }
+        redirect(ctx.res, fromSettings ? `/hub/teams/${team.id}/settings?done=rule_added#rules` : `/hub/teams/${team.id}/rules?done=added`);
+      },
+      TEAM_FORM,
+    );
+    router.post(
+      '/hub/teams/:team/rules/:rule/delete',
+      (ctx) => {
+        if (!/^\d{1,12}$/.test(ctx.params.rule) || !rules.remove(ctx.member.team.id, ctx.params.rule)) throw new HttpError(404, 'not_found', 'No such rule.');
+        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings?done=rule_removed#rules`);
+      },
+      TEAM_FORM,
+    );
+  }
+
+  function rulesPageHtml(team, ctx, { error = null } = {}) {
+    return rulesPage({
+      user: ctx.session.user,
+      csrf: ctx.session.csrf,
+      team,
+      error,
+      notice: ctx.url.searchParams.get('done') === 'added' ? 'Rule added.' : null,
+      card: rulesCard({ team, csrf: ctx.session.csrf, role: ctx.member.role, rules: rules.list(team.id), members: teams.members(team.id), allowed: governance(team), standalone: true }),
+    });
+  }
+
+  function historyInfo(team, csrf, owner = true) {
+    const linked = installs.forTeam(team.id).length > 0;
+    return historyCard({ team, csrf, owner, report: scans.report(team.id), configured: cfg.configured, linked });
   }
 
   function settingsSection(team, csrf) {
-    return githubSection({ team, csrf, configured: cfg.configured, installations: installs.forTeam(team.id), policy: policy(team.id), allowed: governance(team), slug: cfg.slug, checkName: CHECK_NAME });
+    return githubSection({ team, csrf, configured: cfg.configured, installations: installs.forTeam(team.id), policy: policy(team.id), allowed: governance(team), slug: cfg.slug, checkName: CHECK_NAME, history: historyInfo(team, csrf) });
   }
+
+  const notifySection = (team, csrf) => (hub.notify ? notifyCard({ team, csrf, info: hub.notify.info(team.id) }) : null);
+  const rulesSection = (team, csrf, role) => rulesCard({ team, csrf, role, rules: rules.list(team.id), members: teams.members(team.id), allowed: governance(team) });
 
   // What the hub run page shows about reviews (src/hub/pages/repo.js).
   function reviewPanel({ team, repo, run, userId, done = null }) {
@@ -403,7 +704,10 @@ export function createGitHubApp(hub, options = {}) {
     const pulls = db
       .prepare('SELECT DISTINCT owner, name, number FROM gh_pull_runs WHERE team_id = ? AND run = ? ORDER BY updated_at DESC LIMIT 20')
       .all(team.id, run);
+    const evaluation = governance(team) ? evaluateRun(team, ids, run) : null;
     return {
+      rules: evaluation?.rules.length ? evaluation : null,
+      rulesHtml: evaluation?.rules.length ? rulesPanel(evaluation) : '',
       hub: reviews.latest(team, ids, [run]).get(run) ?? null,
       local: reviews.local(team, ids, [run]).get(run) ?? null,
       owners: [...owners].map((id) => loginOf.get(id)?.login ?? `user ${id}`),
@@ -419,9 +723,13 @@ export function createGitHubApp(hub, options = {}) {
       installs.sweep();
       deliveries.sweep();
       db.prepare('DELETE FROM gh_pull_runs WHERE updated_at < ?').run(now() - PULL_DAYS * 24 * 60 * 60 * 1000);
+      db.prepare('DELETE FROM gh_check_actions WHERE created_at < ?').run(now() - PULL_DAYS * 24 * 60 * 60 * 1000);
+      for (const [k, v] of notices) if (now() - v.at >= NOTICE_MS) notices.delete(k);
     } catch {}
   }, 60 * 60 * 1000);
   sweep.unref();
+  // Scans a restart interrupted carry on from their saved position.
+  if (auth && options.historyBoot !== false) setImmediate(() => scans.kick());
 
   return {
     config: cfg,
@@ -432,7 +740,14 @@ export function createGitHubApp(hub, options = {}) {
     routes,
     settingsSection,
     reviewPanel,
+    notifySection,
+    rulesSection,
     reviews,
+    rules,
+    scans,
+    rulesFor,
+    decideRun,
+    startScan,
     reevaluate,
     policy,
     setPolicy,
@@ -441,6 +756,7 @@ export function createGitHubApp(hub, options = {}) {
     process: (job) => processPullRequest(jobCtx, job),
     close() {
       clearInterval(sweep);
+      scans.close();
       stop.abort();
       queue.close();
     },

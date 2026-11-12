@@ -8,11 +8,12 @@ import { csrfField, layout } from './layout.js';
 import { html } from './html.js';
 import { head } from './team.js';
 
-const NAMES = [
+export const NAMES = [
   ['unreviewed', 'Merged without review'],
   ['ai-share', 'AI share'],
   ['agents', 'Agents'],
   ['activity', 'Activity'],
+  ['evidence', 'Audit evidence'],
 ];
 const KIND_LABEL = { 'claude-code': 'Claude Code', codex: 'Codex', cursor: 'Cursor', mcp: 'MCP agent', http: 'HTTP agent', other: 'Other agent' };
 const kindLabel = (k) => KIND_LABEL[k] ?? k;
@@ -398,6 +399,8 @@ function teaserBody({ team, role, csrf, teaser, billing, seatsUsed }) {
 }
 
 // ---------------------------------------------------------------- the page
+
+export { teaserBody };
 
 export function reportsPage({ user, csrf, team, role, name, params, query, repos, features, report, teaser, billing, seatsUsed, now = Date.now(), error = null }) {
   const qs = (over = {}) => {

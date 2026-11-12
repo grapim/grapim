@@ -43,3 +43,7 @@ export function toCsv(name, r) {
       throw new Error(`no CSV for ${name}`);
   }
 }
+
+// Any table: a header row and rows of cells, with the same quoting and
+// formula defusing (the history scan and the audit evidence use it).
+export const csvTable = (head, rows) => table(head, rows);

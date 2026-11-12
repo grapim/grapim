@@ -399,9 +399,9 @@ function askSection({ team, role, csrf, agent: a, members, capError = null }) {
 </section>`;
 }
 
-export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, storage = null, revealed = null, notice = null, error = null, toast = null, capError = null }) {
+export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, notifications = null, rules = null, storage = null, revealed = null, notice = null, error = null, toast = null, capError = null }) {
   const owner = role === 'owner';
-  const shown = SETTINGS_SECTIONS.filter((s) => owner || !s.owner).filter((s) => (s.id === 'github' ? !!github : s.id === 'storage' ? !!storage : true));
+  const shown = SETTINGS_SECTIONS.filter((s) => owner || !s.owner).filter((s) => (s.id === 'github' ? !!github : s.id === 'storage' ? !!storage : s.id === 'notifications' ? !!notifications : s.id === 'rules' ? !!rules : true));
   const newestToken = revealed?.kind === 'token' ? revealed.name : null;
   return layout({
     title: `${team.name} settings`,
@@ -510,6 +510,8 @@ ${billingSection({ team, role, csrf, limits, seatsUsed, billing })}
 ${askSection({ team, role, csrf, agent, members, capError })}
 
 ${github ?? ''}
+${rules ?? ''}
+${notifications ?? ''}
 
 ${storage ?? ''}
 

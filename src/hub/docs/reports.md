@@ -5,7 +5,7 @@ description: How much code agents write, what reached the default branch without
 ---
 Reports are on the **Governance** plan. Teams on Free and Team see a preview with last week's AI share. There is no checkout during early access; Governance is available as a pilot, so [talk to us](/docs/support) to try it.
 
-## The four reports
+## The reports
 
 | Report | What it answers |
 |---|---|
@@ -19,6 +19,17 @@ Pick a range (4 weeks, 12 weeks, 6 months, a year, or exact dates) and a repo. T
 ## Export
 
 Every report has **Export CSV**, with the same range and repo. Cells that a spreadsheet would read as a formula are made inert.
+
+## Audit evidence
+
+**Reports**, **Audit evidence** lists every agent run synced in a date range, for an auditor who samples changes:
+
+- the repo, the agent, what it was asked (the first prompt), lines added and removed, and who synced it;
+- every decision in the hub: approved or rejected, by whom and when, and whether it was made from the GitHub check;
+- whether the run reached a merged pull request, with its link (pull requests the GitHub App checked and saw merged);
+- the [path rules](/docs/rules) that apply to it now, and those in force at each decision.
+
+Download it as **CSV**, or open the **Print view** and save it as PDF. Both say what they are: Grapim's record of runs synced to it and decisions made in it, evidence for your auditor to evaluate. It is not a certification, and runs on machines without Grapim are not in it.
 
 ## How the numbers are counted
 

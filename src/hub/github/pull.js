@@ -16,6 +16,7 @@
 import { ignoreEol, matchLines, splitLines } from '../../diff.js';
 import { MARKER, md, parseNote, renderEmpty, renderSummary } from '../../provenance/render.js';
 import { GitHubClient } from './client.js';
+import { ruleText } from '../rules.js';
 
 export const MAX_BLAME_FILES = 50;
 export const MAX_BLOB_BYTES = 3 * 1024 * 1024;
@@ -25,6 +26,23 @@ export const MAX_LIST_FILES = 3000;
 export const CHECK_NAME = 'Grapim provenance (app)';
 // GitHub lists at most 250 commits of a pull request.
 export const MAX_PR_COMMITS = 250;
+// Check run buttons: GitHub accepts at most 3, with a label of at most 20
+// characters, a description of at most 40 and an identifier of at most 20.
+export const MAX_ACTIONS = 3;
+
+// One "Approve" button for a run. identifier: from ctx.actionFor (stored, so
+// the click maps back to the run inside this team only).
+export function approveAction(run, identifier) {
+  const clip = (s, n) => {
+    const t = String(s ?? '').replace(/\s+/g, ' ').trim();
+    return t.length > n ? `${t.slice(0, n - 1)}…` : t;
+  };
+  return {
+    label: clip(`Approve ${run.label || 'run'}`, 20),
+    description: clip(run.intent ? `In Grapim: ${run.intent}` : 'Approve this agent run in Grapim', 40),
+    identifier,
+  };
+}
 // Runs whose lines are people's work, not an agent's (docs/provenance.md section 7).
 const PEOPLE_KINDS = new Set(['sync', 'undo', 'restore']);
 const LIST_MAX = 50; // rows per list in the check summary
@@ -123,12 +141,13 @@ async function upsertComment(gh, repoPath, number, markdown, { botLogin, once })
   return { action: 'created', id: c?.id ?? null };
 }
 
-async function upsertCheck(gh, repoPath, headSha, { conclusion, title, summary, slug, now }) {
+async function upsertCheck(gh, repoPath, headSha, { conclusion, title, summary, slug, now, actions = [] }) {
   const list = await gh.rest('GET', `${repoPath}/commits/${headSha}/check-runs?check_name=${encodeURIComponent(CHECK_NAME)}&per_page=100`);
   // Only a check run this App made: another App or a workflow can create one
   // with the same name, and GitHub refuses to let us update it anyway.
   const mine = (Array.isArray(list?.check_runs) ? list.check_runs : []).find((c) => c?.name === CHECK_NAME && c.app?.slug === slug);
-  const body = { name: CHECK_NAME, status: 'completed', conclusion, completed_at: new Date(now).toISOString(), output: { title: title.slice(0, 250), summary: summary.slice(0, 60_000) } };
+  // actions: at most 3 buttons (GitHub's limit); [] clears the old ones.
+  const body = { name: CHECK_NAME, status: 'completed', conclusion, completed_at: new Date(now).toISOString(), output: { title: title.slice(0, 250), summary: summary.slice(0, 60_000) }, actions: actions.slice(0, MAX_ACTIONS) };
   if (mine) {
     await gh.rest('PATCH', `${repoPath}/check-runs/${mine.id}`, body);
     return { action: 'updated', id: mine.id, conclusion };
@@ -153,13 +172,17 @@ function displayReview(hubReview, local) {
 
 // The require_review decision (docs/provenance.md section 6) and its summary.
 // Fails closed: anything the App could not check fails the check, with the reason.
-export function decide({ requireProvenance, runs, hubReviews, localReviews, places, unrecorded, incomplete, peopleLines, link }) {
+// rules: Map run id -> { ok, rules: [...] } from the team's path rules (src/hub/rules.js), or empty.
+export function decide({ requireProvenance, runs, hubReviews, localReviews, places, unrecorded, incomplete, peopleLines, link, rules = new Map() }) {
   const unapproved = [];
   for (const r of runs) {
     const h = hubReviews.get(r.id);
-    if (h && h.status === 'approved' && !h.stale) continue;
+    const rule = rules.get(r.id);
+    if (h && h.status === 'approved' && !h.stale && (!rule || rule.ok)) continue;
     const l = localReviews.get(r.id);
-    const why = h?.stale
+    const why = h && h.status === 'approved' && !h.stale
+      ? `Approved in the hub, but a path rule needs more: ${rule.rules.filter((x) => !x.ok).map((x) => md(ruleText(x), 200)).join('; ')}.`
+      : h?.stale
       ? `Approved in the hub by ${who(h)}, but the run changed after that: review it again.`
       : h?.status === 'rejected'
         ? `Rejected in the hub by ${who(h)}.`
@@ -179,7 +202,7 @@ export function decide({ requireProvenance, runs, hubReviews, localReviews, plac
   const title = failing ? titles.join('; ') : 'Every agent run is approved in the Grapim hub';
 
   const out = [
-    `**Policy: require review.** Every line an AI agent wrote must come from a run approved in the Grapim hub by a member other than the person who synced it.${requireProvenance ? ' Require provenance is on: every commit that adds lines needs a Grapim note (an empty note from a human-only commit counts).' : ''} Approvals made with \`grapim review\` on a machine are shown but do not count.`,
+    `**Policy: require review.** Every line an AI agent wrote must come from a run approved in the Grapim hub by a member other than the person who synced it.${rules.size ? ' Runs that touch a path with a rule need the approvals the rule names.' : ''}${requireProvenance ? ' Require provenance is on: every commit that adds lines needs a Grapim note (an empty note from a human-only commit counts).' : ''} Approvals made with \`grapim review\` on a machine are shown but do not count.`,
   ];
   if (unapproved.length) {
     out.push(`#### Runs to approve in the hub (${unapproved.length})`, [...unapproved.slice(0, LIST_MAX).map((u) => u.line), ...(unapproved.length > LIST_MAX ? [`- and ${plural(unapproved.length - LIST_MAX, 'more run')}`] : [])].join('\n'));
@@ -379,7 +402,12 @@ export async function processPullRequest(ctx, job) {
   const hubReviews = hubRepo ? await source.hubReviewsFor(team, hubRepo, runIds) : new Map();
   const localReviews = hubRepo ? await source.localReviewsFor(team, hubRepo, runIds) : new Map();
   const reviews = new Map(runIds.map((id) => [id, displayReview(hubReviews.get(id), localReviews.get(id))]));
-  const { markdown, stats } = renderSummary({ files, notesByCommit: notes, blameByFile, reviews, omittedFiles });
+  // Where each run is reviewed in the hub: a link per run in the comment and the check.
+  const places = hubRepo && runIds.length ? await source.placesFor(team, hubRepo, runIds) : new Map();
+  const origin = String(ctx.origin ?? '').replace(/\/+$/, '');
+  const link = (place, run) => `${origin}/hub/teams/${seg(team.id)}/repos/${seg(place.repo_id)}/runs/${seg(run)}?machine=${seg(place.machine)}`;
+  const reviewLinks = new Map([...places].map(([run, place]) => [run, link(place, run)]));
+  const { markdown, stats } = renderSummary({ files, notesByCommit: notes, blameByFile, reviews, omittedFiles, reviewLinks });
   const comment = noProvenance
     ? await upsertComment(gh, repoPath, job.number, renderEmpty({ via: 'app' }), { botLogin, once: true })
     : await upsertComment(gh, repoPath, job.number, markdown, { botLogin, once: false });
@@ -403,9 +431,9 @@ export async function processPullRequest(ctx, job) {
 
   let decision = null;
   if (requireReview) {
-    const places = hubRepo ? await source.placesFor(team, hubRepo, [...aiRuns.keys()]) : new Map();
-    const origin = String(ctx.origin ?? '').replace(/\/+$/, '');
+    const rules = hubRepo && source.rulesFor ? await source.rulesFor(team, hubRepo, [...aiRuns.keys()]) : new Map();
     decision = decide({
+      rules,
       requireProvenance,
       runs: [...aiRuns.values()].sort((a, b) => b.lines - a.lines || String(a.label).localeCompare(String(b.label))),
       hubReviews,
@@ -414,9 +442,23 @@ export async function processPullRequest(ctx, job) {
       unrecorded: [...unrecorded].sort(),
       incomplete,
       peopleLines,
-      link: (place, run) => `${origin}/hub/teams/${seg(team.id)}/repos/${seg(place.repo_id)}/runs/${seg(run)}?machine=${seg(place.machine)}`,
+      link,
     });
   }
+  // Approve buttons on the check: the runs still to approve that the hub has.
+  const todo = decision ? decision.unapproved : stats.unapproved.filter((u) => aiRuns.has(u.id)).map((u) => ({ ...u, ...aiRuns.get(u.id) }));
+  const intents = new Map(stats.runs.map((r) => [r.id, r.intent]));
+  const actions = [];
+  if (ctx.actionFor && Number.isSafeInteger(Number(job.repoId))) {
+    for (const r of todo) {
+      if (actions.length >= MAX_ACTIONS) break;
+      const place = places.get(r.id);
+      if (!place) continue;
+      const identifier = ctx.actionFor({ team, repoGhId: Number(job.repoId), repoId: place.repo_id, run: r.id, number: job.number });
+      if (identifier) actions.push(approveAction({ label: r.label, intent: intents.get(r.id) }, identifier));
+    }
+  }
+  const notice = ctx.noticeFor?.(job) ?? null;
   const pct = stats.added ? Math.round(stats.share * 100) : 0;
   const title = decision
     ? decision.title
@@ -424,12 +466,17 @@ export async function processPullRequest(ctx, job) {
       ? (stats.unapproved.length ? `${plural(stats.unapproved.length, 'agent run')} of ${stats.runs.length} not reviewed (${pct || '<1'}% of added lines from agents)` : `All ${plural(stats.runs.length, 'agent run')} reviewed (${pct || '<1'}% of added lines from agents)`)
       : 'No agent runs found';
   const body = markdown.replace(`${MARKER}\n`, '');
+  const buttons = actions.length
+    ? `**Approve from GitHub:** the button${actions.length === 1 ? '' : 's'} above record${actions.length === 1 ? 's' : ''} an approval in Grapim as the GitHub user who clicks, under the hub's rules: a member of the team who did not sync the run.`
+    : '';
+  const summary = [notice ? `> ${md(notice, 300)}` : '', decision ? `${decision.summary}\n\n---\n\n${body}` : body, buttons].filter(Boolean).join('\n\n');
   const check = await upsertCheck(gh, repoPath, head, {
     conclusion: decision ? decision.conclusion : 'neutral',
     title,
-    summary: decision ? `${decision.summary}\n\n---\n\n${body}` : body,
+    summary,
     slug: ctx.slug,
     now: ctx.now(),
+    actions,
   });
-  return { empty: noProvenance, stats, decision, comment, check, calls: gh.calls };
+  return { empty: noProvenance, stats, decision, comment, check, calls: gh.calls, title };
 }

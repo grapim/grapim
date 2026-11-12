@@ -976,3 +976,74 @@ main.wrap { container-type: inline-size; }
 .support-topics .radio { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .support-form textarea { width: 100%; resize: vertical; font: inherit; }
 .support-body { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 4px; }
+
+/* The 90-day AI history: the verdict leads, numbers and lists follow. */
+.verdict { padding: 20px 24px; }
+.verdict-line { font-size: var(--fs-20); line-height: 1.4; font-weight: 500; letter-spacing: -0.015em; max-width: 60ch; text-wrap: pretty; }
+.verdict-line strong { font-weight: 650; font-variant-numeric: tabular-nums; }
+.verdict .muted { margin-top: 8px; max-width: 72ch; }
+.scan-progress { display: flex; flex-direction: column; gap: 10px; }
+.split-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.split-2 > .card { margin-bottom: 0; }
+.block { display: block; }
+.next { margin-top: 16px; }
+.steps-list.compact { box-shadow: none; }
+.steps-list.compact .step { padding: 12px 16px; }
+@container (max-width: 820px) {
+  .split-2 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Path rules: a CODEOWNERS-like list, and the form to add one. */
+.rule-pattern { font-size: var(--fs-13); padding: 2px 6px; background: var(--surface-2); border-radius: var(--radius); }
+.rule-form { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.rule-form > .btn { align-self: flex-start; }
+.rule-fields { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 12px; }
+.rule-who { display: flex; flex-wrap: wrap; gap: 8px; border: 0; padding: 0; margin: 0; }
+.rule-who legend { font-size: var(--fs-12); color: var(--text-2); margin-bottom: 6px; padding: 0; }
+.rules-applied { margin: 12px 0; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.rule-checks { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-13); }
+.rule-checks li { display: flex; gap: 8px; align-items: flex-start; }
+.rule-checks .icon { flex: none; margin-top: 2px; }
+.rule-checks .ok .icon { color: var(--ok-text); }
+.rule-checks .todo .icon { color: var(--warn-text); }
+@media (max-width: 640px) {
+  .rule-fields { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Audit evidence: the page, and a print view without the app shell. */
+.evidence-note { background: var(--surface-2); color: var(--text-2); }
+.evidence-table th, .evidence-table td { vertical-align: top; }
+.evidence-table .cell-run { max-width: none; width: auto; min-width: 240px; }
+.evidence-table .run-intent { display: block; white-space: normal; }
+.evidence-table .cell-run { white-space: normal; }
+.evidence-table .run-sub { display: block; white-space: normal; color: var(--text-2); }
+.evidence-table td .badge + .run-sub { margin-top: 4px; }
+.evidence-table .run-sub .show-sm { display: none; }
+@media (max-width: 640px) {
+  .evidence-table { table-layout: fixed; width: 100%; }
+  .evidence-table .cell-run { min-width: 0; width: 64%; }
+  .evidence-table .run-sub, .evidence-table .run-intent { overflow-wrap: anywhere; }
+  .evidence-table td .badge { white-space: normal; }
+  .evidence-table .run-sub .show-sm { display: inline; }
+}
+.print-page { background: var(--bg); color: var(--text); }
+.print-wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 48px; }
+.print-head { margin-bottom: 20px; }
+.print-kicker { color: var(--text-3); font-size: var(--fs-12); text-transform: uppercase; letter-spacing: 0.06em; }
+.print-head h1 { font-size: var(--fs-24); letter-spacing: -0.02em; margin: 4px 0 12px; }
+.print-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.print-meta dt { color: var(--text-3); font-size: var(--fs-12); }
+.print-meta dd { font-size: var(--fs-13); overflow-wrap: anywhere; }
+.print-note { padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius); color: var(--text-2); font-size: var(--fs-13); max-width: 90ch; }
+.print-actions { margin-top: 12px; display: flex; gap: 8px; }
+.print-foot { margin-top: 20px; color: var(--text-3); font-size: var(--fs-12); max-width: 100ch; }
+@media (max-width: 640px) {
+  .print-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media print {
+  .print-actions { display: none; }
+  .print-wrap { max-width: none; padding: 0; }
+  .print-page .table-wrap { overflow: visible; }
+  .print-page .table th, .print-page .table td { font-size: 10px; }
+  .print-page tr { break-inside: avoid; }
+}

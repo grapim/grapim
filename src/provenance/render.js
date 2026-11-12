@@ -18,6 +18,9 @@
 //                  `text`, when given, is shown instead of the plain status.
 //   omittedFiles:  files the caller did not attribute (over its file cap).
 //   limit:         the comment's size budget in characters (GitHub's is 65,536).
+//   reviewLinks:   { [runId]: url } (or a Map), the App only: where each run is
+//                  reviewed in the hub. Only http(s) URLs the caller built; shown
+//                  as one link per run in the "Not reviewed" list.
 // -> { markdown, stats }
 //
 // Everything that comes from a note (run ids, labels, intents) or a PR (paths)
@@ -268,7 +271,11 @@ function fill(out, rows, budget) {
   return rows.length - i;
 }
 
-export function renderSummary({ files = [], notesByCommit = {}, blameByFile = {}, reviews = {}, omittedFiles = 0, limit = DEFAULT_LIMIT } = {}) {
+// A link the caller built (the hub's own origin): never from a note or a PR.
+const safeLink = (url) => (typeof url === 'string' && /^https?:\/\/[^\s()<>\[\]]+$/.test(url) && url.length <= 600 ? url : null);
+
+export function renderSummary({ files = [], notesByCommit = {}, blameByFile = {}, reviews = {}, omittedFiles = 0, limit = DEFAULT_LIMIT, reviewLinks = {} } = {}) {
+  const links = asMap(reviewLinks);
   const a = attribute({ files, notesByCommit, blameByFile, reviews });
   // Infinity (the CLI): no budget. Else room is kept for the truncation notes and the footer.
   const budget = limit === Infinity ? Infinity : Math.max(2_000, Math.min(Number(limit) || DEFAULT_LIMIT, GITHUB_LIMIT)) - 400;
@@ -292,7 +299,10 @@ export function renderSummary({ files = [], notesByCommit = {}, blameByFile = {}
 
     if (unapproved.length) {
       const list = ['#### Not reviewed in Grapim', ''];
-      const rows = unapproved.map((r) => `- ${md(r.label, 60)}: ${plural(r.lines, 'line')} in ${plural(r.files, 'file')}${r.reviewText ? ` (${md(r.reviewText, 80)})` : r.review === 'rejected' ? ' (rejected)' : ''}`);
+      const rows = unapproved.map((r) => {
+        const url = safeLink(links.get(r.id));
+        return `- ${md(r.label, 60)}: ${plural(r.lines, 'line')} in ${plural(r.files, 'file')}${r.reviewText ? ` (${md(r.reviewText, 80)})` : r.review === 'rejected' ? ' (rejected)' : ''}${url ? ` · [Review in Grapim](${url})` : ''}`;
+      });
       cut.unreviewed = fill(list, rows, budget - used());
       if (cut.unreviewed) list.push(`- <sub>${plural(cut.unreviewed, 'more run')} not shown</sub>`);
       parts.push(list.join('\n'));

@@ -567,3 +567,20 @@ if (toast) {
   toast.querySelector('.toast-close')?.addEventListener('click', leave);
   arm();
 }
+
+// ---------------------------------------------------------------- live pages
+
+// A page with work running on the hub (the history scan) reloads itself
+// every data-refresh seconds while the tab is visible.
+const refresh = $('[data-refresh]');
+if (refresh) {
+  const s = Math.min(60, Math.max(3, Number(refresh.dataset.refresh) || 5));
+  setInterval(() => {
+    if (document.visibilityState === 'visible') location.reload();
+  }, s * 1000);
+}
+
+// The evidence print view's button.
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-print]')) window.print();
+});

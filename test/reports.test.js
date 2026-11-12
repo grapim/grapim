@@ -463,7 +463,8 @@ test('tenant isolation: another team gets 404 on every report route, and cannot 
   const M = await createTeam(mallory, 'Mallory Co');
   h.hub.db.prepare("UPDATE teams SET plan = 'governance' WHERE id = ?").run(M);
   const routes = h.hub.router.routes.filter((r) => r.pattern.includes('/reports'));
-  assert.equal(routes.length, REPORTS.length * 3 + 1);
+  // Each report's page, JSON and CSV, the Reports tab, and the audit evidence page, print view and CSV.
+  assert.equal(routes.length, REPORTS.length * 3 + 1 + 3);
   for (const r of routes) {
     assert.equal(r.opts.team, true, `${r.pattern} is a team route (so the enumerated isolation test covers it)`);
     assert.equal(r.opts.auth, 'session');

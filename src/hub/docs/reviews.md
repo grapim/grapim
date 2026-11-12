@@ -30,9 +30,13 @@ Choose **Approve** or **Reject**, with an optional note. Every decision is kept 
 - **Not your own runs.** The person who synced a run cannot review it. A machine name belongs to the member who first synced from it.
 - **Changed after approval means not approved.** If more changes of a run are synced after it was approved, the approval stops counting until someone approves again.
 - **Only hub decisions count.** `grapim review <run> --approve` on a machine marks the run locally; the pull request check shows it as approved locally but does not count it.
+- **Sensitive paths can need more.** With [path rules](/docs/rules), a run that changed `payments/**`, say, can need two approvals, or approvals from named people. The run page shows which rules apply and who still needs to approve.
 - **Rejecting does not undo.** A rejection keeps the check failing; to take the code out, [undo the run](/docs/undo) on the machine that made it.
 
 ## Faster reviews
+
+- **Approve from the pull request.** The `Grapim provenance (app)` check has an Approve button per waiting run, under the same rules: see [Approve from GitHub](/docs/github#approve-from-github).
+- **Get told in Slack** when runs are waiting: see [Slack notifications](/docs/notifications).
 
 - Press **Ctrl K** (**Cmd K** on a Mac) to jump to any run waiting for review.
 - **Ask about this run** on a run page opens [Ask Grapim](/docs/ask-grapim) with the run in view: ask what it changed and why, then confirm the approval it prepares.

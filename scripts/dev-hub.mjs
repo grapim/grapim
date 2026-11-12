@@ -182,6 +182,41 @@ async function seedMore() {
   for (const w of waiting.slice(0, 2)) pull.run(TEAM, 77001, 5001, 'acme-co', 'shop-api', 412, sha1('h412'), w.run, now - 20 * MIN);
   for (const w of waiting.slice(2, 4)) pull.run(TEAM, 77001, 5002, 'acme-co', 'web-app', 97, sha1('h97'), w.run, now - 3 * 60 * MIN);
 
+  // The 90-day AI history scan, as if it ran when GitHub was linked.
+  const scanId = Number(
+    db
+      .prepare("INSERT INTO gh_history_scans (team_id, status, reason, requested_by, since, created_at, started_at, finished_at, repos_total, repos_done, prs_scanned, capped) VALUES (?, 'done', 'install', 1001, ?, ?, ?, ?, 4, 4, ?, '[]')")
+      .run(TEAM, now - 90 * DAY, now - 20 * DAY, now - 20 * DAY, now - 20 * DAY + 4 * MIN, 0).lastInsertRowid,
+  );
+  const putPr = db.prepare('INSERT INTO gh_history_prs (scan_id, team_id, repo, number, title, author, merged_at, agents, ai, approved_other, approvers, commits, commits_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const titles = ['Add idempotency keys to POST /orders', 'Retry failed Stripe webhooks with backoff', 'Split checkout into server components', 'Fix flaky cart total test', 'Bump pg to 8.12', 'Move tax calc to billing-svc', 'Add rate limit to /login', 'Cache product images at the edge', 'Terraform: separate staging VPC', 'Refactor invoice PDF renderer', 'Log refunds with request id', 'Drop the legacy v1 coupons table'];
+  const people = ['demo', 'sam', 'priya', 'jordan', 'mei'];
+  const mix = [['claude-code', 'Co-authored-by trailer'], ['cursor', 'Co-authored-by trailer'], ['copilot', 'opened the pull request'], ['codex', 'Co-authored-by trailer'], ['claude-code', 'Co-authored-by trailer']];
+  let prs = 0;
+  for (const [ri, repo] of ['acme-co/shop-api', 'acme-co/web-app', 'acme-co/billing-svc', 'acme-co/infra'].entries()) {
+    for (let i = 0; i < [64, 51, 38, 21][ri]; i++) {
+      const h = parseInt(sha1(`${repo}#${i}`).slice(0, 8), 16);
+      const ai = h % 100 < [41, 35, 30, 14][ri];
+      const agent = mix[h % mix.length];
+      const author = agent[0] === 'copilot' && ai ? 'Copilot' : people[h % people.length];
+      const approved = ai ? (h >>> 9) % 100 > 34 : (h >>> 9) % 100 > 10;
+      const reviewer = people[(h >> 3) % people.length] === author ? people[(h >> 5) % people.length] : people[(h >> 3) % people.length];
+      putPr.run(scanId, TEAM, repo, 900 - i * 3 - ri, titles[h % titles.length], author, now - ((i * 89) % 88) * DAY - (h % 20) * 60 * MIN, JSON.stringify(ai ? [{ agent: agent[0], how: [agent[1]] }] : []), ai ? 1 : 0, approved && reviewer !== author ? 1 : 0, JSON.stringify(approved && reviewer !== author ? [reviewer] : []), 1 + (h % 6), 1 + (h % 6));
+      prs++;
+    }
+  }
+  db.prepare('UPDATE gh_history_scans SET prs_scanned = ? WHERE id = ?').run(prs, scanId);
+
+  // Path rules, Slack, and runs that reached a merged pull request.
+  hub.github.rules.add(TEAM, { pattern: 'src/routes/**', approvals: 2 }, 1001);
+  hub.github.rules.add(TEAM, { pattern: 'src/lib/**', approvals: 1, approvers: [1001, 1003] }, 1001);
+  hub.github.rules.add(TEAM, { pattern: '**/migrations/**', approvals: 2, approvers: [1001, 1002, 1003] }, 1001);
+  hub.notify.save(TEAM, 'https://hooks.slack.com/services/T0DEMO1234/B0DEMO5678/demoDemoDemoDemoDemo8f2c', 1001);
+  db.prepare('UPDATE team_notify SET last_ok_at = ? WHERE team_id = ?').run(now - 40 * MIN, TEAM);
+  const merged = db.prepare('INSERT OR IGNORE INTO gh_merged_runs (team_id, run, owner, name, number, head_sha, merged_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  const done = db.prepare("SELECT DISTINCT r.run, r.reviewed_at FROM hub_reviews r WHERE r.team_id = ? AND r.status = 'approved' ORDER BY r.reviewed_at DESC LIMIT 40").all(TEAM);
+  done.forEach((r, i) => merged.run(TEAM, r.run, 'acme-co', i % 2 ? 'web-app' : 'shop-api', 380 + Math.floor(i / 2), sha1(`m${i}`), r.reviewed_at + 2 * 60 * MIN));
+
   // A cloud workspace with agent activity, written over HTTPS like an agent would.
   const team = hub.teams.get(TEAM);
   const ws = hub.workspaces.create(team, { role: 'owner', userId: 1001 }, 'research-notes');

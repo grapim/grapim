@@ -51,7 +51,7 @@ function policyForm({ team, csrf, policy, allowed, from = null, slug = null, che
 }
 
 // The card on the settings page (owners only).
-export function githubSection({ team, csrf, configured, installations, policy, allowed, slug = null, checkName }) {
+export function githubSection({ team, csrf, configured, installations, policy, allowed, slug = null, checkName, history = '' }) {
   return html`<section class="card" id="github" aria-labelledby="github-title">
   <div class="card-head">
     <h2 id="github-title" class="card-title">GitHub</h2>
@@ -62,12 +62,13 @@ export function githubSection({ team, csrf, configured, installations, policy, a
     : installations.length
       ? html`Pull requests in ${installations.map((i, n) => html`${n ? ', ' : ''}<span class="strong">${i.account_login || `installation ${i.id}`}</span>`)} get a provenance comment and a "${checkName}" check.`
       : 'Install the Grapim GitHub App so each pull request lists its agent runs, what each was asked to do and who reviewed it, with a check that can block merging until they are reviewed.'}</p>
-  <h3 class="card-title small">Require review before merge</h3>
+  ${history}
+  <h3 class="card-title small policy-sub">Require review before merge</h3>
   ${policyForm({ team, csrf, policy, allowed, from: 'settings', slug, checkName })}
 </section>`;
 }
 
-export function githubPage({ user, csrf, team, configured, problems = [], installations, linkable, pending, policy, allowed, slug = null, checkName, notice = null, error = null }) {
+export function githubPage({ user, csrf, team, configured, problems = [], installations, linkable, pending, policy, allowed, slug = null, checkName, history = '', notice = null, error = null }) {
   return layout({
     title: `${team.name} GitHub`,
     user,
@@ -115,6 +116,7 @@ ${!configured
     )}
   </ul>`
     : ''}
+  ${history}
 </section>`}
 
 <section class="card" id="policy" aria-labelledby="policy-title">
