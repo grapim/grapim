@@ -962,3 +962,9 @@ input[aria-invalid="true"] { border-color: var(--danger); }
 /* Under the first-run steps: workspaces, as the second thing Grapim does. */
 .setup-also { display: flex; align-items: flex-start; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--text-2); max-width: 64ch; }
 .setup-also .icon { margin-top: 3px; color: var(--text-3); }
+
+/* Pages lay out by their own width, so they still fit beside Ask Grapim's panel. */
+main.wrap { container-type: inline-size; }
+@container (max-width: 820px) {
+  .overview { grid-template-columns: minmax(0, 1fr); }
+}
