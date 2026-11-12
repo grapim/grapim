@@ -2,7 +2,7 @@
 // global shortcuts, toasts and the help overlay. Views live in views/*.js and
 // export mount(el, params, ctx) → { refresh?, destroy?, onKey?, commands? }.
 
-import { api, conn, init, onStatus, onTick } from './api.js';
+import { api, CLOUD, conn, init, onStatus, onTick } from './api.js';
 import * as embed from './embed.js';
 import { ago, icon, registerAgents } from './views/shared.js';
 
@@ -89,7 +89,9 @@ async function route() {
     console.error(err);
     if (n !== routing) return;
     render(viewEl, html`<div class="error" role="alert"><div><h3>This page failed to load</h3>
-      <p>${err?.message || String(err)}</p><p>Reload the page. If it keeps happening, the UI files may be out of date: restart <code>grapim serve</code>.</p></div></div>`);
+      <p>${err?.message || String(err)}</p><p>${CLOUD
+        ? 'Reload the page. If it keeps happening, Grapim may have just been updated: reload once more in a minute.'
+        : html`Reload the page. If it keeps happening, the UI files may be out of date: restart <code>grapim serve</code>.`}</p></div></div>`);
   }
   if (!sameView && document.activeElement === document.body && embed.mayFocus()) viewEl.focus({ preventScroll: true });
   if (!sameView) window.scrollTo(0, 0);
@@ -140,13 +142,16 @@ function renderShell() {
 
   if (o) {
     const main = o.worktrees?.[0];
+    const n = o.worktrees?.length || 1;
     render($('#repo'), html`
-      <div class="repo-name">${o.repo}</div>
-      <div class="repo-meta">${main?.branch || 'no branch'} · ${o.worktrees?.length || 1} worktree${(o.worktrees?.length || 1) === 1 ? '' : 's'}</div>`);
+      <div class="repo-name" title="${o.repo}">${o.repo}</div>
+      <div class="repo-meta">${icon('branch', 'sm')}<span>${main?.branch || 'no branch'}</span>${n > 1 ? html`<span>· ${n} worktrees</span>` : ''}</div>`);
     $('#repo').title = o.root || '';
     $('#repo-inline').textContent = o.repo;
   } else if (shell.error) {
-    render($('#repo'), html`<div class="repo-name">Not connected</div><div class="repo-meta">${shell.error.message}</div>`);
+    // The whole message is on hover; the sidebar only says what state it is in.
+    render($('#repo'), html`<div class="repo-name">Not connected</div><div class="repo-meta">Couldn’t load this workspace</div>`);
+    $('#repo').title = shell.error.message.replace(/`/g, '');
   }
 
   const theme = getTheme();
@@ -157,8 +162,15 @@ function renderShell() {
 
   const c = $('#conn');
   c.dataset.state = conn.state;
-  c.querySelector('.txt').textContent =
-    { live: 'Live · updates as agents work', reconnecting: 'Reconnecting to grapim serve…', mock: 'Sample data', connecting: 'Connecting…' }[conn.state] || conn.state;
+  const connText = { live: 'Live · updates as agents work', reconnecting: CLOUD ? 'Reconnecting…' : 'Reconnecting to grapim serve…', mock: 'Sample data', connecting: 'Connecting…' }[conn.state] || conn.state;
+  c.querySelector('.txt').textContent = connText;
+  // On the collapsed rail only the dot shows; its words are on hover.
+  c.title = connText;
+  // Phone width: the sidebar is hidden, so the top bar carries the dot.
+  const ct = $('#conn-top');
+  ct.dataset.state = conn.state;
+  ct.title = connText;
+  ct.querySelector('.txt').textContent = connText;
 
   // Embedded, the state is one word in the header, and the "run grapim serve"
   // banner is not shown: the host's customers never run the server.
@@ -219,12 +231,44 @@ export function toast(message, { kind = 'info', action, timeout = 5000 } = {}) {
   const el = document.createElement('div');
   el.className = `toast ${kind}`;
   el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
-  el.innerHTML = flat(html`<span>${message}</span>${action ? html`<button type="button">${action.label}</button>` : ''}`);
-  const close = () => el.remove();
+  // Server messages mark commands with backticks; a toast is plain words.
+  el.innerHTML = flat(html`<span>${String(message).replace(/`/g, '')}</span>${action ? html`<button type="button">${action.label}</button>` : ''}`);
+  let timer = 0;
+  const close = () => { clearTimeout(timer); el.remove(); };
+  const arm = () => { clearTimeout(timer); timer = setTimeout(close, timeout); };
   if (action) el.querySelector('button').addEventListener('click', () => { close(); action.fn(); });
+  // A toast with an action stays while the pointer or focus is on it.
+  el.addEventListener('pointerenter', () => clearTimeout(timer));
+  el.addEventListener('pointerleave', arm);
+  el.addEventListener('focusin', () => clearTimeout(timer));
+  el.addEventListener('focusout', arm);
   $('#toasts').append(el);
-  setTimeout(close, timeout);
+  arm();
   return close;
+}
+
+// Any [data-copy-text] button copies its text (data-copy-what names it in the toast).
+// Without the async clipboard (plain http, or an iframe that was not allowed
+// it), a hidden field and execCommand still copy.
+export function copyText(text, what = '') {
+  const done = () => toast(what ? `Copied ${what}.` : 'Copied.', { timeout: 2500 });
+  const fallback = () => {
+    const opener = document.activeElement;
+    const t = document.createElement('textarea');
+    t.value = text;
+    t.setAttribute('readonly', '');
+    t.className = 'sr-only';
+    document.body.append(t);
+    t.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch {}
+    t.remove();
+    opener?.focus?.({ preventScroll: true });
+    if (ok) done();
+    else toast('Couldn’t copy. Select the text and copy it by hand.', { kind: 'error' });
+  };
+  if (!navigator.clipboard) return fallback();
+  navigator.clipboard.writeText(text).then(done, fallback);
 }
 
 // ---------------------------------------------------------------- dialogs
@@ -233,6 +277,8 @@ export function toast(message, { kind = 'info', action, timeout = 5000 } = {}) {
 export function openDialog(content, { className = '', onClose, label } = {}) {
   const d = $('#dialog');
   if (d.open) d.close();
+  // One element serves every dialog: drop the last one's handlers.
+  d.onclick = d.oninput = d.onsubmit = null;
   d.className = className;
   d.__html = null;
   render(d, content);
@@ -253,13 +299,15 @@ document.addEventListener('click', (e) => {
 
 const MOD = isMac ? '⌘' : 'Ctrl';
 const KEYS = [
-  ['Go to', [['Live', 'g l'], ['Runs', 'g r'], ['Files', 'g f'], ['Search or jump to…', `${MOD} K`]]],
+  ['Go to', [['Live', 'g l'], ['Runs', 'g r'], ['Files', 'g f'], ['Search or jump to…', `${MOD} K`], ['Collapse the sidebar', '[']]],
   ['Lists', [['Next / previous', 'j k'], ['Open', 'Enter'], ['Back to the list', 'Esc']]],
   ['Review a run', [['Approve', 'a'], ['Reject', 'x'], ['Create branch', 'b'], ['Undo… (asks first)', 'u']]],
   ['Diffs and files', [['Unified / split', 's'], ['Mark next file viewed', 'v'], ['Show this list', '?']]],
 ];
 export function openHelp() {
-  const keys = embed.readonly() ? KEYS.filter(([g]) => g !== 'Review a run') : KEYS;
+  let keys = embed.readonly() ? KEYS.filter(([g]) => g !== 'Review a run') : KEYS;
+  // Embedded there is no sidebar to collapse.
+  if (EMBED) keys = keys.map(([g, items]) => [g, items.filter(([w]) => w !== 'Collapse the sidebar')]);
   openDialog(html`
     <div class="dlg">
       <div class="dlg-head"><h2 class="dlg-title" id="dlg-title">Keyboard shortcuts</h2>
@@ -294,6 +342,8 @@ export const ctx = {
     return m.openUndo(run, turn, ctx);
   },
   current: () => current?.view,
+  // With one worktree (every cloud workspace), its name is noise: views leave it out.
+  multiWorktree: () => (shell.overview?.worktrees?.length || 1) > 1,
 };
 
 // ---------------------------------------------------------------- keys
@@ -341,6 +391,8 @@ document.addEventListener('click', (e) => {
   }
   const t = e.target.closest('[data-theme-set]');
   if (t) setTheme(t.dataset.themeSet);
+  const cp = e.target.closest('[data-copy-text]');
+  if (cp) copyText(cp.dataset.copyText, cp.dataset.copyWhat);
   if (e.target.closest('[data-close]')) e.target.closest('dialog')?.close();
 });
 

@@ -8,7 +8,7 @@ import { date, html, time } from './html.js';
 import { head, reveal } from './team.js';
 import { connectorCards } from './connectors.js';
 import { icon } from './icons.js';
-import { code, delta, emptyState } from './parts.js';
+import { code, delta, emptyState, phoneMeta } from './parts.js';
 
 const mb = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round((n || 0) / 1024))} KB`);
 const deskPath = (team, ws) => `/w/${team.id}/${ws.name}/`;
@@ -69,7 +69,7 @@ ${workspaces.length
 <section class="card card-narrow" aria-labelledby="ws-new-title">
   <div class="card-head">
     <h2 id="ws-new-title" class="card-title">New workspace</h2>
-    <span class="muted small">${workspaces.length} of ${unlimited ? 'unlimited' : limit} on the ${team.plan} plan</span>
+    <span class="muted small">${unlimited ? html`No limit on the <span class="plan">${team.plan}</span> plan` : `${workspaces.length} of ${limit} on the ${team.plan} plan`}</span>
   </div>
   ${full
     ? html`<p class="fine">The ${team.plan} plan includes ${limit} workspace${limit === 1 ? '' : 's'}. An owner can upgrade in <a href="/hub/teams/${team.id}/settings#billing">Settings</a>.</p>`
@@ -267,7 +267,7 @@ ${owner
     ${csrfField(csrf)}
     <label for="delete-confirm">Type <code>${ws.name}</code> to confirm</label>
     <input id="delete-confirm" name="confirm" type="text" maxlength="40" required autocomplete="off" spellcheck="false">
-    <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+    <button class="btn btn-danger" type="submit">Delete workspace</button>
   </form>
 </section>`
   : html`<p class="fine">Only a team owner can delete this workspace.</p>`}`;
@@ -285,15 +285,15 @@ function activityTab({ team, ws, activity }) {
   return html`<div class="table-wrap">
 <table class="table">
   <caption class="sr-only">Recent runs in ${ws.name}, newest first</caption>
-  <thead><tr><th scope="col">Run</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num">Lines</th><th scope="col">Review</th><th scope="col">Last change</th></tr></thead>
+  <thead><tr><th scope="col">Run</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num hide-sm">Lines</th><th scope="col" class="hide-sm">Review</th><th scope="col">Last change</th></tr></thead>
   <tbody>
   ${runs.map((r) => {
     const [label, tone] = REVIEW[r.review] ?? REVIEW.pending;
     return html`<tr>
-    <th scope="row" class="cell-run"><a class="run-link" href="${`${desk}#/runs/${encodeURIComponent(r.run)}`}"><span class="run-intent">${r.intent || r.label}</span></a><span class="run-sub">${r.intent ? html`<span class="agent-name">${r.label}</span>` : html`<span class="muted">No prompt recorded</span>`}</span></th>
+    <th scope="row" class="cell-run"><a class="run-link" href="${`${desk}#/runs/${encodeURIComponent(r.run)}`}" title="${r.intent || r.label}"><span class="run-intent">${r.intent || r.label}</span></a><span class="run-sub">${r.intent ? html`<span class="agent-name">${r.label}</span>` : html`<span class="muted">No prompt recorded</span>`}${phoneMeta(delta(r.added, r.removed), html`<span class="badge badge-${tone}">${label}</span>`)}</span></th>
     <td class="num hide-sm">${r.files}</td>
-    <td class="num">${delta(r.added, r.removed)}</td>
-    <td><span class="badge badge-${tone}">${label}</span></td>
+    <td class="num hide-sm">${delta(r.added, r.removed)}</td>
+    <td class="hide-sm"><span class="badge badge-${tone}">${label}</span></td>
     <td>${time(r.last_ts)}</td>
   </tr>`;
   })}
@@ -311,7 +311,7 @@ ${activity.changes?.length
 
 export const WORKSPACE_TABS = ['activity', 'connect', 'tokens', 'integrations', 'settings'];
 
-export function workspacePage({ user, csrf, team, role, ws, tokens, origin, connectors = [], activity = null, lastActivity = null, tab = 'activity', revealed = null, notice = null, error = null }) {
+export function workspacePage({ user, csrf, team, role, ws, tokens, origin, connectors = [], activity = null, lastActivity = null, tab = 'activity', revealed = null, notice = null, error = null, toast = null }) {
   const owner = role === 'owner';
   const url = `${origin}${deskPath(team, ws)}`;
   const base = `/hub/teams/${team.id}/workspaces/${ws.id}`;
@@ -335,7 +335,9 @@ export function workspacePage({ user, csrf, team, role, ws, tokens, origin, conn
     user,
     csrf,
     team,
-    wide: current === 'activity' ? true : 'mid',
+    // One width for every tab, so the heading and tabs stay put when you switch.
+    wide: 'mid',
+    toast,
     crumbs: [{ label: 'Workspaces', href: `/hub/teams/${team.id}/workspaces` }, { label: ws.name }],
     body: html`${head(team, 'workspaces', {
       title: ws.name,

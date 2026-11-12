@@ -20,7 +20,7 @@ export function signInPage({ next = '/hub', error = null }) {
   });
 }
 
-export function pickerPage({ user, csrf, teams, error = null }) {
+export function pickerPage({ user, csrf, teams, error = null, toast = null }) {
   // Two teams can share a name: the created date, role and id tell them apart.
   const names = new Map();
   for (const t of teams) names.set(t.name.toLowerCase(), (names.get(t.name.toLowerCase()) ?? 0) + 1);
@@ -28,6 +28,7 @@ export function pickerPage({ user, csrf, teams, error = null }) {
     title: 'Teams',
     user,
     csrf,
+    toast,
     body: html`<header class="page-head">
   <div class="page-head-main"><h1>Teams</h1><p class="page-sub">Teams you belong to. Open one to see its runs, reviews and workspaces.</p></div>
 </header>
@@ -40,7 +41,7 @@ ${teams.length
       <span class="team-mark" aria-hidden="true">${t.name.slice(0, 1).toUpperCase()}</span>
       <span class="team-text">
         <span class="row-title">${t.name}${names.get(t.name.toLowerCase()) > 1 ? html` <span class="sha mono">${t.id.slice(0, 6)}</span>` : ''}</span>
-        <span class="row-sub">${t.created_at ? html`Created ${date(t.created_at)} · ` : ''}${t.repos} repo${t.repos === 1 ? '' : 's'} · ${t.members} member${t.members === 1 ? '' : 's'}</span>
+        <span class="row-sub" title="${`${t.created_at ? `Created ${date(t.created_at)} · ` : ''}${t.repos} repo${t.repos === 1 ? '' : 's'} · ${t.members} member${t.members === 1 ? '' : 's'}`}">${t.created_at ? html`Created ${date(t.created_at)} · ` : ''}${t.repos} repo${t.repos === 1 ? '' : 's'} · ${t.members} member${t.members === 1 ? '' : 's'}</span>
       </span>
     </a>
     <span class="badge ${t.role === 'owner' ? 'badge-role' : ''}">${t.role === 'owner' ? 'Owner' : 'Member'}</span>

@@ -387,12 +387,20 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
         let cap = null;
         if (raw !== '') {
           const n = Number(raw);
-          if (!Number.isFinite(n) || n < 0 || n > 1e6) throw new HttpError(400, 'bad_request', 'Enter an amount in dollars, like 5 or 12.50.');
+          if (!Number.isFinite(n) || n < 0 || n > 1e6) {
+            // The settings form (back=1) gets its page back with the error under
+            // the field (?error=cap), not a JSON answer.
+            if (ctx.form.back) {
+              ctx.res.writeHead(303, { Location: `/hub/teams/${team.id}/settings?error=cap#ask-grapim` });
+              return ctx.res.end();
+            }
+            throw new HttpError(400, 'bad_request', 'Enter an amount in dollars, like 5 or 12.50.');
+          }
           cap = Math.round(n * MICROS);
         }
         store.setCap(team.id, cap);
         if (ctx.form.back) {
-          ctx.res.writeHead(303, { Location: `/hub/teams/${team.id}/settings#ask-grapim` });
+          ctx.res.writeHead(303, { Location: `/hub/teams/${team.id}/settings?done=cap_saved#ask-grapim` });
           return ctx.res.end();
         }
         json(ctx, { usage: usageInfo(team) });

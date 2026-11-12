@@ -33,7 +33,7 @@ export async function mount(el, params, ctx) {
   };
 
   const row = (r) => html`
-    <a class="row ${s.fresh.has(r.run) ? 'new' : ''}" href="${runHref(r.run)}" data-key="run:${r.run}" data-run="${r.run}" aria-selected="${s.selected === r.run}">
+    <a class="row ${s.fresh.has(r.run) ? 'new' : ''}" href="${runHref(r.run)}" data-key="run:${r.run}" data-run="${r.run}" aria-current="${s.selected === r.run}">
       <span class="c-glyph">${glyph(r)}</span>
       <span class="c-agent">${agentChip(r.label, { title: r.run })}</span>
       <span class="c-intent intent" title="${runTitle(r) || ''}">${runTitle(r) || html`<span class="muted">No intent recorded</span>`}</span>
@@ -44,7 +44,7 @@ export async function mount(el, params, ctx) {
       <span class="c-tree">${treeBadge(r.in_tree)}</span>
       <span class="c-review">${reviewBadge(r.review)}</span>
       <span class="c-time r">${when(r.last_ts)}</span>
-      <span class="meta-sm">${agentChip(r.label)}<span>${r.worktree}</span><span class="num">${pluralize(r.turns, 'turn')} · ${pluralize(r.files, 'file')}</span>${plusMinus(r.added, r.removed)}<span>${treeText(r.in_tree)}</span>${reviewBadge(r.review)}</span>
+      <span class="meta-sm">${agentChip(r.label)}${ctx.multiWorktree() ? html`<span>${r.worktree}</span>` : ''}<span class="num">${pluralize(r.turns, 'turn')} · ${pluralize(r.files, 'file')}</span>${plusMinus(r.added, r.removed)}<span>${treeText(r.in_tree)}</span>${reviewBadge(r.review)}</span>
     </a>`;
 
   function draw() {
@@ -61,12 +61,13 @@ export async function mount(el, params, ctx) {
         <div class="hint" aria-hidden="true"><span><kbd>j</kbd><kbd>k</kbd> move</span><span><kbd>Enter</kbd> open</span>${ctx.readonly() ? '' : html`<span><kbd>a</kbd> approve</span><span><kbd>x</kbd> reject</span>`}</div>
       </div>`;
     const header = html`<div class="runs-head" aria-hidden="true">
-      <span></span><span>Agent</span><span>Intent</span><span class="c-wt">Worktree</span><span class="r">Turns</span><span class="c-files r">Files</span><span class="r">Lines</span><span>In tree</span><span>Review</span><span class="r">Updated</span></div>`;
+      <span></span><span>Agent</span><span>Intent</span><span class="c-wt">Worktree</span><span class="r">Turns</span><span class="c-files r">Files</span><span class="r">Lines</span><span class="c-tree">In tree</span><span>Review</span><span class="r">Updated</span></div>`;
+    const panelCls = `panel runs${ctx.multiWorktree() ? '' : ' one-wt'}`;
 
     if (s.error && !s.runs) return render(el, html`${head}${errorBlock(s.error)}`);
     if (!s.runs) {
-      return render(el, html`${head}<section class="panel runs">${header}${Array.from({ length: 6 }, () => html`
-        <div class="row" aria-hidden="true"><span>${sk('12px', 12)}</span><span>${sk('110px')}</span><span>${sk('70%')}</span><span class="c-wt">${sk('70px')}</span><span>${sk('16px')}</span><span class="c-files">${sk('16px')}</span><span>${sk('60px')}</span><span>${sk('60px', 20)}</span><span>${sk('80px', 20)}</span><span>${sk('40px')}</span></div>`)}</section>`);
+      return render(el, html`${head}<section class="${panelCls}">${header}${Array.from({ length: 6 }, () => html`
+        <div class="row" aria-hidden="true"><span>${sk('12px', 12)}</span><span>${sk('110px')}</span><span>${sk('70%')}</span><span class="c-wt">${sk('70px')}</span><span>${sk('16px')}</span><span class="c-files">${sk('16px')}</span><span>${sk('60px')}</span><span class="c-tree">${sk('60px', 20)}</span><span>${sk('80px', 20)}</span><span>${sk('40px')}</span></div>`)}</section>`);
     }
     if (!s.runs.length) {
       const h = setupHint('Every agent session that edits a file shows up here.');
@@ -81,8 +82,8 @@ export async function mount(el, params, ctx) {
       all: ['No runs', ''],
     }[s.filter];
     render(el, html`${head}
-      ${s.error ? html`<div style="margin-bottom:16px">${errorBlock(s.error, { title: 'Couldn’t refresh the list' })}</div>` : ''}
-      <section class="panel runs" aria-label="Runs">${list.length ? html`${header}<div role="list">${list.map(row)}</div>` : empty(none[0], none[1])}</section>`);
+      ${s.error ? html`<div class="stack-gap">${errorBlock(s.error, { title: 'Couldn’t refresh the list' })}</div>` : ''}
+      <section class="${panelCls}" aria-label="Runs">${list.length ? html`${header}<div>${list.map(row)}</div>` : empty(none[0], none[1])}</section>`);
   }
 
   async function load() {
@@ -102,8 +103,8 @@ export async function mount(el, params, ctx) {
   function rows() { return [...el.querySelectorAll('.runs .row[data-run]')]; }
   function select(run, focus = true) {
     s.selected = memory.selected = run;
-    for (const r of rows()) r.setAttribute('aria-selected', String(r.dataset.run === run));
-    el.__html = null; // aria-selected changed outside render
+    for (const r of rows()) r.setAttribute('aria-current', String(r.dataset.run === run));
+    el.__html = null; // aria-current changed outside render
     const target = rows().find((r) => r.dataset.run === run);
     if (focus && target) { target.focus({ preventScroll: true }); target.scrollIntoView({ block: 'nearest' }); }
   }

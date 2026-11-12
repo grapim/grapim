@@ -6,7 +6,7 @@
 import { avatar, csrfField, layout, SETTINGS_SECTIONS } from './layout.js';
 import { date, html, time } from './html.js';
 import { icon } from './icons.js';
-import { agent, code, delta, emptyState, plural, reviewBadge, runHref } from './parts.js';
+import { agent, code, delta, emptyState, phoneMeta, plural, reviewBadge, runHref } from './parts.js';
 
 const TITLES = { overview: 'Overview', reviews: 'Reviews', repos: 'Repos', workspaces: 'Workspaces', reports: 'Reports', settings: 'Settings', platform: 'Platform' };
 
@@ -115,7 +115,7 @@ function runRow(team, r) {
   return html`<li class="item">
   <a class="item-link" href="${runHref(team.id, r)}">
     <span class="item-main">
-      <span class="item-title">${r.intent || r.label}</span>
+      <span class="item-title" title="${r.intent || r.label}">${r.intent || r.label}</span>
       <span class="item-meta">${agent(r.label, r.kind)}<span class="sep" aria-hidden="true">·</span><span>${r.repo}</span><span class="sep hide-sm" aria-hidden="true">·</span><span class="hide-sm">${plural(r.files, 'file')}</span> ${delta(r.added, r.removed)}</span>
     </span>
     <span class="item-side">${r.status === 'stale' ? reviewBadge('stale') : ''}${time(r.last_ts)}</span>
@@ -197,7 +197,7 @@ ${checklist({ team, csrf, role, origin, setup })}`,
     <section class="panel" aria-labelledby="active-title">
       <div class="panel-head"><h2 id="active-title" class="panel-title">Active now <span class="num muted">${active.length}</span></h2></div>
       ${active.length
-        ? html`<ul class="plain-list">${active.map((a) => html`<li class="plain-row"><span class="live" aria-hidden="true"></span><span class="plain-main">${agent(a.label, a.kind)}<span class="muted small truncate">${a.intent || a.repo}</span></span>${time(a.last_seen)}</li>`)}</ul>`
+        ? html`<ul class="plain-list">${active.map((a) => html`<li class="plain-row"><span class="live" aria-hidden="true"></span><span class="plain-main">${agent(a.label, a.kind)}<span class="muted small truncate" title="${a.intent || a.repo}">${a.intent || a.repo}</span></span>${time(a.last_seen)}</li>`)}</ul>`
         : html`<p class="panel-empty">No agent has synced an edit in the last hour.</p>`}
     </section>
     <section class="panel" aria-labelledby="where-title">
@@ -216,10 +216,11 @@ ${checklist({ team, csrf, role, origin, setup })}`,
 
 // ---------------------------------------------------------------- reviews
 
+// [key, label, the label on a phone (the three must fit 343 px)].
 const FILTERS = [
-  ['yours', 'Needs your review'],
-  ['mine', 'Your runs'],
-  ['done', 'Reviewed'],
+  ['yours', 'Needs your review', 'To review'],
+  ['mine', 'Your runs', 'Your runs'],
+  ['done', 'Reviewed', 'Reviewed'],
 ];
 
 export function reviewsPage({ user, csrf, team, filter, runs, counts }) {
@@ -233,20 +234,20 @@ export function reviewsPage({ user, csrf, team, filter, runs, counts }) {
     crumbs: [{ label: 'Reviews' }],
     body: html`${head(team, 'reviews', { sub: 'Agent runs from synced repos. An approval here is the review the Grapim check on pull requests counts; the member who synced a run cannot review it.' })}
 <nav class="seg" aria-label="Filter">
-  ${FILTERS.map(([k, label]) => html`<a class="seg-item" href="${`${base}?f=${k}`}" ${k === filter ? html`aria-current="page"` : ''}>${label} <span class="num muted">${counts[k]}</span></a>`)}
+  ${FILTERS.map(([k, label, short]) => html`<a class="seg-item" href="${`${base}?f=${k}`}" ${k === filter ? html`aria-current="page"` : ''}>${short === label ? label : html`<span class="hide-sm">${label}</span><span class="show-sm">${short}</span>`} <span class="num muted">${counts[k]}</span></a>`)}
 </nav>
 ${runs.length
   ? html`<div class="table-wrap">
 <table class="table">
   <caption class="sr-only">${FILTERS.find(([k]) => k === filter)[1]}, newest first</caption>
-  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Repo</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num">Lines</th><th scope="col" class="hide-sm">Review</th><th scope="col">Last change</th></tr></thead>
+  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Repo</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num hide-sm">Lines</th><th scope="col" class="hide-sm">Review</th><th scope="col">Last change</th></tr></thead>
   <tbody>
   ${runs.map(
     (r) => html`<tr>
-    <th scope="row" class="cell-run"><a class="run-link" href="${runHref(team.id, r)}"><span class="run-intent">${r.intent || r.label}</span></a><span class="run-sub">${agent(r.label, r.kind)}<span class="muted hide-sm">${r.machine}</span></span></th>
+    <th scope="row" class="cell-run"><a class="run-link" href="${runHref(team.id, r)}" title="${r.intent || r.label}"><span class="run-intent">${r.intent || r.label}</span></a><span class="run-sub">${agent(r.label, r.kind)}<span class="muted hide-sm">${r.machine}</span>${phoneMeta(delta(r.added, r.removed), filter === 'yours' ? '' : reviewBadge(r.status))}</span></th>
     <td class="hide-sm">${r.repo}</td>
     <td class="num hide-sm">${r.files}</td>
-    <td class="num">${delta(r.added, r.removed)}</td>
+    <td class="num hide-sm">${delta(r.added, r.removed)}</td>
     <td class="hide-sm">${reviewBadge(r.status)}${r.review && !r.waiting ? html`<span class="muted small hide-sm"> by ${r.review.reviewer_login || 'a member'}</span>` : ''}</td>
     <td>${time(r.last_ts)}</td>
   </tr>`,
@@ -357,7 +358,7 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
 
 // Ask Grapim's monthly credit: what the team used, by whom (owners only), and
 // the owner's hard limit. Only drawn when Ask Grapim is set up on the hub.
-function askSection({ team, role, csrf, agent: a, members }) {
+function askSection({ team, role, csrf, agent: a, members, capError = null }) {
   if (!a) return '';
   const owner = role === 'owner';
   const usd = (n) => '$' + n.toFixed(2);
@@ -386,16 +387,17 @@ function askSection({ team, role, csrf, agent: a, members }) {
     <input type="hidden" name="back" value="1">
     <label class="label" for="ask-cap">Monthly limit</label>
     <div class="ask-cap-row">
-      <span class="ask-cap-input"><span aria-hidden="true">$</span><input id="ask-cap" class="input" name="cap" inputmode="decimal" autocomplete="off" placeholder="${a.credit.toFixed(2)}" value="${a.cap === null ? '' : a.cap.toFixed(2)}" aria-describedby="ask-cap-hint"></span>
+      <span class="ask-cap-input"><span aria-hidden="true">$</span><input id="ask-cap" class="input" name="cap" inputmode="decimal" autocomplete="off" placeholder="${a.credit.toFixed(2)}" value="${a.cap === null ? '' : a.cap.toFixed(2)}" pattern="\\$?\\s*([0-9]+(\\.[0-9]*)?|\\.[0-9]+)" title="An amount in dollars, like 5 or 12.50" aria-describedby="${capError ? 'ask-cap-error ask-cap-hint' : 'ask-cap-hint'}" ${capError ? html`aria-invalid="true" autofocus` : ''}></span>
       <button class="btn" type="submit">Save</button>
     </div>
+    ${capError ? html`<p id="ask-cap-error" class="field-error">${icon('x')}<span>${capError.message}</span></p>` : ''}
     <p id="ask-cap-hint" class="muted small">Ask Grapim stops for the team at this amount. Leave it empty to use the plan's ${usd(a.credit)}; 0 turns it off.</p>
   </form>`
     : ''}
 </section>`;
 }
 
-export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, storage = null, revealed = null, notice = null, error = null }) {
+export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, storage = null, revealed = null, notice = null, error = null, toast = null, capError = null }) {
   const owner = role === 'owner';
   const shown = SETTINGS_SECTIONS.filter((s) => owner || !s.owner).filter((s) => (s.id === 'github' ? !!github : s.id === 'storage' ? !!storage : true));
   const newestToken = revealed?.kind === 'token' ? revealed.name : null;
@@ -405,6 +407,7 @@ export function settingsPage({ user, csrf, team, role, members, invites, tokens,
     csrf,
     team,
     wide: 'mid',
+    toast,
     crumbs: [{ label: 'Settings' }],
     body: html`${head(team, 'settings')}
 ${notice ? html`<p class="notice" role="status">${notice}</p>` : ''}
@@ -421,7 +424,7 @@ ${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
     <div><dt>Name</dt><dd>${team.name}</dd></div>
     <div><dt>Team ID</dt><dd class="mono">${team.id}</dd></div>
     <div><dt>Created</dt><dd>${date(team.created_at)}</dd></div>
-    <div><dt>Your role</dt><dd>${role}</dd></div>
+    <div><dt>Your role</dt><dd>${role === 'owner' ? 'Owner' : 'Member'}</dd></div>
     <div><dt>Plan</dt><dd><span class="badge badge-plan">${team.plan}</span> <a class="link small" href="#billing">Billing</a></dd></div>
   </dl>
 </section>
@@ -436,7 +439,7 @@ ${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
     (m) => html`<li class="row">
     <span class="row-main">${avatar(m, 24)}<span class="row-title">${m.name || m.login}</span><span class="muted mono hide-sm">@${m.login}</span></span>
     <span class="row-meta hide-sm">joined ${date(m.joined_at)}</span>
-    <span class="badge">${m.role}</span>
+    <span class="badge ${m.role === 'owner' ? 'badge-role' : ''}">${m.role === 'owner' ? 'Owner' : 'Member'}</span>
     ${owner && m.id !== user.id
       ? html`<form method="post" action="/hub/teams/${team.id}/members/${m.id}/remove" data-confirm="${`Remove ${m.login} from ${team.name}? Their machine tokens stop working.`}">
       ${csrfField(csrf)}<button class="btn btn-ghost btn-sm btn-danger" type="submit" aria-label="${`Remove ${m.login}`}">Remove</button>
@@ -502,7 +505,7 @@ ${owner
 
 ${billingSection({ team, role, csrf, limits, seatsUsed, billing })}
 
-${askSection({ team, role, csrf, agent, members })}
+${askSection({ team, role, csrf, agent, members, capError })}
 
 ${github ?? ''}
 

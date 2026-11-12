@@ -97,7 +97,7 @@ export function openPalette(ctx) {
   const d = ctx.openDialog(html`
     <div class="dlg">
       <div class="palette-input">${icon('search')}
-        <input id="palette-q" type="text" role="combobox" aria-expanded="true" placeholder="Jump to a run, a file or a page, or run an action…" autocomplete="off" spellcheck="false"
+        <input id="palette-q" type="text" role="combobox" aria-expanded="true" placeholder="Search runs, files and actions…" autocomplete="off" spellcheck="false"
           aria-label="Search" aria-controls="palette-list" aria-autocomplete="list">
         <kbd>Esc</kbd></div>
       <div class="palette-list" id="palette-list" role="listbox" aria-label="Results"></div>

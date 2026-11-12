@@ -21,6 +21,10 @@ export const delta = (a, r) => html`<span class="delta" aria-label="${`${a} adde
 
 export const runHref = (teamId, r) => `/hub/teams/${teamId}/repos/${r.repo_id}/runs/${encodeURIComponent(r.run)}?machine=${encodeURIComponent(r.machine)}`;
 
+// What a run table's hidden columns said, under the run's title on a phone
+// (the Lines and Review columns hide below 640 px). Hidden from wider screens.
+export const phoneMeta = (...parts) => html`<span class="run-sub-sm show-sm">${parts}</span>`;
+
 export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 // A shell snippet. hub.js adds the Copy button to every .code block.

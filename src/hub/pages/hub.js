@@ -505,3 +505,65 @@ document.addEventListener('click', (e) => {
   paintThemeButtons();
 });
 paintThemeButtons();
+
+// ---------------------------------------------------------------- scroll strips
+
+// Tabs and segmented filters scroll sideways when they do not fit: the
+// current one is scrolled into view, and an edge with more fades out.
+for (const strip of $$('.tabs, .subnav, .seg')) {
+  const paint = () => {
+    const max = strip.scrollWidth - strip.clientWidth;
+    const start = max > 1 && strip.scrollLeft > 1;
+    const end = max > 1 && strip.scrollLeft < max - 1;
+    if (start && end) strip.dataset.fade = 'both';
+    else if (start) strip.dataset.fade = 'start';
+    else if (end) strip.dataset.fade = 'end';
+    else delete strip.dataset.fade;
+  };
+  const cur = strip.querySelector('[aria-current], .seg-item:has(input:checked)');
+  if (cur && strip.scrollWidth > strip.clientWidth) {
+    const a = strip.getBoundingClientRect();
+    const b = cur.getBoundingClientRect();
+    if (b.right > a.right || b.left < a.left) strip.scrollLeft += b.left - a.left - (a.width - b.width) / 2;
+  }
+  paint();
+  strip.addEventListener('scroll', paint, { passive: true });
+  window.addEventListener('resize', paint);
+}
+
+// ---------------------------------------------------------------- toast
+
+// A form's error that came back in the address (?error=…) is shown once.
+{
+  const url = new URL(location.href);
+  if (url.searchParams.has('error')) {
+    url.searchParams.delete('error');
+    history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  }
+}
+
+// A toast says what a form just did. It leaves after a few seconds (not
+// while hovered or focused), and the ?done= that asked for it leaves the
+// address, so a reload does not say it again.
+const toast = $('.toast');
+if (toast) {
+  const url = new URL(location.href);
+  if (url.searchParams.has('done')) {
+    url.searchParams.delete('done');
+    history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  }
+  let timer = null;
+  const leave = () => {
+    toast.classList.add('is-out');
+    setTimeout(() => toast.hidden = true, 320);
+  };
+  const arm = () => {
+    clearTimeout(timer);
+    timer = setTimeout(leave, 5000);
+  };
+  toast.addEventListener('pointerenter', () => clearTimeout(timer));
+  toast.addEventListener('pointerleave', arm);
+  toast.addEventListener('focusin', () => clearTimeout(timer));
+  toast.querySelector('.toast-close')?.addEventListener('click', leave);
+  arm();
+}

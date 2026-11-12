@@ -7,7 +7,7 @@
 import { api } from '../api.js';
 import { fileHref, html, navigate, raw, render, runHref } from '../app.js';
 import { diffTexts, highlight, langOf, renderDiff } from './diff.js';
-import { agentChip, ago, colorOf, empty, errorBlock, exact, icon, pluralize, setupHint, sk, when } from './shared.js';
+import { agentChip, ago, colorOf, empty, errorBlock, exact, icon, pluralize, setupHint, sk, when, withCode } from './shared.js';
 
 // Tree state survives moving between files (and is dropped when the worktree changes).
 const tree = { open: new Set(['']), dirs: new Map(), errors: new Map(), worktree: null };
@@ -62,7 +62,7 @@ export async function mount(el, params, ctx) {
 
   function treeHtml(dir, depth = 0) {
     const items = tree.dirs.get(dir);
-    if (tree.errors.has(dir)) return html`<p class="loading muted" style="font-size:12px">Couldn’t list ${dir || 'the root'}: ${tree.errors.get(dir).message}</p>`;
+    if (tree.errors.has(dir)) return html`<p class="loading section-note">Couldn’t list ${dir || 'the root'}: ${tree.errors.get(dir).message}</p>`;
     if (!items) return html`<div class="loading">${sk('60%')}</div>`;
     if (!items.length && depth === 0) return html`<p class="loading muted">This folder is empty.</p>`;
     return html`<ul role="${depth ? 'group' : 'tree'}" aria-label="${depth ? '' : 'Workspace files'}">${items.map((it) => {
@@ -161,8 +161,8 @@ export async function mount(el, params, ctx) {
     const cur = !s.version;
     return html`
       <section class="panel history-pane" aria-labelledby="hist-h">
-        <div class="section-head" style="padding:12px 12px 0;margin:0"><h2 class="section-title" id="hist-h">${icon('history')} Versions <span class="num">${hist.length + 1}</span></h2></div>
-        <ul class="versions" style="margin-top:8px">
+        <div class="section-head panel-head tight"><h2 class="section-title" id="hist-h">${icon('history')} Versions <span class="num">${hist.length + 1}</span></h2></div>
+        <ul class="versions">
           <li><button class="version" type="button" data-version="" aria-current="${cur}" data-key="ver:current">
             <span><b>Working file</b></span><span class="when">now</span>
             <span class="sub">${f.exists === false ? 'Deleted' : 'What is on disk right now'}</span></button></li>
@@ -171,7 +171,7 @@ export async function mount(el, params, ctx) {
             <span class="sub">${h.turn ? `turn ${h.turn}` : h.label.startsWith('undo ') ? 'undo' : h.run?.startsWith('restore:') ? 'restored' : ''}${h.after_sha === null ? html`<span class="badge bad">deleted</span>` : h.before_sha === null ? html`<span class="badge ok">created</span>` : ''}${h.added === null ? html`<span>binary</span>` : html`<span class="plusminus"><span class="add">+${h.added}</span><span class="del">−${h.removed}</span></span>`}</span>
           </button></li>`)}
         </ul>
-        ${!hist.length ? html`<p class="muted" style="padding:0 12px 12px;font-size:12px">No agent has changed this file since Grapim started recording.</p>` : ''}
+        ${!hist.length ? html`<p class="section-note history-none">No agent has changed this file since Grapim started recording.</p>` : ''}
       </section>`;
   }
 
@@ -206,7 +206,7 @@ export async function mount(el, params, ctx) {
     const parts = s.path.split('/');
     const crumbs = html`<nav class="crumbs" aria-label="Path"><a href="${rootHref()}">Files</a>${parts.map((p, i) => html`<span class="sep" aria-hidden="true">/</span>${i === parts.length - 1 ? html`<span>${p}</span>` : html`<span>${p}</span>`}`)}</nav>`;
     if (!f || (f.text === undefined && !f.error)) {
-      return html`${crumbs}<div class="page-head"><h1 class="page-title mono" style="font-size:18px">${parts.at(-1)}</h1></div>
+      return html`${crumbs}<div class="page-head"><h1 class="page-title file-title">${parts.at(-1)}</h1></div>
         <div class="panel" style="padding:16px">${Array.from({ length: 10 }, (_, i) => html`<div style="margin:6px 0">${sk(`${30 + ((i * 37) % 60)}%`)}</div>`)}</div>`;
     }
     if (f.error) return html`${crumbs}${errorBlock(f.error)}`;
@@ -218,13 +218,17 @@ export async function mount(el, params, ctx) {
     const opaque = !deleted && f.text === null;
     return html`
       ${crumbs}
-      <div class="page-head" style="margin-bottom:16px">
-        <div style="min-width:0">
-          <h1 class="page-title mono" style="font-size:18px;overflow-wrap:anywhere">${parts.at(-1)}</h1>
+      <div class="page-head file-head-row">
+        <div class="min0">
+          <h1 class="page-title file-title">${parts.at(-1)}</h1>
           <p class="page-sub">
             ${deleted ? html`<span class="badge bad">Deleted</span>` : opaque ? html`<span class="badge">Binary or over 2 MB</span>` : html`<span class="num">${pluralize((f.text || '').replace(/\n$/, '').split('\n').length, 'line')}</span>`}
             ${last ? html`<span>Last changed by ${agentChip(last.label)} ${when(last.ts)}</span>` : html`<span class="muted">No recorded agent changes</span>`}
           </p>
+        </div>
+        <div class="actions">
+          <button class="btn sm" type="button" data-copy-text="${s.path}" data-copy-what="the path">${icon('copy', 'sm')}Copy path</button>
+          ${!deleted && (!opaque || !s.worktree) ? html`<button class="btn sm" type="button" data-download ${s.busy === 'download' ? 'disabled' : ''}>${icon('download', 'sm')}${s.busy === 'download' ? 'Downloading…' : 'Download'}</button>` : ''}
         </div>
       </div>
       ${held ? html`<div class="notice" style="--c:${raw(colorOf(held.label))}">${icon('lock')}<span>Held by ${agentChip(held.label)} since ${when(held.acquired_at)}${held.intent ? html` for “${held.intent}”` : ''}. Other agents are stopped before they write it.</span></div>` : ''}
@@ -250,7 +254,7 @@ export async function mount(el, params, ctx) {
     return html`
       <div class="page-head"><div><h1 class="page-title">Files</h1><p class="page-sub">The working tree of ${ctx.shell.overview?.repo || 'this repo'}, with who changed and who holds each file.</p></div></div>
       <section class="panel" aria-labelledby="recent-h">
-        <div class="section-head" style="padding:12px 16px 0;margin:0"><h2 class="section-title" id="recent-h">Recently edited</h2></div>
+        <div class="section-head panel-head"><h2 class="section-title" id="recent-h">Recently edited</h2></div>
         ${!evs ? html`<div style="padding:16px">${sk('50%')}</div>` : items.length ? html`<table class="table"><tbody>${items.map((e) => html`<tr>
           <td class="mono"><a href="${fileHref(e.path)}">${e.path}</a></td><td>${agentChip(e.label)}</td><td class="r muted">${when(e.ts)}</td></tr>`)}</tbody></table>`
           : empty('No agent has edited a file yet', setupHint('Edits show up here once an agent changes a file.').body)}
@@ -302,7 +306,7 @@ export async function mount(el, params, ctx) {
     function body() {
       if (st.step === 'loading') return html`<div aria-busy="true" aria-label="Working out what changes">${[60, 80, 40, 70].map((w) => html`<div style="margin:8px 0">${sk(`${w}%`)}</div>`)}</div>`;
       if (st.error) {
-        return html`<div class="error" role="alert">${icon('alert')}<div><h3>${st.step === 'plan' ? 'Couldn’t work out the restore' : 'The restore didn’t happen'}</h3><p>${st.error.message}</p>
+        return html`<div class="error" role="alert">${icon('alert')}<div><h3>${st.step === 'plan' ? 'Couldn’t work out the restore' : 'The restore didn’t happen'}</h3><p>${withCode(st.error.message)}</p>
           ${st.error.code === 'busy' || st.error.code === 'offline' || st.error.code === 'conflict' ? html`<button class="btn sm" type="button" data-again>Look again</button>` : ''}</div></div>`;
       }
       const r = st.result;
@@ -390,6 +394,32 @@ export async function mount(el, params, ctx) {
     plan();
   }
 
+  // The working file as shown (any worktree) when its text is here; a binary
+  // file's bytes come from the server (the server's own worktree only).
+  async function download() {
+    const f = s.file;
+    if (!f || s.busy) return;
+    const name = s.path.split('/').at(-1);
+    let blob;
+    if (typeof f.text === 'string') blob = new Blob([f.text], { type: 'text/plain;charset=utf-8' });
+    else {
+      s.busy = 'download';
+      draw();
+      try { blob = await api.raw(s.path); } catch (e) { ctx.toast(`Couldn’t download ${name}. ${e.message}`, { kind: 'error' }); }
+      s.busy = null;
+      draw();
+    }
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+
   async function loadRecent() {
     try { s.recent = (await api.events(0, 200)).reverse(); } catch { s.recent = []; }
   }
@@ -417,6 +447,7 @@ export async function mount(el, params, ctx) {
     }
     const rs = t.closest('[data-restore]');
     if (rs) return openRestore(rs.dataset.restore);
+    if (t.closest('[data-download]')) return download();
     const sh = t.closest('[data-show]');
     if (sh) { s.show = sh.dataset.show; return draw(); }
     const pn = t.closest('[data-pane]');

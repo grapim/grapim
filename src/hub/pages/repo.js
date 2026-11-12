@@ -7,7 +7,7 @@ import { pullUrl } from '../overview.js';
 import { csrfField, layout } from './layout.js';
 import { html, time } from './html.js';
 import { icon } from './icons.js';
-import { agent, delta, plural, reviewBadge } from './parts.js';
+import { agent, delta, phoneMeta, plural, reviewBadge } from './parts.js';
 import { kindOf } from '../reports/notes.js';
 
 const IN_TREE = { all: ['In tree', 'ok'], some: ['Partly in tree', 'warn'], none: ['Not in tree', 'muted'] };
@@ -20,7 +20,19 @@ function treeBadge(v) {
 // review: Map(run -> { status, stale, ... }) from the hub's reviews, or empty.
 const statusOf = (h) => (!h ? 'pending' : h.stale ? 'stale' : h.status);
 
-export function repoPage({ user, csrf, team, repo, overview, runs, reviews = new Map() }) {
+// Previous / Next under a long table. page: { n, pages, size, total }.
+function pager(base, page) {
+  if (!page || page.pages <= 1) return '';
+  const first = (page.n - 1) * page.size + 1;
+  const last = Math.min(page.total, page.n * page.size);
+  const link = (n, label) => (n >= 1 && n <= page.pages ? html`<a class="btn btn-sm" href="${`${base}?page=${n}`}" rel="${n < page.n ? 'prev' : 'next'}">${label}</a>` : html`<span class="btn btn-sm" aria-disabled="true">${label}</span>`);
+  return html`<nav class="pager" aria-label="Pages">
+  <span class="num">${first.toLocaleString('en-US')}–${last.toLocaleString('en-US')} of ${page.total.toLocaleString('en-US')} runs</span>
+  <span class="pager-links">${link(page.n - 1, 'Previous')}${link(page.n + 1, 'Next')}</span>
+</nav>`;
+}
+
+export function repoPage({ user, csrf, team, repo, overview, runs, reviews = new Map(), page = null }) {
   const base = `/hub/teams/${team.id}/repos/${repo.id}`;
   return layout({
     title: repo.name,
@@ -40,7 +52,7 @@ ${overview.agents.length
   <div class="panel-head"><h2 id="active-title" class="panel-title">Active now <span class="num muted">${overview.agents.length}</span></h2></div>
   <ul class="plain-list">
   ${overview.agents.map(
-    (a) => html`<li class="plain-row"><span class="live" aria-hidden="true"></span><span class="plain-main">${agent(a.label, kindOf(a.agent))}<span class="muted small truncate">${a.intent || ''}</span></span><span class="muted small hide-sm">${a.machine}${a.worktree ? ` · ${a.worktree}` : ''}</span>${time(a.last_seen)}</li>`,
+    (a) => html`<li class="plain-row"><span class="live" aria-hidden="true"></span><span class="plain-main">${agent(a.label, kindOf(a.agent))}<span class="muted small truncate" title="${a.intent || ''}">${a.intent || ''}</span></span><span class="muted small hide-sm">${a.machine}${a.worktree ? ` · ${a.worktree}` : ''}</span>${time(a.last_seen)}</li>`,
   )}
   </ul>
 </section>`
@@ -49,22 +61,23 @@ ${runs.length
   ? html`<div class="table-wrap">
 <table class="table">
   <caption class="sr-only">Agent runs in ${repo.name}, newest first</caption>
-  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Machine</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num">Lines</th><th scope="col" class="hide-sm">In tree</th><th scope="col">Review</th><th scope="col">Last</th></tr></thead>
+  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Machine</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num hide-sm">Lines</th><th scope="col" class="hide-sm">In tree</th><th scope="col" class="hide-sm">Review</th><th scope="col">Last change</th></tr></thead>
   <tbody>
   ${runs.map(
     (r) => html`<tr>
-    <th scope="row" class="cell-run"><a class="run-link" href="${`${base}/runs/${encodeURIComponent(r.run)}?machine=${encodeURIComponent(r.machine)}`}"><span class="run-intent">${r.intent || r.label}</span></a><span class="run-sub">${agent(r.label, kindOf(r.run))}${r.active ? html`<span class="live" title="Active" aria-label="active"></span>` : ''}</span></th>
+    <th scope="row" class="cell-run"><a class="run-link" href="${`${base}/runs/${encodeURIComponent(r.run)}?machine=${encodeURIComponent(r.machine)}`}" title="${r.intent || r.label}"><span class="run-intent">${r.intent || r.label}</span></a><span class="run-sub">${agent(r.label, kindOf(r.run))}${r.active ? html`<span class="live" title="Active" aria-label="active"></span>` : ''}${phoneMeta(delta(r.added, r.removed), reviewBadge(statusOf(reviews.get(r.run))))}</span></th>
     <td class="hide-sm">${r.machine}${r.worktree ? html`<span class="muted"> · ${r.worktree}</span>` : ''}</td>
     <td class="num hide-sm">${r.files}</td>
-    <td class="num">${delta(r.added, r.removed)}</td>
+    <td class="num hide-sm">${delta(r.added, r.removed)}</td>
     <td class="hide-sm">${treeBadge(r.in_tree)}</td>
-    <td>${reviewBadge(statusOf(reviews.get(r.run)))}</td>
+    <td class="hide-sm">${reviewBadge(statusOf(reviews.get(r.run)))}</td>
     <td>${time(r.last_ts)}</td>
   </tr>`,
   )}
   </tbody>
 </table>
-</div>`
+</div>
+${pager(base, page)}`
   : html`<div class="empty"><p class="empty-title">No runs in the history window</p><p class="muted">Runs appear here once a connected machine syncs agent edits.</p></div>`}`,
   });
 }

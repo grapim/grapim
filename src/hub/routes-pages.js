@@ -47,6 +47,21 @@ const BILLING_STATUS = {
   stripe_error: 502,
 };
 
+// What a form did, said after its redirect as a toast (?done=<code>): a fixed
+// list, so the address can never put words on the page.
+const DONE = {
+  team_created: 'Team created. Invite your teammates or create a machine token below.',
+  left: 'You left the team. Your machine tokens for it no longer work.',
+  token_revoked: 'Token revoked. That machine can no longer sync.',
+  invite_revoked: 'Invite link revoked.',
+  member_removed: 'Member removed. Their machine tokens no longer work.',
+  cap_saved: 'Monthly limit saved.',
+  renamed: 'Workspace renamed. Agents and synced folders need the new address.',
+  wstoken_revoked: 'Token revoked. Agents using it stop working at once.',
+  synced: 'Synced.',
+};
+export const doneText = (ctx) => DONE[ctx.url?.searchParams.get('done')] ?? null;
+
 export function pageRoutes(router, hub) {
   const { config, teams, read, auth, limits } = hub;
   const html = (ctx, body, status = 200, headers = {}) => sendHtml(ctx.res, status, body, headers);
@@ -102,7 +117,7 @@ export function pageRoutes(router, hub) {
 
   router.get('/hub', (ctx) => {
     if (!ctx.session) return html(ctx, signInPage({}));
-    html(ctx, pickerPage({ user: ctx.session.user, csrf: ctx.session.csrf, teams: hub.overview.teamsOf(ctx.session.user.id) }));
+    html(ctx, pickerPage({ user: ctx.session.user, csrf: ctx.session.csrf, teams: hub.overview.teamsOf(ctx.session.user.id), toast: doneText(ctx) }));
   });
 
   router.get('/hub/login', (ctx) => {
@@ -142,7 +157,7 @@ export function pageRoutes(router, hub) {
           throw new HttpError(403, 'forbidden', 'This hub is in a private beta: creating teams is limited to invited accounts. Ask a team owner for an invite link.');
         }
         const team = teams.create(u, ctx.form.name);
-        redirect(ctx.res, `/hub/teams/${team.id}/settings`);
+        redirect(ctx.res, `/hub/teams/${team.id}/settings?done=team_created`);
       } catch (err) {
         if (!(err instanceof HttpError)) throw err;
         html(ctx, pickerPage({ user: ctx.session.user, csrf: ctx.session.csrf, teams: hub.overview.teamsOf(ctx.session.user.id), error: err.message }), err.status);
@@ -246,7 +261,9 @@ export function pageRoutes(router, hub) {
     (ctx) => {
       const b = ctx.url.searchParams.get('billing');
       const notice = b === 'success' ? 'Thanks. The plan updates here as soon as Stripe confirms the payment.' : b === 'cancel' ? 'Checkout was cancelled. Nothing was charged.' : null;
-      renderSettings(ctx, { notice });
+      // The Ask Grapim limit form comes back here with ?error=cap (src/hub/agent/index.js).
+      const capError = ctx.url.searchParams.get('error') === 'cap' ? { message: 'Enter an amount in dollars, like 5 or 12.50.' } : null;
+      renderSettings(ctx, { notice, toast: doneText(ctx), capError });
     },
     TEAM,
   );
@@ -266,7 +283,7 @@ export function pageRoutes(router, hub) {
     (ctx) =>
       onSettings(ctx, () => {
         teams.revokeInvite(ctx.member.team.id, ctx.member, ctx.params.invite);
-        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings#invites`);
+        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings?done=invite_revoked#invites`);
       }),
     TEAM_FORM,
   );
@@ -278,7 +295,7 @@ export function pageRoutes(router, hub) {
         const userId = Number(ctx.params.user);
         if (!Number.isSafeInteger(userId)) throw new HttpError(400, 'bad_request', 'Unknown member.');
         teams.removeMember(ctx.member.team.id, ctx.member, userId);
-        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings#members`);
+        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings?done=member_removed#members`);
       }),
     TEAM_FORM,
   );
@@ -288,7 +305,7 @@ export function pageRoutes(router, hub) {
     (ctx) =>
       onSettings(ctx, () => {
         teams.leave(ctx.member.team.id, ctx.session.user.id);
-        redirect(ctx.res, '/hub');
+        redirect(ctx.res, '/hub?done=left');
       }),
     TEAM_FORM,
   );
@@ -308,7 +325,7 @@ export function pageRoutes(router, hub) {
     (ctx) =>
       onSettings(ctx, () => {
         teams.revokeToken(ctx.member.team.id, ctx.member, ctx.params.token);
-        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings#tokens`);
+        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings?done=token_revoked#tokens`);
       }),
     TEAM_FORM,
   );
@@ -394,9 +411,9 @@ export function pageRoutes(router, hub) {
     TEAM_FORM,
   );
 
-  router.get('/hub/teams/:team/workspaces/:ws', (ctx) => renderWorkspace(ctx), WS);
+  router.get('/hub/teams/:team/workspaces/:ws', (ctx) => renderWorkspace(ctx, { toast: doneText(ctx) }), WS);
   for (const tab of WORKSPACE_TABS.filter((t) => t !== 'activity')) {
-    router.get(`/hub/teams/:team/workspaces/:ws/${tab}`, (ctx) => renderWorkspace(ctx, { tab }), WS);
+    router.get(`/hub/teams/:team/workspaces/:ws/${tab}`, (ctx) => renderWorkspace(ctx, { tab, toast: doneText(ctx) }), WS);
   }
 
   router.post(
@@ -406,7 +423,7 @@ export function pageRoutes(router, hub) {
         const ws = workspaces.rename(ctx.member.team.id, ctx.workspace.id, ctx.form.name);
         // The open engine serves the old address: close it, the next request opens the new one.
         await hub.mount.close(ws.id);
-        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/workspaces/${ws.id}`);
+        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/workspaces/${ws.id}/settings?done=renamed`);
       }),
     WS_FORM,
   );
@@ -443,7 +460,7 @@ export function pageRoutes(router, hub) {
     (ctx) =>
       onPage(ctx, onTab('tokens'), () => {
         workspaces.revokeToken(ctx.workspace, wsActor(ctx), ctx.params.wstoken);
-        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/workspaces/${ctx.workspace.id}/tokens`);
+        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/workspaces/${ctx.workspace.id}/tokens?done=wstoken_revoked`);
       }),
     WS_FORM,
   );
@@ -480,7 +497,7 @@ export function pageRoutes(router, hub) {
         await hub.connectors.syncNow(ctx.workspace, connectorName(ctx.form)).catch((err) => {
           throw new HttpError(400, 'bad_request', err.message);
         });
-        redirect(ctx.res, backTo(ctx));
+        redirect(ctx.res, `${backTo(ctx)}?done=synced`);
       }),
     { ...WS_FORM, owner: true },
   );
@@ -501,10 +518,15 @@ export function pageRoutes(router, hub) {
     '/hub/teams/:team/repos/:repo',
     (ctx) => {
       const { team } = ctx.member;
-      const runs = read.runs(team, ctx.repo);
+      const all = read.runs(team, ctx.repo);
+      // 50 runs a page, newest first (?page=2 …); a page past the end shows the last.
+      const size = 50;
+      const pages = Math.max(1, Math.ceil(all.length / size));
+      const n = Math.min(pages, Math.max(1, Number.parseInt(ctx.url.searchParams.get('page'), 10) || 1));
+      const runs = all.slice((n - 1) * size, n * size);
       // Hub review state per run (src/hub/reviews.js), for the Review column.
       const reviews = hub.github?.reviews && runs.length ? hub.github.reviews.latest(team, [ctx.repo.id], runs.map((r) => r.run)) : new Map();
-      html(ctx, repoPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, repo: ctx.repo, overview: read.overview(team, ctx.repo), runs, reviews }));
+      html(ctx, repoPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, repo: ctx.repo, overview: read.overview(team, ctx.repo), runs, reviews, page: { n, pages, size, total: all.length } }));
     },
     { ...TEAM, repo: true },
   );
@@ -543,9 +565,10 @@ export function pageRoutes(router, hub) {
 
   const billingTeam = (t) => ({ id: t.id, name: t.name, plan: t.plan, seats: t.seats, stripe_customer_id: t.customer_id || null });
 
+  // A plan or seats mistake is shown on the settings page, next to the form.
   router.post(
     '/hub/billing/checkout',
-    (ctx) => {
+    (ctx) => onSettings(ctx, () => {
       const { team } = ctx.member;
       const seats = Number(ctx.form.seats);
       if (!Number.isInteger(seats) || seats < 1 || seats > 1000) throw new HttpError(400, 'bad_request', 'Seats must be a whole number from 1 to 1000.');
@@ -565,16 +588,16 @@ export function pageRoutes(router, hub) {
           cancelUrl: `${back}?billing=cancel#billing`,
         }),
       );
-    },
+    }),
     { ...FORM, team: 'form', owner: true },
   );
 
   router.post(
     '/hub/billing/portal',
-    (ctx) => {
+    (ctx) => onSettings(ctx, () => {
       const { team } = ctx.member;
       return billingCall(ctx, (b) => b.createPortal({ team: billingTeam(team), returnUrl: `${config.origin}/hub/teams/${team.id}/settings#billing` }));
-    },
+    }),
     { ...FORM, team: 'form', owner: true },
   );
 }

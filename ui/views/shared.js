@@ -26,6 +26,10 @@ export function until(ts, now = Date.now()) {
 const EXACT = new Intl.DateTimeFormat(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 export const exact = (ts) => (ts ? EXACT.format(new Date(ts)) : '');
 export const clock = (ts) => new Date(ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+// A feed stamp: the time of day for today, the date for anything older, so an
+// event from Monday never reads like one from a minute ago.
+export const stamp = (ts, now = Date.now()) =>
+  (new Date(ts).toDateString() === new Date(now).toDateString() ? clock(ts) : new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
 
 // <time> with a relative label and the exact time on hover. The app refreshes
 // every [data-ago] once a minute without re-rendering the view.
@@ -51,7 +55,7 @@ export function agentChip(label, { title } = {}) {
   if (label === 'outside agents') return html`<span class="agent outside" title="${title || 'Changed by a person or a shell command, not by a recorded agent edit'}"><i class="dot"></i><span>outside agents</span></span>`;
   const parts = label.split(' ');
   // An undo run: "undo claude 0c4d5e6f" reads as "undo 0c4d5e6f", in the undone agent's colour.
-  if (parts[0] === 'undo' && parts.length > 2) {
+  if (parts[0] === 'undo' && parts.length > 1) {
     return html`<span class="agent" style="--c:${raw(colorOf(parts.slice(1).join(' ')))}" title="${title || label}">${raw('<svg class="icon sm" viewBox="0 0 16 16" aria-hidden="true" style="color:var(--c)"><path d="M5.5 3 2.5 6l3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 6h7a4 4 0 0 1 0 8H7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>')}<span>undo</span><span class="id">${parts.at(-1)}</span></span>`;
   }
   // A restore run: "restore src/app.js 1a2b3c4d" reads as "restore 1a2b3c4d" (the version).
@@ -62,8 +66,14 @@ export function agentChip(label, { title } = {}) {
   const id = parts.length > 1 ? parts.at(-1) : '';
   return html`<span class="agent" style="--c:${raw(colorOf(label))}" title="${title || label}"><i class="dot"></i><span>${kind}</span>${id ? html`<span class="id">${id}</span>` : ''}</span>`;
 }
-// The short id a human types to confirm an undo: the label's id, 4 characters.
-export const shortId = (label) => (label.split(' ').at(-1) || label).slice(0, 4);
+// The short id a human types to confirm an undo: the label's id, 4 characters
+// ("claude 1a2b3c4d" -> "1a2b"). A label without an id, like the hub's
+// "e2b/writer" or "template:research", uses its last name part instead.
+export function shortId(label) {
+  const last = label.split(' ').at(-1) || label;
+  if (/\d/.test(last) && /^[0-9a-z-]+$/i.test(last)) return last.slice(0, 4);
+  return last.split(/[/:]/).filter(Boolean).at(-1) || last;
+}
 
 // ---------------------------------------------------------------- status
 
@@ -108,6 +118,7 @@ const P = {
   system: '<rect x="2" y="3" width="12" height="8.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6 13.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
   copy: '<rect x="5.5" y="5.5" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 3.5v-.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h.5" fill="none" stroke="currentColor" stroke-width="1.4"/>',
   history: '<path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2.5 2.5v2.5H5M8 5v3l2 1.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  download: '<path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
   back: '<path d="M10 4 6 8l4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
 };
 export const icon = (name, cls = '') => raw(`<svg class="icon ${cls}" viewBox="0 0 16 16" aria-hidden="true" focusable="false">${P[name] || ''}</svg>`);
@@ -135,7 +146,7 @@ export const empty = (title, body, cmd) => html`
   <div class="empty">
     <h3>${title}</h3>
     <p>${body}</p>
-    ${cmd ? html`<div class="cmd"><span class="muted" aria-hidden="true">$</span><span>${cmd}</span></div>` : ''}
+    ${cmd ? html`<div class="cmd"><span class="muted" aria-hidden="true">$</span><code>${cmd}</code><button class="icon-btn sm" type="button" data-copy-text="${cmd}" aria-label="Copy the command" title="Copy">${icon('copy', 'sm')}</button></div>` : ''}
   </div>`;
 
 // A human error, with a retry if one makes sense.

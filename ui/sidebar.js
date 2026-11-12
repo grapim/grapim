@@ -62,7 +62,7 @@
     let timer = 0;
     hideTip = () => { clearTimeout(timer); tip.classList.remove('is-on'); };
     const labelOf = (n) => n.dataset.tip
-      || n.querySelector('.nav-label, .label, .search-btn > span, .ask-btn > span, .login, .brand > span, .brand-name')?.textContent.trim()
+      || n.querySelector('.nav-label, .label, .search-btn > span, .login, .brand > span, .brand-name')?.textContent.trim()
       || n.getAttribute('aria-label') || '';
     const show = (n) => {
       if (!state.collapsed) return;

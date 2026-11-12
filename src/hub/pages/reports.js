@@ -102,7 +102,7 @@ const legend = (items) =>
 const hbar = (v, max, cls) =>
   html`<svg class="hbar" width="100%" height="8" aria-hidden="true"><rect class="track" width="100%" height="8" rx="2"/>${v > 0 ? html`<rect class="${cls}" width="${Math.max(1, (v / max) * 100)}%" height="8" rx="2"/>` : ''}</svg>`;
 
-const stat = (label, value, sub = '') => html`<div class="kpi"><dt>${label}</dt><dd><span class="kpi-v">${value}</span>${sub ? html`<span class="kpi-s">${sub}</span>` : ''}</dd></div>`;
+const stat = (label, value, sub = '') => html`<div class="kpi"><dt>${label}</dt><dd><span class="kpi-v">${value}</span>${sub ? html`<span class="kpi-s" title="${typeof sub === 'string' ? sub : null}">${sub}</span>` : ''}</dd></div>`;
 
 // ---------------------------------------------------------------- shared parts
 
@@ -292,7 +292,7 @@ ${r.runs.length
   <tbody>
   ${r.runs.slice(0, PAGE_RUNS).map(
     (u) => html`<tr>
-    <th scope="row" class="truncate"><span class="agent"><span class="swatch ${kindClass(u.kind)}" aria-hidden="true"></span><span class="strong">${u.label}</span></span>${u.intent ? html`<span class="intent muted">${u.intent}</span>` : ''}</th>
+    <th scope="row" class="truncate"><span class="agent"><span class="swatch ${kindClass(u.kind)}" aria-hidden="true"></span><span class="strong">${u.label}</span></span>${u.intent ? html`<span class="intent muted" title="${u.intent}">${u.intent}</span>` : ''}</th>
     <td><span class="badge ${u.status === 'rejected' ? 'badge-danger' : 'badge-warn'}">${u.status}</span></td>
     <td class="bar-col hide-sm">${hbar(u.lines, max, u.status === 'rejected' ? 'k-rejected' : 'k-pending')}</td>
     <td class="num">${n(u.lines)}</td>

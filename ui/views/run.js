@@ -35,7 +35,7 @@ export async function mount(el, params, ctx) {
           <h1 class="run-title">${runTitle(r) || html`<span class="muted">No intent recorded</span>`}</h1>
           <div class="run-meta">
             ${agentChip(r.label, { title: r.run })}
-            <span class="tag" title="Worktree">${icon('worktree', 'sm')}${r.worktree}</span>
+            ${ctx.multiWorktree() ? html`<span class="tag" title="Worktree">${icon('worktree', 'sm')}${r.worktree}</span>` : ''}
             <span>Started ${when(r.first_ts)}</span>
             <span>Last change ${when(r.last_ts)}</span>
             ${r.active ? html`<span class="badge pending"><span class="live-dot" aria-hidden="true"></span> Active</span>` : ''}
@@ -62,7 +62,7 @@ export async function mount(el, params, ctx) {
     return html`
       <section aria-labelledby="turns-h" style="margin-top:8px">
         <div class="section-head"><h2 class="section-title" id="turns-h">Turns <span class="num">${d.turns.length}</span></h2>
-          <span class="muted" style="font-size:12px">Each prompt the agent got that changed files.</span></div>
+          <span class="section-note">Each prompt the agent got that changed files.</span></div>
         <ol class="panel turns">${d.turns.map((t) => html`
           <li>
             <span class="turn-n" aria-label="${t.turn ? `Turn ${t.turn}` : 'The undo'}">${t.turn || icon('undo', 'sm')}</span>
@@ -75,7 +75,7 @@ export async function mount(el, params, ctx) {
             </div>
           </li>`)}
         </ol>
-        ${main ? '' : html`<p class="muted" style="margin-top:8px;font-size:12px">These files are in the worktree ${d.run.worktree}, so they open here as diffs only.</p>`}
+        ${main ? '' : html`<p class="section-note after-panel">These files are in the worktree ${d.run.worktree}, so they open here as diffs only.</p>`}
       </section>`;
   }
 
@@ -92,13 +92,13 @@ export async function mount(el, params, ctx) {
       <section class="panel file ${collapsed ? 'collapsed' : ''} ${f.state === 'gone' ? 'gone' : ''}" id="${fileId(f.path)}" data-path="${f.path}">
         <div class="file-head">
           <button class="file-toggle" type="button" aria-expanded="${!collapsed}" data-toggle="${f.path}" data-key="toggle:${f.path}">
-            ${icon('chev', 'chev')}<span class="file-path" title="${f.path}">${f.path}</span>
+            ${icon('chev', 'chev')}<span class="file-path" title="${f.path}"><bdi>${f.path}</bdi></span>
           </button>
           <div class="file-side">
             ${f.state === 'gone' ? html`<span class="badge">Not in tree</span>` : f.state === 'partial' ? html`<span class="badge warn">Partly in tree</span>` : f.state === null && !untracked ? html`<span class="badge outline" title="Grapim can't tell whether these lines are still in the tree.">Unknown</span>` : ''}
             ${untracked ? html`<span class="badge outline">Binary or large</span>` : plusMinus(f.added ?? 0, f.removed ?? 0)}
             ${main ? html`<a class="btn ghost sm" href="${fileHref(f.path)}" title="Open ${f.path} with blame and history">${icon('file', 'sm')}<span class="hide-sm">Open</span></a>` : ''}
-            <label class="viewed-box"><input type="checkbox" data-viewed="${f.path}" ${viewed ? 'checked' : ''}> Viewed</label>
+            <label class="viewed-box"><input type="checkbox" data-viewed="${f.path}" aria-label="Viewed ${f.path}" ${viewed ? 'checked' : ''}> Viewed</label>
           </div>
         </div>
         ${collapsed ? '' : html`
@@ -144,7 +144,7 @@ export async function mount(el, params, ctx) {
         <div class="panel" style="margin-top:32px;height:240px"></div>`);
     }
     ctx.setTitle(s.data.run.label, 'Run');
-    render(el, html`${header(s.data)}${s.error ? html`<div style="margin-bottom:16px">${errorBlock(s.error, { title: 'Couldn’t refresh this run' })}</div>` : ''}${turns(s.data)}${files(s.data)}`);
+    render(el, html`${header(s.data)}${s.error ? html`<div class="stack-gap">${errorBlock(s.error, { title: 'Couldn’t refresh this run' })}</div>` : ''}${turns(s.data)}${files(s.data)}`);
   }
 
   let opened = false;

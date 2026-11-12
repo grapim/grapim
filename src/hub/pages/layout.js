@@ -76,7 +76,10 @@ function teamMenu(shell, team) {
 }
 
 function navLinks(team, shell, current) {
-  return sections(team, shell.teams.find((t) => t.id === team.id)?.kind).map(
+  const list = sections(team, shell.teams.find((t) => t.id === team.id)?.kind);
+  // A page without its own section (Platform before the team is one) is reached from Settings.
+  if (!list.some((s) => s.id === current) && current) current = 'settings';
+  return list.map(
     (s) => html`<a class="nav-item" href="${s.href}" data-g="${s.g}" ${current === s.id ? html`aria-current="page"` : ''}>${icon(s.icon)}<span class="nav-label">${s.label}</span>${
       s.id === 'reviews' && shell.reviews ? html`<span class="count num" title="${`${shell.reviews} run${shell.reviews === 1 ? '' : 's'} you can review`}">${shell.reviews}</span>` : ''
     }</a>`,
@@ -150,8 +153,8 @@ function profileMenu({ user, team, me, csrf, shell }) {
       <a class="menu-item" href="${base}/settings#billing">${icon('usage')}<span class="menu-title">Plan and usage</span></a>
       <a class="menu-item" href="${base}/settings#tokens">${icon('key')}<span class="menu-title">Machine tokens</span></a>
       <div class="menu-sep" role="separator"></div>
-      ${shell.teams.map((t) => html`<a class="menu-item" href="/hub/teams/${t.id}" ${t.id === team.id ? html`aria-current="true"` : ''}>
-        <span class="team-mark" aria-hidden="true">${t.name.slice(0, 1).toUpperCase()}</span><span class="menu-title">${t.name}</span>${t.id === team.id ? icon('check', 'menu-check') : ''}</a>`)}
+      ${shell.teams.map((t) => html`<a class="menu-item" href="/hub/teams/${t.id}" title="${`${t.name} · ${t.role} · created ${date(t.created_at)}`}" ${t.id === team.id ? html`aria-current="true"` : ''}>
+        <span class="team-mark" aria-hidden="true">${t.name.slice(0, 1).toUpperCase()}</span><span class="menu-title">${t.name}${shell.teams.filter((o) => o.name.toLowerCase() === t.name.toLowerCase()).length > 1 ? html` <span class="sha mono">${t.id.slice(0, 6)}</span>` : ''}</span>${t.id === team.id ? icon('check', 'menu-check') : ''}</a>`)}
       <a class="menu-item" href="/hub">${icon('updown')}<span class="menu-title">All teams</span></a>
       <a class="menu-item" href="/hub#new-team">${icon('plus')}<span class="menu-title">Create a team</span></a>
       <div class="menu-sep" role="separator"></div>
@@ -165,7 +168,8 @@ function profileMenu({ user, team, me, csrf, shell }) {
 
 const MOD = html`<kbd class="mod">Ctrl</kbd><kbd>K</kbd>`;
 
-// Ask Grapim (src/hub/agent/): the sidebar button and the panel's mount
+// Ask Grapim (src/hub/agent/): the button at the top right of every team
+// page (where Railway, Vercel and GitHub keep theirs) and the panel's mount
 // point. /hub/static/agent.js builds the panel; shell.agent is null when the
 // person should not see it (a member, before the hub has an API key).
 function askButton(shell) {
@@ -178,7 +182,14 @@ function agentRoot(team, csrf, shell) {
   return html`<aside class="agent-panel" id="agent" aria-label="Ask Grapim" tabindex="-1" hidden data-team="${team.id}" data-csrf="${csrf}" data-configured="${shell.agent.configured ? '1' : '0'}" data-role="${shell.role}"></aside>`;
 }
 
-function shellPage({ title, user, team, csrf, crumbs, body, wide, shell }) {
+// What a form just did, after it redirected here (?done=…): a toast that
+// hub.js takes away after a few seconds. role=status, so it is announced.
+function toastEl(text) {
+  if (!text) return '';
+  return html`<div class="toast" role="status">${icon('check')}<span class="toast-text">${text}</span><button class="toast-close" type="button" aria-label="Dismiss">${icon('x')}</button></div>`;
+}
+
+function shellPage({ title, user, team, csrf, crumbs, body, wide, shell, toast }) {
   const current = currentSection(team, shell.path);
   const me = shell.teams.find((t) => t.id === team.id) ?? { ...team, role: shell.role };
   const signOut = html`<form method="post" action="/hub/logout">${csrfField(csrf)}<button class="btn btn-ghost btn-sm" type="submit">Sign out</button></form>`;
@@ -189,7 +200,6 @@ function shellPage({ title, user, team, csrf, crumbs, body, wide, shell }) {
   <aside class="side" aria-label="Team">
     <a class="brand" href="/hub">${LOGO}<span>Grapim</span></a>
     <button class="search-btn" type="button" data-action="palette">${icon('search')}<span>Jump to…</span>${MOD}</button>
-    ${askButton(shell)}
     <nav class="nav" aria-label="Team sections">${navLinks(team, shell, current)}</nav>
     <div class="side-foot">
       ${profileMenu({ user, team, me, csrf, shell })}
@@ -212,8 +222,11 @@ function shellPage({ title, user, team, csrf, crumbs, body, wide, shell }) {
         </div>
       </details>
     </header>
-    <main id="main" class="${wrapClass(wide)}" tabindex="-1">
+    <header class="main-bar">
       ${crumbBar(team, crumbs)}
+      <div class="main-bar-actions">${askButton(shell)}</div>
+    </header>
+    <main id="main" class="${wrapClass(wide)}" tabindex="-1">
       ${body}
     </main>
   </div>
@@ -221,13 +234,14 @@ function shellPage({ title, user, team, csrf, crumbs, body, wide, shell }) {
 </div>
 ${paletteSource(team, shell)}
 <dialog id="hub-dialog" aria-label="Dialog"></dialog>
+${toastEl(toast)}
 </body>
 </html>`.toString();
 }
 
-export function layout({ title, user = null, team = null, csrf = null, crumbs = [], body, wide = false }) {
+export function layout({ title, user = null, team = null, csrf = null, crumbs = [], body, wide = false, toast = null }) {
   const shell = user && team && typeof user.shell === 'function' ? user.shell(team) : null;
-  if (shell) return shellPage({ title, user, team, csrf, crumbs, body, wide, shell });
+  if (shell) return shellPage({ title, user, team, csrf, crumbs, body, wide, shell, toast });
   return html`${head(title)}
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -247,12 +261,16 @@ export function layout({ title, user = null, team = null, csrf = null, crumbs = 
 <main id="main" class="${wrapClass(wide)}">
 ${body}
 </main>
+${toastEl(toast)}
 </body>
 </html>`.toString();
 }
 
 export function errorPage({ status, message, user = null, csrf = null }) {
   const heading = { 400: 'That did not work', 402: 'Plan limit reached', 403: 'Not allowed', 404: 'Not found', 409: 'Cannot do that yet', 410: 'Link no longer valid', 413: 'Too large', 429: 'Slow down' }[status] ?? 'Something went wrong';
+  // A bare "Not found." under the heading "Not found" says nothing: say what it means.
+  const bare = !message || String(message).replace(/[.\s]+$/, '').toLowerCase() === heading.toLowerCase();
+  const fallback = { 404: 'This page does not exist, or it belongs to a team you are not in.', 403: 'Your account cannot open this page.', 429: 'Too many requests in a short time. Wait a minute and try again.' }[status] ?? 'The hub could not finish that. Try again in a moment.';
   return layout({
     title: heading,
     user,
@@ -260,7 +278,7 @@ export function errorPage({ status, message, user = null, csrf = null }) {
     body: html`<section class="empty-page">
   <p class="muted num">Error ${status}</p>
   <h1>${heading}</h1>
-  <p class="lede">${message}</p>
+  <p class="lede">${bare ? fallback : message}</p>
   <p><a class="btn" href="/hub">Back to your teams</a></p>
 </section>`,
   });

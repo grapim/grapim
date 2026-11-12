@@ -38,6 +38,8 @@
   --accent-text: #3a42bd;
   --accent-bg: #ecedfc;
   --on-accent: #ffffff;
+  --on-danger: #ffffff;
+  --backdrop: rgb(10 10 8 / 0.42);
   --focus: #4048c8;
 
   --add-text: #17723a;
@@ -95,6 +97,8 @@
   --accent-text: #a5aaff;
   --accent-bg: #23244a;
   --on-accent: #0f0f11;
+  --on-danger: #160807;
+  --backdrop: rgb(0 0 0 / 0.6);
   --focus: #8a90f7;
   --add-text: #63d57f;
   --add-bg: rgb(46 160 67 / 0.14);
@@ -145,6 +149,8 @@
     --accent-text: #a5aaff;
     --accent-bg: #23244a;
     --on-accent: #0f0f11;
+    --on-danger: #160807;
+    --backdrop: rgb(0 0 0 / 0.6);
     --focus: #8a90f7;
     --add-text: #63d57f;
     --add-bg: rgb(46 160 67 / 0.14);

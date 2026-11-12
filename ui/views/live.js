@@ -4,7 +4,7 @@
 
 import { api } from '../api.js';
 import { fileHref, html, render, runHref } from '../app.js';
-import { agentChip, clock, colorOf, empty, errorBlock, exact, icon, IS_CLOUD, isMainWorktree, setupHint, sk, until, when, worktreeQuery } from './shared.js';
+import { agentChip, colorOf, empty, errorBlock, exact, icon, IS_CLOUD, isMainWorktree, setupHint, sk, stamp, until, when, worktreeQuery } from './shared.js';
 
 const FRESH_MS = 90_000; // an agent seen in the last 90 s counts as working this moment
 
@@ -17,7 +17,7 @@ export async function mount(el, _params, ctx) {
     <div class="live-grid">
       <div><section class="panel"><ul class="agent-list">${[0, 1, 2, 3].map(() => html`
         <li style="--c:var(--surface-3)"><span class="bar"></span><div>${sk('160px', 14)}<div style="margin-top:8px">${sk('70%')}</div><div style="margin-top:12px">${sk('180px', 20)}</div></div><div>${sk('48px')}</div></li>`)}</ul></section></div>
-      <section class="panel feed"><div class="section-head" style="padding:12px 16px 0"><h2 class="section-title">Activity</h2></div>
+      <section class="panel feed"><div class="section-head panel-head"><h2 class="section-title">Activity</h2></div>
         <ol class="feed-list">${Array.from({ length: 8 }, () => html`<li class="feed-item"><span>${sk('48px')}</span><span>${sk('90%')}</span></li>`)}</ol></section>
     </div>`;
 
@@ -35,19 +35,19 @@ export async function mount(el, _params, ctx) {
     const list = [...ov.agents].sort((a, b) => b.last_seen - a.last_seen);
     return html`
       <section class="panel" aria-labelledby="agents-h">
-        <div class="section-head" style="padding:12px 16px 0;margin:0"><h2 class="section-title" id="agents-h">Agents <span class="num">${list.length}</span></h2></div>
+        <div class="section-head panel-head"><h2 class="section-title" id="agents-h">Agents <span class="num">${list.length}</span></h2></div>
         <ul class="agent-list">${list.map((a) => {
           const fresh = Date.now() - a.last_seen < FRESH_MS;
           return html`
           <li style="--c:${colorOf(a.label)}" data-agent="${a.agent}">
             <span class="bar"></span>
             <div style="min-width:0">
-              <div class="who">${agentChip(a.label)}<span class="tag" title="Worktree">${icon('worktree', 'sm')}${a.worktree}</span></div>
+              <div class="who">${agentChip(a.label)}${ctx.multiWorktree() ? html`<span class="tag" title="Worktree">${icon('worktree', 'sm')}${a.worktree}</span>` : ''}</div>
               <p class="doing">${a.intent || html`<span class="muted">No intent recorded yet</span>`}</p>
-              ${a.files.length ? html`<div class="chips" aria-label="Files held">${a.files.map((p) => fileLink(ov, a.worktree, p))}</div>` : html`<p class="muted" style="margin-top:4px">Holds no files</p>`}
+              ${a.files.length ? html`<div class="chips" aria-label="Files held">${a.files.map((p) => fileLink(ov, a.worktree, p))}</div>` : html`<p class="muted holds-none">Holds no files</p>`}
             </div>
             <div class="seen">
-              <span style="display:inline-flex;gap:6px;align-items:center"><span class="live-dot ${fresh ? '' : 'idle'}" aria-hidden="true"></span>${fresh ? 'active' : 'seen'} ${when(a.last_seen)}</span>
+              <span class="with-dot"><span class="live-dot ${fresh ? '' : 'idle'}" aria-hidden="true"></span>${fresh ? 'active' : 'seen'} ${when(a.last_seen)}</span>
               ${ctx.shell.runs?.some((r) => r.run === a.agent) ? html`<a href="${runHref(a.agent)}">View run</a>` : html`<span>No changes yet</span>`}
             </div>
           </li>`;
@@ -58,16 +58,17 @@ export async function mount(el, _params, ctx) {
   function leases(ov) {
     if (!ov.leases.length) return '';
     const rows = [...ov.leases].sort((a, b) => a.acquired_at - b.acquired_at);
+    const wt = ctx.multiWorktree();
     return html`
       <section class="panel" aria-labelledby="held-h">
-        <div class="section-head" style="padding:12px 16px 0;margin:0"><h2 class="section-title" id="held-h">Files held <span class="num">${rows.length}</span></h2>
-          <span class="muted" style="font-size:12px">A held file can only be written by its holder.</span></div>
+        <div class="section-head panel-head"><h2 class="section-title" id="held-h">Files held <span class="num">${rows.length}</span></h2>
+          <span class="section-note">A held file can only be written by its holder.</span></div>
         <div style="overflow-x:auto"><table class="table">
-          <thead><tr><th>File</th><th>Held by</th><th class="hide-sm">Worktree</th><th class="r hide-sm">Since</th><th class="r hide-sm">Expires</th></tr></thead>
+          <thead><tr><th>File</th><th>Held by</th>${wt ? html`<th class="hide-sm">Worktree</th>` : ''}<th class="r hide-sm">Since</th><th class="r hide-sm">Expires</th></tr></thead>
           <tbody>${rows.map((l) => html`<tr>
             <td class="mono">${worktreeQuery(ov, l.worktree) !== null ? html`<a href="${fileHref(l.path, worktreeQuery(ov, l.worktree))}">${l.path}</a>` : l.path}</td>
             <td>${agentChip(l.label)}</td>
-            <td class="hide-sm dim">${l.worktree}</td>
+            ${wt ? html`<td class="hide-sm dim">${l.worktree}</td>` : ''}
             <td class="r hide-sm muted">${when(l.acquired_at)}</td>
             <td class="r hide-sm muted"><span title="${exact(l.expires_at)}">${until(l.expires_at)}</span></td>
           </tr>`)}</tbody>
@@ -106,11 +107,11 @@ export async function mount(el, _params, ctx) {
     const prev = s.seenId;
     return html`
       <section class="panel feed" aria-labelledby="feed-h">
-        <div class="section-head" style="padding:12px 16px 0;margin:0"><h2 class="section-title" id="feed-h">Activity</h2>
-          <span class="muted" style="font-size:12px;display:inline-flex;gap:6px;align-items:center">${s.live ? html`<span class="live-dot" aria-hidden="true"></span>` : ''}newest first</span></div>
+        <div class="section-head panel-head"><h2 class="section-title" id="feed-h">Activity</h2>
+          <span class="section-note with-dot">${s.live ? html`<span class="live-dot" aria-hidden="true"></span>` : ''}newest first</span></div>
         ${list.length ? html`<ol class="feed-list" aria-live="off">${list.map((e) => html`
           <li class="feed-item ${e.kind} ${prev !== null && e.id > prev ? 'new' : ''}">
-            <time datetime="${new Date(e.ts).toISOString()}" title="${exact(e.ts)}">${clock(e.ts)}</time>
+            <time datetime="${new Date(e.ts).toISOString()}" title="${exact(e.ts)}">${stamp(e.ts)}</time>
             <p class="what">${actor(e)} ${line(e, ov)}</p>
           </li>`)}</ol>` : empty('Nothing has happened yet', 'Claims, edits, blocks and undos appear here as they happen.', IS_CLOUD ? '' : 'grapim status --watch')}
       </section>`;
@@ -131,7 +132,7 @@ export async function mount(el, _params, ctx) {
           </p>
         </div>
       </div>
-      ${s.error ? html`<div style="margin-bottom:16px">${errorBlock(s.error, { title: 'Live updates paused' })}</div>` : ''}
+      ${s.error ? html`<div class="stack-gap">${errorBlock(s.error, { title: 'Live updates paused' })}</div>` : ''}
       <div class="live-grid">
         <div>${agents(ov)}${leases(ov)}</div>
         ${feed(ov, s.events || [])}

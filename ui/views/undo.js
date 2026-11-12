@@ -4,7 +4,7 @@
 
 import { api } from '../api.js';
 import { html, render } from '../app.js';
-import { agentChip, icon, pluralize, shortId, sk } from './shared.js';
+import { agentChip, icon, pluralize, shortId, sk, withCode } from './shared.js';
 
 const CLEAN = new Set(['revert', 'delete', 'restore']);
 const WHY = {
@@ -42,13 +42,13 @@ export function openUndo(run, turn, ctx) {
       }
       if (s.error) {
         return html`<div class="error" role="alert">${icon('alert')}<div><h3>${s.step === 'applying' || s.result ? 'The undo didn’t finish' : 'Couldn’t work out the plan'}</h3>
-          <p>${humanError(s.error)}</p>${s.error.code === 'busy' || s.error.code === 'offline' ? html`<button class="btn sm" type="button" data-retry>Try again</button>` : ''}</div></div>`;
+          <p>${withCode(humanError(s.error))}</p>${s.error.code === 'busy' || s.error.code === 'offline' ? html`<button class="btn sm" type="button" data-retry>Try again</button>` : ''}</div></div>`;
       }
       if (s.result) {
         const fs = s.result.files;
         const changed = fs.filter((f) => CLEAN.has(f.action));
         return html`
-          <p style="margin-bottom:12px">${changed.length ? `${pluralize(changed.length, 'file')} changed.` : 'No file was changed.'}
+          <p class="result-sum">${changed.length ? `${pluralize(changed.length, 'file')} changed.` : 'No file was changed.'}
             ${fs.some((f) => f.action === 'conflict') ? ` ${pluralize(fs.filter((f) => f.action === 'conflict').length, 'conflict')} left untouched for you.` : ''}
             ${fs.some((f) => f.action === 'skipped') ? ` ${fs.filter((f) => f.action === 'skipped').length} skipped.` : ''}</p>
           <ul>${fs.map((f) => row(f, DONE, f.reason ? sentence(f.reason) : (CLEAN.has(f.action) ? '' : WHY[f.action] || '')))}</ul>`;
@@ -115,6 +115,7 @@ export function openUndo(run, turn, ctx) {
     async function apply() {
       if (s.typed.trim().toLowerCase() !== code.toLowerCase() || s.step === 'applying') return;
       s.step = 'applying';
+      s.error = null; // a retry after a failed apply starts clean
       draw();
       try {
         s.result = await api.undo(run.run, { turn, apply: true });

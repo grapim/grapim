@@ -68,8 +68,17 @@ const tick = (data) => { for (const fn of listeners) fn(data); };
 const enc = encodeURIComponent;
 
 // Plain words for each error code in docs/api.md. The server's own message
-// comes first when it has one; this adds what to do about it.
-const ADVICE = {
+// comes first when it has one; this adds what to do about it. A workspace on
+// the hub (/w/<team>/<name>/) is not run by `grapim serve`, so it gets its own words.
+export const CLOUD = /^\/w\/[^/]+\/[^/]+\//.test(location.pathname);
+const ADVICE = CLOUD ? {
+  unauthorized: 'Your sign-in to the hub ended. Reload the page to sign in again.',
+  forbidden: 'You don’t have access to do this in this workspace. A team admin can change your role.',
+  method_not_allowed: 'The hub does not support that action for this workspace.',
+  too_large: 'That request was too large for the hub.',
+  busy: 'An agent is in the middle of writing. Try again in a moment.',
+  internal: 'The hub hit an error. Try again; if it keeps happening, tell your team admin.',
+} : {
   unauthorized: 'This server needs its token. Open the desk once as `/?token=<GRAPIM_TOKEN>`; this tab keeps it until you close it.',
   forbidden: 'The server refused this request because of where it came from. Open the desk at the exact address `grapim serve` printed (for example http://127.0.0.1:7420).',
   method_not_allowed: 'This version of the server does not support that action. Update Grapim and restart `grapim serve`.',
@@ -87,7 +96,9 @@ async function request(method, url, body, attempt = 0) {
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError('offline', 'Can’t reach the Grapim server. Check that `grapim serve` is still running in your repo.');
+    throw new ApiError('offline', CLOUD
+      ? 'Can’t reach Grapim. Check your connection; the desk reconnects by itself.'
+      : 'Can’t reach the Grapim server. Check that `grapim serve` is still running in your repo.');
   }
   keepCsrf(res);
   const type = res.headers.get('content-type') || '';
@@ -116,7 +127,12 @@ async function request(method, url, body, attempt = 0) {
 const wtq = (worktree) => (worktree ? `&worktree=${enc(worktree)}` : '');
 
 const live = {
-  overview: () => request('GET', at('api/overview')),
+  // The first call takes the answer init() already fetched to find the server.
+  overview: () => {
+    const p = primed;
+    primed = null;
+    return p && Date.now() - p.at < 5000 ? Promise.resolve(p.body) : request('GET', at('api/overview'));
+  },
   runs: () => request('GET', at('api/runs')),
   run: (id) => request('GET', at(`api/runs/${enc(id)}`)),
   // full: also the working file's text as `content`, in the same response.
@@ -126,6 +142,13 @@ const live = {
   history: (p, { worktree = null } = {}) => request('GET', at(`api/files/history?path=${enc(p)}${wtq(worktree)}`)),
   version: (sha) => request('GET', at(`api/files/version?sha=${enc(sha)}`)),
   read: (p) => request('GET', at(`fs/${p.split('/').map(enc).join('/')}`)),
+  // The file's bytes, for a download (binary files included).
+  raw: async (p) => {
+    let res;
+    try { res = await fetch(at(`fs/${p.split('/').map(enc).join('/')}`), { headers: auth() }); } catch { throw new ApiError('offline', 'Can’t reach the server to download this file.'); }
+    if (!res.ok) throw new ApiError(res.status === 404 ? 'not_found' : 'internal', `The server answered ${res.status} for this file.`, res.status);
+    return res.blob();
+  },
   // apply: false is the plan (with the diff); expect: the current sha the plan showed.
   restore: (p, sha, { apply = true, expect, worktree = null } = {}) =>
     request('POST', at('api/files/restore'), { path: p, sha, apply, ...(expect !== undefined ? { expect } : {}), ...(worktree ? { worktree } : {}) }),
@@ -340,6 +363,7 @@ function createMock() {
     },
     async version(sha) { await wait(40); return load(`GET /api/files/version?sha=${sha}`); },
     async read(p) { await wait(40); return load(`GET /fs/${p}`); },
+    async raw(p) { await wait(40); return new Blob([await load(`GET /fs/${p}`)], { type: 'text/plain' }); },
     async events(after = 0, limit = 100) {
       await ensure();
       await wait(40);
@@ -405,6 +429,7 @@ function createMock() {
 // ---------------------------------------------------------------- pick a mode
 
 export let api = live;
+let primed = null; // { at, body }: the overview init() fetched
 
 export async function init() {
   const params = new URLSearchParams(location.search);
@@ -419,7 +444,7 @@ export async function init() {
       // 401 is the real server asking for its token: stay live and say so, not sample data.
       if (res.status !== 401) {
         if (!res.ok || !(res.headers.get('content-type') || '').includes('json')) throw new Error('not the api');
-        await res.json();
+        primed = { at: Date.now(), body: await res.json() };
       }
     } catch {
       useMock = true;
