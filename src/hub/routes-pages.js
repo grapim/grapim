@@ -69,6 +69,7 @@ export function pageRoutes(router, hub) {
         seatsUsed: teams.seatsUsed(team.id),
         billing: { enabled: !!hub.billing, intervals: config.billingIntervals, governanceIntervals: config.governanceIntervals ?? [] },
         origin: config.origin,
+        agent: hub.agent?.config.configured ? hub.agent.usageInfo(fresh, { people: role === 'owner' }) : null,
         github: role === 'owner' ? hub.github?.settingsSection(fresh, ctx.session.csrf) : null,
         // A team's own bucket (src/hub/team-storage.js): owners only.
         storage: role === 'owner' ? (hub.teamStorage?.settingsSection(fresh, ctx.session.csrf) ?? null) : null,

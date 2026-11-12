@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHub } from '../src/hub/server.js';
-import { agentConfig, DEFAULT_MODEL } from '../src/hub/agent/index.js';
+import { agentConfig, DEFAULT_MODEL, costMicros } from '../src/hub/agent/index.js';
 import { SYSTEM } from '../src/hub/agent/prompt.js';
 import { SECRET_FILE, TOOLS } from '../src/hub/agent/tools.js';
 import { API_VERSION } from '../src/hub/agent/anthropic.js';
@@ -203,10 +203,18 @@ test('agentConfig: defaults, the model override and the limits are read from the
   assert.equal(c.fallback, true);
   assert.equal(c.maxToolCalls, 12);
   assert.doesNotMatch(JSON.stringify(c), /sk-ant-x/);
-  const d = agentConfig({ ANTHROPIC_API_KEY: 'k', GRAPIM_AGENT_MODEL: 'claude-opus-5-5', GRAPIM_AGENT_MAX_TOOL_CALLS: '3', GRAPIM_AGENT_DAILY_LIMITS: '{"free":{"user":2,"team":9}}', GRAPIM_AGENT_FALLBACK: 'off' });
+  assert.equal(c.credit.free, 1);
+  assert.equal(c.credit.team, 20);
+  assert.deepEqual(c.price, { input: 2, output: 10, cache_read: 0.1, cache_write: 2.5 });
+  const d = agentConfig({ ANTHROPIC_API_KEY: 'k', GRAPIM_AGENT_MODEL: 'claude-opus-5-5', GRAPIM_AGENT_MAX_TOOL_CALLS: '3', GRAPIM_AGENT_MONTHLY_CREDIT: '{"free":0.5,"team":"nope"}', GRAPIM_AGENT_FALLBACK: 'off' });
   assert.equal(d.model, 'claude-opus-5-5');
   assert.equal(d.maxToolCalls, 3);
-  assert.deepEqual(d.limits.free, { user: 2, team: 9 });
+  assert.equal(d.credit.free, 0.5);
+  assert.equal(d.credit.team, 20, 'a bad value keeps the default');
+  assert.equal(d.price.output, 20, 'the price follows the model');
+  // A million input tokens on Sonnet 5.5 cost $2 (2,000,000 micro-dollars).
+  assert.equal(costMicros(c.price, { input_tokens: 1_000_000 }), 2_000_000);
+  assert.equal(costMicros(c.price, { output_tokens: 1000, cache_read_tokens: 10_000 }), 10_000 + 1000);
   assert.equal(d.fallback, false);
   assert.equal(agentConfig({}).configured, false);
 });
@@ -256,11 +264,16 @@ test('a turn: the model calls a read tool, the result goes back as a tool_result
   // The conversation survives a reload, and usage is counted per team and day.
   const state = (await bob.req(`/hub/api/teams/${A}/agent`)).json();
   assert.deepEqual(state.conversation.items.map((i) => i.type), ['user', 'steps', 'text']);
-  assert.equal(state.usage.used, 1);
+  assert.equal(state.usage.messages, 1);
+  assert.equal(state.usage.budget, 1, 'the free plan includes $1 a month');
+  assert.equal(state.usage.people, undefined, 'the panel never lists who spent what');
   const usage = h.hub.agent.store.teamUsage(A);
   assert.equal(usage[0].messages, 1);
   assert.equal(usage[0].tool_calls, 1);
   assert.ok(usage[0].input_tokens >= 200);
+  const cost = (usage[0].input_tokens * 2 + usage[0].output_tokens * 10 + usage[0].cache_read_tokens * 0.1 + usage[0].cache_write_tokens * 2.5);
+  assert.equal(usage[0].cost_micros, Math.round(cost), 'tokens are priced at Sonnet 5.5 list price');
+  assert.ok(Math.abs(state.usage.spent - cost / 1e6) < 1e-6);
 
   // A second message replays the first turn unchanged.
   await bob.ask(A, 'Thanks');
@@ -489,10 +502,10 @@ test('undo in a cloud workspace: proposed as a card; the desk\'s own undo route 
 
 // ---------------------------------------------------------------- limits and failures
 
-test('limits: per-person daily messages, max tool calls per message, and a model error leaves the hub fine', async (t) => {
+test('limits: the monthly credit, the owner cap, max tool calls per message, and a model error leaves the hub fine', async (t) => {
   let mode = 'tools';
   const h = await startHub({
-    env: { GRAPIM_AGENT_DAILY_LIMITS: '{"free":{"user":3,"team":100}}', GRAPIM_AGENT_MAX_TOOL_CALLS: '2' },
+    env: { GRAPIM_AGENT_MAX_TOOL_CALLS: '2' },
     script: () => (mode === 'fail' ? { status: 500, error: 'boom' } : mode === 'say' ? say('ok') : use('active_agents', {})),
   });
   t.after(h.close);
@@ -517,9 +530,42 @@ test('limits: per-person daily messages, max tool calls per message, and a model
 
   const third = await alice.ask(A, 'third');
   assert.equal(third.status, 200);
-  const over = await alice.ask(A, 'fourth');
+
+  // A member can see the credit but not change the limit.
+  const bob = await signIn(h, 'lim-bob');
+  await joinTeam(alice, bob, A);
+  assert.equal((await bob.post(`/hub/api/teams/${A}/agent/cap`, { cap: '50' })).status, 403);
+  assert.equal((await alice.post(`/hub/api/teams/${A}/agent/cap`, { cap: 'lots' })).status, 400);
+
+  // The owner's cap stops the team once spent; it can never exceed the plan's credit.
+  const capped = (await alice.post(`/hub/api/teams/${A}/agent/cap`, { cap: '$0.000001' })).json();
+  assert.equal(capped.usage.cap, 0.000001);
+  const over = await bob.ask(A, 'fourth');
   assert.equal(over.status, 429);
   assert.equal(over.error.code, 'agent_limit');
+  assert.match(over.error.message, /monthly limit/);
+  const raised = (await alice.post(`/hub/api/teams/${A}/agent/cap`, { cap: '500' })).json();
+  assert.equal(raised.usage.budget, 1, 'a cap above the plan credit changes nothing');
+  assert.equal((await bob.ask(A, 'fifth')).status, 200);
+
+  // Settings shows the credit to everyone, and who spent it to owners only.
+  const ownerPage = (await alice.req(`/hub/teams/${A}/settings`)).text;
+  assert.match(ownerPage, /id="ask-grapim"/);
+  assert.match(ownerPage, /@lim-bob/);
+  assert.match(ownerPage, /name="cap"/);
+  const memberPage = (await bob.req(`/hub/teams/${A}/settings`)).text;
+  assert.match(memberPage, /id="ask-grapim"/);
+  assert.doesNotMatch(memberPage, /class="ask-people"|name="cap"/);
+
+  // The plan's credit runs out the same way: 0 turns it off.
+  assert.equal((await alice.post(`/hub/api/teams/${A}/agent/cap`, { cap: '0' })).status, 200);
+  const off = await bob.ask(A, 'sixth');
+  assert.equal(off.status, 429);
+  assert.match(off.error.message, /turned Ask Grapim off/);
+  // Clearing the cap goes back to the plan's $1.
+  const cleared = (await alice.post(`/hub/api/teams/${A}/agent/cap`, { cap: '' })).json();
+  assert.equal(cleared.usage.cap, null);
+  assert.equal(cleared.usage.budget, 1);
 });
 
 test('stop: the person can stop an answer, and a slow model times out', async (t) => {

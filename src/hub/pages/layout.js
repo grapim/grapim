@@ -26,6 +26,7 @@ export const SETTINGS_SECTIONS = [
   { id: 'members', label: 'Members & invites' },
   { id: 'tokens', label: 'Machine tokens' },
   { id: 'billing', label: 'Billing' },
+  { id: 'ask-grapim', label: 'Ask Grapim' },
   { id: 'github', label: 'GitHub', owner: true },
   { id: 'storage', label: 'Storage', owner: true },
   { id: 'platform', label: 'Platform', owner: true },
@@ -76,7 +77,7 @@ function teamMenu(shell, team) {
 
 function navLinks(team, shell, current) {
   return sections(team, shell.teams.find((t) => t.id === team.id)?.kind).map(
-    (s) => html`<a class="nav-item" href="${s.href}" data-g="${s.g}" ${current === s.id ? html`aria-current="page"` : ''}>${icon(s.icon)}${s.label}${
+    (s) => html`<a class="nav-item" href="${s.href}" data-g="${s.g}" ${current === s.id ? html`aria-current="page"` : ''}>${icon(s.icon)}<span class="nav-label">${s.label}</span>${
       s.id === 'reviews' && shell.reviews ? html`<span class="count num" title="${`${shell.reviews} run${shell.reviews === 1 ? '' : 's'} you can review`}">${shell.reviews}</span>` : ''
     }</a>`,
   );

@@ -355,7 +355,47 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
 </section>`;
 }
 
-export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, github = null, storage = null, revealed = null, notice = null, error = null }) {
+// Ask Grapim's monthly credit: what the team used, by whom (owners only), and
+// the owner's hard limit. Only drawn when Ask Grapim is set up on the hub.
+function askSection({ team, role, csrf, agent: a, members }) {
+  if (!a) return '';
+  const owner = role === 'owner';
+  const usd = (n) => '$' + n.toFixed(2);
+  const renews = new Date(a.resets_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
+  const pct = a.budget > 0 ? Math.min(1, a.spent / a.budget) : 1;
+  const names = new Map((members ?? []).map((m) => [m.id, m.login]));
+  return html`<section class="card" id="ask-grapim" aria-labelledby="ask-title">
+  <div class="card-head">
+    <h2 id="ask-title" class="card-title">Ask Grapim</h2>
+    <span class="muted small">Renews ${renews}</span>
+  </div>
+  <div class="ask-meter">
+    <p class="ask-meter-num"><strong>${usd(a.spent)}</strong> <span class="muted">of ${usd(a.budget)} used this month</span></p>
+    <progress class="ask-meter-bar${pct >= 0.9 ? ' is-high' : ''}" max="1" value="${pct.toFixed(3)}" aria-label="Ask Grapim credit used this month">${Math.round(pct * 100)}%</progress>
+    <p class="muted small">The ${team.plan} plan includes ${usd(a.credit)} of Ask Grapim a month, counted at the model's price per token. ${a.messages} ${a.messages === 1 ? 'message' : 'messages'} so far.</p>
+  </div>
+  ${owner && a.people?.length
+    ? html`<table class="ask-people">
+    <thead><tr><th scope="col">Member</th><th scope="col" class="num">Messages</th><th scope="col" class="num">Used</th></tr></thead>
+    <tbody>${a.people.map((p) => html`<tr><td>@${names.get(p.user_id) ?? 'former member'}</td><td class="num">${p.messages}</td><td class="num">${usd(p.spent)}</td></tr>`)}</tbody>
+  </table>`
+    : ''}
+  ${owner
+    ? html`<form method="post" action="/hub/api/teams/${team.id}/agent/cap" class="ask-cap">
+    ${csrfField(csrf)}
+    <input type="hidden" name="back" value="1">
+    <label class="label" for="ask-cap">Monthly limit</label>
+    <div class="ask-cap-row">
+      <span class="ask-cap-input"><span aria-hidden="true">$</span><input id="ask-cap" class="input" name="cap" inputmode="decimal" autocomplete="off" placeholder="${a.credit.toFixed(2)}" value="${a.cap === null ? '' : a.cap.toFixed(2)}" aria-describedby="ask-cap-hint"></span>
+      <button class="btn" type="submit">Save</button>
+    </div>
+    <p id="ask-cap-hint" class="muted small">Ask Grapim stops for the team at this amount. Leave it empty to use the plan's ${usd(a.credit)}; 0 turns it off.</p>
+  </form>`
+    : ''}
+</section>`;
+}
+
+export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, storage = null, revealed = null, notice = null, error = null }) {
   const owner = role === 'owner';
   const shown = SETTINGS_SECTIONS.filter((s) => owner || !s.owner).filter((s) => (s.id === 'github' ? !!github : s.id === 'storage' ? !!storage : true));
   const newestToken = revealed?.kind === 'token' ? revealed.name : null;
@@ -461,6 +501,8 @@ ${owner
 </section>
 
 ${billingSection({ team, role, csrf, limits, seatsUsed, billing })}
+
+${askSection({ team, role, csrf, agent, members })}
 
 ${github ?? ''}
 

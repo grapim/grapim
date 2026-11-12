@@ -39,8 +39,8 @@ The only outbound call is `POST {ANTHROPIC_BASE_URL}/v1/messages` (default `http
 
 | Limit | Default | Setting |
 |---|---|---|
-| Messages per person per day (UTC) | free 20, team 150, governance and enterprise 300 | `GRAPIM_AGENT_DAILY_LIMITS` |
-| Messages per team per day | free 50, team 2000, governance and enterprise 5000 | `GRAPIM_AGENT_DAILY_LIMITS` |
+| Model use per team per calendar month (UTC), in US dollars at list price | free $1, team $20, governance $50, enterprise $100 | `GRAPIM_AGENT_MONTHLY_CREDIT` |
+| Owner's hard limit per month (lower than the credit; 0 turns Ask Grapim off) | none | Settings, Ask Grapim |
 | Tool calls per message | 12 | `GRAPIM_AGENT_MAX_TOOL_CALLS` (1 to 40) |
 | Output tokens per model call | 8000 | `GRAPIM_AGENT_MAX_TOKENS` (1024 to 64000) |
 | Time per message, all calls and tools | 90 s | `GRAPIM_AGENT_TIMEOUT_MS` (5 s to 10 min) |
@@ -49,7 +49,7 @@ The only outbound call is `POST {ANTHROPIC_BASE_URL}/v1/messages` (default `http
 | Conversation size | 120 stored messages or 600,000 characters, then "start a new one" | |
 | Message length | 4000 characters | |
 
-`GRAPIM_AGENT_DAILY_LIMITS` is JSON, for example `{"free":{"user":20,"team":50},"team":{"user":150,"team":2000}}`. Usage is logged per team, person and day in the `agent_usage` table: messages, input, output, cache-read and cache-write tokens, and tool calls (`hub.agent.store.teamUsage(teamId)`), so it can be shown or billed later. Request logs carry the route pattern only, as for every hub route; model errors are logged by status code only.
+`GRAPIM_AGENT_MONTHLY_CREDIT` is JSON in dollars, for example `{"free":1,"team":20}`. Each answer is priced from the tokens the API reports (input, output, cache reads, cache writes) at the model's list price (`PRICES` in src/hub/agent/index.js; `GRAPIM_AGENT_PRICE` overrides it, in dollars per million tokens). A message is refused once the team has spent its month; one answer can run a little past the line, as with any metered service. Usage is logged per team, person and day in the `agent_usage` table: messages, tokens, tool calls and cost in micro-dollars. Settings shows the month to every member and, to owners only, who spent it; the panel shows the team total only. Request logs carry the route pattern only, as for every hub route; model errors are logged by status code only.
 
 ## No key
 

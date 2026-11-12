@@ -1,8 +1,8 @@
-/* The sidebar's collapse, drag-to-resize and peek (behaviour in sidebar.js).
-   Shared by the review desk (.sidebar) and the hub (.side). */
+/* The left sidebar: drag-to-resize, and a collapsed icon rail (behaviour in
+   sidebar.js). Shared by the review desk (.sidebar) and the hub (.side). */
 
-:root:root { --sidebar: var(--sidebar-open, 232px); }
-:root:root[data-sidebar="collapsed"] { --sidebar: 0px; }
+:root:root { --sidebar: var(--sidebar-open, 232px); --rail: 56px; }
+:root:root[data-sidebar="collapsed"] { --sidebar: var(--rail); }
 
 .app { position: relative; transition: grid-template-columns var(--dur) var(--ease-out, ease-out); }
 html[data-resizing] .app { transition: none; }
@@ -15,7 +15,6 @@ html[data-resizing], html[data-resizing] * { cursor: col-resize !important; user
 }
 .side-toggle:hover { background: var(--surface-2); color: var(--text); }
 .side-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.side-toggle.in-main { display: none; position: absolute; top: 14px; left: 12px; z-index: 5; }
 
 /* The drag handle sits on the sidebar's edge; a thin line shows on hover. */
 .side-resize {
@@ -30,31 +29,44 @@ html[data-resizing], html[data-resizing] * { cursor: col-resize !important; user
 .side-resize:focus-visible { outline: none; }
 .side-resize:focus-visible::after { opacity: 1; }
 
-.side-peek-zone { display: none; position: fixed; top: 0; bottom: 0; left: 0; width: 10px; z-index: 39; }
+/* ---- Collapsed: an icon rail. Every item keeps its icon and its place;
+   labels hide, and a tooltip names the item on hover or focus. ---- */
+/* overflow stays visible so the profile menu can open past the rail's edge. */
+html[data-sidebar="collapsed"] :is(.side, .sidebar) { padding-left: 8px; padding-right: 8px; overflow: visible; }
+html[data-sidebar="collapsed"] .side-head { flex-direction: column; gap: 6px; }
+html[data-sidebar="collapsed"] .side-head .side-toggle { width: 40px; height: 28px; }
+html[data-sidebar="collapsed"] .side-toggle .icon { transform: scaleX(-1); }
+html[data-sidebar="collapsed"] .brand { width: 40px; justify-content: center; padding: 0; }
+html[data-sidebar="collapsed"] :is(.brand span, .brand-name, .nav-label, .nav .label, .nav kbd, .search-btn span, .search-btn kbd, .ask-btn span, .ask-btn kbd, .profile-btn .login, .profile-btn .switch-chev, .repo, .conn .txt, .foot-row) { display: none; }
+html[data-sidebar="collapsed"] :is(.nav-item, .nav a, .search-btn, .ask-btn) {
+  position: relative; width: 40px; height: 36px; padding: 0; gap: 0; justify-content: center; margin: 0 auto;
+}
+html[data-sidebar="collapsed"] .search-btn { border-color: transparent; background: none; }
+html[data-sidebar="collapsed"] .search-btn:hover { background: var(--surface-2); color: var(--text); }
+html[data-sidebar="collapsed"] .profile-btn { width: 40px; padding: 4px; justify-content: center; margin: 0 auto; }
+html[data-sidebar="collapsed"] .side-foot { padding-left: 0; padding-right: 0; }
+html[data-sidebar="collapsed"] .conn { justify-content: center; }
+/* A count becomes a small dot on the icon's corner. */
+html[data-sidebar="collapsed"] :is(.nav-item, .nav a) .count {
+  position: absolute; top: 6px; right: 7px; width: 7px; height: 7px; min-width: 0; padding: 0; margin: 0;
+  border-radius: 50%; background: var(--accent); font-size: 0; color: transparent; box-shadow: 0 0 0 2px var(--bg);
+}
+/* The menus that open from the rail are wider than it. */
+html[data-sidebar="collapsed"] .profile-menu { width: 264px; }
 
-/* Collapsed: the sidebar leaves the grid and waits off screen for a peek. */
-html[data-sidebar="collapsed"] .side-resize { display: none; }
-html[data-sidebar="collapsed"] .side-peek-zone { display: block; }
-html[data-sidebar="collapsed"] .side-toggle.in-main { display: inline-grid; }
-.app > .main { position: relative; }
-/* The fixed sidebar leaves the grid; the page keeps the second (now full) column. */
-html[data-sidebar="collapsed"] .app > .main { grid-column: 2; padding-left: 44px; }
-html[data-sidebar="collapsed"] :is(.side, .sidebar) {
-  position: fixed; top: 0; bottom: 0; left: 0; z-index: 40; width: var(--sidebar-open, 232px); height: 100vh;
-  transform: translateX(-100%); visibility: hidden;
-  transition: transform var(--dur) var(--ease-out, ease-out), visibility 0s linear var(--dur);
+/* The rail's tooltip (one element, placed by sidebar.js). */
+.rail-tip {
+  position: fixed; z-index: 90; pointer-events: none; transform: translateY(-50%);
+  padding: 4px 8px; border-radius: var(--radius); background: var(--text); color: var(--bg);
+  font-size: var(--fs-12); font-weight: 500; line-height: 18px; white-space: nowrap; box-shadow: var(--shadow-pop);
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease-out, ease-out);
 }
-html[data-sidebar="collapsed"][data-peek] :is(.side, .sidebar) {
-  transform: none; visibility: visible; box-shadow: var(--shadow-pop);
-  border-right: 1px solid var(--border); border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-  top: 8px; bottom: 8px; height: auto; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-  transition: transform var(--dur) var(--ease-out, ease-out), visibility 0s;
-}
+.rail-tip.is-on { opacity: 1; }
+.rail-tip kbd { margin-left: 6px; padding: 0 4px; border: 0; border-radius: 3px; background: color-mix(in srgb, var(--bg) 18%, transparent); color: inherit; font-size: var(--fs-11); }
 
 @media (max-width: 860px) {
-  .side-resize, .side-peek-zone, .side-toggle { display: none !important; }
-  html[data-sidebar="collapsed"] .app > .main { grid-column: auto; padding-left: 0; }
+  .side-resize, .side-toggle, .rail-tip { display: none !important; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .app, :is(.side, .sidebar), .side-resize::after { transition: none !important; }
+  .app, .side-resize::after, .rail-tip { transition: none !important; }
 }

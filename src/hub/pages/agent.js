@@ -247,9 +247,19 @@
     // Header.
     const newBtn = el('button', { class: 'agent-icon-btn', type: 'button', 'aria-label': 'New conversation', title: 'New conversation' }, svg('plus'));
     const closeBtn = el('button', { class: 'agent-icon-btn', type: 'button', 'aria-label': 'Close Ask Grapim', title: `Close  ${isMac ? '⌘' : 'Ctrl'} J` }, svg('x'));
+    // The title names the conversation once there is one; "Working…" shows while it answers.
+    const titleText = el('span', { class: 'agent-title-text', text: 'Ask Grapim' });
+    const status = el('span', { class: 'agent-status ag-shimmer', 'aria-hidden': 'true', text: 'Working…' });
     const head = el('header', { class: 'agent-head' },
-      el('h2', { class: 'agent-title', id: 'agent-title' }, svg('spark', 'agent-mark'), 'Ask Grapim'),
-      el('div', { class: 'agent-head-actions' }, configured ? newBtn : null, closeBtn));
+      el('h2', { class: 'agent-title', id: 'agent-title' }, svg('spark', 'agent-mark'), titleText),
+      el('div', { class: 'agent-head-actions' }, status, configured ? newBtn : null, closeBtn));
+    function setTitle(text) {
+      const t = String(text || '').replace(/\s+/g, ' ').trim();
+      titleText.textContent = t ? (t.length > 48 ? `${t.slice(0, 47)}…` : t) : 'Ask Grapim';
+      titleText.title = t || '';
+      panel.classList.toggle('has-conv', !!t);
+      input.placeholder = t ? 'Ask a follow-up…' : 'Ask about runs, reviews, workspaces…';
+    }
 
     // The conversation.
     const log = el('div', { class: 'agent-log', role: 'log', 'aria-live': 'polite', 'aria-relevant': 'additions', 'aria-labelledby': 'agent-title', tabindex: '0' });
@@ -264,7 +274,7 @@
     const form = el('form', { class: 'agent-compose' }, el('div', { class: 'agent-field' }, chip, el('div', { class: 'agent-row' }, input, send)), foot);
 
     const resize = el('div', { class: 'agent-resize', role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Resize Ask Grapim', 'aria-valuemin': String(MIN), 'aria-valuemax': String(MAX), 'aria-valuenow': String(width()), tabindex: '0', title: 'Drag to resize, double-click to reset' });
-    panel.append(resize, head, body, ...(configured ? [form] : []));
+    panel.append(resize, el('div', { class: 'agent-card' }, head, body, ...(configured ? [form] : [])));
     panel.setAttribute('aria-labelledby', 'agent-title');
     panel.removeAttribute('aria-label');
 
@@ -408,7 +418,9 @@
       const list = el('ol', { class: 'ag-steps-list' }, ...steps.map(stepRow));
       const sumText = el('span', { class: 'ag-steps-sum-text' });
       const sum = el('button', { class: 'ag-steps-sum', type: 'button', 'aria-expanded': String(open) }, svg('chev', 'ag-steps-chev'), sumText);
-      const g = el('div', { class: `ag-steps${live ? ' is-live' : ''}`, 'data-state': open ? 'running' : 'done' }, sum, el('div', { class: 'ag-steps-body' }, el('div', { class: 'ag-steps-inner' }, list)));
+      // A live group starts folded: one shimmering line naming the current step,
+      // which opens to the full list (like the finished summary).
+      const g = el('div', { class: `ag-steps${live ? ' is-live' : ''}`, 'data-state': live ? 'running' : 'done' }, sum, el('div', { class: 'ag-steps-body' }, el('div', { class: 'ag-steps-inner' }, list)));
       g._list = list;
       g._sum = sumText;
       sum.addEventListener('click', () => {
@@ -416,7 +428,10 @@
         sum.setAttribute('aria-expanded', String(o));
         g.classList.toggle('is-open', o);
       });
-      if (open) g.classList.add('is-open');
+      if (open) {
+        g.classList.add('is-open');
+        sum.setAttribute('aria-expanded', 'true');
+      }
       summarize(g);
       return g;
     }
@@ -424,6 +439,12 @@
     function summarize(g) {
       const rows = [...g._list.children];
       const failed = rows.filter((r) => r.dataset.status === 'error').length;
+      // While it runs, the one line says what it is doing now.
+      if (g.dataset.state === 'running') {
+        const now = rows.filter((r) => r.dataset.status === 'running').pop() ?? rows[rows.length - 1];
+        g._sum.textContent = now ? now.querySelector('.ag-step-label').textContent : 'Working…';
+        return;
+      }
       const label = rows.length === 1 ? rows[0].querySelector('.ag-step-label').textContent : `Looked at ${rows.length} things`;
       g._sum.textContent = failed && rows.length > 1 ? `${label} · ${failed} failed` : label;
     }
@@ -572,6 +593,7 @@
 
     function render(items) {
       log.replaceChildren();
+      setTitle(items.find((it) => it.type === 'user')?.text);
       if (!items.length) {
         log.append(emptyState());
         return;
@@ -587,16 +609,26 @@
       log.scrollTop = log.scrollHeight;
     }
 
+    // The team's monthly credit: "$0.12 of $1.00 this month" and a hairline bar.
     function setUsage(u) {
       state.usage = u || state.usage;
       foot.replaceChildren();
-      if (state.usage) foot.append(el('span', { class: 'num', text: `${state.usage.used} of ${state.usage.limit} messages today` }), el('span', { class: 'sep', 'aria-hidden': 'true', text: '·' }));
-      foot.append(el('span', { text: 'It can be wrong. Actions always wait for your OK.' }));
+      const s = state.usage;
+      if (s && typeof s.budget === 'number') {
+        const pct = s.budget > 0 ? Math.min(1, s.spent / s.budget) : 1;
+        const fill = el('span', { class: 'agent-meter-fill' });
+        fill.style.transform = `scaleX(${pct})`;
+        const meter = el('span', { class: `agent-meter${pct >= 0.9 ? ' is-high' : ''}`, 'aria-hidden': 'true' }, fill);
+        const when = new Date(s.resets_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+        foot.append(el('span', { class: 'agent-usage', title: `Team credit for Ask Grapim. Renews ${when}.` }, meter, el('span', { class: 'num', text: `$${s.spent.toFixed(2)} of $${s.budget.toFixed(2)} this month` })), el('span', { class: 'sep', 'aria-hidden': 'true', text: '·' }));
+      }
+      foot.append(el('span', { text: 'It can be wrong. Actions wait for your OK.' }));
     }
 
     function setBusy(b) {
       state.busy = b;
       panel.classList.toggle('is-busy', b);
+      if (b && titleText.textContent === 'Ask Grapim') setTitle(log.querySelector('.msg-user')?.textContent);
       send.setAttribute('aria-label', b ? 'Stop' : 'Send');
       send.title = b ? 'Stop' : 'Send  Enter';
       newBtn.disabled = b;
@@ -647,10 +679,10 @@
       setTimeout(poll, 1200);
     }
 
-    function thinkingRow(label = 'Thinking') {
-      return el('div', { class: 'ag-thinking', role: 'status' },
-        el('span', { class: 'ag-dots', 'aria-hidden': 'true' }, el('i'), el('i'), el('i')),
-        el('span', { class: 'ag-shimmer', text: label }));
+    // Before the first token or step: one quiet shimmering line, in the same
+    // place the steps line will take over.
+    function thinkingRow(label = 'Thinking…') {
+      return el('div', { class: 'ag-thinking', role: 'status' }, svg('chev', 'ag-steps-chev'), el('span', { class: 'ag-shimmer', text: label }));
     }
 
     // ------------------------------------------------ sending
@@ -754,7 +786,7 @@
           if (d.status === 'running') {
             finishText();
             if (!group) {
-              group = stepsGroup([], { live: true, open: true });
+              group = stepsGroup([], { live: true });
               log.append(group);
             }
             const row = stepRow({ id: d.id, label: d.label, status: 'running' });

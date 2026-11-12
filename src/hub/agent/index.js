@@ -15,16 +15,25 @@
 import { HttpError, sendJson } from '../http.js';
 import { AnthropicError, streamMessage } from './anthropic.js';
 import { contextBlock, outcomeText, SYSTEM } from './prompt.js';
-import { AgentStore, dayOf } from './store.js';
+import { AgentStore, dayOf, monthOf, nextMonthStart } from './store.js';
 import { ACTION_TOOLS, createTools, resultText, RUNNING, TOOLS } from './tools.js';
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5';
-export const DEFAULT_LIMITS = Object.freeze({
-  free: { user: 20, team: 50 },
-  team: { user: 150, team: 2000 },
-  governance: { user: 300, team: 5000 },
-  enterprise: { user: 300, team: 5000 },
+// Each plan includes this much model use per team and calendar month (UTC),
+// in US dollars at the model's list price. An owner can set a lower hard limit.
+export const DEFAULT_CREDIT = Object.freeze({ free: 1, team: 20, governance: 50, enterprise: 100 });
+// List prices in dollars per million tokens; cache writes are 1.25x input.
+export const PRICES = Object.freeze({
+  'claude-sonnet-5-5': { input: 2, output: 10, cache_read: 0.1, cache_write: 2.5 },
+  'claude-sonnet-5': { input: 2, output: 10, cache_read: 0.2, cache_write: 2.5 },
+  'claude-opus-5-5': { input: 4, output: 20, cache_read: 0.2, cache_write: 5 },
+  'claude-haiku-5-5': { input: 0.1, output: 0.5, cache_read: 0.01, cache_write: 0.125 },
 });
+const MICROS = 1_000_000;
+// What a model call's tokens cost, in millionths of a dollar ($/MTok x tokens).
+export function costMicros(price, u) {
+  return (u.input_tokens ?? 0) * price.input + (u.output_tokens ?? 0) * price.output + (u.cache_read_tokens ?? 0) * price.cache_read + (u.cache_write_tokens ?? 0) * price.cache_write;
+}
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 // Models that take the server-side refusal fallback (`fallbacks: "default"`).
 const FALLBACK_MODELS = new Set(['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-opus-5', 'claude-fable-5-2', 'claude-fable-5-1']);
@@ -40,17 +49,24 @@ const int = (v, fallback, min, max) => {
 
 export function agentConfig(env = process.env) {
   const key = String(env.ANTHROPIC_API_KEY ?? '').trim();
-  let limits = { ...DEFAULT_LIMITS };
-  if (env.GRAPIM_AGENT_DAILY_LIMITS) {
+  const credit = { ...DEFAULT_CREDIT };
+  if (env.GRAPIM_AGENT_MONTHLY_CREDIT) {
     try {
-      const given = JSON.parse(env.GRAPIM_AGENT_DAILY_LIMITS);
-      for (const [plan, l] of Object.entries(given ?? {})) {
-        const base = limits[plan] ?? DEFAULT_LIMITS.free;
-        limits[plan] = { user: int(l?.user, base.user, 0, 1e6), team: int(l?.team, base.team, 0, 1e7) };
+      for (const [plan, v] of Object.entries(JSON.parse(env.GRAPIM_AGENT_MONTHLY_CREDIT) ?? {})) {
+        const n = Number(v);
+        if (Number.isFinite(n) && n >= 0 && n <= 1e6) credit[plan] = n;
       }
     } catch {}
   }
   const model = String(env.GRAPIM_AGENT_MODEL ?? '').trim() || DEFAULT_MODEL;
+  let price = PRICES[model] ?? PRICES[DEFAULT_MODEL];
+  if (env.GRAPIM_AGENT_PRICE) {
+    try {
+      const p = JSON.parse(env.GRAPIM_AGENT_PRICE);
+      const ok = ['input', 'output', 'cache_read', 'cache_write'].every((k) => Number.isFinite(Number(p?.[k])) && Number(p[k]) >= 0);
+      if (ok) price = { input: +p.input, output: +p.output, cache_read: +p.cache_read, cache_write: +p.cache_write };
+    } catch {}
+  }
   const effort = EFFORTS.has(env.GRAPIM_AGENT_EFFORT) ? env.GRAPIM_AGENT_EFFORT : 'low';
   const fallback = env.GRAPIM_AGENT_FALLBACK !== 'off' && FALLBACK_MODELS.has(model);
   const cfg = {
@@ -63,12 +79,15 @@ export function agentConfig(env = process.env) {
     maxToolCalls: int(env.GRAPIM_AGENT_MAX_TOOL_CALLS, 12, 1, 40),
     timeoutMs: int(env.GRAPIM_AGENT_TIMEOUT_MS, 90_000, 5_000, 600_000),
     maxConcurrent: int(env.GRAPIM_AGENT_MAX_CONCURRENT, 16, 1, 500),
-    limits: Object.freeze(limits),
+    credit: Object.freeze(credit),
+    price: Object.freeze({ ...price }),
   };
   // Never enumerable: logging or serialising the config never prints the key.
   Object.defineProperty(cfg, 'apiKey', { value: key, enumerable: false });
   return Object.freeze(cfg);
 }
+
+const dollars = (micros) => `$${(micros / MICROS).toFixed(2)}`;
 
 const TEAM = { auth: 'session', team: true };
 const TEAM_FORM = { auth: 'session', team: true, csrf: true };
@@ -79,7 +98,12 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
   const tools = createTools(hub);
   const running = new Map(); // `${team}:${user}` -> { controller, conversationId }
 
-  const limitOf = (team) => cfg.limits[team.plan] ?? cfg.limits.free ?? DEFAULT_LIMITS.free;
+  // The team's monthly budget in micro-dollars: the plan's credit, or the owner's lower cap.
+  function budgetOf(team) {
+    const credit = Math.round((cfg.credit[team.plan] ?? cfg.credit.free ?? DEFAULT_CREDIT.free) * MICROS);
+    const cap = store.cap(team.id);
+    return { credit, cap, budget: cap === null ? credit : Math.min(cap, credit) };
+  }
 
   // What the team shell needs: whether to show the entry points at all.
   function shellInfo(role) {
@@ -126,10 +150,11 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
     return items;
   }
 
-  function usageInfo(team, userId) {
-    const u = store.usage(team.id, userId);
-    const l = limitOf(team);
-    return { used: u.mine, limit: l.user, team_used: u.team, team_limit: l.team };
+  // This month's spend against the budget, for the panel and Settings.
+  function usageInfo(team, { people = false } = {}) {
+    const m = store.month(team.id);
+    const b = budgetOf(team);
+    return { spent: m.spent_micros / MICROS, budget: b.budget / MICROS, credit: b.credit / MICROS, cap: b.cap === null ? null : b.cap / MICROS, messages: m.messages, ...(people ? { people: m.people.map((p) => ({ user_id: p.user_id, messages: p.messages, spent: p.cost_micros / MICROS })) } : {}), resets_at: nextMonthStart(hub.now()), month: monthOf(hub.now()) };
   }
 
   // The page the person is on, as the panel describes it, checked against the
@@ -261,7 +286,7 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
       }
       notice(conversationId, 'limit', 'Stopped after too many steps. Ask a narrower question.', emit);
     } finally {
-      store.count(s.team.id, s.userId, used);
+      store.count(s.team.id, s.userId, { ...used, cost_micros: costMicros(cfg.price, used) });
     }
   }
 
@@ -286,7 +311,7 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
           model: cfg.model,
           running: running.has(keyOf(ctx)),
           conversation: conv ? { id: conv.id, items: display(conv.id) } : null,
-          usage: usageInfo(team, userId),
+          usage: usageInfo(team),
         });
       },
       TEAM,
@@ -303,10 +328,16 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
         const key = keyOf(ctx);
         if (running.has(key)) throw new HttpError(409, 'busy', 'Ask Grapim is still answering your last message.');
         if (running.size >= cfg.maxConcurrent) throw new HttpError(503, 'busy', 'Ask Grapim is busy right now. Try again in a minute.', { retryAfter: 30 });
-        const u = store.usage(team.id, userId);
-        const l = limitOf(team);
-        if (u.mine >= l.user) throw new HttpError(429, 'agent_limit', `You have used today's ${l.user} messages on the ${team.plan} plan. The count resets at midnight UTC.`);
-        if (u.team >= l.team) throw new HttpError(429, 'agent_limit', `Your team has used today's ${l.team} messages on the ${team.plan} plan. The count resets at midnight UTC.`);
+        const b = budgetOf(team);
+        if (store.month(team.id).spent_micros >= b.budget) {
+          const when = new Date(nextMonthStart(hub.now())).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
+          const msg = b.budget === 0
+            ? 'An owner has turned Ask Grapim off for this team in Settings.'
+            : b.cap !== null && b.cap < b.credit
+              ? `Your team has reached its ${dollars(b.budget)} monthly limit for Ask Grapim. An owner can raise it in Settings, or it renews on ${when}.`
+              : `Your team has used this month's ${dollars(b.budget)} of Ask Grapim on the ${team.plan} plan. It renews on ${when}.`;
+          throw new HttpError(429, 'agent_limit', msg);
+        }
         const conv = store.open(team.id, userId);
         const size = store.size(conv.id);
         if (size.n >= MAX_MESSAGES || size.chars >= MAX_CONVERSATION_CHARS) throw new HttpError(409, 'conversation_full', 'This conversation is long. Start a new one to keep answers quick.');
@@ -327,7 +358,7 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
           notice(conv.id, 'error', 'Ask Grapim could not get an answer. Try again.', emit);
         } finally {
           running.delete(key);
-          emit('done', { usage: usageInfo(team, userId) });
+          emit('done', { usage: usageInfo(team) });
           if (!res.destroyed) res.end();
         }
       },
@@ -343,6 +374,30 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
         json(ctx, { stopped: !!r });
       },
       TEAM_FORM,
+    );
+
+    // Owners set the team's monthly hard limit in dollars ("" clears it, 0 turns Ask Grapim off).
+    router.post(
+      '/hub/api/teams/:team/agent/cap',
+      (ctx) => {
+        enabledFor(ctx);
+        const { team, role } = ctx.member;
+        if (role !== 'owner') throw new HttpError(403, 'forbidden', 'Only owners can change the monthly limit.');
+        const raw = String(ctx.form.cap ?? '').trim().replace(/^\$/, '');
+        let cap = null;
+        if (raw !== '') {
+          const n = Number(raw);
+          if (!Number.isFinite(n) || n < 0 || n > 1e6) throw new HttpError(400, 'bad_request', 'Enter an amount in dollars, like 5 or 12.50.');
+          cap = Math.round(n * MICROS);
+        }
+        store.setCap(team.id, cap);
+        if (ctx.form.back) {
+          ctx.res.writeHead(303, { Location: `/hub/teams/${team.id}/settings#ask-grapim` });
+          return ctx.res.end();
+        }
+        json(ctx, { usage: usageInfo(team) });
+      },
+      { ...TEAM_FORM, owner: true },
     );
 
     router.post(
@@ -376,6 +431,7 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
 
   return {
     config: cfg,
+    usageInfo,
     store,
     tools,
     routes,

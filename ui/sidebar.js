@@ -1,4 +1,4 @@
-// The left sidebar: drag its edge to resize, collapse it, peek at it.
+// The left sidebar: drag its edge to resize, or collapse it to an icon rail.
 // Shared by the review desk (ui/) and the hub (/hub/static/sidebar.js).
 // Loaded in <head> without defer so a saved width or a collapsed sidebar is
 // applied before first paint. CSP-safe: no inline script, styles set through
@@ -6,8 +6,8 @@
 //
 //   drag the edge          resize, 200 to 400 px; drag past the left to collapse
 //   double-click the edge  back to the default width
-//   [  or  Ctrl/⌘ \        collapse or expand (not while typing)
-//   hover the left edge    peek at a collapsed sidebar
+//   [  or  Ctrl/⌘ \        collapse to the rail or expand (not while typing)
+//   hover a rail icon      a tooltip names it
 (() => {
   const KEY = 'grapim.sidebar';
   const MIN = 200, MAX = 400, DEFAULT = 232, SNAP = 140;
@@ -25,15 +25,17 @@
   }
   apply(); // before first paint
 
+  let hideTip = () => {};
   function setCollapsed(c) {
     state = { ...state, collapsed: !!c };
     save(state);
-    delete root.dataset.peek;
     apply();
+    hideTip();
     for (const b of document.querySelectorAll('[data-sidebar-toggle]')) {
       b.setAttribute('aria-expanded', String(!c));
-      b.setAttribute('aria-label', c ? 'Show sidebar' : 'Hide sidebar');
-      b.title = c ? 'Show sidebar  [' : 'Hide sidebar  [';
+      b.setAttribute('aria-label', c ? 'Expand sidebar' : 'Collapse sidebar');
+      b.dataset.tip = c ? 'Expand sidebar' : '';
+      b.title = c ? '' : 'Collapse sidebar  [';
     }
     const handle = document.querySelector('.side-resize');
     if (handle) handle.setAttribute('aria-valuenow', String(c ? 0 : width()));
@@ -41,14 +43,46 @@
   const toggle = () => setCollapsed(!state.collapsed);
 
   const ICON = '<svg class="icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><rect x="2" y="2.5" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 2.5v11" stroke="currentColor" stroke-width="1.5"/></svg>';
-  function toggleButton(cls) {
+  function toggleButton() {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = `side-toggle ${cls}`;
+    b.className = 'side-toggle';
     b.dataset.sidebarToggle = '';
     b.innerHTML = ICON;
     b.addEventListener('click', toggle);
     return b;
+  }
+
+  // The rail's tooltip: the item's own words (its label or aria-label).
+  function tooltips(side) {
+    const tip = document.createElement('div');
+    tip.className = 'rail-tip';
+    tip.setAttribute('aria-hidden', 'true');
+    document.body.append(tip);
+    let timer = 0;
+    hideTip = () => { clearTimeout(timer); tip.classList.remove('is-on'); };
+    const labelOf = (n) => n.dataset.tip
+      || n.querySelector('.nav-label, .label, .search-btn > span, .ask-btn > span, .login, .brand > span, .brand-name')?.textContent.trim()
+      || n.getAttribute('aria-label') || '';
+    const show = (n) => {
+      if (!state.collapsed) return;
+      const text = labelOf(n);
+      if (!text) return;
+      tip.textContent = text;
+      const r = n.getBoundingClientRect();
+      tip.style.left = `${Math.round(r.right + 10)}px`;
+      tip.style.top = `${Math.round(r.top + r.height / 2)}px`;
+      clearTimeout(timer);
+      // Instant once one tooltip is showing, a short wait for the first.
+      timer = setTimeout(() => tip.classList.add('is-on'), tip.classList.contains('is-on') ? 0 : 280);
+    };
+    const target = (e) => e.target.closest?.('a, button, summary');
+    side.addEventListener('pointerover', (e) => { const n = target(e); if (n && side.contains(n)) show(n); });
+    side.addEventListener('pointerleave', hideTip);
+    side.addEventListener('focusin', (e) => { const n = target(e); if (n) show(n); });
+    side.addEventListener('focusout', hideTip);
+    side.addEventListener('click', hideTip);
+    window.addEventListener('scroll', hideTip, { passive: true });
   }
 
   function wire() {
@@ -56,17 +90,14 @@
     const app = side?.closest('.app');
     if (!side || !app || root.classList.contains('embed')) return;
 
-    // Hide button, in the sidebar next to the brand.
+    // The collapse button, in the sidebar next to the brand (under it on the rail).
     const brand = side.querySelector('.brand');
     if (brand) {
       const row = document.createElement('div');
       row.className = 'side-head';
       brand.replaceWith(row);
-      row.append(brand, toggleButton('in-side'));
+      row.append(brand, toggleButton());
     }
-    // Show button, at the top left of the page while collapsed.
-    const main = app.querySelector('.main');
-    if (main) main.prepend(toggleButton('in-main'));
 
     // The drag handle on the sidebar's right edge (keyboard: arrows, Enter).
     const handle = document.createElement('div');
@@ -83,7 +114,7 @@
     let dragging = false, startX = 0, startW = 0;
     handle.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
-      dragging = true; startX = e.clientX; startW = state.collapsed ? 0 : width();
+      dragging = true; startX = e.clientX; startW = state.collapsed ? 56 : width();
       handle.setPointerCapture(e.pointerId);
       root.dataset.resizing = '';
       e.preventDefault();
@@ -114,19 +145,7 @@
       else if (e.key === 'Home') { e.preventDefault(); state = { ...state, w: DEFAULT }; setCollapsed(false); }
     });
 
-    // Peek: with the sidebar collapsed, the pointer at the left edge slides it in.
-    const zone = document.createElement('div');
-    zone.className = 'side-peek-zone';
-    zone.setAttribute('aria-hidden', 'true');
-    app.append(zone);
-    let leaveTimer = 0;
-    zone.addEventListener('pointerenter', () => { if (state.collapsed) root.dataset.peek = ''; });
-    side.addEventListener('pointerenter', () => clearTimeout(leaveTimer));
-    side.addEventListener('pointerleave', () => {
-      if (!('peek' in root.dataset)) return;
-      clearTimeout(leaveTimer);
-      leaveTimer = setTimeout(() => { if (!side.querySelector('details[open]')) delete root.dataset.peek; }, 250);
-    });
+    tooltips(side);
 
     // [ and Ctrl/⌘ \ toggle (not while typing or with a dialog open).
     document.addEventListener('keydown', (e) => {
@@ -139,7 +158,7 @@
       }
     });
 
-    setCollapsed(state.collapsed); // labels and aria on the new buttons
+    setCollapsed(state.collapsed); // labels and aria on the new button
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);

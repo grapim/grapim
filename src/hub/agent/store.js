@@ -53,8 +53,23 @@ CREATE TABLE IF NOT EXISTS agent_usage (
   tool_calls         INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (team_id, user_id, day)
 );
+CREATE TABLE IF NOT EXISTS agent_team_settings (
+  team_id    TEXT PRIMARY KEY,
+  cap_micros INTEGER,
+  updated_at INTEGER NOT NULL
+);
 `);
+  // What each day's tokens cost, in millionths of a US dollar.
+  const cols = db.prepare('PRAGMA table_info(agent_usage)').all().map((c) => c.name);
+  if (!cols.includes('cost_micros')) db.exec('ALTER TABLE agent_usage ADD COLUMN cost_micros INTEGER NOT NULL DEFAULT 0');
 }
+
+export const monthOf = (ms) => new Date(ms).toISOString().slice(0, 7);
+// The first moment of the next calendar month (UTC), when the credit renews.
+export const nextMonthStart = (ms) => {
+  const d = new Date(ms);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
+};
 
 export const dayOf = (ms) => new Date(ms).toISOString().slice(0, 10);
 
@@ -156,24 +171,42 @@ export class AgentStore {
 
   // ---- usage ----
 
-  usage(teamId, userId, day = dayOf(this.now())) {
-    const mine = this.db.prepare('SELECT messages FROM agent_usage WHERE team_id = ? AND user_id = ? AND day = ?').get(teamId, userId, day)?.messages ?? 0;
-    const team = this.db.prepare('SELECT COALESCE(SUM(messages), 0) AS n FROM agent_usage WHERE team_id = ? AND day = ?').get(teamId, day).n;
-    return { mine, team };
+  // This calendar month (UTC): what the team spent, and each person's share.
+  month(teamId, month = monthOf(this.now())) {
+    const rows = this.db
+      .prepare(
+        `SELECT user_id, SUM(messages) AS messages, SUM(cost_micros) AS cost_micros
+         FROM agent_usage WHERE team_id = ? AND substr(day, 1, 7) = ? GROUP BY user_id ORDER BY cost_micros DESC`,
+      )
+      .all(teamId, month)
+      .map((r) => ({ user_id: r.user_id, messages: r.messages ?? 0, cost_micros: r.cost_micros ?? 0 }));
+    return { spent_micros: rows.reduce((n, r) => n + r.cost_micros, 0), messages: rows.reduce((n, r) => n + r.messages, 0), people: rows };
   }
 
   count(teamId, userId, delta) {
     const day = dayOf(this.now());
     this.db
       .prepare(
-        `INSERT INTO agent_usage (team_id, user_id, day, messages, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, tool_calls)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO agent_usage (team_id, user_id, day, messages, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, tool_calls, cost_micros)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(team_id, user_id, day) DO UPDATE SET
            messages = messages + excluded.messages, input_tokens = input_tokens + excluded.input_tokens,
            output_tokens = output_tokens + excluded.output_tokens, cache_read_tokens = cache_read_tokens + excluded.cache_read_tokens,
-           cache_write_tokens = cache_write_tokens + excluded.cache_write_tokens, tool_calls = tool_calls + excluded.tool_calls`,
+           cache_write_tokens = cache_write_tokens + excluded.cache_write_tokens, tool_calls = tool_calls + excluded.tool_calls,
+           cost_micros = cost_micros + excluded.cost_micros`,
       )
-      .run(teamId, userId, day, delta.messages ?? 0, delta.input_tokens ?? 0, delta.output_tokens ?? 0, delta.cache_read_tokens ?? 0, delta.cache_write_tokens ?? 0, delta.tool_calls ?? 0);
+      .run(teamId, userId, day, delta.messages ?? 0, delta.input_tokens ?? 0, delta.output_tokens ?? 0, delta.cache_read_tokens ?? 0, delta.cache_write_tokens ?? 0, delta.tool_calls ?? 0, Math.round(delta.cost_micros ?? 0));
+  }
+
+  // The owner's monthly hard limit (null: the plan's credit is the limit).
+  cap(teamId) {
+    return this.db.prepare('SELECT cap_micros FROM agent_team_settings WHERE team_id = ?').get(teamId)?.cap_micros ?? null;
+  }
+
+  setCap(teamId, capMicros) {
+    this.db
+      .prepare('INSERT INTO agent_team_settings (team_id, cap_micros, updated_at) VALUES (?, ?, ?) ON CONFLICT(team_id) DO UPDATE SET cap_micros = excluded.cap_micros, updated_at = excluded.updated_at')
+      .run(teamId, capMicros, this.now());
   }
 
   // A team's token use per day, for billing or a usage page later.
@@ -181,7 +214,8 @@ export class AgentStore {
     return this.db
       .prepare(
         `SELECT day, SUM(messages) AS messages, SUM(input_tokens) AS input_tokens, SUM(output_tokens) AS output_tokens,
-                SUM(cache_read_tokens) AS cache_read_tokens, SUM(cache_write_tokens) AS cache_write_tokens, SUM(tool_calls) AS tool_calls
+                SUM(cache_read_tokens) AS cache_read_tokens, SUM(cache_write_tokens) AS cache_write_tokens, SUM(tool_calls) AS tool_calls,
+                SUM(cost_micros) AS cost_micros
          FROM agent_usage WHERE team_id = ? AND day >= ? GROUP BY day ORDER BY day`,
       )
       .all(teamId, fromDay);
