@@ -646,7 +646,7 @@ test('path rules: payments/** needs 2 approvals from named people; the check and
   assert.equal(check(h).conclusion, 'failure');
   assert.match(check(h).output.summary, /a path rule needs more: payments&#47;&#42;&#42; needs 2 approvals from .*&#59; has 1/);
   const page = await carol.req(`${runPath(A, RUN1)}?machine=alice-laptop`);
-  assert.match(page.text, /Path rules for this run/);
+  assert.match(page.text, /Approvals this run needs/);
   assert.match(page.text, /<b>1 more approval needed<\/b>, from gov-carol/);
   assert.match(page.text, /Needs review/, 'the badge does not say Approved while a rule is unmet');
   // Carol approves: the check passes through re-evaluation.

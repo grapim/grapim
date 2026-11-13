@@ -290,7 +290,7 @@ test('H2: the teaser (every plan) is not recomputed by each sync', async (t) => 
   h.clock.t += TEASER_MS;
   const page = await alice.req(`/hub/teams/${A}/reports`);
   assert.equal(reports.computed, n + 1);
-  assert.match(page.text, /in 5 commits with provenance/);
+  assert.match(page.text, /in 5 recorded commits/);
 });
 
 // ---------------------------------------------------------------- M: CSV

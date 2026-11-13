@@ -45,7 +45,7 @@ export function workspacesPage({ user, csrf, team, workspaces, limit, notice = n
     team,
     wide: true,
     crumbs: [{ label: 'Workspaces' }],
-    body: html`${head(team, 'workspaces', { sub: 'A workspace is a folder that lives on the hub. Any agent, anywhere, reads and writes it with a workspace token, over HTTPS or MCP. Every write is recorded, can be reviewed in the desk, and can be undone.' })}
+    body: html`${head(team, 'workspaces', { sub: 'Shared folders your agents read and write from anywhere. Every change is recorded, reviewed in the review desk, and can be undone.' })}
 ${notices({ notice, error })}
 ${workspaces.length
   ? html`<div class="table-wrap">
@@ -185,7 +185,7 @@ const revealBox = (revealed) =>
         id: 'reveal-wstoken',
         title: `Token ${revealed.name} (${revealed.scope}${revealed.scopes?.length ? `, ${revealed.scopes.length} folder rule${revealed.scopes.length === 1 ? '' : 's'}` : ''})`,
         value: revealed.value,
-        hint: 'Copy it now. Only a hash is stored, so it cannot be shown again. Put it in GRAPIM_WORKSPACE_TOKEN where the agent runs.',
+        hint: 'Copy it now: Grapim can’t show it again. Set it as GRAPIM_WORKSPACE_TOKEN where the agent runs.',
       })
     : '';
 

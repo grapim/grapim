@@ -46,38 +46,38 @@ function checklist({ team, csrf, role, origin, setup, compact = false }) {
   const STEPS = {
     cli: {
       title: 'Install Grapim in a repo',
-      body: html`Run it in each repo your agents work in. It sets up Claude Code, Codex, Cursor and Gemini CLI, and records every edit they make as an agent run: the agent, the prompt and the lines.`,
+      body: html`Run it in each repo your agents work in. It works with Claude Code, Codex, Cursor and Gemini CLI. From then on, each agent session is saved as a <strong>run</strong>: which agent, what it was asked, and the lines it changed.`,
       action: code('npm install -g grapim\ngrapim init'),
       link: null,
     },
     token: {
-      title: 'Create a machine token',
-      body: html`One per machine that syncs. It is shown once; only a hash is kept.`,
+      title: 'Create a token for your computer',
+      body: html`Each computer that sends its agents' work to Grapim needs its own token. You see it once.`,
       action: html`<form method="post" action="${base}/tokens" class="inline-form">
         ${csrfField(csrf)}
         <label class="sr-only" for="setup-token">Machine name</label>
-        <input id="setup-token" name="name" type="text" maxlength="60" placeholder="Machine name, e.g. alex-macbook" required autocomplete="off" spellcheck="false">
+        <input id="setup-token" name="name" type="text" maxlength="60" placeholder="Computer name, e.g. alex-macbook" required autocomplete="off" spellcheck="false">
         <button class="btn btn-primary" type="submit">Create token</button>
       </form>`,
       link: `${base}/settings/machines`,
     },
     sync: {
-      title: 'Connect the machine',
-      body: html`Run this in the repo, with the token in the environment. Each agent run then shows up here to review.`,
+      title: 'Send your agents’ work to Grapim',
+      body: html`Run this in the repo with the token set. Each new run then shows up here for a teammate to review.`,
       action: syncSnippet(origin),
       link: null,
     },
     github: {
-      title: 'Turn on the pull request check',
+      title: 'Hold pull requests until agent work is reviewed',
       body: owner
-        ? html`Install the GitHub App. Each pull request gets a comment listing its agent runs and whether each one is approved, and a check that can block merging until every run is.`
-        : html`An owner of ${team.name} installs it. Pull requests then get a comment listing their agent runs, and a check.`,
+        ? html`Install the GitHub App. Each pull request gets a comment listing its agent runs and which are approved, and a check that can block the merge until all of them are.`
+        : html`An owner of ${team.name} installs the GitHub App. Pull requests then list their agent runs and get a check.`,
       action: owner ? html`<a class="btn" href="${base}/github">Connect GitHub</a>` : '',
       link: owner ? `${base}/github` : null,
     },
     workspace: {
       title: 'Create a workspace',
-      body: html`A folder on the hub that any agent reads and writes over HTTPS or MCP. Every write is recorded and can be undone.`,
+      body: html`A shared folder your agents can read and write from anywhere. Every change is recorded and can be undone.`,
       action: html`<form method="post" action="${base}/workspaces" class="inline-form">
         ${csrfField(csrf)}
         <label class="sr-only" for="setup-ws">Workspace name</label>
@@ -135,12 +135,12 @@ function shareBlock(team, teaser) {
   const pct = (r) => (r === null || r === undefined || !Number.isFinite(r) ? null : `${(r * 100).toFixed(r > 0 && r < 0.1 ? 1 : 0)}%`);
   const share = teaser.commits ? pct(teaser.share) : null;
   return html`<section class="panel" aria-labelledby="share-title">
-  <div class="panel-head"><h2 id="share-title" class="panel-title">Code from agents, last week</h2><a class="link small" href="/hub/teams/${team.id}/reports">Reports</a></div>
+  <div class="panel-head"><h2 id="share-title" class="panel-title">Written by agents last week</h2><a class="link small" href="/hub/teams/${team.id}/reports">Reports</a></div>
   <div class="panel-body">
     ${share
-      ? html`<p class="share"><span class="share-num num">${share}</span> of added lines were written by AI agents</p>
-    <p class="muted small">${teaser.ai_in_share.toLocaleString('en-US')} of ${teaser.added.toLocaleString('en-US')} lines, ${plural(teaser.commits, 'commit')} with provenance from ${teaser.repos_with_provenance} of ${plural(teaser.repos_total, 'repo')}.</p>`
-      : html`<p class="muted small">No commit with provenance last week. Commits made in repos with <code>grapim init</code> count here from the week after.</p>`}
+      ? html`<p class="share"><span class="share-num num">${share}</span> of new lines of code</p>
+    <p class="muted small">${teaser.ai_in_share.toLocaleString('en-US')} of ${teaser.added.toLocaleString('en-US')} lines, in ${plural(teaser.commits, 'commit')} Grapim recorded across ${teaser.repos_with_provenance} of ${plural(teaser.repos_total, 'repo')}.</p>`
+      : html`<p class="muted small">No recorded commits last week. Repos where Grapim is installed count here from the following week.</p>`}
   </div>
 </section>`;
 }
@@ -155,9 +155,9 @@ export function overviewPage({ toast = null, user, csrf, team, role, origin, set
       team,
       toast,
       crumbs: [{ label: 'Overview' }],
-      body: html`${head(team, 'overview', { title: `Set up ${team.name}`, sub: 'Every AI change to your code gets someone accountable for it: Grapim records each agent run and what it was asked to do, a teammate reviews it here, and pull requests with unreviewed runs are held on GitHub.' })}
+      body: html`${head(team, 'overview', { title: `Set up ${team.name}`, sub: 'See what your AI agents changed and who approved it. Grapim records each agent session, a teammate reviews it here, and GitHub holds the pull request until they do.' })}
 ${checklist({ team, csrf, role, origin, setup })}
-<p class="setup-also">${icon('workspace')}<span>Agents also writing docs or data, outside a repo? A <a class="link" href="${base}/workspaces">workspace</a> is a shared folder where every write is recorded, reviewable and undoable too.</span></p>`,
+<p class="setup-also">${icon('workspace')}<span>Agents writing docs or data outside a repo? Give them a <a class="link" href="${base}/workspaces">workspace</a>: a shared folder where every change is recorded and can be undone.</span></p>`,
     });
   }
   const left = setup.steps.some((s) => !s.done);
@@ -168,42 +168,42 @@ ${checklist({ team, csrf, role, origin, setup })}
     team,
     wide: true,
     crumbs: [{ label: 'Overview' }],
-    body: html`${head(team, 'overview', { sub: html`<span class="plan">${team.plan}</span> plan${waiting.length ? html` · <a class="link" href="${base}/reviews">${plural(waiting.length, 'run')} to review</a>` : ' · nothing waiting for you'}` })}
+    body: html`${head(team, 'overview', { sub: html`<span class="plan">${team.plan}</span> plan${waiting.length ? html` · <a class="link" href="${base}/reviews">${plural(waiting.length, 'run')} waiting for your review</a>` : ' · nothing waiting for you'}` })}
 <div class="overview">
   <div class="ov-main">
     <section class="panel" aria-labelledby="needs-title">
       <div class="panel-head"><h2 id="needs-title" class="panel-title">Needs your review <span class="num muted">${waiting.length}</span></h2><a class="link small" href="${base}/reviews">All reviews</a></div>
       ${waiting.length
         ? html`<ul class="items">${waiting.slice(0, 6).map((r) => runRow(team, r))}</ul>`
-        : html`<p class="panel-empty">Nothing waits for you. ${mine.length ? html`${plural(mine.length, 'run')} you synced ${mine.length === 1 ? 'waits' : 'wait'} for another member.${setup.members < 2 ? html` <a class="link" href="${base}/settings/members">Invite a teammate</a> to review ${mine.length === 1 ? 'it' : 'them'}.` : ''}` : 'New agent runs show up here once a machine syncs them.'}</p>`}
+        : html`<p class="panel-empty">Nothing waits for you. ${mine.length ? html`${plural(mine.length, 'run')} of yours ${mine.length === 1 ? 'waits' : 'wait'} for a teammate.${setup.members < 2 ? html` <a class="link" href="${base}/settings/members">Invite a teammate</a> to review ${mine.length === 1 ? 'it' : 'them'}.` : ''}` : 'New agent work shows up here as soon as a teammate’s computer sends it.'}</p>`}
     </section>
     ${pulls.list.length
       ? html`<section class="panel" aria-labelledby="prs-title">
-      <div class="panel-head"><h2 id="prs-title" class="panel-title">${pulls.enforced ? 'Pull requests with a failing Grapim check' : 'Pull requests with unreviewed runs'} <span class="num muted">${pulls.list.length}</span></h2></div>
+      <div class="panel-head"><h2 id="prs-title" class="panel-title">${pulls.enforced ? 'Pull requests waiting on review' : 'Pull requests with unreviewed agent work'} <span class="num muted">${pulls.list.length}</span></h2></div>
       <ul class="items">${pulls.list.slice(0, 6).map(
         (p) => html`<li class="item"><div class="item-link">
           <span class="item-main"><span class="item-title">${p.url ? html`<a class="link" href="${p.url}" rel="noopener noreferrer">${p.owner}/${p.name}#${p.number}</a>` : html`${p.owner}/${p.name}#${p.number}`}</span>
-          <span class="item-meta">${plural(p.unapproved, 'agent run')} not approved, of ${p.runs}</span></span>
-          <span class="item-side">${p.failing ? html`<span class="badge badge-danger">Check failing</span>` : html`<span class="badge">Review not required</span>`}${time(p.updated_at)}</span>
+          <span class="item-meta">${p.unapproved} of ${plural(p.runs, 'agent run')} not approved yet</span></span>
+          <span class="item-side">${p.failing ? html`<span class="badge badge-danger">Check failing</span>` : ''}${time(p.updated_at)}</span>
         </div></li>`,
       )}</ul>
     </section>`
       : ''}
     <section class="panel" aria-labelledby="act-title">
       <div class="panel-head"><h2 id="act-title" class="panel-title">Recent activity</h2></div>
-      ${activity.length ? html`<ul class="feed">${activity.map((e) => activityRow(team, e))}</ul>` : html`<p class="panel-empty">No synced edits yet.</p>`}
+      ${activity.length ? html`<ul class="feed">${activity.map((e) => activityRow(team, e))}</ul>` : html`<p class="panel-empty">No agent work yet.</p>`}
     </section>
   </div>
   <div class="ov-side">
     ${shareBlock(team, teaser)}
     <section class="panel" aria-labelledby="active-title">
-      <div class="panel-head"><h2 id="active-title" class="panel-title">Active now <span class="num muted">${active.length}</span></h2></div>
+      <div class="panel-head"><h2 id="active-title" class="panel-title">Working now <span class="num muted">${active.length}</span></h2></div>
       ${active.length
         ? html`<ul class="plain-list">${active.map((a) => html`<li class="plain-row"><span class="live" aria-hidden="true"></span><span class="plain-main">${agent(a.label, a.kind)}<span class="muted small truncate" title="${a.intent || a.repo}">${a.intent || a.repo}</span></span>${time(a.last_seen)}</li>`)}</ul>`
-        : html`<p class="panel-empty">No agent has synced an edit in the last hour.</p>`}
+        : html`<p class="panel-empty">No agent has changed code in the last hour.</p>`}
     </section>
     <section class="panel" aria-labelledby="where-title">
-      <div class="panel-head"><h2 id="where-title" class="panel-title">Repos and workspaces</h2></div>
+      <div class="panel-head"><h2 id="where-title" class="panel-title">Where agents work</h2></div>
       <ul class="plain-list">
         ${repos.slice(0, 6).map((r) => html`<li class="plain-row">${icon('repo')}<a class="plain-main link-quiet" href="${base}/repos/${r.id}">${r.name}</a>${time(r.last_change_ts ?? r.last_sync_at)}</li>`)}
         ${workspaces.slice(0, 6).map((w) => html`<li class="plain-row">${icon('workspace')}<a class="plain-main link-quiet" href="${base}/workspaces/${w.id}">${w.name}</a>${time(w.last_activity)}</li>`)}
@@ -234,7 +234,7 @@ export function reviewsPage({ user, csrf, team, filter, runs, counts }) {
     team,
     wide: true,
     crumbs: [{ label: 'Reviews' }],
-    body: html`${head(team, 'reviews', { sub: 'Agent runs from synced repos. An approval here is the review the Grapim check on pull requests counts; the member who synced a run cannot review it.' })}
+    body: html`${head(team, 'reviews', { sub: 'Approve or reject what your team’s agents changed. The Grapim check on pull requests counts these approvals. Nobody reviews their own runs.' })}
 <nav class="seg" aria-label="Filter">
   ${FILTERS.map(([k, label, short]) => html`<a class="seg-item" href="${`${base}?f=${k}`}" ${k === filter ? html`aria-current="page"` : ''}>${short === label ? label : html`<span class="hide-sm">${label}</span><span class="show-sm">${short}</span>`} <span class="num muted">${counts[k]}</span></a>`)}
 </nav>
@@ -258,10 +258,10 @@ ${runs.length
 </table>
 </div>`
   : emptyState(
-      filter === 'yours' ? 'Nothing waits for your review' : filter === 'mine' ? 'None of your runs waits for review' : 'No reviewed runs in the history window',
-      filter === 'yours' ? 'Runs other members synced show up here until someone approves or rejects them.' : filter === 'mine' ? 'Runs your machines sync wait here until another member reviews them.' : 'Approved and rejected runs show up here.',
+      filter === 'yours' ? 'You’re all caught up' : filter === 'mine' ? 'None of your runs is waiting' : 'Nothing reviewed yet',
+      filter === 'yours' ? 'Your teammates’ agent runs show up here until someone approves or rejects them.' : filter === 'mine' ? 'Runs from your computer wait here until a teammate reviews them.' : 'Approved and rejected runs show up here.',
     )}
-<p class="fine">Cloud workspace runs are reviewed in each workspace's review desk, from <a href="/hub/teams/${team.id}/workspaces">Workspaces</a>.</p>`,
+<p class="fine">Agent work in a <a href="/hub/teams/${team.id}/workspaces">workspace</a> is reviewed inside that workspace.</p>`,
   });
 }
 
@@ -275,16 +275,16 @@ export function reposPage({ user, csrf, team, repos, origin, limits, waiting = n
     team,
     wide: true,
     crumbs: [{ label: 'Repos' }],
-    body: html`${head(team, 'repos', { sub: `Repos your team's machines sync with grapim sync. Showing the last ${limits.historyDays} days of history on the ${team.plan} plan.` })}
+    body: html`${head(team, 'repos', { sub: `Repos where your team’s agents work, with the last ${limits.historyDays} days of history.` })}
 ${repos.length
   ? html`<div class="table-wrap">
 <table class="table">
   <caption class="sr-only">Repos synced to ${team.name}</caption>
-  <thead><tr><th scope="col">Repo</th><th scope="col" class="num">Runs</th><th scope="col" class="num">To review</th><th scope="col" class="num hide-sm">Machines</th><th scope="col">Last change</th><th scope="col" class="hide-sm">Last sync</th></tr></thead>
+  <thead><tr><th scope="col">Repo</th><th scope="col" class="num">Runs</th><th scope="col" class="num">To review</th><th scope="col" class="num hide-sm">Computers</th><th scope="col">Last change</th><th scope="col" class="hide-sm">Last update</th></tr></thead>
   <tbody>
   ${repos.map(
     (r) => html`<tr>
-    <th scope="row"><a class="strong" href="/hub/teams/${team.id}/repos/${r.id}">${r.name}</a><span class="sha mono hide-sm">${r.id.slice(0, 7)}</span></th>
+    <th scope="row"><a class="strong" href="/hub/teams/${team.id}/repos/${r.id}">${r.name}</a></th>
     <td class="num">${r.runs}</td>
     <td class="num">${waiting.get(r.id) ? html`<span class="count-pill">${waiting.get(r.id)}</span>` : html`<span class="muted">0</span>`}</td>
     <td class="num hide-sm">${r.machines}</td>
@@ -295,10 +295,10 @@ ${repos.length
   </tbody>
 </table>
 </div>
-<p class="fine">Review synced runs here: open a run to approve or reject it; that is the review the Grapim check on pull requests counts. Undo and branches change files, so for a synced repo they run on the machine, with <code>grapim undo</code> or in <code>grapim serve</code>. Cloud workspaces live on the hub, so their runs are reviewed, undone and branched in their review desk.</p>`
+<p class="fine">Open a run to approve or reject it. Grapim never changes your code: to undo a run, use <code>grapim undo</code> on the computer that made it.</p>`
   : html`<div class="empty">
-  <p class="empty-title">No repos synced yet</p>
-  <p class="muted">Create a machine token in <a href="/hub/teams/${team.id}/settings/machines">Settings</a>, then run this in a repo where Grapim is set up:</p>
+  <p class="empty-title">No repos yet</p>
+  <p class="muted">Create a token for your computer in <a href="/hub/teams/${team.id}/settings/machines">Settings</a>, then run this in a repo where Grapim is installed:</p>
   ${syncSnippet(origin)}
 </div>`}`,
   });
@@ -423,13 +423,13 @@ function codeStorageSection({ team, csrf, role, info }) {
     </form>`
       : html`<span class="badge ${on ? 'badge-ok' : ''}">${on ? 'On' : 'Off'}</span>`}
   </div>
-  <p class="card-sub">When on, the hub keeps run metadata (agent, prompt, files, line counts, reviews), never stores file contents, and reads diffs from GitHub when someone opens a run.</p>
+  <p class="card-sub">When on, Grapim keeps what each run did (agent, prompt, file names, line counts, reviews) but never the code itself. Diffs load from GitHub when someone opens a run.</p>
   <p class="fine">${on
-    ? html`Live diffs need the repo on the <a class="link" href="/hub/teams/${team.id}/settings/github">GitHub App</a> and its commits pushed with provenance notes. Prompts are still kept, so a prompt that quotes code is stored with it. <a class="link" href="/docs/data-handling">What Grapim stores</a>`
-    : html`Off: the hub keeps the contents of files agents changed, so every run shows its diff. <a class="link" href="/docs/data-handling">What Grapim stores</a>`}${owner ? '' : ' Only an owner can change this.'}</p>
+    ? html`Diffs need the repo connected to the <a class="link" href="/hub/teams/${team.id}/settings/github">GitHub App</a> and its commits pushed with Grapim’s notes. Prompts are still kept, so a prompt that quotes code keeps that quote. <a class="link" href="/docs/data-handling">What Grapim stores</a>`
+    : html`Off: Grapim keeps the files agents changed, so every run shows its diff. <a class="link" href="/docs/data-handling">What Grapim stores</a>`}${owner ? '' : ' Only an owner can change this.'}</p>
   ${owner && on && files
     ? html`<h3 class="card-title small policy-sub">Delete stored file contents</h3>
-  <p class="fine">The hub still holds ${versions} (${size}) synced before this was on. Deleting them cannot be undone: those runs then show their diff from GitHub, or not at all.</p>
+  <p class="fine">Grapim still holds ${versions} (${size}) from before this was on. Deleting them cannot be undone: those runs then show their diff from GitHub, or not at all.</p>
   <form method="post" action="/hub/teams/${team.id}/code-storage/delete" class="inline-form">
     ${csrfField(csrf)}
     <label class="toggle"><input type="checkbox" name="confirm" value="delete" required> Delete ${versions} for good</label>
@@ -438,7 +438,7 @@ function codeStorageSection({ team, csrf, role, info }) {
     : owner && !on && files
       ? html`<p class="fine">Turning it on does not delete the ${versions} already stored. You can delete them once it is on.</p>`
       : on && !files
-        ? html`<p class="fine">The hub holds no file contents for this team.</p>`
+        ? html`<p class="fine">Grapim holds no code for this team.</p>`
         : ''}
 </section>`;
 }
@@ -523,14 +523,14 @@ function machineCards({ team, role, csrf, tokens, origin, revealed }) {
   <div class="card-head">
     <h2 id="tokens-title" class="card-title">Machine tokens</h2>
   </div>
-  <p class="card-sub">A token lets one machine run <code>grapim sync</code> into this team.${owner ? '' : ' You see your own tokens.'}</p>
+  <p class="card-sub">Each computer that sends agent work to this team uses its own token.${owner ? '' : ' You see your own tokens.'}</p>
   ${revealed?.kind === 'token'
-    ? reveal({ id: 'reveal-token', title: `Token for ${revealed.name}`, value: revealed.value, hint: 'Copy it now. Only a hash is stored, so it cannot be shown again. Put it in GRAPIM_HUB_TOKEN on that machine.' })
+    ? reveal({ id: 'reveal-token', title: `Token for ${revealed.name}`, value: revealed.value, hint: 'Copy it now: Grapim can’t show it again. Set it as GRAPIM_HUB_TOKEN on that computer.' })
     : ''}
   <form method="post" action="/hub/teams/${team.id}/tokens" class="inline-form">
     ${csrfField(csrf)}
     <label class="sr-only" for="token-name">Machine name</label>
-    <input id="token-name" name="name" type="text" maxlength="60" placeholder="Machine name, e.g. alex-macbook" required>
+    <input id="token-name" name="name" type="text" maxlength="60" placeholder="Computer name, e.g. alex-macbook" required>
     <button class="btn" type="submit">Create token</button>
   </form>
   ${tokens.length
@@ -544,7 +544,7 @@ function machineCards({ team, role, csrf, tokens, origin, revealed }) {
     )}
   </ul>`
     : ''}
-  <h3 class="sub-title">Connect a machine</h3>
+  <h3 class="sub-title">Connect a computer</h3>
   ${syncSnippet(origin, newestToken)}
 </section>`;
 }
@@ -552,7 +552,7 @@ function machineCards({ team, role, csrf, tokens, origin, revealed }) {
 function platformCard({ team }) {
   return html`<section class="card" id="platform" aria-labelledby="platform-title">
   <div class="card-head"><h2 id="platform-title" class="card-title">Platform</h2><a class="btn btn-sm" href="/hub/teams/${team.id}/platform">Manage</a></div>
-  <p class="card-sub">API keys, the origins that may embed the review desk, webhooks and usage.</p>
+  <p class="card-sub">API keys, the sites that may embed the review desk, webhooks and usage.</p>
 </section>`;
 }
 
@@ -562,8 +562,8 @@ const SETTINGS_SUBS = {
   rules: (team) => html`Decide which agent runs pass on their own and which need a person. <a class="link" href="/docs/rules">How rules work</a>`,
   github: 'Pull request comments and the Grapim check.',
   notifications: 'Slack messages about agent runs and failed checks.',
-  machines: 'Each machine syncs its agent runs with its own token.',
-  data: 'What the hub keeps, and where.',
+  machines: 'Connect the computers your agents run on.',
+  data: 'What Grapim keeps, and where.',
   plan: 'Your plan, its limits and Ask Grapim credit.',
   platform: 'Workspaces for your own customers, through an API.',
 };

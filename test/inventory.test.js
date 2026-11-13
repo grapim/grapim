@@ -351,7 +351,7 @@ test('the Agents page: members see their team, another team sees nothing of it, 
   // Empty state first.
   const empty = await member.req(`/hub/teams/${team}/agents`);
   assert.equal(empty.status, 200);
-  assert.match(empty.text, /No agent inventory yet/);
+  assert.match(empty.text, /No agents reported yet/);
   assert.match(empty.text, /grapim sync/);
   assert.match(empty.text, /href="\/docs\/inventory"/);
 
@@ -377,8 +377,11 @@ test('the Agents page: members see their team, another team sees nothing of it, 
   assert.match(body, /claude-sonnet-4-5/);
   assert.match(body, /@modelcontextprotocol\/server-github/);
   assert.match(body, /mcp\.linear\.app/);
-  assert.match(body, /<dt>Machines<\/dt><dd class="num">2<\/dd>/);
-  assert.match(body, /<dt>MCP servers<\/dt><dd class="num">3/);
+  assert.match(body, /<dt>Computers<\/dt><dd class="num">2<\/dd>/);
+  assert.match(body, /<dt>Tools and services<\/dt><dd class="num">3/);
+  // Real marks beside the names: Claude Code's, and GitHub's for the github server.
+  assert.match(body, /<svg class="brand-mark"[^>]*aria-hidden="true"[^>]*><path fill="currentColor" d="m4\.7144[^"]*"\/><\/svg><span class="agent-name">Claude Code/);
+  assert.match(body, /<svg class="brand-mark"[^>]*><path fill="currentColor" d="M12 \.297[^"]*"\/><\/svg><span class="strong">github/);
   assert.match(body, /brand-new-srv<\/span><span class="badge badge-pending">New this week/);
   assert.doesNotMatch(body, /github<\/span><span class="badge badge-pending">/, 'the first report is not "new"');
   assert.match(body, /page-member/);

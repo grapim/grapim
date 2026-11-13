@@ -763,7 +763,7 @@ test('require_review: a self-approval is refused, a synced local approval does n
   const own = await alice.post(`${runPath(RUN1)}/decision`, { status: 'approved', machine: 'alice-laptop' });
   assert.equal(own.status, 403, own.text);
   assert.match(own.text, /another member has to review it/);
-  assert.match((await alice.req(`${runPath(RUN1)}?machine=alice-laptop`)).text, /You synced this run/);
+  assert.match((await alice.req(`${runPath(RUN1)}?machine=alice-laptop`)).text, /Your run: a teammate reviews it/);
   assert.throws(() => h.hub.github.reviews.record(A, ROOT, RUN1, 'approved', alice.user.id), { code: 'own_run' });
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM hub_reviews').get().n, 0);
 

@@ -118,34 +118,34 @@ function caveats(list) {
 function coverageLine(name, r) {
   const c = r.coverage;
   const range = html`<span>${shortDay(r.range.from)} – ${shortDay(r.range.to)}</span>`;
-  const repos = (have, of, what) => html`<span><b>${what} from ${n(have)} of ${n(of)} repo${of === 1 ? '' : 's'}</b></span>`;
+  const repos = (have, of, what) => html`<span><b>${what} in ${n(have)} of ${n(of)} repo${of === 1 ? '' : 's'}</b></span>`;
   const parts =
     name === 'agents' || name === 'activity'
-      ? [repos(c.repos_with_runs, c.repos_total, 'Runs'), html`<span>${n(c.rows_scanned)} synced edits</span>`]
-      : [repos(c.repos_with_provenance, c.repos_total, 'Provenance'), html`<span>${n(c.commits)} commit${c.commits === 1 ? '' : 's'}</span>`];
-  if (name === 'agents') parts.push(html`<span>${n(c.commits)} commits with provenance</span>`);
+      ? [repos(c.repos_with_runs, c.repos_total, 'Agent runs'), html`<span>${n(c.rows_scanned)} agent edits</span>`]
+      : [repos(c.repos_with_provenance, c.repos_total, 'Commits recorded'), html`<span>${n(c.commits)} commit${c.commits === 1 ? '' : 's'}</span>`];
+  if (name === 'agents') parts.push(html`<span>${n(c.commits)} recorded commits</span>`);
   return html`<p class="coverage" role="note">${parts}${range}${c.repos_without_provenance?.length && name !== 'agents' && name !== 'activity' ? html`<span class="warn-text">${n(c.repos_without_provenance.length)} not recorded: unknown</span>` : ''}${r.range.clamped ? html`<span class="warn-text">history starts ${shortDay(r.range.history_from)} on this plan</span>` : ''}${c.truncated ? html`<span class="warn-text">partial: a scan cap was hit</span>` : ''}</p>`;
 }
 
 function emptyProvenance(r, team) {
   return html`<div class="empty">
-  <p class="empty-title">No provenance in this range</p>
-  <p class="muted">${r.coverage.repos_total ? `None of the ${r.coverage.repos_total} synced repo${r.coverage.repos_total === 1 ? '' : 's'} uploaded a provenance note for a commit between these dates.` : 'No repos are synced to this team yet.'} Reports read the git notes Grapim writes on every commit.</p>
+  <p class="empty-title">No recorded commits in this range</p>
+  <p class="muted">${r.coverage.repos_total ? `None of the team’s ${r.coverage.repos_total} repo${r.coverage.repos_total === 1 ? '' : 's'} sent a recorded commit between these dates.` : 'This team has no repos yet.'} Reports read the note Grapim adds to each commit, saying which lines an agent wrote.</p>
   <pre class="code" tabindex="0"><code># in each repo, once: installs the commit hooks that write the notes
 grapim init
 
-# commit as usual, then upload runs and notes to the hub
+# commit as usual, then send runs and notes to Grapim
 grapim sync</code></pre>
-  ${r.coverage.repos_total ? '' : html`<p class="fine">Create a machine token in <a href="/hub/teams/${team.id}/settings/machines">Settings</a> first.</p>`}
+  ${r.coverage.repos_total ? '' : html`<p class="fine">Create a token for your computer in <a href="/hub/teams/${team.id}/settings/machines">Settings</a> first.</p>`}
 </div>`;
 }
 
 function emptyRuns(team) {
   return html`<div class="empty">
-  <p class="empty-title">No synced runs in this range</p>
-  <p class="muted">Agent runs reach the hub when a machine syncs. Run this in a repo where Grapim is set up:</p>
+  <p class="empty-title">No agent runs in this range</p>
+  <p class="muted">Agent runs reach Grapim when a computer sends them. Run this in a repo where Grapim is installed:</p>
   <pre class="code" tabindex="0"><code>grapim sync --watch</code></pre>
-  <p class="fine">No machine yet? Create a token in <a href="/hub/teams/${team.id}/settings/machines">Settings</a>.</p>
+  <p class="fine">No computer connected yet? Create a token in <a href="/hub/teams/${team.id}/settings/machines">Settings</a>.</p>
 </div>`;
 }
 
@@ -367,15 +367,15 @@ function teaserBody({ team, role, csrf, teaser, billing, seatsUsed }) {
   <h2 class="card-title" id="teaser-title">Last week · ${shortDay(t.week)} – ${shortDay(t.week_end)}</h2>
   ${has
     ? html`<p class="teaser-big"><span class="teaser-num">${pct(t.share)}</span> of added lines were written by AI agents</p>
-  <p class="muted">${n(t.ai_in_share)} AI lines of ${n(t.added)} added, in ${n(t.commits)} commit${t.commits === 1 ? '' : 's'} with provenance from ${n(t.repos_with_provenance)} of ${n(t.repos_total)} repo${t.repos_total === 1 ? '' : 's'}. ${n(t.human)} human lines.${t.repos_not_recorded ? ` ${n(t.repos_not_recorded)} repo${t.repos_not_recorded === 1 ? ' has' : 's have'} no notes: unknown, not counted.` : ''}</p>`
-    : html`<p class="teaser-big"><span class="teaser-num">–</span> no provenance last week</p>
-  <p class="muted">Run <code>grapim init</code> in each repo so every commit gets a provenance note, then <code>grapim sync</code>. Next week this shows the AI share of your added lines.</p>`}
+  <p class="muted">${n(t.ai_in_share)} AI lines of ${n(t.added)} added, in ${n(t.commits)} recorded commit${t.commits === 1 ? '' : 's'} across ${n(t.repos_with_provenance)} of ${n(t.repos_total)} repo${t.repos_total === 1 ? '' : 's'}. ${n(t.human)} human lines.${t.repos_not_recorded ? ` ${n(t.repos_not_recorded)} repo${t.repos_not_recorded === 1 ? ' has' : 's have'} no notes: unknown, not counted.` : ''}</p>`
+    : html`<p class="teaser-big"><span class="teaser-num">–</span> no recorded commits last week</p>
+  <p class="muted">Run <code>grapim init</code> in each repo so every commit records which lines agents wrote, then <code>grapim sync</code>. Next week this shows how much of your new code came from agents.</p>`}
 </section>
 <section class="card upgrade" aria-labelledby="up-title">
   <div class="card-head"><h2 id="up-title" class="card-title">Governance</h2><span class="price"><b>$40</b> per seat a month, or $384 a year</span></div>
   <p class="card-sub">The record a manager needs before rolling AI agents out wider.</p>
   <ul class="checks">
-    <li><b>Require review</b>: the Grapim GitHub check fails a pull request until a teammate, not the run's author, approves each agent run in the hub, and until every commit is recorded</li>
+    <li><b>Require review</b>: the Grapim GitHub check fails a pull request until a teammate, not the run’s author, approves each agent run, and until every commit is recorded</li>
     <li><b>Unreviewed</b>: AI lines in commits from runs nobody approved</li>
     <li><b>Agents</b>: runs, undo rate, reject rate and median review time per agent</li>
     <li><b>AI share</b> of added lines by week, repo and agent, back 365 days</li>

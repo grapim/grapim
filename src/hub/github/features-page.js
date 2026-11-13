@@ -262,7 +262,7 @@ export function notifyCard({ team, csrf, info }) {
 export function rulesPanel(evaluation) {
   if (!evaluation?.rules?.length) return '';
   return html`<div class="rules-applied">
-  <p class="fine strong">Path rules for this run</p>
+  <p class="fine strong">Approvals this run needs</p>
   <ul class="rule-checks">${evaluation.rules.map(
     (r) => html`<li class="${r.ok ? 'ok' : 'todo'}">${r.ok ? icon('check') : icon('x')}<span><code>${r.pattern}</code> (changed <code>${r.path}</code>) needs ${plural(r.approvals, 'approval')}${r.approvers.length ? ` from ${r.approvers.map((a) => a.login).join(', ')}` : ''}. ${r.ok ? html`Met by ${r.have.join(', ')}.` : html`${r.have.length ? `Has ${r.have.join(', ')}; ` : ''}<b>${plural(r.need, 'more approval')} needed</b>${r.approvers.length ? `, from ${r.approvers.filter((a) => !r.have.includes(a.login)).map((a) => a.login).join(' or ')}` : ''}.`}</span></li>`,
   )}</ul>

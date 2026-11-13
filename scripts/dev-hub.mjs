@@ -36,6 +36,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHub } from '../src/hub/server.js';
 import { DAY, MIN, seedTeamExtras } from '../src/hub/demo-seed.js';
+import { storeInventory } from '../src/hub/inventory.js';
 import { demoBrain, startFakeAnthropic } from './fake-anthropic.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -109,6 +110,23 @@ async function seedMore() {
     installation: { id: 77001, accountId: 9001, login: 'acme-co' },
     now,
   });
+
+  // The Agents page: what each machine reported on its last sync. One
+  // server first seen this week, after the first inventory, so it shows as new.
+  const shop = db.prepare("SELECT id FROM repos WHERE team_id = ? AND name LIKE '%shop-api'").get(TEAM)?.id;
+  if (shop) {
+    const gh = { agent: 'claude', name: 'github', transport: 'http', host: 'api.githubcopilot.com', scope: 'user' };
+    const pg = { agent: 'claude', name: 'postgres', transport: 'stdio', command: 'npx', package: '@modelcontextprotocol/server-postgres', scope: 'project' };
+    const stripe = { agent: 'cursor', name: 'stripe', transport: 'http', host: 'mcp.stripe.com', scope: 'user' };
+    const linear = { agent: 'codex', name: 'linear', transport: 'sse', host: 'mcp.linear.app', scope: 'user' };
+    const machinesInv = [
+      ['dana-mbp', 1001, [{ agent: 'claude', version: '2.1.4', models: ['claude-opus-4-5'] }, { agent: 'cursor', version: '1.7.2', models: ['claude-sonnet-4-5'] }], [gh, pg, stripe]],
+      ['sam-linux', 1002, [{ agent: 'claude', version: '2.1.2', models: ['claude-sonnet-4-5'] }, { agent: 'codex', version: '0.46.0', models: ['gpt-5-codex'] }], [gh, linear]],
+      ['priya-mbp', 1003, [{ agent: 'claude', version: '2.1.4', models: ['claude-opus-4-5'] }, { agent: 'gemini', version: '0.9.0', models: ['gemini-2.5-pro'] }, { agent: 'cursor', version: '1.7.2', models: [] }], [gh, pg]],
+    ];
+    for (const [machine, userId, agents, mcp] of machinesInv) storeInventory(db, TEAM, shop, machine, userId, { agents, mcp }, now - 20 * DAY);
+    storeInventory(db, TEAM, shop, 'dana-mbp', 1001, { agents: machinesInv[0][2], mcp: [gh, pg, stripe, { agent: 'claude', name: 'sentry', transport: 'http', host: 'mcp.sentry.dev', scope: 'user' }] }, now - 2 * DAY);
+  }
 
   // Slack, as if a test message just went through.
   hub.notify.save(TEAM, 'https://hooks.slack.com/services/T0DEMO1234/B0DEMO5678/demoDemoDemoDemoDemo8f2c', 1001);

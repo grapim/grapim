@@ -447,11 +447,11 @@ test('every report page renders, with charts, tables and empty states that say w
   const B = await createTeam(alice, 'Empty Co');
   h.hub.db.prepare("UPDATE teams SET plan = 'governance' WHERE id = ?").run(B);
   const ai = (await alice.req(`/hub/teams/${B}/reports/ai-share`)).text;
-  assert.match(ai, /No provenance in this range/);
+  assert.match(ai, /No recorded commits in this range/);
   assert.match(ai, /grapim init/);
   assert.match(ai, /grapim sync/);
   const act = (await alice.req(`/hub/teams/${B}/reports/activity`)).text;
-  assert.match(act, /No synced runs in this range/);
+  assert.match(act, /No agent runs in this range/);
   assert.match(act, /grapim sync --watch/);
 });
 

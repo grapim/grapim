@@ -184,7 +184,7 @@ test('metadata mode: ingest keeps hashes and metadata, never file contents, and 
   // Off by default: the card says so, and contents are kept.
   const settings = await alice.req(`/hub/teams/${A}/settings/data`);
   assert.match(settings.text, /id="code-storage"/);
-  assert.match(settings.text, /never stores file contents/);
+  assert.match(settings.text, /never the code itself/);
   assert.doesNotMatch(settings.text, /style="|<script>/);
 
   const on = await alice.post(`/hub/teams/${A}/code-storage`, { mode: 'metadata' });
@@ -269,7 +269,7 @@ test('delete stored contents: owner only, needs the mode on and a confirmation, 
   assert.equal(blobsOf(h, B), 2, "another team's contents are untouched");
   assert.equal(usageOf(h, B), usedB);
   assert.equal(h.hub.db.prepare('SELECT COUNT(*) AS n FROM h_changes WHERE team_id = ?').get(A).n, 1, 'run metadata stays');
-  assert.match((await owner.req(`/hub/teams/${A}/settings/data?done=contents_deleted`)).text, /holds no file contents/);
+  assert.match((await owner.req(`/hub/teams/${A}/settings/data?done=contents_deleted`)).text, /Grapim holds no code for this team/);
 
   // Turning it off again works, and new syncs keep contents again.
   assert.match((await owner.post(`/hub/teams/${A}/code-storage`, { mode: 'full' })).location, /done=code_storage_off/);
@@ -289,7 +289,7 @@ test('the run page and the run API without contents: a clear state, no crash', a
 
   const page = await alice.req(`/hub/teams/${A}/repos/${REPO_ID}/runs/${encodeURIComponent(RUN)}?machine=alex-mbp`);
   assert.equal(page.status, 200, page.text);
-  assert.match(page.text, /File contents stay on the developer&#39;s machine|File contents stay on the developer's machine/);
+  assert.match(page.text, /The code stays on the developer’s computer/);
   assert.match(page.text, /<code>grapim serve<\/code> on alex-mbp/);
   assert.match(page.text, /src\/app\.js/);
   assert.doesNotMatch(page.text, /Binary or large/);
@@ -315,7 +315,7 @@ test('live diff: read from GitHub for the run\'s commits with the installation t
 
   const runPath = `/hub/teams/${A}/repos/${REPO_ID}/runs/${encodeURIComponent(RUN)}?machine=alex-mbp`;
   // Not linked to the App yet: the local-only state, and GitHub is not called.
-  assert.match((await alice.req(runPath)).text, /File contents stay on the developer/);
+  assert.match((await alice.req(runPath)).text, /The code stays on the developer/);
   assert.equal(h.gh.s.requests.filter((x) => x.includes('/commits/')).length, 0);
 
   // Link an installation that can read acme/api (as the App's link flow would).
@@ -329,9 +329,9 @@ test('live diff: read from GitHub for the run\'s commits with the installation t
   const page = await alice.req(runPath);
   assert.equal(page.status, 200, page.text);
   assert.match(page.text, /loadFromVault/, 'the diff from GitHub is shown');
-  assert.match(page.text, new RegExp(`From commit <code>${COMMIT.slice(0, 7)}</code>, read from GitHub for this view and not saved`));
+  assert.match(page.text, new RegExp(`From commit <code>${COMMIT.slice(0, 7)}</code>, loaded from GitHub just for this page`));
   assert.doesNotMatch(page.text, /not this run/, 'only the run\'s files');
-  assert.doesNotMatch(page.text, /File contents stay on the developer/);
+  assert.doesNotMatch(page.text, /The code stays on the developer/);
   assert.ok(h.gh.s.requests.includes(`GET /repos/acme/api/commits/${COMMIT}`));
   assert.ok(h.gh.s.requests.some((x) => x === 'POST /app/installations/77/access_tokens'));
   assert.doesNotMatch(dump(h.hub.db), /loadFromVault/, 'nothing of the diff is stored');
@@ -346,7 +346,7 @@ test('live diff: read from GitHub for the run\'s commits with the installation t
   h.gh.s.commits.clear();
   const down = await alice.req(runPath);
   assert.equal(down.status, 200);
-  assert.match(down.text, /File contents stay on the developer/);
+  assert.match(down.text, /The code stays on the developer/);
 });
 
 test('patchHunks and runCommits: GitHub patches as hub hunks; only commits whose note names the run', () => {

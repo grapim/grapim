@@ -10,11 +10,13 @@ import { icon } from './icons.js';
 import { agent, delta, phoneMeta, plural, reviewBadge } from './parts.js';
 import { kindOf } from '../reports/notes.js';
 
-const IN_TREE = { all: ['In tree', 'ok'], some: ['Partly in tree', 'warn'], none: ['Not in tree', 'muted'] };
+// Whether a run's lines are still in the code: plain text with a dot, not a
+// badge, so the review state stays the one thing that stands out in a row.
+const IN_TREE = { all: ['In the code', 'ok'], some: ['Partly in the code', 'warn'], none: ['No longer in the code', 'muted'] };
 
 function treeBadge(v) {
-  const [label, tone] = IN_TREE[v] ?? ['Tree state unknown', 'muted'];
-  return html`<span class="badge badge-outline badge-${tone}">${label}</span>`;
+  const [label, tone] = IN_TREE[v] ?? ['Unknown', 'muted'];
+  return html`<span class="tree tree-${tone}"><span class="tree-dot" aria-hidden="true"></span>${label}</span>`;
 }
 
 // review: Map(run -> { status, stale, ... }) from the hub's reviews, or empty.
@@ -43,13 +45,13 @@ export function repoPage({ user, csrf, team, repo, overview, runs, reviews = new
     crumbs: [{ label: 'Repos', href: `/hub/teams/${team.id}/repos` }, { label: repo.name }],
     body: html`<header class="page-head">
   <div class="page-head-main">
-    <h1>${repo.name} <span class="sha mono">${repo.id.slice(0, 7)}</span></h1>
-    <p class="page-sub">${plural(overview.counts.runs, 'run')} in the history window · ${plural(overview.counts.agents, 'agent')} active in the last hour</p>
+    <h1>${repo.name}</h1>
+    <p class="page-sub">${plural(overview.counts.runs, 'agent run')} · ${overview.counts.agents ? `${plural(overview.counts.agents, 'agent')} working now` : 'no agent working now'}</p>
   </div>
 </header>
 ${overview.agents.length
   ? html`<section class="panel" aria-labelledby="active-title">
-  <div class="panel-head"><h2 id="active-title" class="panel-title">Active now <span class="num muted">${overview.agents.length}</span></h2></div>
+  <div class="panel-head"><h2 id="active-title" class="panel-title">Working now <span class="num muted">${overview.agents.length}</span></h2></div>
   <ul class="plain-list">
   ${overview.agents.map(
     (a) => html`<li class="plain-row"><span class="live" aria-hidden="true"></span><span class="plain-main">${agent(a.label, kindOf(a.agent))}<span class="muted small truncate" title="${a.intent || ''}">${a.intent || ''}</span></span><span class="muted small hide-sm">${a.machine}${a.worktree ? ` · ${a.worktree}` : ''}</span>${time(a.last_seen)}</li>`,
@@ -61,7 +63,7 @@ ${runs.length
   ? html`<div class="table-wrap">
 <table class="table">
   <caption class="sr-only">Agent runs in ${repo.name}, newest first</caption>
-  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Machine</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num hide-sm">Lines</th><th scope="col" class="hide-sm">In tree</th><th scope="col" class="hide-sm">Review</th><th scope="col">Last change</th></tr></thead>
+  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Computer</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num hide-sm">Lines</th><th scope="col" class="hide-sm">Still in code</th><th scope="col" class="hide-sm">Review</th><th scope="col">Last change</th></tr></thead>
   <tbody>
   ${runs.map(
     (r) => html`<tr>
@@ -78,7 +80,7 @@ ${runs.length
 </table>
 </div>
 ${pager(base, page)}`
-  : html`<div class="empty"><p class="empty-title">No runs in the history window</p><p class="muted">Runs appear here once a connected machine syncs agent edits.</p></div>`}`,
+  : html`<div class="empty"><p class="empty-title">No agent runs yet</p><p class="muted">Agent work in this repo shows up here once a teammate’s computer sends it.</p></div>`}`,
   });
 }
 
@@ -102,7 +104,7 @@ function diffTable(d) {
 </table></div>`;
 }
 
-const STATE = { in_tree: ['In tree', 'ok'], partial: ['Partly in tree', 'warn'], gone: ['Not in tree', 'muted'] };
+const STATE = { in_tree: ['In the code', 'ok'], partial: ['Partly in the code', 'warn'], gone: ['No longer in the code', 'muted'] };
 const fileId = (p) => `file-${p.replace(/[^a-zA-Z0-9]+/g, '-')}`;
 
 // The hub review of a run (docs/provenance.md section 6): the only approval
@@ -114,7 +116,7 @@ function reviewState(review) {
 }
 
 function reviewActions({ review, state }) {
-  if (review.mine) return html`<span class="muted small">You synced this run</span>`;
+  if (review.mine) return html`<span class="muted small">Your run: a teammate reviews it</span>`;
   return html`<button class="btn ${state === 'approved' ? '' : 'btn-primary'}" type="submit" form="review-form" name="status" value="approved">${icon('check')}Approve</button>
     <button class="btn btn-danger" type="submit" form="review-form" name="status" value="rejected">${icon('x')}Reject</button>`;
 }
@@ -127,9 +129,9 @@ function reviewPanel({ csrf, team, repo, run, review }) {
   <div class="panel-body">
   ${review.done ? html`<p class="notice" role="status">${review.done === 'approved' ? 'Approved.' : 'Rejected.'} Open pull requests with this run are checked again.</p>` : ''}
   <p>${h
-    ? html`${h.status === 'approved' ? 'Approved' : 'Rejected'} by <span class="strong">${h.reviewer_login || 'a member'}</span>${h.via === 'github' ? ' from the GitHub check' : ''} ${time(h.reviewed_at)}${h.note ? html`: ${h.note}` : ''}.${h.stale ? ' The run changed after that, so it needs a new review.' : ''}`
-    : 'Nobody has reviewed this run in the hub yet.'}
-  ${review.enforced && !(h && h.status === 'approved' && !h.stale && (!review.rules || review.rules.ok)) ? ' Pull requests with its lines fail the Grapim check until it is approved here.' : ''}</p>
+    ? html`${h.status === 'approved' ? 'Approved' : 'Rejected'} by <span class="strong">${h.reviewer_login || 'a member'}</span>${h.via === 'github' ? ' from the GitHub check' : ''} ${time(h.reviewed_at)}${h.note ? html`: ${h.note}` : ''}.${h.stale ? ' The agent changed more since then, so it needs a new review.' : ''}`
+    : 'Not reviewed yet.'}
+  ${review.enforced && !(h && h.status === 'approved' && !h.stale && (!review.rules || review.rules.ok)) ? ' Pull requests that include it fail the Grapim check until it is approved here.' : ''}</p>
   ${review.rulesHtml ?? ''}
   ${review.pulls.length
     ? html`<p class="pulls">${icon('pr')}<span>In pull requests: ${review.pulls.map((p, i) => {
@@ -137,14 +139,14 @@ function reviewPanel({ csrf, team, repo, run, review }) {
         return html`${i ? ', ' : ''}${url ? html`<a class="link mono" href="${url}" rel="noopener noreferrer">${p.owner}/${p.name}#${p.number}</a>` : html`<code>${p.owner}/${p.name}#${p.number}</code>`}`;
       })}</span></p>`
     : ''}
-  ${review.local && review.local.status !== 'pending' ? html`<p class="fine">${review.local.status === 'approved' ? 'Approved' : 'Rejected'} locally by ${review.local.login || review.local.machine} with <code>grapim review</code>. Shown for information: it does not count for the policy.</p>` : ''}
-  <p class="fine">Synced by ${review.owners.length ? review.owners.join(', ') : 'nobody'}. The person who synced a run cannot review it.</p>
+  ${review.local && review.local.status !== 'pending' ? html`<p class="fine">${review.local.status === 'approved' ? 'Approved' : 'Rejected'} by ${review.local.login || review.local.machine} on their own computer, with <code>grapim review</code>. That does not count; only a review here does.</p>` : ''}
+  <p class="fine">From ${review.owners.length ? `${review.owners.join(', ')}’s computer` : 'an unknown computer'}. Nobody can review their own run.</p>
   ${review.mine
-    ? html`<p class="muted small">You synced this run, so another member has to review it. No one else in the team yet? <a class="link" href="/hub/teams/${team.id}/settings/members">Invite a teammate</a>.</p>`
+    ? html`<p class="muted small">This is your run, so a teammate has to review it. Nobody else on the team yet? <a class="link" href="/hub/teams/${team.id}/settings/members">Invite a teammate</a>.</p>`
     : html`<form method="post" action="${action}" class="review-form" id="review-form">
     ${csrfField(csrf)}
     <input type="hidden" name="machine" value="${run.machine}">
-    <label for="review-note">Note (optional), sent with Approve or Reject</label>
+    <label for="review-note">Note for the team (optional)</label>
     <textarea id="review-note" name="note" maxlength="1000" rows="2"></textarea>
   </form>`}
   </div>
@@ -157,11 +159,11 @@ function notStored(f, r, live) {
   const parts = live?.files?.get(f.path);
   if (parts?.length) {
     return parts.map(
-      (p) => html`<p class="file-note">From commit <code>${p.sha.slice(0, 7)}</code>, read from GitHub for this view and not saved. The commit can include lines this run did not write.</p>
+      (p) => html`<p class="file-note">From commit <code>${p.sha.slice(0, 7)}</code>, loaded from GitHub just for this page. The commit can include lines this run did not write.</p>
   ${p.hunks.length ? diffTable(p) : html`<p class="file-note">No change to this file in that commit.</p>`}`,
     );
   }
-  return html`<p class="file-note">File contents stay on the developer's machine. Run <code>grapim serve</code> on ${r.machine} to see the diff in the review desk.</p>`;
+  return html`<p class="file-note">The code stays on the developer’s computer. Run <code>grapim serve</code> on ${r.machine} to see this diff.</p>`;
 }
 
 export function runPage({ user, csrf, team, repo, detail, review = null, live = null }) {
@@ -190,18 +192,18 @@ export function runPage({ user, csrf, team, repo, detail, review = null, live = 
 <div class="run-meta">
   ${agent(r.label, kindOf(r.run))}
   <span>${r.machine}${r.worktree ? ` · ${r.worktree}` : ''}</span>
-  <span>${plural(r.turns, 'turn')}${detail.turns.length && detail.turns.length < r.turns ? `, ${detail.turns.length} with edits` : ''}</span>
+  <span>${plural(r.turns, 'prompt')}${detail.turns.length && detail.turns.length < r.turns ? `, ${detail.turns.length} with edits` : ''}</span>
   <span>${plural(r.files, 'file')} ${delta(r.added, r.removed)}</span>
   <span>last edit ${time(r.last_ts)}</span>
   ${treeBadge(r.in_tree)}
-  ${r.active ? html`<span class="badge badge-pending"><span class="live" aria-hidden="true"></span>Active</span>` : ''}
+  ${r.active ? html`<span class="run-live"><span class="live" aria-hidden="true"></span>Working now</span>` : ''}
 </div>
-<p class="fine">Undo runs on the machine that made the edits: <code>grapim undo ${r.run.split(':').pop().slice(0, 8)}</code> on ${r.machine}. The hub never changes code.</p>
+<p class="fine run-undo">A run is one agent session. Grapim never changes your code; to undo this run, use <code>grapim undo ${r.run.split(':').pop().slice(0, 8)}</code> on ${r.machine}.</p>
 ${review ? reviewPanel({ csrf, team, repo, run: r, review }) : ''}
 ${detail.turns.length
   ? html`<section aria-labelledby="turns-title">
-  <h2 id="turns-title" class="section-title">Turns <span class="num muted">${detail.turns.length}</span></h2>
-  <ol class="panel turns" aria-label="Turns">
+  <h2 id="turns-title" class="section-title">Prompts <span class="num muted">${detail.turns.length}</span></h2>
+  <ol class="panel turns" aria-label="Prompts">
   ${detail.turns.map(
     (t) => html`<li>
     <span class="turn-n">${t.turn}</span>
@@ -228,14 +230,14 @@ ${detail.turns.length
       : ''}
     <div class="file-list">
     ${detail.files.map((f) => {
-      const [label, tone] = STATE[f.state] ?? ['Tree state unknown', 'muted'];
+      const [label, tone] = STATE[f.state] ?? ['Unknown', 'muted'];
       return html`<details class="file panel" id="${fileId(f.path)}" open>
   <summary class="file-head">
     ${icon('chev', 'chev')}
     <span class="file-path" title="${f.path}">${f.path}</span>
-    <span class="file-meta">${f.diff || f.content === 'not_stored' ? delta(f.added, f.removed) : html`<span class="badge badge-outline">Binary or large</span>`} <span class="badge badge-outline badge-${tone}">${label}</span></span>
+    <span class="file-meta">${f.diff || f.content === 'not_stored' ? delta(f.added, f.removed) : html`<span class="muted small">Binary or large</span>`} <span class="tree tree-${tone}"><span class="tree-dot" aria-hidden="true"></span>${label}</span></span>
   </summary>
-  ${f.diff ? (f.diff.hunks.length ? diffTable(f.diff) : html`<p class="file-note">No net change.</p>`) : f.content === 'not_stored' ? notStored(f, r, live) : html`<p class="file-note">Content not kept (binary or over 2 MB).</p>`}
+  ${f.diff ? (f.diff.hunks.length ? diffTable(f.diff) : html`<p class="file-note">No net change.</p>`) : f.content === 'not_stored' ? notStored(f, r, live) : html`<p class="file-note">Not shown: a binary file, or over 2 MB.</p>`}
 </details>`;
     })}
     </div>

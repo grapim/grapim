@@ -2,13 +2,21 @@
 // +/- counts, run links, empty states and code blocks. They match the review
 // desk's (ui/views/shared.js) so a run reads the same in both.
 
+import { agentInfo, brandMark } from './brands.js';
 import { html } from './html.js';
 
 const KINDS = new Set(['claude-code', 'codex', 'cursor', 'mcp', 'http']);
 export const kindClass = (k) => `k-${KINDS.has(k) ? k : 'other'}`;
 
-// An agent: a colour swatch for its kind, then its label. Never colour alone.
-export const agent = (label, kind) => html`<span class="agent"><span class="swatch ${kindClass(kind)}" aria-hidden="true"></span><span class="agent-name">${label}</span></span>`;
+// An agent: its brand mark and product name (Claude Code, Cursor), or for
+// an agent without a mark (Codex, a workspace sandbox, another MCP client)
+// the name alone. The run's own label ("claude 7f3e21aa") stays in the title.
+export const agent = (label, kind) => {
+  const info = agentInfo(kind);
+  if (!info) return html`<span class="agent"><span class="agent-name">${label}</span></span>`;
+  const [name, mark] = info;
+  return html`<span class="agent" title="${label}">${brandMark(mark)}<span class="agent-name">${name}</span></span>`;
+};
 
 // Hub review state of a synced run. status: pending | stale | approved | rejected.
 const REVIEW = { pending: ['Needs review', 'pending'], stale: ['Changed since review', 'warn'], approved: ['Approved', 'ok'], rejected: ['Rejected', 'danger'] };

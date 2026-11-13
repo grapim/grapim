@@ -296,7 +296,7 @@ export function errorPage({ status, message, user = null, csrf = null }) {
   const heading = { 400: 'That did not work', 402: 'Plan limit reached', 403: 'Not allowed', 404: 'Not found', 409: 'Cannot do that yet', 410: 'Link no longer valid', 413: 'Too large', 429: 'Slow down' }[status] ?? 'Something went wrong';
   // A bare "Not found." under the heading "Not found" says nothing: say what it means.
   const bare = !message || String(message).replace(/[.\s]+$/, '').toLowerCase() === heading.toLowerCase();
-  const fallback = { 404: 'This page does not exist, or it belongs to a team you are not in.', 403: 'Your account cannot open this page.', 429: 'Too many requests in a short time. Wait a minute and try again.' }[status] ?? 'The hub could not finish that. Try again in a moment.';
+  const fallback = { 404: 'This page does not exist, or it belongs to a team you are not in.', 403: 'Your account cannot open this page.', 429: 'Too many requests in a short time. Wait a minute and try again.' }[status] ?? 'Grapim couldn’t finish that. Try again in a moment.';
   return layout({
     title: heading,
     user,

@@ -310,6 +310,18 @@ form { margin: 0; }
 .agent { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
 .agent-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; flex: none; }
+/* A real brand mark (brands.js) beside an agent or service name, in the text colour. */
+.brand-mark { width: 16px; height: 16px; flex: none; color: var(--text); }
+.run-sub .brand-mark, .item-meta .brand-mark { color: var(--text-2); }
+
+/* Whether a run's lines are still in the code: a dot and words, quieter than a badge. */
+.tree { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--text-2); white-space: nowrap; }
+.tree-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); flex: none; }
+.tree-ok .tree-dot { background: var(--ok-text); }
+.tree-warn .tree-dot { background: var(--warn-text); }
+.tree-muted { color: var(--text-3); }
+.run-undo code { white-space: nowrap; }
+.run-live { display: inline-flex; align-items: center; gap: 6px; color: var(--add-text); font-weight: 500; }
 
 .notice { padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border); margin-bottom: 16px; color: var(--text-2); }
 .notice-error { background: var(--danger-bg); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); color: var(--text); }
@@ -977,6 +989,8 @@ input[aria-invalid="true"] { border-color: var(--danger); }
 /* Sidebar top: the Grapim mark (all teams) and the team you are in, which
    switches teams, the way Vercel and Linear lead with the workspace. */
 .brand-row { display: flex; align-items: center; gap: 2px; min-width: 0; flex: 1; }
+/* Before sidebar.js wraps it in .side-head it sits in the column: it must not grow. */
+.side > .brand-row { flex: none; }
 .brand-mark-only { width: 32px; height: 32px; padding: 0; justify-content: center; }
 .brand-mark-only:hover { background: var(--surface-2); }
 .team-switch { position: relative; min-width: 0; flex: 1; }
@@ -1094,9 +1108,12 @@ main.wrap { container-type: inline-size; }
   .print-page tr { break-inside: avoid; }
 }
 
-/* Agents (the agent inventory): versions and models as chips; columns that
-   matter least drop out by the page's own width, so it fits beside Ask Grapim. */
-.inv-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+/* Agents (the agent inventory): versions and models as plain lists; columns
+   that matter least drop out by the page's own width, so it fits beside Ask Grapim. */
+.inv-list { color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* A list breaks between items, never inside a version or model name. */
+.inv-table td.wrap .inv-list > span { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+.inv-table td.wrap:has(.inv-list) { min-width: 160px; }
 .inv-name { display: inline-flex; align-items: center; gap: 8px; }
 .inv-new { font-weight: 400; font-size: var(--fs-12); }
 .inv-table td.truncate { max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
