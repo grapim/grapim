@@ -94,7 +94,8 @@ function actionOf(now, end) {
 function planFile(store, f, mine) {
   const segs = segments(history(store, f.root, f.path_key), mine);
   const now = snapshot(path.join(f.root, f.path));
-  const item = { path: f.path, root: f.root, path_key: f.path_key, now };
+  // via: the shell command of the run's last change to the file, when it was one.
+  const item = { path: f.path, root: f.root, path_key: f.path_key, now, via: f.via ?? null };
   if (segs.some((s) => s.untracked) || (now.sha !== null && !now.buf)) return { ...item, ...conflict('binary or over 2 MB: content was not recorded') };
   let state = now;
   for (const s of segs) {

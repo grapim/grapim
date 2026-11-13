@@ -4,12 +4,16 @@
 // without the agent having to cooperate (research/cli-release-2026-11.md):
 //
 //   Claude Code  .claude/settings.local.json  SessionStart, UserPromptSubmit,
-//                PreToolUse + PostToolUse (Edit|Write|MultiEdit|NotebookEdit), SessionEnd
-//   Codex CLI    .codex/hooks.json            the same events; edits arrive as apply_patch.
+//                PreToolUse + PostToolUse (Edit|Write|MultiEdit|NotebookEdit|Bash),
+//                PostToolUseFailure (Bash), SessionEnd
+//   Codex CLI    .codex/hooks.json            the same events (no PostToolUseFailure);
+//                edits arrive as apply_patch, shell commands as Bash.
 //                Codex runs project hooks only once the user trusts them (/hooks).
 //   Cursor       .cursor/hooks.json           beforeSubmitPrompt, afterFileEdit, sessionEnd
 //   Gemini CLI   .gemini/settings.json        SessionStart, BeforeAgent,
-//                BeforeTool + AfterTool (write_file|replace), SessionEnd
+//                BeforeTool + AfterTool (write_file|replace|run_shell_command), SessionEnd
+//   Shell commands (Bash, run_shell_command) are recorded by comparing the
+//   worktree before and after them (src/shell.js). Cursor's are not.
 //
 // Existing config is merged, never replaced: other hooks and settings stay,
 // and our own entries are found by their command and rewritten in place, so a
@@ -26,9 +30,9 @@ export const AGENTS = Object.freeze(['claude', 'codex', 'cursor', 'gemini']);
 
 export const NAMES = Object.freeze({ claude: 'Claude Code', codex: 'Codex CLI', cursor: 'Cursor', gemini: 'Gemini CLI' });
 
-const CLAUDE_EDITS = 'Edit|Write|MultiEdit|NotebookEdit';
-const CODEX_EDITS = 'apply_patch|Edit|Write';
-const GEMINI_EDITS = 'write_file|replace';
+const CLAUDE_EDITS = 'Edit|Write|MultiEdit|NotebookEdit|Bash';
+const CODEX_EDITS = 'apply_patch|Edit|Write|Bash';
+const GEMINI_EDITS = 'write_file|replace|run_shell_command';
 
 // Where each agent leaves a trace: in the repo, then in the home directory.
 const TRACES = {
@@ -119,7 +123,7 @@ const SETUPS = {
     apply(data, bin) {
       data.hooks = data.hooks && typeof data.hooks === 'object' ? data.hooks : {};
       const entry = { type: 'command', command: hookCommand(bin), timeout: 20 };
-      mergeGrouped(data.hooks, { SessionStart: null, UserPromptSubmit: null, PreToolUse: CLAUDE_EDITS, PostToolUse: CLAUDE_EDITS, SessionEnd: null }, entry);
+      mergeGrouped(data.hooks, { SessionStart: null, UserPromptSubmit: null, PreToolUse: CLAUDE_EDITS, PostToolUse: CLAUDE_EDITS, PostToolUseFailure: 'Bash', SessionEnd: null }, entry);
     },
   },
   codex: {

@@ -278,7 +278,7 @@ const planJson = (plan) => ({
   run: plan.run.run,
   label: plan.run.label,
   turn: plan.turn,
-  files: plan.files.map((f) => ({ path: f.path, root: f.root, action: f.action, reason: f.reason ?? null })),
+  files: plan.files.map((f) => ({ path: f.path, root: f.root, action: f.action, reason: f.reason ?? null, via: f.via ?? null })),
 });
 
 async function undoCmd(store, rest, flags, agent) {

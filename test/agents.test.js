@@ -84,7 +84,7 @@ test('with no agent found, init sets up Claude Code and says how to choose', asy
   assert.match(r.out, /grapim sync --watch/);
   assert.ok(!fs.existsSync(path.join(dir, '.cursor')));
   const s = readJson(dir, '.claude/settings.local.json');
-  assert.equal(s.hooks.PreToolUse[0].matcher, 'Edit|Write|MultiEdit|NotebookEdit');
+  assert.equal(s.hooks.PreToolUse[0].matcher, 'Edit|Write|MultiEdit|NotebookEdit|Bash');
   assert.equal(s.hooks.PreToolUse[0].hooks[0].command, 'node "/opt/grapim/bin/grapim.js" hook');
 });
 
@@ -113,12 +113,12 @@ test('init sets up each agent the way it reads hooks, keeps what was there, and 
   assert.equal(gemini.theme, 'Dracula');
   assert.equal(gemini.hooks.BeforeTool.length, 2);
   assert.equal(gemini.hooks.BeforeTool[0].hooks[0].command, 'audit.sh');
-  assert.deepEqual(gemini.hooks.BeforeTool[1], { matcher: 'write_file|replace', hooks: [{ name: 'grapim', type: 'command', command: 'node "/opt/grapim/bin/grapim.js" hook --from gemini', timeout: 20000 }] });
+  assert.deepEqual(gemini.hooks.BeforeTool[1], { matcher: 'write_file|replace|run_shell_command', hooks: [{ name: 'grapim', type: 'command', command: 'node "/opt/grapim/bin/grapim.js" hook --from gemini', timeout: 20000 }] });
   assert.deepEqual(Object.keys(gemini.hooks).sort(), ['AfterTool', 'BeforeAgent', 'BeforeTool', 'SessionEnd', 'SessionStart']);
 
   const codex = readJson(dir, '.codex/hooks.json');
   assert.equal(codex.hooks.PreToolUse[0].hooks[0].command, 'policy.py');
-  assert.equal(codex.hooks.PreToolUse[1].matcher, 'apply_patch|Edit|Write');
+  assert.equal(codex.hooks.PreToolUse[1].matcher, 'apply_patch|Edit|Write|Bash');
   assert.equal(codex.hooks.SessionEnd[0].hooks[0].timeout, 3, 'Codex caps SessionEnd hooks at 3 s');
 
   const before = Object.fromEntries(['.claude/settings.local.json', '.codex/hooks.json', '.cursor/hooks.json', '.gemini/settings.json'].map((f) => [f, fs.readFileSync(path.join(dir, f), 'utf8')]));
