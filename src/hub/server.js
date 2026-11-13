@@ -249,12 +249,25 @@ export async function createHub(options = {}) {
         // revalidation a 304 with no body.
         let tag = staticTags.get(pathname);
         if (!tag) staticTags.set(pathname, (tag = `"${crypto.createHash('sha1').update(body).digest('base64url').slice(0, 16)}"`));
-        const cache = /^(image|font)\//.test(type) ? 'public, max-age=86400' : 'public, max-age=300';
-        if (req.headers['if-none-match'] === tag) {
+        const cache = /^(image|font|video)\//.test(type) ? 'public, max-age=86400' : 'public, max-age=300';
+        // Video is fetched in byte ranges (Safari will not play it otherwise).
+        const range = type.startsWith('video/') && /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? '');
+        if (range && (range[1] || range[2])) {
+          const size = body.length;
+          const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+          const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+          if (start >= size || start > end) {
+            res.writeHead(416, { 'Content-Range': `bytes */${size}` });
+            res.end();
+          } else {
+            res.writeHead(206, { 'Content-Type': type, 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes', 'Cache-Control': cache, ETag: tag });
+            res.end(req.method === 'HEAD' ? undefined : body.subarray(start, end + 1));
+          }
+        } else if (req.headers['if-none-match'] === tag) {
           res.writeHead(304, { ETag: tag, 'Cache-Control': cache });
           res.end();
         } else {
-          res.writeHead(200, { 'Content-Type': type, 'Content-Length': body.length, 'Cache-Control': cache, ETag: tag });
+          res.writeHead(200, { 'Content-Type': type, 'Content-Length': body.length, 'Cache-Control': cache, ETag: tag, ...(type.startsWith('video/') ? { 'Accept-Ranges': 'bytes' } : {}) });
           res.end(body);
         }
         ctx.routeName = 'static';

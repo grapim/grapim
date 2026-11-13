@@ -34,7 +34,7 @@ To undo a single prompt of a run, add `--turn 2`.
 
 - For each file the run touched, it removes that run's edits and keeps the edits other agents and people made afterwards (with `git merge-file`, so git must be on your PATH).
 - A file the run created, and nobody changed since, is deleted. A file the run deleted is restored.
-- This includes files the run's shell commands changed, created, moved or deleted (an `rm`, `mv`, `sed -i`, a formatter or a codegen script), for Claude Code, Codex and Gemini CLI set up with `grapim init`. The plan names the command: `restore  src/old.js  deleted by this run (via shell: rm src/old.js)`.
+- This includes files the run's shell commands changed, created, moved or deleted (an `rm`, `mv`, `sed -i`, a formatter or a codegen script), for Claude Code, Codex, Cursor and Gemini CLI set up with `grapim init`. The plan names the command: `restore  src/old.js  deleted by this run (via shell: rm src/old.js)`.
 - If someone else has since edited the same or neighbouring lines, that file is left alone and undo says so. The other files still go ahead.
 - A file another agent is editing right now is skipped.
 - The undo is recorded as a run of its own, so blame stays right and the undo itself can be undone.

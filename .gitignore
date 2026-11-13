@@ -3,3 +3,5 @@ node_modules/
 .grapim/
 .e2e-path
 outreach/
+video/build/
+video/out/

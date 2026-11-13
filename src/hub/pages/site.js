@@ -268,6 +268,17 @@ ${siteBar({ current: 'home' })}
   </figure>
 </section>
 
+<section class="film" aria-labelledby="film-title">
+  <div class="wrap film-in">
+    <h2 id="film-title" class="film-title">Grapim in a minute</h2>
+    <video class="film-video" controls preload="none" playsinline poster="/hub/static/site/demo-poster.webp" width="1280" height="720">
+      <source src="/hub/static/site/demo.mp4" type="video/mp4">
+      <a href="/hub/static/site/demo.mp4">Watch the one-minute demo</a>
+    </video>
+    <p class="vis-note">Narrated walkthrough with demo data, 65 seconds.</p>
+  </div>
+</section>
+
 <section class="how" id="how" aria-labelledby="how-title">
   <div class="wrap">
     <h2 id="how-title" class="sr-only">How Grapim works</h2>

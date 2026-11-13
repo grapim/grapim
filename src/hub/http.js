@@ -24,6 +24,7 @@ export const CSP = [
   "img-src 'self' https://avatars.githubusercontent.com",
   "connect-src 'self'",
   "font-src 'self'",
+  "media-src 'self'",
   "form-action 'self' https://github.com https://checkout.stripe.com https://billing.stripe.com",
   "frame-ancestors 'none'",
   "base-uri 'none'",

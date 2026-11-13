@@ -13,7 +13,7 @@ import { landingPage, pricingPage } from './pages/site.js';
 
 const PAGES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'pages');
 const IMG = path.join(PAGES, 'site-img');
-const TYPES = { '.webp': 'image/webp', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const TYPES = { '.webp': 'image/webp', '.png': 'image/png', '.svg': 'image/svg+xml', '.mp4': 'video/mp4' };
 
 // The site's static files, for server.js's statics map.
 export function siteStatics() {
