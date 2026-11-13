@@ -42,15 +42,36 @@
         for (const e of entries) {
           if (!e.isIntersecting) continue;
           e.target.classList.add('in');
-          if (e.target.classList.contains('ledger')) setTimeout(() => e.target.classList.add('done'), 3700);
           io.unobserve(e.target);
         }
       },
       { threshold: 0.3 },
     );
     for (const s of scenes) io.observe(s);
-  } else {
-    for (const l of document.querySelectorAll('.ledger')) l.classList.add('done');
+  }
+
+  // The 3D hero figure turns a little toward the pointer (CSS variables
+  // --mx, --my from -1 to 1; the rig eases to them). Skipped with reduced
+  // motion or a touch screen, where the figure simply stays put.
+  const fig = document.querySelector('.s3');
+  const hero = document.querySelector('.hero');
+  if (fig && hero && matchMedia('(hover: hover) and (prefers-reduced-motion: no-preference)').matches) {
+    let frame = 0;
+    hero.addEventListener('pointermove', (e) => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const r = fig.getBoundingClientRect();
+        const mx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (window.innerWidth / 2)));
+        const my = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / (window.innerHeight / 2)));
+        fig.style.setProperty('--mx', mx.toFixed(3));
+        fig.style.setProperty('--my', my.toFixed(3));
+      });
+    });
+    hero.addEventListener('pointerleave', () => {
+      fig.style.setProperty('--mx', '0');
+      fig.style.setProperty('--my', '0');
+    });
   }
 
   // Copy buttons: the code block's text, as shown.

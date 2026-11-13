@@ -56,11 +56,11 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   assert.match(out.headers.get('content-type'), /text\/html/);
   assert.match(out.headers.get('content-security-policy'), /script-src 'self'/);
   const body = await out.text();
-  assert.match(body, /An agent dropped a table at 14:02\.<br> It was back at 14:03\./);
+  assert.match(body, /See every agent change\.<br> Undo any run\./);
   assert.match(body, /href="\/hub\/auth\/github"/, 'the primary action signs in with GitHub');
   assert.match(body, /href="\/docs"/);
   assert.match(body, /href="\/pricing"/);
-  for (const id of ['how', 'film', 'security']) assert.match(body, new RegExp(`id="${id}"`), `section #${id}`);
+  for (const id of ['how', 'review', 'security']) assert.match(body, new RegExp(`id="${id}"`), `section #${id}`);
   const words = body.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
   assert.ok(words < 900, `the landing page stays short (${words} words)`);
 
