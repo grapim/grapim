@@ -59,7 +59,7 @@ export function siteBar({ current = 'home', signedIn = false } = {}) {
   const a = (href, label, id) => html`<a class="bar-link" href="${href}" ${current === id ? html`aria-current="page"` : ''}>${label}</a>`;
   const home = current === 'home' ? '' : '/';
   const links = html`${a(`${home}#how`, 'Product', 'how')}${a('/docs/security', 'Security', 'security')}${a('/pricing', 'Pricing', 'pricing')}${a('/changelog', 'Changelog', 'changelog')}${a('/docs', 'Docs', 'docs')}`;
-  return html`${current === 'home' ? html`<p class="announce"><a href="/changelog"><b>13 Nov</b><span>Cursor shell commands<span class="announce-long"> are now recorded and can be undone.</span></span><span class="announce-go">Changelog ${ICON.arrow}</span></a></p>` : ''}<header class="bar">
+  return html`${current === 'home' ? html`<p class="announce"><a href="/changelog"><b>13 Nov</b><span>Cursor support<span class="announce-long">: undo now covers changes from commands it runs.</span></span><span class="announce-go">Changelog ${ICON.arrow}</span></a></p>` : ''}<header class="bar">
   <div class="bar-in">
     <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
     <nav class="bar-nav" aria-label="Site">${links}</nav>
@@ -80,7 +80,8 @@ export function siteFooter() {
   <div class="foot-in">
     <div class="foot-brand">
       <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
-      <p>See and undo what your coding agents change.</p>
+      <p>See what your AI agents changed, and undo their mistakes.</p>
+      <p class="foot-social"><a href="https://www.linkedin.com/company/grapim" rel="noopener">LinkedIn</a><a href="https://github.com/grapim" rel="noopener">GitHub</a></p>
       <p class="foot-legal">© 2026 Grapim</p>
       <div class="theme-seg" role="group" aria-label="Theme">${theme('system', 'System', 'system')}${theme('light', 'Light', 'sun')}${theme('dark', 'Dark', 'moon')}</div>
     </div>
@@ -240,7 +241,7 @@ function isoFigure() {
     </defs>
     ${[4, 3, 1, 0].map(plate)}${plate(2)}
   </svg>
-  <figcaption class="iso-cap">The Cursor run comes out. The others stay where they were.</figcaption>
+  <figcaption class="iso-cap">The bad change comes out. Everything else stays.</figcaption>
 </figure>`;
 }
 
@@ -252,29 +253,26 @@ function frag(caption, body) {
   return html`<figure class="frag" aria-hidden="true"><div class="frag-stage"><div class="frag-card">${body}</div></div><figcaption class="frag-cap">${caption}</figcaption></figure>`;
 }
 
+// Each fragment keeps one meaning a visitor gets at a glance (design/illustration.md, B).
 // Settings, Code storage (src/hub/pages/team.js codeStorageSection).
-const FIG_HOME = () => frag('Settings in the hub, with No code storage on.', html`
-  <div class="fc-head"><b>No code storage</b><span class="fc-badge fc-ok">On</span><span class="fc-btn">Turn off</span></div>
-  <p class="fc-sub">When on, the hub keeps run metadata (agent, prompt, files, line counts, reviews), never stores file contents, and reads diffs from GitHub when someone opens a run.</p>
-  <p class="fc-fine">The hub holds no file contents for this team.</p>`);
+const FIG_HOME = () => frag('One setting in Grapim.', html`
+  <div class="fc-head"><b>No code storage</b><span class="fc-switch fc-on" aria-hidden="true"><i></i></span></div>
+  <p class="fc-big">Your code stays on your machines.</p>
+  <p class="fc-sub">Grapim keeps a record of what changed and who approved it. Never the code itself.</p>`);
 
-// Agents page, MCP servers (src/hub/pages/inventory.js).
-const FIG_REACH = () => frag('The Agents page: every MCP server your team’s agents can call.', html`
-  <div class="fc-head"><b>MCP servers</b><span class="fc-muted">3 servers · 1 new this week</span></div>
-  <table class="fc-table">
-    <thead><tr><th>Server</th><th>Last seen</th></tr></thead>
-    <tbody>
-      <tr><td><b>github</b><span class="fc-mono">github-mcp-server</span></td><td>2h ago</td></tr>
-      <tr><td><b>postgres</b><span class="fc-mono">server-postgres</span></td><td>5h ago</td></tr>
-      <tr><td><b>stripe</b> <span class="fc-badge fc-new">New this week</span><span class="fc-mono">mcp.stripe.com</span></td><td>20m ago</td></tr>
-    </tbody>
-  </table>`);
+// Agents page (src/hub/pages/inventory.js), in plain names.
+const FIG_REACH = () => frag('The Agents page, for the whole team.', html`
+  <div class="fc-head"><b>What your agents can reach</b><span class="fc-muted">Claude Code \u00b7 Codex \u00b7 Cursor</span></div>
+  <ul class="fc-list">
+    <li><span class="fc-dot"></span>GitHub<span class="fc-muted">6 machines</span></li>
+    <li><span class="fc-dot"></span>Database<span class="fc-muted">3 machines</span></li>
+    <li><span class="fc-dot fc-dot-new"></span>Stripe <span class="fc-badge fc-new">New this week</span><span class="fc-muted">1 machine</span></li>
+  </ul>`);
 
-// The pull request's checks on GitHub (src/hub/github/pull.js wording).
-const FIG_GITHUB = () => frag('On GitHub, Grapim only comments and posts its check.', html`
-  <div class="fc-gh-head"><span class="fc-gh-ok">${ICON.check}</span><div><b>All checks have passed</b><span class="fc-muted">1 successful check</span></div></div>
-  <div class="fc-gh-row"><span class="fc-gh-ok">${ICON.check}</span><span><b>Grapim provenance (app)</b> <span class="fc-muted">Every agent run is approved in the Grapim hub (2 by rule)</span></span><span class="fc-req">Required</span></div>
-  <div class="fc-gh-merge">This branch has no conflicts with the base branch</div>`);
+// The pull request on GitHub (src/hub/github/pull.js), reduced to its outcome.
+const FIG_GITHUB = () => frag('On GitHub, Grapim only adds a check.', html`
+  <div class="fc-gh-big"><span class="fc-gh-ok">${ICON.check}</span><div><b>Ready to merge</b><span class="fc-muted">Approved by priya in Grapim</span></div></div>
+  <div class="fc-gh-merge">Grapim never changes your code.</div>`);
 
 // The hero figure in real 3D (CSS transforms, no library): the same five
 // runs as solid plates. It turns a little toward the pointer, and the Cursor
@@ -286,11 +284,11 @@ function stackFigure() {
   <div class="s3-view"><div class="s3-rig">
     ${[0, 1, 2, 3, 4].map((i) => html`<div class="s3-plate s3-p${i}${i === 2 ? ' s3-out' : i < 2 ? ' s3-above' : ''}">${faces}</div>`)}
   </div></div>
-  <figcaption class="iso-cap">The Cursor run comes out. The others stay where they were.</figcaption>
+  <figcaption class="iso-cap">The bad change comes out. Everything else stays.</figcaption>
 </figure>`;
 }
 
-const description = 'Grapim records every change your coding agents make, shell commands included. Sensitive changes wait for a named reviewer, and any single run can be undone. For Claude Code, Codex, Cursor and Gemini CLI.';
+const description = 'When an AI coding agent breaks something, Grapim shows exactly what it changed and puts it back in one step, without losing anyone else\u2019s work. For Claude Code, Codex, Cursor and Gemini CLI.';
 
 // demo: the public read-only demo at /demo is on (GRAPIM_DEMO=1).
 export function landingPage({ origin, demo = false }) {
@@ -302,8 +300,8 @@ ${siteBar({ current: 'home' })}
 
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-text">
-    <h1 id="hero-title">See every agent change.<br> Undo any run.</h1>
-    <p class="hero-sub">Grapim records what Claude Code, Codex, Cursor and Gemini CLI change on each developer’s machine, shell commands included, so a bad run can come back out without touching anyone else’s work.</p>
+    <h1 id="hero-title">See what your AI agents changed.<br> Undo the mistakes.</h1>
+    <p class="hero-sub">When an AI coding agent breaks something, see exactly what it did and put it back in one step, without losing anyone else’s work.</p>
     <div class="cta">
       ${demo
         ? html`<a class="btn btn-primary btn-lg" href="/demo" rel="nofollow">Open the live demo</a>
@@ -317,7 +315,7 @@ ${siteBar({ current: 'home' })}
   </div>
   <figure class="frame frame-hero">
     ${shot('run', 'A run page in the Grapim hub: the run "Add idempotency keys to POST /orders" by claude 7f3e21aa, 2 turns, 3 files, +32 −4, marked Needs review, with Approve and Reject buttons, its prompts and its diff.', { eager: true })}
-    <figcaption>A run waiting for review in the hub. Every screen and terminal on this page uses one demo repo, acme-co/shop-api.</figcaption>
+    <figcaption>What a reviewer sees in Grapim. Every screen on this page uses a demo project.</figcaption>
   </figure>
 </section>
 
@@ -337,16 +335,16 @@ ${siteBar({ current: 'home' })}
     <ol class="steps">
       <li class="step">
         <div class="step-text">
-          <h3>Each change is filed under the run that made it</h3>
-          <p>The prompt, the files and the lines, for every agent on the team. When Cursor ran <code>prisma migrate</code> and <code>rm seed.js</code>, both files went on its run too.</p>
+          <h3>Know which agent changed what</h3>
+          <p>Every change Claude Code, Codex, Cursor or Gemini CLI makes is recorded with the request that caused it, including files changed by commands the agent ran.</p>
           <p><a class="link" href="/docs">Set up in five minutes ${ICON.arrow}</a></p>
         </div>
         <div class="step-vis">${term('Terminal', RUNS)}</div>
       </li>
       <li class="step">
         <div class="step-text">
-          <h3>Take back the run that deleted seed.js, and only that run</h3>
-          <p><code>grapim undo</code> prints its plan first. With <code>--yes</code> it restores seed.js, removes the migration, and leaves the Claude and Codex runs in the same PR alone.</p>
+          <h3>Undo one agent’s mistake. Keep everyone else’s work.</h3>
+          <p>One command takes back everything a single agent did, and shows you what it will change before it does. Work by other agents and people stays as it is.</p>
           <p><a class="link" href="/docs/undo">How undo works ${ICON.arrow}</a></p>
         </div>
         <div class="step-vis">${term('Terminal', UNDO)}</div>
@@ -358,8 +356,8 @@ ${siteBar({ current: 'home' })}
 <section class="gate" id="review" aria-labelledby="gate-title">
   <div class="wrap gate-in">
     <div class="gate-text">
-      <h2 id="gate-title">Payment changes wait for priya.</h2>
-      <p>You write path rules once. Here the Claude run touched <code>payments/</code>, so the Grapim check stayed red until priya approved it. The Codex and docs runs passed on a rule, and the rule’s author is on record.</p>
+      <h2 id="gate-title">Important code waits for a person.</h2>
+      <p>Pick the parts of your code that need a human, like payments or sign-in. Changes there cannot be merged until the person you chose approves them. Low-risk changes, like tests and docs, go through on their own.</p>
       <p><a class="link" href="/docs/rules">Write your first rule ${ICON.arrow}</a></p>
     </div>
     <div class="gate-vis">${prThread()}</div>
@@ -372,20 +370,20 @@ ${siteBar({ current: 'home' })}
     <div class="also-grid">
       <div>
         ${FIG_HOME()}
-        <h3>The hub can run without your code</h3>
-        <p>With No code storage, the hub keeps run records and hashes, never file contents.</p>
+        <h3>Your code can stay on your machines</h3>
+        <p>Turn on one setting and Grapim keeps only a record of what changed, never the code itself.</p>
         <p><a class="link" href="/docs/data-handling">What Grapim stores ${ICON.arrow}</a></p>
       </div>
       <div>
         ${FIG_REACH()}
-        <h3>See which MCP servers your agents can call</h3>
-        <p>Which agents, models and MCP servers your team's machines run, and what appeared this week.</p>
+        <h3>See what your agents can reach</h3>
+        <p>Which AI agents your team uses and which tools and services they can reach, with anything new flagged.</p>
         <p><a class="link" href="/docs/inventory">The agent inventory ${ICON.arrow}</a></p>
       </div>
       <div>
         ${FIG_GITHUB()}
-        <h3>Your repositories never leave GitHub</h3>
-        <p>No repos move. The hub never writes to your code; undo runs on your machine.</p>
+        <h3>Nothing leaves GitHub</h3>
+        <p>Your code stays where it is. Grapim never changes it, and undo runs on your own computer.</p>
         <p><a class="link" href="/docs/security">Security model ${ICON.arrow}</a></p>
       </div>
     </div>
@@ -394,8 +392,8 @@ ${siteBar({ current: 'home' })}
 
 <section class="close" aria-labelledby="close-title">
   <div class="wrap close-in">
-    <h2 id="close-title">Try it on the repo your agents touch most.</h2>
-    <p>Sign in with GitHub and run <code>grapim init</code> there. The next agent run is on the record. Free during early access.</p>
+    <h2 id="close-title">Try it on your busiest project.</h2>
+    <p>Sign in with GitHub and follow the five-minute setup. Free during early access.</p>
     <div class="cta">
       <a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Start with GitHub</span></a>
       <a class="btn btn-lg" href="/pricing">See pricing</a>

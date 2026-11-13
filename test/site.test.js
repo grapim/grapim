@@ -56,7 +56,7 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   assert.match(out.headers.get('content-type'), /text\/html/);
   assert.match(out.headers.get('content-security-policy'), /script-src 'self'/);
   const body = await out.text();
-  assert.match(body, /See every agent change\.<br> Undo any run\./);
+  assert.match(body, /See what your AI agents changed\.<br> Undo the mistakes\./);
   assert.match(body, /href="\/hub\/auth\/github"/, 'the primary action signs in with GitHub');
   assert.match(body, /href="\/docs"/);
   assert.match(body, /href="\/pricing"/);

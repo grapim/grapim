@@ -738,3 +738,23 @@ section { scroll-margin-top: var(--bar-h); }
 .fc-table td .fc-mono { display: block; margin-top: 1px; }
 .fc-table td { overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 900px) { .hero-text .iso { display: block; width: 100%; max-width: 360px; margin: 28px auto 0; } }
+
+/* Plain fragments: one meaning each, big enough to read at a glance. */
+.fc-big { margin: 12px 0 0; font-size: 18px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; }
+.fc-switch { width: 36px; height: 20px; border-radius: 999px; background: var(--border-strong); position: relative; flex: none; }
+.fc-switch i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.2); }
+.fc-switch.fc-on { background: var(--ok-text); }
+.fc-switch.fc-on i { left: 18px; }
+.fc-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; }
+.fc-list li { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-top: 1px solid var(--border); font-size: 14px; font-weight: 550; }
+.fc-list li .fc-muted { margin-left: auto; font-weight: 400; }
+.fc-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ok-text); flex: none; }
+.fc-dot-new { background: var(--warn-text, #8a5600); }
+.fc-gh-big { display: flex; align-items: center; gap: 12px; padding: 4px 0 12px; border-bottom: 1px solid var(--border); }
+.fc-gh-big .fc-gh-ok { width: 34px; height: 34px; }
+.fc-gh-big .fc-gh-ok .i { width: 18px; height: 18px; }
+.fc-gh-big div { display: grid; }
+.fc-gh-big b { font-size: 18px; letter-spacing: -0.01em; }
+.foot-social { margin: 10px 0 0; display: flex; gap: 14px; font-size: 14px; }
+.foot-social a { color: var(--text-2); text-decoration: none; }
+.foot-social a:hover { color: var(--text); text-decoration: underline; }
