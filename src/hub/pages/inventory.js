@@ -10,7 +10,7 @@ import { head } from './team.js';
 
 const agentName = (a) => agentInfo(a)?.[0] ?? a;
 
-// An agent with its mark (none for Codex: OpenAI asked Simple Icons to remove it).
+// An agent with its mark (Codex: OpenAI's official blossom, see brands.js).
 const agentLabel = (a) => {
   const info = agentInfo(a);
   return html`<span class="agent">${info ? brandMark(info[1]) : ''}<span class="agent-name">${agentName(a)}</span></span>`;

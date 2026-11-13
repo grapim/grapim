@@ -1128,3 +1128,10 @@ main.wrap { container-type: inline-size; }
   .inv-table .inv-hide-sm { display: none; }
   .inv-table td.truncate { max-width: 140px; }
 }
+
+/* OpenAI's blossom: its own file's clear space (so a larger box), black on light,
+   white on dark, never another colour (OpenAI Logo Usage Terms). */
+.brand-mark.brand-openai { width: 28px; height: 28px; margin: -6px -4px; color: #000; fill: #000; }
+:root[data-theme="dark"] .brand-mark.brand-openai { fill: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand-mark.brand-openai { fill: #fff; } }
+.agent .brand-mark.brand-openai, .brand-mark.brand-openai { margin: -6px -6px -6px -6px; vertical-align: middle; }

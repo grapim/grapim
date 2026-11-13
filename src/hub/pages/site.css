@@ -764,3 +764,11 @@ section { scroll-margin-top: var(--bar-h); }
 .works > span:not(.works-label) { display: inline-flex; align-items: center; gap: 7px; }
 .works .brand-mark { color: var(--text-2); }
 .fc-list .brand-mark { width: 16px; height: 16px; color: var(--text-2); }
+
+/* OpenAI's blossom: its own file's clear space (so a larger box), black on light,
+   white on dark, never another colour (OpenAI Logo Usage Terms). */
+.brand-mark.brand-openai { width: 30px; height: 30px; margin: -6px -5px; color: #000; fill: #000; }
+:root[data-theme="dark"] .brand-mark.brand-openai { fill: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand-mark.brand-openai { fill: #fff; } }
+.works { gap: 8px 16px; }
+.works .brand-mark.brand-openai { margin: -6px -6px -6px -7px; }

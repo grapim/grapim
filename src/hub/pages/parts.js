@@ -9,7 +9,7 @@ const KINDS = new Set(['claude-code', 'codex', 'cursor', 'mcp', 'http']);
 export const kindClass = (k) => `k-${KINDS.has(k) ? k : 'other'}`;
 
 // An agent: its brand mark and product name (Claude Code, Cursor), or for
-// an agent without a mark (Codex, a workspace sandbox, another MCP client)
+// an agent without a mark (a workspace sandbox, another MCP client)
 // the name alone. The run's own label ("claude 7f3e21aa") stays in the title.
 export const agent = (label, kind) => {
   const info = agentInfo(kind);
