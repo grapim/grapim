@@ -210,98 +210,71 @@ const FAQ = [
   ['Which agents are covered?', 'Claude Code, Codex CLI, Cursor and Gemini CLI, including files their shell commands change. Any other MCP client can report the files it claims.'],
 ];
 
-// The hero figure: a stack of agent runs drawn as thin isometric plates.
-// One run (a Cursor run whose shell command dropped a table) lights up,
-// slides out of the stack, and the runs above it settle into its place:
-// grapim undo, keeping everyone else's work. Pure SVG; the motion is CSS
-// (.iso in site.css) and stops under reduced motion.
-const ISO_RUNS = [
-  ['claude 2b9c0d14', 'docs'],
-  ['codex 4c8e1b07', 'tests'],
-  ['cursor 5d81c0e2', 'via shell: prisma migrate'],
-  ['claude 7f3e21aa', 'payments/'],
-  ['gemini 91ad3f60', 'src/search'],
-];
+// The site's one brand graphic (design/illustration.md, C): five agent runs
+// as glass plates, one warm run pulled out. Flat SVG for phones and reduced
+// motion; the 3D version (stackFigure) for wide screens. No labels: the
+// caption carries the meaning.
 function isoFigure() {
-  const cx = 150;
-  const a = 104;
-  const b = 52;
-  const t = 9;
-  const gap = 30;
-  const top = 64;
+  const cx = 170;
+  const a = 112;
+  const b = 56;
+  const t = 10;
+  const gap = 32;
+  const top = 70;
   const pts = (list) => list.map(([x, y]) => `${x},${y}`).join(' ');
   const plate = (i) => {
-    const y = top + i * gap;
-    const [label, note] = ISO_RUNS[i];
-    return html`<g class="iso-run iso-run-${i}${i === 2 ? ' iso-out' : i < 2 ? ' iso-above' : ''}">
-      <polygon class="iso-side" points="${pts([[cx - a, y], [cx, y + b], [cx, y + b + t], [cx - a, y + t]])}"/>
-      <polygon class="iso-side iso-side-r" points="${pts([[cx, y + b], [cx + a, y], [cx + a, y + t], [cx, y + b + t]])}"/>
-      <polygon class="iso-top" points="${pts([[cx, y - b], [cx + a, y], [cx, y + b], [cx - a, y]])}"/>
-      <path class="iso-lead" d="M${cx + a + 6} ${y + 4}h18"/>
-      <text class="iso-label" x="${cx + a + 30}" y="${y + 3}">${label}</text>
-      <text class="iso-note" x="${cx + a + 30}" y="${y + 17}">${note}</text>
+    const out = i === 2;
+    const y = top + i * gap + (out ? 52 : 0);
+    const x = cx + (out ? 104 : 0);
+    return html`<g class="iso-run${out ? ' iso-out' : ''}">
+      <polygon class="iso-side" points="${pts([[x - a, y], [x, y + b], [x, y + b + t], [x - a, y + t]])}"/>
+      <polygon class="iso-side iso-side-r" points="${pts([[x, y + b], [x + a, y], [x + a, y + t], [x, y + b + t]])}"/>
+      <polygon class="iso-top" points="${pts([[x, y - b], [x + a, y], [x, y + b], [x - a, y]])}"/>
     </g>`;
   };
   return html`<figure class="iso" aria-hidden="true">
-  <svg viewBox="0 0 470 300" width="470" height="300" focusable="false">
-    ${[4, 3, 2, 1, 0].map(plate)}
-    <g class="iso-done"><path d="M${cx - a} ${top + 5 * gap + 34}h${2 * a}" class="iso-base"/><text class="iso-label" x="${cx - a}" y="${top + 5 * gap + 56}">$ grapim undo 5d81c0e2</text><text class="iso-note iso-ok" x="${cx - a}" y="${top + 5 * gap + 72}">2 files back, other runs kept</text></g>
+  <svg viewBox="0 0 420 330" width="420" height="330" focusable="false">
+    <defs>
+      <linearGradient id="iso-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b63e6" stop-opacity="0.26"/><stop offset="1" stop-color="#5b63e6" stop-opacity="0.08"/></linearGradient>
+      <linearGradient id="iso-warm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6b4a"/><stop offset="1" stop-color="#ff9a3d"/></linearGradient>
+    </defs>
+    ${[4, 3, 1, 0].map(plate)}${plate(2)}
   </svg>
-  <figcaption class="iso-cap">The Cursor run comes out; the others stay where they were.</figcaption>
+  <figcaption class="iso-cap">The Cursor run comes out. The others stay where they were.</figcaption>
 </figure>`;
 }
 
-// Small figures for the three security notes, in the hero figure's world:
-// thin isometric plates, mono labels, one accent. Decorative (aria-hidden);
-// the text beside them says the same thing.
-function isoPlate(x, y, a, b, t, cls = '') {
-  const pts = (list) => list.map(([px, py]) => `${px},${py}`).join(' ');
-  return html`<g class="${cls}">
-    <polygon class="iso-side" points="${pts([[x - a, y], [x, y + b], [x, y + b + t], [x - a, y + t]])}"/>
-    <polygon class="iso-side iso-side-r" points="${pts([[x, y + b], [x + a, y], [x + a, y + t], [x, y + b + t]])}"/>
-    <polygon class="iso-top" points="${pts([[x, y - b], [x + a, y], [x, y + b], [x - a, y]])}"/>
-  </g>`;
-}
-const isoText = (x, y, text, cls = 'iso-label') => html`<text class="${cls}" x="${x}" y="${y}">${text}</text>`;
-
-function figure(n, caption, body) {
-  return html`<figure class="mini" aria-hidden="true"><svg viewBox="0 0 320 170" width="320" height="170" focusable="false">${body}</svg><figcaption class="iso-cap">${caption}</figcaption></figure>`;
+// Real product fragments (design/illustration.md, B): pieces of the hub and
+// of GitHub, rebuilt in HTML with the product's own words and the page's
+// one demo repo. Decorative copies of real screens: the text beside each
+// says the same thing.
+function frag(caption, body) {
+  return html`<figure class="frag" aria-hidden="true"><div class="frag-stage"><div class="frag-card">${body}</div></div><figcaption class="frag-cap">${caption}</figcaption></figure>`;
 }
 
-// fig. 2: the machine keeps the code; the hub gets the record of it.
-const FIG_HOME = () => figure(2, 'Records go to the hub. Code stays on the laptop.', html`
-  ${isoPlate(80, 92, 62, 31, 8)}
-  <g class="mini-code">${[0, 1, 2, 3].map((i) => html`<path d="M${52 + i * 9} ${85 + i * 4.5}l${30 - (i % 2) * 10} ${-15 + (i % 2) * 5}"/>`)}</g>
-  ${isoText(30, 152, 'your machine')}
-  ${isoText(30, 166, 'code + diff', 'iso-note')}
-  <path class="iso-trail" d="M138 70 L186 52"/>
-  ${isoPlate(240, 64, 62, 31, 8, 'iso-out')}
-  ${isoText(214, 66, 'sha 9f2c', 'iso-note')}
-  ${isoText(196, 124, 'hub')}
-  ${isoText(196, 138, 'run, lines, hashes', 'iso-note')}`);
+// Settings, Code storage (src/hub/pages/team.js codeStorageSection).
+const FIG_HOME = () => frag('Settings in the hub, with No code storage on.', html`
+  <div class="fc-head"><b>No code storage</b><span class="fc-badge fc-ok">On</span><span class="fc-btn">Turn off</span></div>
+  <p class="fc-sub">When on, the hub keeps run metadata (agent, prompt, files, line counts, reviews), never stores file contents, and reads diffs from GitHub when someone opens a run.</p>
+  <p class="fc-fine">The hub holds no file contents for this team.</p>`);
 
-// fig. 3: agents on the left, what they can reach on the right; one new this week.
-const FIG_REACH = () => figure(3, 'Each agent, and the MCP servers it can call.', html`
-  ${[['claude', 40], ['codex', 86], ['cursor', 132]].map(([name, y]) => html`${isoPlate(54, y - 8, 34, 17, 6)}${isoText(96, y - 4, name)}`)}
-  <g class="mini-wires">
-    <path d="M150 36 C190 36 190 30 214 30"/><path d="M150 36 C190 40 190 78 214 78"/>
-    <path d="M150 82 C190 82 190 78 214 78"/><path d="M150 128 C190 128 190 126 214 126" class="mini-new"/>
-  </g>
-  ${isoText(220, 34, 'mcp: github')}
-  ${isoText(220, 82, 'mcp: postgres')}
-  ${isoText(220, 130, 'mcp: stripe', 'iso-label mini-new-t')}
-  ${isoText(220, 144, 'new this week', 'iso-note mini-new-t')}`);
+// Agents page, MCP servers (src/hub/pages/inventory.js).
+const FIG_REACH = () => frag('The Agents page: every MCP server your team’s agents can call.', html`
+  <div class="fc-head"><b>MCP servers</b><span class="fc-muted">3 servers · 1 new this week</span></div>
+  <table class="fc-table">
+    <thead><tr><th>Server</th><th>Last seen</th></tr></thead>
+    <tbody>
+      <tr><td><b>github</b><span class="fc-mono">github-mcp-server</span></td><td>2h ago</td></tr>
+      <tr><td><b>postgres</b><span class="fc-mono">server-postgres</span></td><td>5h ago</td></tr>
+      <tr><td><b>stripe</b> <span class="fc-badge fc-new">New this week</span><span class="fc-mono">mcp.stripe.com</span></td><td>20m ago</td></tr>
+    </tbody>
+  </table>`);
 
-// fig. 4: the repo stays on GitHub; the hub only comments and checks.
-const FIG_GITHUB = () => figure(4, 'The hub comments and checks. It never pushes.', html`
-  ${isoPlate(96, 104, 70, 35, 9)}
-  ${isoText(56, 164, 'your repo on GitHub')}
-  ${isoPlate(250, 46, 40, 20, 7, 'iso-out')}
-  ${isoText(222, 92, 'hub', 'iso-label')}
-  <path class="iso-trail" d="M214 62 L150 92"/>
-  ${isoText(186, 116, 'comment + check', 'iso-note')}
-  <path class="mini-x" d="M168 34 l10 10 m0 -10 l-10 10"/>
-  ${isoText(184, 44, 'no push', 'iso-note')}`);
+// The pull request's checks on GitHub (src/hub/github/pull.js wording).
+const FIG_GITHUB = () => frag('On GitHub, Grapim only comments and posts its check.', html`
+  <div class="fc-gh-head"><span class="fc-gh-ok">${ICON.check}</span><div><b>All checks have passed</b><span class="fc-muted">1 successful check</span></div></div>
+  <div class="fc-gh-row"><span class="fc-gh-ok">${ICON.check}</span><span><b>Grapim provenance (app)</b> <span class="fc-muted">Every agent run is approved in the Grapim hub (2 by rule)</span></span><span class="fc-req">Required</span></div>
+  <div class="fc-gh-merge">This branch has no conflicts with the base branch</div>`);
 
 // The hero figure in real 3D (CSS transforms, no library): the same five
 // runs as solid plates. It turns a little toward the pointer, and the Cursor
@@ -311,10 +284,9 @@ function stackFigure() {
   const faces = html`<i class="s3-f s3-top"></i><i class="s3-f s3-n"></i><i class="s3-f s3-e"></i><i class="s3-f s3-s"></i><i class="s3-f s3-w"></i>`;
   return html`<figure class="s3" aria-hidden="true">
   <div class="s3-view"><div class="s3-rig">
-    ${ISO_RUNS.map(([label, note], i) => html`<div class="s3-plate s3-p${i}${i === 2 ? ' s3-out' : i < 2 ? ' s3-above' : ''}">${faces}<span class="s3-label"><b>${label}</b>${note}</span></div>`)}
+    ${[0, 1, 2, 3, 4].map((i) => html`<div class="s3-plate s3-p${i}${i === 2 ? ' s3-out' : i < 2 ? ' s3-above' : ''}">${faces}</div>`)}
   </div></div>
-  <figcaption class="iso-cap">The Cursor run comes out; the others stay where they were.</figcaption>
-  <p class="s3-done"><span>$ grapim undo 5d81c0e2</span><span class="iso-ok">2 files back, other runs kept</span></p>
+  <figcaption class="iso-cap">The Cursor run comes out. The others stay where they were.</figcaption>
 </figure>`;
 }
 
