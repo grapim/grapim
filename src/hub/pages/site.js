@@ -54,15 +54,15 @@ ${scripts ? html`<script src="/hub/static/site.js" defer></script>` : ''}
 </head>`;
 }
 
-// The top bar. current: 'home' | 'docs'.
+// The top bar. current: 'home' | 'docs' | 'pricing'.
 export function siteBar({ current = 'home', signedIn = false } = {}) {
   const a = (href, label, id) => html`<a class="bar-link" href="${href}" ${current === id ? html`aria-current="page"` : ''}>${label}</a>`;
   const home = current === 'home' ? '' : '/';
-  return html`${current === 'home' ? html`<p class="announce"><a href="/docs/rules"><b>New</b><span>Automatic path rules<span class="announce-long">: low-risk agent runs pass on their own.</span></span><span class="announce-go">Read how ${ICON.arrow}</span></a></p>` : ''}<header class="bar">
+  return html`${current === 'home' ? html`<p class="announce"><a href="/docs/undo"><b>New</b><span>Cursor shell commands<span class="announce-long"> are now recorded and undoable.</span></span><span class="announce-go">Read how ${ICON.arrow}</span></a></p>` : ''}<header class="bar">
   <div class="bar-in">
     <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
     <nav class="bar-nav" aria-label="Site">
-      <span class="bar-anchors">${a(`${home}#how`, 'How it works', 'how')}${a(`${home}#security`, 'Security', 'security')}${a(`${home}#pricing`, 'Pricing', 'pricing')}</span>
+      <span class="bar-anchors">${a(`${home}#how`, 'Product', 'how')}${a('/docs/security', 'Security', 'security')}${a('/pricing', 'Pricing', 'pricing')}</span>
       ${a('/docs', 'Docs', 'docs')}
     </nav>
     ${signedIn
@@ -78,11 +78,11 @@ export function siteFooter() {
   <div class="foot-in">
     <div class="foot-brand">
       <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
-      <p>The accountability layer for AI-written code.</p>
+      <p>See and undo what your coding agents change.</p>
       <div class="theme-seg" role="group" aria-label="Theme">${theme('system', 'System', 'system')}${theme('light', 'Light', 'sun')}${theme('dark', 'Dark', 'moon')}</div>
     </div>
     <nav class="foot-cols" aria-label="Footer">
-      <div><h2>Product</h2><a href="/#how">How it works</a><a href="/#agents">Supported agents</a><a href="/#security">Security</a><a href="/#pricing">Pricing</a></div>
+      <div><h2>Product</h2><a href="/#how">How it works</a><a href="/docs/concepts">Supported agents</a><a href="/docs/security">Security</a><a href="/pricing">Pricing</a></div>
       <div><h2>Docs</h2><a href="/docs">Quickstart</a><a href="/docs/github">GitHub App and PR check</a><a href="/docs/cli">CLI reference</a><a href="/docs/security">Security and privacy</a></div>
       <div><h2>Help</h2><a href="/docs/support">Support</a><a href="/docs/faq">FAQ</a><a href="/hub">Sign in</a></div>
     </nav>
@@ -112,21 +112,26 @@ function term(title, lines) {
 
 const RUNS = [
   '$ grapim runs',
-  "RUN              WORKING ON                            FILES  +     -",
-  "claude 7f3e21aa  Add idempotency keys to POST /orders  3      +32   -4",
-  "codex 11349      Clean up the feature flag for search  1      +86   -32",
-  "claude 2b9c0d14  Return 409 when a key is reused       1      +12   -1",
+  'RUN              WORKING ON                            FILES  +     -',
+  'claude 7f3e21aa  Add idempotency keys to POST /orders  4      +32   -19',
+  'cursor 5d81c0e2  Drop the legacy orders table          2      +3    -88',
+  'codex 11349      Clean up the feature flag for search  1      +86   -32',
+  '',
+  '$ grapim log',
+  '14:02:07  cursor 5d81c0e2 edited db/014.sql +3 -0 via shell: prisma migrate',
+  '14:02:19  cursor 5d81c0e2 edited seed.js +0 -88 via shell: rm seed.js',
 ];
 
 const UNDO = [
-  '$ grapim undo 11349',
-  'Undo codex 11349 · 1 file',
+  '$ grapim undo 5d81c0e2',
+  'Undo cursor 5d81c0e2 · 2 files',
   '',
-  '  revert    src/flags.ts  its edits removed, later work by others kept',
+  '  delete    db/014.sql  created by this run (via shell: prisma migrate)',
+  '  restore   seed.js     deleted by this run (via shell: rm seed.js)',
   '',
-  'Nothing was changed. Run again with --yes to apply the 1 clean one.',
+  'Nothing was changed. Run again with --yes to apply the 2 clean ones.',
   '',
-  '$ grapim undo 11349 --yes',
+  '$ grapim undo 5d81c0e2 --yes',
 ];
 
 // The pull request story: the comment and check use the wording the GitHub
@@ -138,21 +143,19 @@ function prThread() {
     <div class="pr-who"><span class="pr-av" aria-hidden="true">${LOGO}</span><b>grapim</b><span class="pr-bot">bot</span><span class="muted">commented</span></div>
     <div class="pr-card">
       <p class="pr-h">Grapim provenance</p>
-      <p><b>1 agent run of 3 not reviewed yet.</b> 88% of the added lines came from agent runs (71 of 81): claude 7f3e21aa 32, codex 4c8e1b07 27, claude 2b9c0d14 12</p>
+      <p><b>1 agent run of 3 not reviewed yet.</b> 88% of the added lines came from agent runs (71 of 81).</p>
       <div class="pr-scroll"><table class="pr-table">
-        <thead><tr><th>Run</th><th>Agent</th><th class="n">Lines</th><th class="n">Files</th><th>Prompt</th><th>Review</th></tr></thead>
+        <thead><tr><th>Run</th><th class="n">Lines</th><th>Prompt</th><th>Review</th></tr></thead>
         <tbody>
-          <tr><td class="mono">claude 7f3e21aa</td><td>claude-code</td><td class="n">32</td><td class="n">3</td><td>Add idempotency keys to POST /orders</td><td>Not reviewed</td></tr>
-          <tr><td class="mono">codex 4c8e1b07</td><td>codex</td><td class="n">27</td><td class="n">2</td><td>Add tests for duplicate order keys</td><td>Approved</td></tr>
-          <tr><td class="mono">claude 2b9c0d14</td><td>claude-code</td><td class="n">12</td><td class="n">1</td><td>Document the Idempotency-Key header</td><td>Approved</td></tr>
+          <tr><td class="mono">claude 7f3e21aa</td><td class="n">32</td><td>Add idempotency keys to POST /orders</td><td>Not reviewed</td></tr>
+          <tr><td class="mono">codex 4c8e1b07</td><td class="n">27</td><td>Add tests for duplicate order keys</td><td>Approved by rule</td></tr>
+          <tr><td class="mono">claude 2b9c0d14</td><td class="n">12</td><td>Document the Idempotency-Key header</td><td>Approved by rule</td></tr>
         </tbody>
       </table></div>
-      <p class="pr-sub">Not reviewed in Grapim</p>
-      <ul><li class="mono">claude 7f3e21aa</li></ul>
     </div>
   </div>
-  <div class="pr-check is-fail">${ICON.x}<span><b>Grapim provenance (app)</b> <span class="muted">1 agent run not approved in the Grapim hub</span><span class="pr-detail">codex 4c8e1b07 and claude 2b9c0d14: approved by rule **/*.test.*, docs/** (set by priya). claude 7f3e21aa changed payments/: payments/** needs 1 approval from priya.</span></span><span class="pr-req">Required</span></div>
-  <div class="pr-event">${ICON.check}<span><b>priya</b> approved <span class="mono">claude 7f3e21aa</span> in the Grapim hub. The check runs again; nobody pushes.</span></div>
+  <div class="pr-check is-fail">${ICON.x}<span><b>Grapim provenance (app)</b> <span class="muted">claude 7f3e21aa changed payments/: needs 1 approval from priya</span></span><span class="pr-req">Required</span></div>
+  <div class="pr-event">${ICON.check}<span><b>priya</b> approved <span class="mono">claude 7f3e21aa</span> in the Grapim hub.</span></div>
   <div class="pr-check is-ok">${ICON.check}<span><b>Grapim provenance (app)</b> <span class="muted">Every agent run is approved in the Grapim hub (2 by rule)</span></span><span class="pr-req">Required</span></div>
   <div class="pr-merge">${ICON.check}<span>All checks have passed. This branch can be merged.</span></div>
 </div>`;
@@ -163,36 +166,45 @@ const PLANS = [
     name: 'Free',
     price: '$0',
     per: '',
-    lede: 'Try it on a side project or one team.',
-    items: ['Up to 3 people', '2 repos, 7 days of history', 'Run review, undo, PR comment', '1 workspace', 'Ask Grapim: $1 of use a month'],
+    lede: 'For one team trying it on a repo.',
+    items: ['Up to 3 people', '2 repos, 7 days of history', 'Every run recorded, shell commands too', 'Undo any run', 'Agent and MCP inventory'],
   },
   {
     name: 'Team',
     price: '$20',
     per: 'per seat a month',
-    lede: 'For a team that reviews agent work every day.',
-    items: ['As many seats as you need', 'Unlimited repos, 90 days of history', 'Unlimited workspaces', 'Ask Grapim: $20 of use a month'],
+    lede: 'For a team whose agents ship code every day.',
+    items: ['Everything in Free', 'As many seats as you need', 'Unlimited repos', '90 days of history', 'Unlimited workspaces'],
   },
   {
     name: 'Governance',
     price: '$40',
     per: 'per seat a month',
-    lede: 'When every AI change needs a named approver.',
-    items: ['Everything in Team', 'Require review: the PR check blocks merging', 'Require provenance for every commit', 'Reports and CSV export', '365 days of history', 'Ask Grapim: $50 of use a month'],
+    lede: 'When a person must approve what agents change.',
+    items: ['Everything in Team', 'Path rules: auto-approve or named reviewer', 'Required PR check that blocks merging', 'Reports and CSV export', '365 days of history'],
     mark: true,
   },
   {
     name: 'Enterprise',
-    price: 'Talk to us',
+    price: 'Custom',
     per: '',
     lede: 'Seats, terms and support for a larger rollout.',
-    items: ['Everything in Governance', 'Seats and terms agreed with you', 'Ask Grapim: $100 of use a month'],
+    items: ['Everything in Governance', 'Seats and terms agreed with you', 'Help with the rollout'],
   },
 ];
 
+const FAQ = [
+  ['Is anything charged today?', 'No. Grapim is in early access and has no checkout. These are the prices we intend to charge once billing opens, and we will tell every team before that happens.'],
+  ['Can we try Governance now?', 'Yes. Design partners get Governance as a pilot at no charge, set by us for your team. Talk to us and say which repos you want to start with.'],
+  ['What counts as a seat?', 'A member of your team in the Grapim hub. Agents are not seats, and neither are the machines that sync runs.'],
+  ['Does our code have to leave our machines?', 'No. Turn on No code storage and the hub keeps run records (agent, prompt, files, line counts, hashes, decisions) without file contents. Diffs are read from GitHub when someone opens a run and are not saved.'],
+  ['Which agents are covered?', 'Claude Code, Codex CLI, Cursor and Gemini CLI, including files their shell commands change. Any other MCP client can report the files it claims.'],
+];
+
+const description = 'Grapim records every change your coding agents make, shell commands included. Sensitive changes wait for a named reviewer, and any single run can be undone. For Claude Code, Codex, Cursor and Gemini CLI.';
+
 export function landingPage({ origin }) {
-  const description = 'Grapim records every coding-agent run. Your rules pass low-risk changes on their own, sensitive paths wait for a named reviewer, and one bad run can be undone alone. For teams using Claude Code, Codex, Cursor and Gemini CLI.';
-  return html`${siteHead({ title: 'Grapim: merge agent code faster, review only what matters', description, path: '/', origin })}
+  return html`${siteHead({ title: 'Grapim: see and undo what your coding agents change', description, path: '/', origin })}
 <body class="site">
 <a class="skip" href="#main">Skip to content</a>
 ${siteBar({ current: 'home' })}
@@ -200,13 +212,12 @@ ${siteBar({ current: 'home' })}
 
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-text">
-    <h1 id="hero-title">Merge agent code faster. Review only what matters.</h1>
-    <p class="hero-sub">Grapim records every coding-agent run. Your rules pass the low-risk ones on their own. Auth, payments and migrations wait for a named reviewer.</p>
+    <h1 id="hero-title">See every agent change.<br> Undo any run.</h1>
+    <p class="hero-sub">Every edit and shell command, recorded per run. Sensitive changes wait for a person. A bad run comes out on its own.</p>
     <div class="cta">
-      <a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Sign in with GitHub</span></a>
-      <a class="btn btn-lg" href="/docs">Read the docs</a>
+      <a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Start with GitHub</span></a>
+      <a class="btn btn-lg" href="/docs/support">Talk to us</a>
     </div>
-    <p class="fine">Free while in early access. Stays on your GitHub; no repos move.</p>
     <p class="works" aria-label="Works with"><span class="works-label">Works with</span><span>Claude Code</span><span>Codex</span><span>Cursor</span><span>Gemini CLI</span><span>GitHub</span></p>
   </div>
   <figure class="frame frame-hero">
@@ -215,68 +226,23 @@ ${siteBar({ current: 'home' })}
   </figure>
 </section>
 
-<section class="band problem" aria-labelledby="problem-title">
-  <div class="wrap">
-    <h2 id="problem-title">Code review was built for code people wrote.</h2>
-    <div class="problem-grid">
-      <div><h3>Agents write more of every diff.</h3><p>One pull request now mixes several agent runs and a few human edits. Nothing in it says which lines came from which run, or what the agent was asked to do.</p></div>
-      <div><h3>Review cannot keep up.</h3><p>A 600-line agent diff gets a skim and an approve. Afterwards nobody can say which agent work a person actually looked at.</p></div>
-      <div><h3>One bad run is hard to take back.</h3><p>Reverting the commit throws away the good work that landed with it, and the agent's edits are spread across files.</p></div>
-      <div><h3>Auditors ask who approved it.</h3><p>Change-management controls expect a named reviewer for every change to production code, including the changes an agent wrote.</p></div>
-    </div>
-  </div>
-</section>
-
 <section class="how" id="how" aria-labelledby="how-title">
   <div class="wrap">
-    <h2 id="how-title" class="sec-title">How Grapim works</h2>
-    <p class="sec-lede">Four steps, on the GitHub you already use. Your repos stay where they are; Grapim adds a record, a review and a check.</p>
-
+    <h2 id="how-title" class="sr-only">How Grapim works</h2>
     <ol class="steps">
       <li class="step">
         <div class="step-text">
-          <span class="step-n" aria-hidden="true">1</span>
-          <h3>Record every agent run</h3>
-          <p><code>npm install -g grapim</code>, then <code>grapim init</code> in a repo, sets up the hooks of the agents it finds (Claude Code, Codex, Cursor, Gemini CLI) and two git hooks. From then on each agent run is recorded on the machine: the agent, every prompt, the files and lines it changed. Each commit gets a provenance note saying which lines came from which run.</p>
-          <p><code>grapim sync</code> sends the runs to your team's hub with a machine token.</p>
+          <h3>Every change, every run</h3>
+          <p>One record across Claude Code, Codex, Cursor and Gemini CLI: the prompt, the files, the lines. Files a shell command changed or deleted are in it too.</p>
+          <p><a class="link" href="/docs">Set up in five minutes ${ICON.arrow}</a></p>
         </div>
         <div class="step-vis">${term('Terminal', RUNS)}</div>
       </li>
       <li class="step">
         <div class="step-text">
-          <span class="step-n" aria-hidden="true">2</span>
-          <h3>Review each run, not a wall of lines</h3>
-          <p>The hub lists the runs waiting for you. Open one to see what it was asked, turn by turn, and the diff it produced. Approve or reject it, with a note.</p>
-          <p>The person who synced a run cannot approve it, and a run that changes after approval needs approving again.</p>
-        </div>
-        <figure class="step-vis frame">${shot('reviews', 'The Reviews page in the Grapim hub: a list of agent runs that need review, each with its prompt, agent, machine, repo, files and lines added and removed.')}<figcaption>The review inbox. Demo data.</figcaption></figure>
-      </li>
-    </ol>
-  </div>
-</section>
-
-<section class="gate" aria-labelledby="gate-title">
-  <div class="wrap gate-in">
-    <div class="gate-text">
-      <span class="step-n" aria-hidden="true">3</span>
-      <h2 id="gate-title">A person where it matters. Rules everywhere else.</h2>
-      <p>Install the Grapim GitHub App and every pull request gets a comment listing its agent runs: how many lines each wrote, the prompt behind it, and whether it has been approved.</p>
-      <p>Path rules decide who has to look. A run that only changed tests or docs passes under an automatic rule, and the check names the rule and the owner who set it. A run that touched <code>payments/**</code> waits for the reviewers that rule names. Turn on <b>Require review</b>, make <code>Grapim provenance (app)</code> a required check, and agent code nobody approved cannot merge.</p>
-      <p><a class="link" href="/docs/github">Set up the GitHub App ${ICON.arrow}</a></p>
-    </div>
-    <div class="gate-vis">${prThread()}<p class="vis-note">Illustration with demo data. The comment and check use the App's own wording.</p></div>
-  </div>
-</section>
-
-<section class="how how-2" aria-labelledby="undo-title">
-  <div class="wrap">
-    <ol class="steps" start="4">
-      <li class="step">
-        <div class="step-text">
-          <span class="step-n" aria-hidden="true">4</span>
-          <h3 id="undo-title">Undo one run, keep everything else</h3>
-          <p><code>grapim undo &lt;run&gt;</code> takes one run's changes out of every file it touched, including files its shell commands changed or deleted, and keeps the work other agents and people did afterwards. It prints the plan first and changes nothing until you add <code>--yes</code>.</p>
-          <p>If someone else has since edited the same lines, that file is left for you and undo says so. Undo runs on the machine that made the edits; the hub never changes your code.</p>
+          <h3>Undo one run. Keep the rest.</h3>
+          <p>Take a single run back out of every file it touched, including what its shell commands did. Work by other agents and people stays.</p>
+          <p><a class="link" href="/docs/undo">How undo works ${ICON.arrow}</a></p>
         </div>
         <div class="step-vis">${term('Terminal', UNDO)}</div>
       </li>
@@ -284,117 +250,86 @@ ${siteBar({ current: 'home' })}
   </div>
 </section>
 
-<section class="reports" aria-labelledby="reports-title">
-  <div class="wrap reports-in">
-    <div class="reports-text">
-      <h2 id="reports-title" class="sec-title">Evidence for the audit, without a spreadsheet</h2>
-      <p class="sec-lede">Every decision in the hub is kept with who made it and when. Reports turn that into answers you can hand over.</p>
-      <dl class="facts">
-        <div><dt>Merged without review</dt><dd>AI-written lines that reached the default branch from runs nobody approved, by run, repo and agent.</dd></div>
-        <div><dt>AI share</dt><dd>How much of the added code agents wrote, week by week, per repo and per agent.</dd></div>
-        <div><dt>Agents</dt><dd>Runs, lines, undo rate, reject rate and review time for each agent.</dd></div>
-        <div><dt>Export</dt><dd>Every report as CSV, for any date range in your plan's history.</dd></div>
-      </dl>
-      <p class="fine">Reports are on the Governance plan. Lines from commits Grapim did not record are shown as unknown, never counted as human.</p>
+<section class="gate" id="review" aria-labelledby="gate-title">
+  <div class="wrap gate-in">
+    <div class="gate-text">
+      <h2 id="gate-title">A person where it matters. Rules everywhere else.</h2>
+      <p>Runs that only touch tests or docs pass by rule. Runs that touch payments, auth or migrations wait for the reviewer you named, and the PR check blocks the merge until then.</p>
+      <p><a class="link" href="/docs/rules">Write your first rule ${ICON.arrow}</a></p>
     </div>
-    <figure class="frame reports-vis">${shot('reports', 'The Reports page in the Grapim hub: merged without review. Unreviewed AI lines, pending review, rejected lines still in commits, runs not approved, and a table of runs by review state.')}<figcaption>Merged without review, last 12 weeks. Demo data.</figcaption></figure>
+    <div class="gate-vis">${prThread()}<p class="vis-note">Illustration with demo data, in the GitHub App's own wording.</p></div>
   </div>
 </section>
 
-<section class="also" aria-labelledby="also-title">
+<section class="also" id="security" aria-labelledby="also-title">
   <div class="wrap">
-    <h2 id="also-title" class="sr-only">Also in Grapim</h2>
+    <h2 id="also-title" class="sr-only">Built for a security review</h2>
     <div class="also-grid">
       <div>
-        <h3>Agent inventory</h3>
-        <p>Which coding agents, versions, models and MCP servers your team's machines use, and which ones appeared this week. Only names, transports and hosts are collected; never environment values, headers or arguments.</p>
-        <p><a class="link" href="/docs/inventory">What the inventory collects ${ICON.arrow}</a></p>
+        <h3>Your code can stay home</h3>
+        <p>With No code storage, the hub keeps run records and hashes, never file contents.</p>
+        <p><a class="link" href="/docs/data-handling">What Grapim stores ${ICON.arrow}</a></p>
       </div>
       <div>
-        <h3>Ask Grapim</h3>
-        <p>An assistant in the hub that answers questions about your team's runs, reviews and reports, and prepares an approval, an invite link or a workspace change for you to confirm. It can read what you can read; it cannot change anything on its own.</p>
-        <p><a class="link" href="/docs/ask-grapim">How Ask Grapim works ${ICON.arrow}</a></p>
+        <h3>Know what agents can reach</h3>
+        <p>Which agents, models and MCP servers your team's machines run, and what appeared this week.</p>
+        <p><a class="link" href="/docs/inventory">The agent inventory ${ICON.arrow}</a></p>
       </div>
       <div>
-        <h3>Workspaces</h3>
-        <p>Agents that write docs or data, not code, get a shared folder on the hub. They read and write it over HTTPS or MCP; every write is recorded, reviewable and undoable, and people can sync it to a local folder.</p>
-        <p><a class="link" href="/docs/workspaces">How workspaces work ${ICON.arrow}</a></p>
+        <h3>Stays on your GitHub</h3>
+        <p>No repos move. The hub never writes to your code; undo runs on your machine.</p>
+        <p><a class="link" href="/docs/security">Security model ${ICON.arrow}</a></p>
       </div>
     </div>
-  </div>
-</section>
-
-<section class="agents" id="agents" aria-labelledby="agents-title">
-  <div class="wrap">
-    <h2 id="agents-title" class="sec-title">Which agents it records</h2>
-    <p class="sec-lede">Exactly what is recorded today, per agent.</p>
-    <div class="table-scroll"><table class="agents-table">
-      <thead><tr><th scope="col">Agent</th><th scope="col">How it connects</th><th scope="col">What is recorded</th></tr></thead>
-      <tbody>
-        <tr><th scope="row">Claude Code</th><td>Hooks, set up by <code>grapim init</code> or the Claude Code plugin</td><td>Every Edit, Write, MultiEdit and NotebookEdit, by prompt. Two agents are stopped from editing the same file at once.</td></tr>
-        <tr><th scope="row">Codex CLI</th><td>Hooks in <code>.codex/hooks.json</code>, set up by <code>grapim init</code></td><td>Every <code>apply_patch</code> edit, by prompt, once you trust the project's hooks in Codex.</td></tr>
-        <tr><th scope="row">Cursor</th><td>Hooks in <code>.cursor/hooks.json</code>, set up by <code>grapim init</code></td><td>Every file edit the agent makes, by prompt.</td></tr>
-        <tr><th scope="row">Gemini CLI</th><td>Hooks in <code>.gemini/settings.json</code>, set up by <code>grapim init</code></td><td>Every <code>write_file</code> and <code>replace</code>, by prompt.</td></tr>
-        <tr><th scope="row">Other MCP clients</th><td>Grapim's MCP server, <code>grapim mcp</code></td><td>The files the agent claims, from claim to release, labelled with the client's name.</td></tr>
-      </tbody>
-    </table></div>
-    <p class="fine">Edits made outside these paths, such as a shell command an agent runs, show up as "outside agents": counted, never credited to a run. Commits made after <code>grapim init</code> carry a note either way, so a human-only commit is recorded as human.</p>
-  </div>
-</section>
-
-<section class="security" id="security" aria-labelledby="security-title">
-  <div class="wrap">
-    <h2 id="security-title" class="sec-title">What Grapim can see, and what it cannot</h2>
-    <p class="sec-lede">The hub holds your team's agent history, so here is exactly what reaches it.</p>
-    <div class="sec-grid">
-      <ul class="ticks">
-        <li>${ICON.check}<span><b>Code reaches the hub only from machines you connect.</b> A machine runs <code>grapim sync</code> with a token you created.</span></li>
-        <li>${ICON.check}<span><b>Or keep code off the hub entirely.</b> With <b>No code storage</b> on, the hub keeps run records (agent, prompt, files, line counts, hashes, decisions) and no file contents. When someone opens a run, the diff is read from GitHub for that view and not saved. <a class="link" href="/docs/data-handling">What Grapim stores</a></span></li>
-        <li>${ICON.check}<span><b>Sign-in asks GitHub for nothing but your public profile.</b> No OAuth scopes, no email, no repository access. The GitHub token is used once and dropped.</span></li>
-        <li>${ICON.check}<span><b>Tokens are stored as hashes.</b> Machine tokens and invite links are shown once and kept only as SHA-256. A member's machine tokens stop working when they leave the team.</span></li>
-        <li>${ICON.check}<span><b>Teams are isolated on every route.</b> Another team's ids answer "not found"; a test calls every route as an outsider to prove it.</span></li>
-        <li>${ICON.check}<span><b>The hub never writes to your repositories.</b> Undo runs on your machine. The GitHub App only comments and posts its check.</span></li>
-        <li>${ICON.check}<span><b>Prompts can stay out of git.</b> <code>grapim init --no-intents</code> writes provenance notes without the prompt text.</span></li>
-      </ul>
-      <div class="notyet">
-        <h3>Not built yet</h3>
-        <p>So you can judge for yourself:</p>
-        <ul>
-          <li>No SSO or SAML; sign-in is GitHub only.</li>
-          <li>No encryption at rest beyond the hosting platform's disk encryption.</li>
-          <li>No automatic deletion of synced history yet.</li>
-          <li>No audit log of who viewed what in the hub.</li>
-          <li>No external penetration test or compliance certification.</li>
-        </ul>
-        <p><a class="link" href="/docs/security">Read the security model ${ICON.arrow}</a></p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="pricing" id="pricing" aria-labelledby="pricing-title">
-  <div class="wrap">
-    <h2 id="pricing-title" class="sec-title">Pricing</h2>
-    <p class="sec-lede">Grapim is in early access, and nothing is charged yet: there is no checkout. These are the plans and prices we intend to charge once billing opens. Want Require review or reports for a pilot now? <a class="link" href="/docs/support">Talk to us</a>.</p>
-    <div class="plans">
-      ${PLANS.map((p) => html`<section class="plan${p.mark ? ' plan-mark' : ''}" aria-labelledby="plan-${p.name.toLowerCase()}">
-        <h3 id="plan-${p.name.toLowerCase()}">${p.name}</h3>
-        <p class="plan-price"><span class="num">${p.price}</span>${p.per ? html`<span class="plan-per">${p.per}</span>` : ''}</p>
-        <p class="plan-lede">${p.lede}</p>
-        <ul>${p.items.map((i) => html`<li>${ICON.check}<span>${i}</span></li>`)}</ul>
-      </section>`)}
-    </div>
-    <p class="fine">Prices in US dollars. Yearly: Team $192 and Governance $384 per seat. Ask Grapim's monthly amount is model use at list price; an owner can set a lower limit.</p>
   </div>
 </section>
 
 <section class="close" aria-labelledby="close-title">
   <div class="wrap close-in">
-    <h2 id="close-title">Know who approved every line an agent wrote.</h2>
-    <p>Sign in, create a team, and run <code>grapim init</code> in one repo. The quickstart takes about five minutes.</p>
+    <h2 id="close-title">Know what every agent changed.</h2>
+    <p>Free while in early access. One repo, about five minutes.</p>
     <div class="cta">
-      <a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Sign in with GitHub</span></a>
-      <a class="btn btn-lg" href="/docs">Read the quickstart</a>
+      <a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Start with GitHub</span></a>
+      <a class="btn btn-lg" href="/pricing">See pricing</a>
+    </div>
+  </div>
+</section>
+
+</main>
+${siteFooter()}
+</body>
+</html>`.toString();
+}
+
+export function pricingPage({ origin, signedIn = false }) {
+  return html`${siteHead({ title: 'Pricing', description: 'Grapim plans: Free, Team at $20 and Governance at $40 per seat a month, and Enterprise. Nothing is charged during early access.', path: '/pricing', origin })}
+<body class="site">
+<a class="skip" href="#main">Skip to content</a>
+${siteBar({ current: 'pricing', signedIn })}
+<main id="main">
+
+<section class="pricing pricing-page" id="pricing" aria-labelledby="pricing-title">
+  <div class="wrap">
+    <h1 id="pricing-title" class="sec-title">Pricing</h1>
+    <p class="sec-lede">Free while in early access: nothing is charged yet. These are the prices once billing opens.</p>
+    <div class="plans">
+      ${PLANS.map((p) => html`<section class="plan${p.mark ? ' plan-mark' : ''}" aria-labelledby="plan-${p.name.toLowerCase()}">
+        <h2 id="plan-${p.name.toLowerCase()}">${p.name}</h2>
+        <p class="plan-price"><span class="num">${p.price}</span>${p.per ? html`<span class="plan-per">${p.per}</span>` : ''}</p>
+        <p class="plan-lede">${p.lede}</p>
+        ${p.name === 'Free' ? html`<a class="btn plan-cta" href="${SIGN_IN}" rel="nofollow">Start with GitHub</a>` : p.name === 'Enterprise' || p.mark ? html`<a class="btn${p.mark ? ' btn-primary' : ''} plan-cta" href="/docs/support">${p.mark ? 'Ask for a pilot' : 'Talk to us'}</a>` : html`<a class="btn plan-cta" href="${SIGN_IN}" rel="nofollow">Start with GitHub</a>`}
+        <ul>${p.items.map((i) => html`<li>${ICON.check}<span>${i}</span></li>`)}</ul>
+      </section>`)}
+    </div>
+    <p class="fine">Prices in US dollars. Yearly: Team $192 and Governance $384 per seat.</p>
+  </div>
+</section>
+
+<section class="faq" aria-labelledby="faq-title">
+  <div class="wrap faq-in">
+    <h2 id="faq-title" class="sec-title">Questions</h2>
+    <div class="faq-list">
+      ${FAQ.map(([q, a]) => html`<details><summary>${q}</summary><p>${a}</p></details>`)}
     </div>
   </div>
 </section>

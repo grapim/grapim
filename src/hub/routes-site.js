@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { notFound, redirect } from './http.js';
 import { docPath, docsPage, loadDocs, ORDER } from './pages/docs.js';
-import { landingPage } from './pages/site.js';
+import { landingPage, pricingPage } from './pages/site.js';
 
 const PAGES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'pages');
 const IMG = path.join(PAGES, 'site-img');
@@ -43,6 +43,8 @@ export function siteRoutes(router, hub) {
     send(ctx, landing);
   });
 
+  router.get('/pricing', (ctx) => send(ctx, pricingPage({ origin, signedIn: !!ctx.session })));
+
   router.get('/docs', (ctx) => send(ctx, docsPage({ pages, slug: ORDER[0], origin, signedIn: !!ctx.session })));
   router.get('/docs/:page', (ctx) => {
     const slug = ctx.params.page;
@@ -53,12 +55,12 @@ export function siteRoutes(router, hub) {
   router.get('/support', (ctx) => redirect(ctx.res, '/docs/support'));
 
   router.get('/robots.txt', (ctx) => {
-    const body = ['User-agent: *', 'Allow: /$', 'Allow: /docs', 'Allow: /hub/static/', 'Disallow: /hub/', 'Disallow: /w/', 'Disallow: /v1/', `Sitemap: ${origin}/sitemap.xml`, ''].join('\n');
+    const body = ['User-agent: *', 'Allow: /$', 'Allow: /pricing', 'Allow: /docs', 'Allow: /hub/static/', 'Disallow: /hub/', 'Disallow: /w/', 'Disallow: /v1/', `Sitemap: ${origin}/sitemap.xml`, ''].join('\n');
     send(ctx, body, 'text/plain; charset=utf-8');
   });
 
   router.get('/sitemap.xml', (ctx) => {
-    const urls = ['/', ...ORDER.map(docPath)];
+    const urls = ['/', '/pricing', ...ORDER.map(docPath)];
     const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${origin}${u}</loc></url>`).join('\n')}\n</urlset>\n`;
     send(ctx, body, 'application/xml; charset=utf-8');
   });

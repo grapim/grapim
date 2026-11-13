@@ -111,7 +111,7 @@ p { text-wrap: pretty; }
 .hero { padding-top: clamp(56px, 9vw, 112px); background: linear-gradient(to bottom, var(--page) 0, var(--page) 62%, var(--stage) 62%); border-bottom: 1px solid var(--border); }
 .hero-text { max-width: var(--w); margin: 0 auto; padding: 0 var(--gutter); }
 .hero h1 {
-  margin: 0; max-width: 19ch;
+  margin: 0; max-width: 24ch; text-wrap: balance;
   font-size: clamp(2.5rem, 1.35rem + 4.1vw, 4.6rem); line-height: 1.02; font-weight: 650; letter-spacing: -0.035em;
 }
 .hero-sub { margin: 24px 0 0; max-width: 58ch; font-size: clamp(1.05rem, 0.98rem + 0.35vw, 1.25rem); line-height: 1.55; color: var(--text-2); }
@@ -198,6 +198,7 @@ section { scroll-margin-top: var(--bar-h); }
 .pr-table { border-collapse: collapse; width: 100%; font-size: 12.5px; min-width: 460px; }
 .pr-table th, .pr-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
 .pr-table th { background: var(--surface-2); font-weight: 600; }
+.pr-table td.mono { white-space: nowrap; }
 .pr-table .n { text-align: right; font-variant-numeric: tabular-nums; }
 .pr-check, .pr-event, .pr-merge { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 13px; }
 .pr-check { border: 1px solid var(--border); }
@@ -251,15 +252,29 @@ section { scroll-margin-top: var(--bar-h); }
 .plans { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 48px; }
 .plan { background: var(--page); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
 .plan-mark { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.plan h3 { margin: 0; font-size: 16px; font-weight: 620; }
+.plan h3, .plan h2 { margin: 0; font-size: 16px; font-weight: 620; letter-spacing: 0; }
+.plan { display: flex; flex-direction: column; }
+.plan-cta { margin-top: 18px; justify-content: center; }
 .plan-price { margin: 14px 0 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .plan-price .num { font-size: 32px; line-height: 1; font-weight: 650; letter-spacing: -0.025em; }
 .plan-per { font-size: 13px; color: var(--text-3); }
-.plan-lede { margin: 12px 0 0; font-size: 14px; color: var(--text-2); min-height: 3em; }
+.plan-lede { margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: var(--text-2); min-height: 3em; }
 .plan ul { list-style: none; margin: 18px 0 0; padding: 18px 0 0; border-top: 1px solid var(--border); display: grid; gap: 9px; font-size: 14px; }
 .plan li { display: flex; gap: 8px; }
 .plan li .i { margin-top: 3px; color: var(--accent-text); }
 .pricing .fine { margin-top: 20px; }
+.pricing-page { border-top: 0; padding-top: clamp(56px, 8vw, 96px); }
+.pricing-page .sec-title { font-size: clamp(2.2rem, 1.5rem + 2.6vw, 3.6rem); }
+.faq { padding: clamp(64px, 9vw, 112px) 0; }
+.faq-in { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: clamp(24px, 5vw, 72px); }
+.faq-list { border-top: 1px solid var(--border); }
+.faq details { border-bottom: 1px solid var(--border); }
+.faq summary { cursor: pointer; list-style: none; padding: 20px 32px 20px 0; font-weight: 560; position: relative; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; position: absolute; right: 4px; top: 18px; color: var(--text-3); font-weight: 400; font-size: 20px; }
+.faq details[open] summary::after { content: "\2212"; }
+.faq details p { margin: 0 0 20px; color: var(--text-2); max-width: 64ch; }
+.how { border-top: 0; }
 
 /* Closing. */
 .close { padding: clamp(80px, 11vw, 140px) 0; }
@@ -291,6 +306,7 @@ section { scroll-margin-top: var(--bar-h); }
   .hero { background: linear-gradient(to bottom, var(--page) 0, var(--page) 55%, var(--stage) 55%); }
   .problem-grid, .also-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
   .plans { grid-template-columns: minmax(0, 1fr); }
+  .faq-in { grid-template-columns: minmax(0, 1fr); }
   .plan-lede { min-height: 0; }
   .foot-in { grid-template-columns: minmax(0, 1fr); }
   .cta .btn { flex: 1 1 auto; }

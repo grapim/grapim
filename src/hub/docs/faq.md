@@ -33,7 +33,7 @@ The first line of each prompt is kept as the turn's intent, in the hub and in th
 
 ## What does it cost?
 
-Nothing during early access: there is no checkout yet. The plans we intend to charge for are on the [pricing section](/#pricing) of the home page.
+Nothing during early access: there is no checkout yet. The plans we intend to charge for are on the [pricing page](/pricing).
 
 ## Does Grapim help with SOC 2?
 

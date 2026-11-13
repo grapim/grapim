@@ -38,7 +38,7 @@ function signedInCookie() {
   return h.hub.auth.createSession(4242).cookie.split(';')[0];
 }
 
-const PAGES = ['/', ...ORDER.map(docPath)];
+const PAGES = ['/', '/pricing', ...ORDER.map(docPath)];
 
 function assertCspClean(body, where) {
   assert.ok(!/<script(?![^>]*\ssrc=)[^>]*>/i.test(body), `${where}: an inline <script>`);
@@ -56,13 +56,19 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   assert.match(out.headers.get('content-type'), /text\/html/);
   assert.match(out.headers.get('content-security-policy'), /script-src 'self'/);
   const body = await out.text();
-  assert.match(body, /Merge agent code faster. Review only what matters./);
+  assert.match(body, /See every agent change\.<br> Undo any run\./);
   assert.match(body, /href="\/hub\/auth\/github"/, 'the primary action signs in with GitHub');
   assert.match(body, /href="\/docs"/);
-  for (const id of ['how', 'agents', 'security', 'pricing']) assert.match(body, new RegExp(`id="${id}"`), `section #${id}`);
-  // Honest pricing: no checkout is promised while billing is not live.
-  assert.match(body, /nothing is charged yet/);
-  assert.ok(!/start (your )?(free )?trial|buy now|checkout\.stripe/i.test(body));
+  assert.match(body, /href="\/pricing"/);
+  for (const id of ['how', 'review', 'security']) assert.match(body, new RegExp(`id="${id}"`), `section #${id}`);
+  const words = body.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
+  assert.ok(words < 900, `the landing page stays short (${words} words)`);
+
+  // Pricing has its own page. Honest pricing: no checkout while billing is not live.
+  const pricing = await (await get('/pricing')).text();
+  assert.match(pricing, /nothing is charged yet/);
+  for (const p of ['free', 'team', 'governance', 'enterprise']) assert.match(pricing, new RegExp(`<h2 id="plan-${p}">`));
+  for (const b of [body, pricing]) assert.ok(!/start (your )?(free )?trial|buy now|checkout\.stripe/i.test(b));
 
   const signedIn = await get('/', { Cookie: signedInCookie() });
   assert.equal(signedIn.status, 303);
