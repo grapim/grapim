@@ -201,6 +201,47 @@ const FAQ = [
   ['Which agents are covered?', 'Claude Code, Codex CLI, Cursor and Gemini CLI, including files their shell commands change. Any other MCP client can report the files it claims.'],
 ];
 
+// The hero figure: a stack of agent runs drawn as thin isometric plates.
+// One run (a Cursor run whose shell command dropped a table) lights up,
+// slides out of the stack, and the runs above it settle into its place:
+// grapim undo, keeping everyone else's work. Pure SVG; the motion is CSS
+// (.iso in site.css) and stops under reduced motion.
+const ISO_RUNS = [
+  ['claude 2b9c0d14', 'docs'],
+  ['codex 4c8e1b07', 'tests'],
+  ['cursor 5d81c0e2', 'via shell: prisma migrate'],
+  ['claude 7f3e21aa', 'payments/'],
+  ['gemini 91ad3f60', 'src/search'],
+];
+function isoFigure() {
+  const cx = 150;
+  const a = 104;
+  const b = 52;
+  const t = 9;
+  const gap = 30;
+  const top = 64;
+  const pts = (list) => list.map(([x, y]) => `${x},${y}`).join(' ');
+  const plate = (i) => {
+    const y = top + i * gap;
+    const [label, note] = ISO_RUNS[i];
+    return html`<g class="iso-run iso-run-${i}${i === 2 ? ' iso-out' : i < 2 ? ' iso-above' : ''}">
+      <polygon class="iso-side" points="${pts([[cx - a, y], [cx, y + b], [cx, y + b + t], [cx - a, y + t]])}"/>
+      <polygon class="iso-side iso-side-r" points="${pts([[cx, y + b], [cx + a, y], [cx + a, y + t], [cx, y + b + t]])}"/>
+      <polygon class="iso-top" points="${pts([[cx, y - b], [cx + a, y], [cx, y + b], [cx - a, y]])}"/>
+      <path class="iso-lead" d="M${cx + a + 6} ${y + 4}h18"/>
+      <text class="iso-label" x="${cx + a + 30}" y="${y + 3}">${label}</text>
+      <text class="iso-note" x="${cx + a + 30}" y="${y + 17}">${note}</text>
+    </g>`;
+  };
+  return html`<figure class="iso" aria-hidden="true">
+  <svg viewBox="0 0 470 300" width="470" height="300" focusable="false">
+    ${[4, 3, 2, 1, 0].map(plate)}
+    <g class="iso-done"><path d="M${cx - a} ${top + 5 * gap + 34}h${2 * a}" class="iso-base"/><text class="iso-label" x="${cx - a}" y="${top + 5 * gap + 56}">$ grapim undo 5d81c0e2</text><text class="iso-note iso-ok" x="${cx - a}" y="${top + 5 * gap + 72}">2 files back, other runs kept</text></g>
+  </svg>
+  <figcaption class="iso-cap">fig. 1 · one run out, the rest kept</figcaption>
+</figure>`;
+}
+
 const description = 'Grapim records every change your coding agents make, shell commands included. Sensitive changes wait for a named reviewer, and any single run can be undone. For Claude Code, Codex, Cursor and Gemini CLI.';
 
 export function landingPage({ origin }) {
@@ -219,6 +260,7 @@ ${siteBar({ current: 'home' })}
       <a class="btn btn-lg" href="/docs/support">Talk to us</a>
     </div>
     <p class="works" aria-label="Works with"><span class="works-label">Works with</span><span>Claude Code</span><span>Codex</span><span>Cursor</span><span>Gemini CLI</span><span>GitHub</span></p>
+    ${isoFigure()}
   </div>
   <figure class="frame frame-hero">
     ${shot('run', 'A run page in the Grapim hub: the run "Add idempotency keys to POST /orders" by claude 7f3e21aa, 2 turns, 3 files, +32 −4, marked Needs review, with Approve and Reject buttons, its prompts and its diff.', { eager: true })}
