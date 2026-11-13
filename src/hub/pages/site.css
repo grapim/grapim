@@ -644,7 +644,7 @@ body.site code { font-size: 0.86em; }
 .ledger-rows time { color: var(--text-3); }
 .ledger-who { color: var(--text); }
 .ledger-what { color: var(--text-2); line-height: 1.45; }
-.ledger-what code { color: var(--text); }
+.ledger-what code { color: var(--text); white-space: nowrap; }
 .ledger-n { color: var(--text-3); text-align: right; white-space: nowrap; }
 .ledger-rows .is-bad .ledger-who, .ledger-rows .is-bad .ledger-n { color: var(--signal); }
 .ledger-rows .is-hold { box-shadow: inset 3px 0 0 var(--signal); }
