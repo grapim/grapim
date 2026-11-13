@@ -98,7 +98,7 @@ export const PLATFORM_PRICES = Object.freeze({
 // Stripe subscription statuses that keep the paid plan, and those that keep it
 // only during the grace period. Anything else (canceled, incomplete,
 // incomplete_expired, paused) means free.
-const PAID_STATUSES = new Set(['active', 'trialing']);
+const PAID_STATUSES = new Set(['active', 'trialing', 'pilot']); // pilot: set by a hub admin for a design partner, no billing
 const GRACE_STATUSES = new Set(['past_due', 'unpaid']);
 
 export class BillingError extends Error {
