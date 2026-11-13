@@ -50,21 +50,43 @@ function policyForm({ team, csrf, policy, allowed, from = null, slug = null, che
   ${branchRule({ slug, checkName })}`;
 }
 
-// The card on the settings page (owners only).
-export function githubSection({ team, csrf, configured, installations, policy, allowed, slug = null, checkName, history = '' }) {
+// Settings, GitHub (owners only): the App's installations and the history scan.
+export function githubSection({ team, configured, installations, checkName, history = '' }) {
   return html`<section class="card" id="github" aria-labelledby="github-title">
   <div class="card-head">
-    <h2 id="github-title" class="card-title">GitHub</h2>
+    <h2 id="github-title" class="card-title">GitHub App</h2>
     <a class="btn btn-sm" href="/hub/teams/${team.id}/github">${installations.length ? 'Manage' : 'Connect'}</a>
   </div>
   <p class="card-sub">${!configured
     ? 'The GitHub App is not configured on this hub.'
     : installations.length
       ? html`Pull requests in ${installations.map((i, n) => html`${n ? ', ' : ''}<span class="strong">${i.account_login || `installation ${i.id}`}</span>`)} get a provenance comment and a "${checkName}" check.`
-      : 'Install the Grapim GitHub App so each pull request lists its agent runs, what each was asked to do and who reviewed it, with a check that can block merging until they are reviewed.'}</p>
+      : 'Install the App so each pull request lists its agent runs and who reviewed them, with a check that can block merging.'}</p>
   ${history}
-  <h3 class="card-title small policy-sub">Require review before merge</h3>
-  ${policyForm({ team, csrf, policy, allowed, from: 'settings', slug, checkName })}
+</section>`;
+}
+
+// Settings, Review rules (owners only): require review before merge, and
+// require provenance once that is on. How to make GitHub enforce the check
+// folds away under the card.
+export function policyCard({ team, csrf, policy, allowed, slug = null, checkName = 'Grapim provenance (app)' }) {
+  const on = !!policy.require_review;
+  const prov = policy.require_provenance === undefined ? true : !!policy.require_provenance;
+  return html`<section class="card" id="require-review" aria-labelledby="require-review-title">
+  <div class="card-head">
+    <h2 id="require-review-title" class="card-title">Require review before merge</h2>
+    ${toggle({ team, csrf, field: 'require_review', on, allowed, from: 'settings' })}
+  </div>
+  <p class="card-sub">${allowed || on
+    ? html`The <code>${checkName}</code> check fails while a pull request has lines from an agent run no other member approved in this hub.`
+    : 'On the Governance plan. Until then the check stays neutral.'}</p>
+  ${on
+    ? html`<div class="policy-row">
+    <div><p class="strong">Require provenance</p><p class="fine">${prov ? 'Commits that add lines without a Grapim note fail the check too.' : 'Commits without a Grapim note pass as human.'}</p></div>
+    ${toggle({ team, csrf, field: 'require_provenance', on: prov, allowed, from: 'settings' })}
+  </div>`
+    : ''}
+  <details class="howto"><summary>Make GitHub block the merge</summary>${branchRule({ slug, checkName })}</details>
 </section>`;
 }
 
@@ -75,7 +97,7 @@ export function githubPage({ user, csrf, team, configured, problems = [], instal
     csrf,
     team,
     crumbs: [{ label: 'Settings', href: `/hub/teams/${team.id}/settings` }, { label: 'GitHub' }],
-    body: html`${head(team, 'settings', { title: 'GitHub', sub: html`Pull request comments and the Grapim check. <a href="/hub/teams/${team.id}/settings#github">Back to settings</a>` })}
+    body: html`${head(team, 'settings', { title: 'GitHub', sub: html`Pull request comments and the Grapim check. <a href="/hub/teams/${team.id}/settings/github">Back to settings</a>` })}
 ${notice ? html`<p class="notice" role="status">${notice}</p>` : ''}
 ${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
 ${!configured

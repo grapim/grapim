@@ -134,6 +134,8 @@ kbd {
 .nav-item[aria-current="page"] { background: var(--surface-3); color: var(--text); }
 .nav-item .icon { color: var(--text-3); }
 .nav-item[aria-current="page"] .icon { color: var(--text); }
+.nav-item[hidden] { display: none; }
+.nav-sep { height: 1px; background: var(--border); margin: 6px 8px; }
 .nav-item .count { margin-left: auto; color: var(--accent-text); font-size: var(--fs-12); font-weight: 600; }
 
 .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 8px 4px 0; border-top: 1px solid var(--border); }
@@ -219,7 +221,7 @@ main:focus { outline: none; }
 .btn:disabled:hover, .btn[aria-disabled="true"]:hover { background: var(--surface); }
 .gh { width: 16px; height: 16px; }
 
-input[type="text"], input[type="number"], input[type="password"], select {
+input[type="text"], input[type="number"], input[type="password"], input[type="url"], select {
   height: 32px; padding: 0 10px; min-width: 0;
   border: 1px solid var(--border-strong); border-radius: var(--radius);
   background: var(--surface); color: var(--text);
@@ -452,12 +454,32 @@ a.item-link:hover { background: var(--surface-2); }
 
 /* ---------------------------------------------------------------- settings */
 
-.settings { display: grid; grid-template-columns: 184px minmax(0, 1fr); gap: 32px; align-items: start; }
+/* One page per topic: a sub-nav column, then the page (its title, one to
+   three cards). Under 680px of page width the sub-nav becomes a row that
+   scrolls sideways above the title. */
+.settings { display: grid; grid-template-columns: 176px minmax(0, 1fr); gap: 40px; align-items: start; }
 .subnav { position: sticky; top: 72px; display: flex; flex-direction: column; gap: 2px; }
+.subnav-title { padding: 0 8px 8px; color: var(--text-3); font-size: var(--fs-12); font-weight: 500; }
 .subnav-item { display: flex; align-items: center; height: 32px; padding: 0 8px; border-radius: var(--radius); color: var(--text-2); font-weight: 500; white-space: nowrap; }
 .subnav-item:hover { background: var(--surface-2); color: var(--text); }
 .subnav-item[aria-current] { background: var(--surface-3); color: var(--text); }
-.settings-body { min-width: 0; max-width: 760px; }
+.settings-body { min-width: 0; max-width: 720px; }
+.settings-body > .page-head { margin-bottom: 20px; }
+@container (max-width: 680px) {
+  .settings { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .subnav {
+    position: static; flex-direction: row; gap: 4px; overflow-x: auto; scrollbar-width: none;
+    margin: -8px -16px 0; padding: 0 16px 8px; border-bottom: 1px solid var(--border);
+  }
+  .subnav::-webkit-scrollbar { display: none; }
+  .subnav-title { display: none; }
+  .subnav-item { height: 30px; flex: none; }
+}
+/* Require review: the provenance switch as a row under the main one. */
+.policy-row { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; padding: 12px 0; border-top: 1px solid var(--border); }
+.policy-row .fine { margin-top: 2px; }
+#require-review .howto { margin-top: 4px; }
+#require-review .howto .fine { margin-top: 8px; }
 
 /* ---------------------------------------------------------------- tables */
 
@@ -717,13 +739,8 @@ dialog::backdrop { background: rgb(10 10 8 / 0.42); }
   .run-bar { top: 48px; }
   .ftree { top: 120px; }
   .file { scroll-margin-top: 120px; }
-  .card { scroll-margin-top: 112px; }
-  .settings { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .subnav {
-    top: 48px; z-index: 3; flex-direction: row; overflow-x: auto; scrollbar-width: none;
-    margin: 0 -16px; padding: 8px 16px; background: var(--bg); border-bottom: 1px solid var(--border);
-  }
-  .subnav-item { height: 28px; flex: none; }
+  .card { scroll-margin-top: 64px; }
+  .subnav { top: 64px; }
 }
 
 @media (max-width: 640px) {
@@ -997,18 +1014,32 @@ main.wrap { container-type: inline-size; }
 .rule-pattern { font-size: var(--fs-13); padding: 2px 6px; background: var(--surface-2); border-radius: var(--radius); }
 .rule-form { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
 .rule-form > .btn { align-self: flex-start; }
-.rule-fields { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 12px; }
-.rule-who { display: flex; flex-wrap: wrap; gap: 8px; border: 0; padding: 0; margin: 0; }
-.rule-who legend { font-size: var(--fs-12); color: var(--text-2); margin-bottom: 6px; padding: 0; }
+.rule-form > .sub-title { margin: 0; }
+.rule-form > .fine { margin-top: 0; }
+/* A labelled field: the label above, the control full width under it. */
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field input, .field select { width: 100%; }
+.label, .field > .label, .rule-who legend { font-size: var(--fs-12); line-height: 16px; font-weight: 500; color: var(--text-2); }
+/* Pattern, what a run gets, approvals: one row, the pattern taking the room. */
+.rule-fields { display: grid; grid-template-columns: minmax(0, 1fr) 200px 88px; gap: 12px; align-items: end; }
+.rule-who { display: flex; flex-wrap: wrap; gap: 8px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.rule-who legend { margin-bottom: 6px; padding: 0; }
+.rule-auto-note { display: none; }
+/* "Passes automatically": approvals and approvers do not apply, so they go. */
+.rule-form:has(select[name="action"] option[value="auto"]:checked) .rule-review-only { display: none; }
+.rule-form:has(select[name="action"] option[value="auto"]:checked) .rule-fields { grid-template-columns: minmax(0, 1fr) 200px; }
+.rule-form:has(select[name="action"] option[value="auto"]:checked) .rule-auto-note { display: block; }
+@container (max-width: 560px) {
+  .rule-fields, .rule-form:has(select[name="action"] option[value="auto"]:checked) .rule-fields { grid-template-columns: minmax(0, 1fr) 88px; }
+  .rule-pattern-field { grid-column: 1 / -1; }
+  .rule-form:has(select[name="action"] option[value="auto"]:checked) .rule-fields > .field:not(.rule-review-only) { grid-column: 1 / -1; }
+}
 .rules-applied { margin: 12px 0; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
 .rule-checks { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-13); }
 .rule-checks li { display: flex; gap: 8px; align-items: flex-start; }
 .rule-checks .icon { flex: none; margin-top: 2px; }
 .rule-checks .ok .icon { color: var(--ok-text); }
 .rule-checks .todo .icon { color: var(--warn-text); }
-@media (max-width: 640px) {
-  .rule-fields { grid-template-columns: minmax(0, 1fr); }
-}
 
 /* Audit evidence: the page, and a print view without the app shell. */
 .evidence-note { background: var(--surface-2); color: var(--text-2); }

@@ -189,7 +189,7 @@ export function createNotifier(hub, options = {}) {
   // ---- Settings ----
 
   const FORM = { auth: 'session', csrf: true, team: true, owner: true };
-  const back = (ctx, done) => redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings?done=${done}#notifications`);
+  const back = (ctx, done) => redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings/notifications?done=${done}`);
   function routes(router) {
     router.post(
       '/hub/teams/:team/notifications/slack',

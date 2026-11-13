@@ -693,7 +693,7 @@ export function createTeamStorage(hub, { defaultStorage = null, resolve = defaul
 
   function routes(router) {
     const OWNER_FORM = { auth: 'session', csrf: true, team: true, owner: true };
-    const back = (ctx) => redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings#storage`);
+    const back = (ctx) => redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings/data#storage`);
     const by = (ctx) => `user:${ctx.session.user.id}`;
     // A refusal is shown on the settings page, in the card, with what was typed (never the secrets).
     async function onCard(ctx, fn) {

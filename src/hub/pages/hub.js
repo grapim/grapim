@@ -1,7 +1,7 @@
 // The hub's only script (the CSP allows no inline code). Every page works
 // without it; it adds: copy buttons, confirmation for destructive forms,
 // chart tooltips, closing menus, the Ctrl/Cmd K palette, "g" shortcuts and
-// the shortcuts help, the settings scroll-spy, the duplicate team name hint,
+// the shortcuts help, old settings links, the duplicate team name hint,
 // and remembering the diff "wrap long lines" choice.
 
 const $ = (s, root = document) => root.querySelector(s);
@@ -429,33 +429,22 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ---------------------------------------------------------------- settings scroll-spy
+// ---------------------------------------------------------------- old settings links
 
-const spy = $$('.subnav-item[data-spy]');
-if (spy.length && 'IntersectionObserver' in window) {
-  const byId = new Map(spy.map((a) => [a.dataset.spy, a]));
-  const visible = new Set();
-  const mark = () => {
-    const first = spy.find((a) => visible.has(a.dataset.spy)) ?? null;
-    for (const a of spy) {
-      if (a === first) a.setAttribute('aria-current', 'true');
-      else a.removeAttribute('aria-current');
-    }
-  };
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const en of entries) {
-        if (en.isIntersecting) visible.add(en.target.id);
-        else visible.delete(en.target.id);
-      }
-      mark();
-    },
-    { rootMargin: '-64px 0px -55% 0px' },
-  );
-  for (const id of byId.keys()) {
-    const s = document.getElementById(id);
-    if (s) io.observe(s);
-  }
+// Settings used to be one page of anchors (/settings#tokens). The server sends
+// /settings to General with the fragment kept; send an old anchor on to the
+// page that holds it now.
+const OLD_SETTINGS = { members: 'members', invites: 'members', tokens: 'machines', billing: 'plan', 'ask-grapim': 'plan', github: 'github', rules: 'rules', notifications: 'notifications', storage: 'data', 'code-storage': 'data', platform: 'platform', danger: 'general' };
+{
+  const m = location.pathname.match(/^(\/hub\/teams\/[^/]+\/settings)\/general\/?$/);
+  const to = m && OLD_SETTINGS[location.hash.slice(1)];
+  if (to && to !== 'general') location.replace(`${m[1]}/${to}${location.search}`);
+}
+// On a phone the settings sub-nav is a row that scrolls sideways: show the current page in it.
+{
+  const nav = $('.subnav');
+  const cur = nav && $('.subnav-item[aria-current]', nav);
+  if (cur && nav.scrollWidth > nav.clientWidth) nav.scrollLeft += cur.getBoundingClientRect().left - nav.getBoundingClientRect().left - 16;
 }
 
 // ---------------------------------------------------------------- run page

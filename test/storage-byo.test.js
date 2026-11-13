@@ -233,14 +233,14 @@ test('an owner brings an S3 bucket: probe, copy, switch; later writes and restor
   const wsKey = `ws/${team}/${ws.id}`;
   assert.ok(store.map.has(`${wsKey}/blobs/${sha1('# A\n')}`));
 
-  let page = await alice.req(`/hub/teams/${team}/settings`);
+  let page = await alice.req(`/hub/teams/${team}/settings/data`);
   assert.match(page.text, /id="storage"/);
   assert.match(page.text, /In use: the hub&#39;s own storage|In use: the hub's own storage/);
 
   const before = s3.requests.length;
   const r = await alice.post(`/hub/teams/${team}/storage`, s3Form('flow'));
   assert.equal(r.status, 303, r.text);
-  assert.equal(r.headers.get('location'), `/hub/teams/${team}/settings#storage`);
+  assert.equal(r.headers.get('location'), `/hub/teams/${team}/settings/data#storage`);
   // The probe: put, get, list, delete of one random key, then gone.
   const probe = s3.requests.slice(before).filter((q) => q.url.includes('grapim-probe'));
   assert.deepEqual(probe.map((q) => q.method), ['PUT', 'GET', 'GET', 'DELETE', 'HEAD']);
@@ -262,7 +262,7 @@ test('an owner brings an S3 bucket: probe, copy, switch; later writes and restor
   assert.ok(!store.map.has(`${wsKey}/blobs/${sha1('# B\n')}`), 'not in the hub store');
 
   // The card shows where, never the keys.
-  page = await alice.req(`/hub/teams/${team}/settings`);
+  page = await alice.req(`/hub/teams/${team}/settings/data`);
   assert.match(page.text, /acme-grapim/);
   assert.match(page.text, /Credentials saved/);
   assertNoSecrets(page.text, 'the settings page');
@@ -309,7 +309,7 @@ test('GCS and Azure buckets through the card: signed requests, probe, move', asy
   assert.equal(azure.signatureFailures, 0);
   assert.deepEqual([...azure.blobs.keys()].filter((k) => k.includes('grapim-probe/')), []);
   assertNoSecrets(h.logs.join('\n'), 'the logs');
-  assertNoSecrets((await alice.req(`/hub/teams/${a}/settings`)).text, 'the settings page');
+  assertNoSecrets((await alice.req(`/hub/teams/${a}/settings/data`)).text, 'the settings page');
 });
 
 // ---------------------------------------------------------- encryption
@@ -343,7 +343,7 @@ test('credentials are sealed to the team and the column: a ciphertext swapped be
   const page = await (async () => {
     const b = await signIn(fresh, 'byo-seal-2');
     db.prepare("INSERT INTO members (team_id, user_id, role, created_at) VALUES (?, ?, 'owner', ?)").run(B, b.user.id, Date.now());
-    return b.req(`/hub/teams/${B}/settings`);
+    return b.req(`/hub/teams/${B}/settings/data`);
   })();
   assert.match(page.text, /cannot be read any more/);
 
@@ -498,7 +498,7 @@ test('during a move: writes go to both stores, blob reads fall back to the old o
   assert.equal(ts.status(team).provider, 'hub');
   assert.equal(ts.status(team).move.state, 'copying');
   assert.equal(h.hub.db.prepare('SELECT storage_url FROM teams WHERE id = ?').get(team).storage_url, null);
-  assert.match((await alice.req(`/hub/teams/${team}/settings`)).text, /<progress max="100" value="\d+"/);
+  assert.match((await alice.req(`/hub/teams/${team}/settings/data`)).text, /<progress max="100" value="\d+"/);
 
   // A new version: written to both.
   const nb = Buffer.from('written during the move');
@@ -572,7 +572,7 @@ test('a failed move can be retried or cancelled; a move in progress refuses anot
   assert.equal(st.move.state, 'failed');
   assert.match(st.move.error, /HTTP 403 AccessDenied/);
   assert.equal(st.provider, 'hub');
-  let page = (await alice.req(`/hub/teams/${team}/settings`)).text;
+  let page = (await alice.req(`/hub/teams/${team}/settings/data`)).text;
   assert.match(page, /The move to Amazon S3 stopped/);
   assertNoSecrets(page, 'the settings page');
 
@@ -594,6 +594,7 @@ test('a failed move can be retried or cancelled; a move in progress refuses anot
   t.after(h2.close);
   const bob = await signIn(h2, 'byo-cancel');
   const t2 = await createTeam(bob, 'Cancelling');
+  await createWorkspace(bob, t2, 'docs');
   await seed(h2.store, t2, 3);
   r = await bob.post(`/hub/teams/${t2}/storage`, s3Form('cancel'));
   assert.equal(r.status, 303);
@@ -604,7 +605,7 @@ test('a failed move can be retried or cancelled; a move in progress refuses anot
   await h2.hub.teamStorage.job(t2);
   assert.equal(h2.hub.teamStorage.status(t2).provider, 'hub');
   assert.equal(h2.hub.teamStorage.status(t2).move, null);
-  page = (await bob.req(`/hub/teams/${t2}/settings`)).text;
+  page = (await bob.req(`/hub/teams/${t2}/settings/data`)).text;
   assert.match(page, /Use your own bucket/);
 });
 
@@ -622,7 +623,7 @@ test('owner only, and no IDOR: a member gets 403 and no card; another team\'s ow
   const routes = ['/storage', '/storage/hub', '/storage/cancel', '/storage/retry'];
   const calls = h.calls.length;
 
-  assert.doesNotMatch((await bob.req(`/hub/teams/${A}/settings`)).text, /id="storage"/, 'members do not see the card');
+  assert.doesNotMatch((await bob.req(`/hub/teams/${A}/settings/data`)).text, /id="storage"/, 'members do not see the card');
   for (const p of routes) {
     const asMember = await bob.post(`/hub/teams/${A}${p}`, s3Form('idor'));
     assert.equal(asMember.status, 403, p);

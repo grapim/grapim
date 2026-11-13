@@ -208,6 +208,7 @@ test('every team route (enumerated from the router) is guarded, and answers 404 
     ws: wsA,
     wstoken: db.prepare('SELECT id FROM workspace_tokens WHERE workspace_id = ?').get(wsA).id,
     team: A,
+    section: 'members',
     repo: REPO_A,
     run: RUN_A,
     invite: db.prepare('SELECT id FROM invites WHERE team_id = ?').get(A).id,
@@ -286,8 +287,10 @@ test('every team route (enumerated from the router) is guarded, and answers 404 
   // Alice can use the same GET routes (the substitutions are real ids). The
   // report API is on the governance plan (a free team gets 402 plan_required).
   db.prepare("UPDATE teams SET plan = 'governance' WHERE id = ?").run(A);
+  // /settings and the old /rules address redirect to a settings page.
+  const REDIRECTS = new Set(['/hub/teams/:team/settings', '/hub/teams/:team/rules']);
   for (const r of teamRoutes.filter((x) => x.method === 'GET' && !x.pattern.endsWith('/stream'))) {
-    assert.equal((await getOnce(h, fill(r.pattern, idsA), { Cookie: cookieOf(alice) })).status, 200, `alice GET ${r.pattern}`);
+    assert.equal((await getOnce(h, fill(r.pattern, idsA), { Cookie: cookieOf(alice) })).status, REDIRECTS.has(r.pattern) ? 303 : 200, `alice GET ${r.pattern}`);
   }
 });
 
@@ -612,7 +615,9 @@ test('synced strings and names are escaped on every page; no inline script', asy
   const pages = [
     '/hub',
     `/hub/teams/${A}`,
-    `/hub/teams/${A}/settings`,
+    `/hub/teams/${A}/settings/general`,
+    `/hub/teams/${A}/settings/members`,
+    `/hub/teams/${A}/settings/machines`,
     `/hub/teams/${A}/repos/${REPO_A}`,
     `/hub/teams/${A}/repos/${REPO_A}/runs/${encodeURIComponent(RUN_A)}`,
     `/hub/teams/${A}/repos/${REPO_A}/runs/${encodeURIComponent(EVIL)}`,

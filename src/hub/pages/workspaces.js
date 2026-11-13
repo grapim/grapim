@@ -72,7 +72,7 @@ ${workspaces.length
     <span class="muted small">${unlimited ? html`No limit on the <span class="plan">${team.plan}</span> plan` : `${workspaces.length} of ${limit} on the ${team.plan} plan`}</span>
   </div>
   ${full
-    ? html`<p class="fine">The ${team.plan} plan includes ${limit} workspace${limit === 1 ? '' : 's'}. An owner can upgrade in <a href="/hub/teams/${team.id}/settings#billing">Settings</a>.</p>`
+    ? html`<p class="fine">The ${team.plan} plan includes ${limit} workspace${limit === 1 ? '' : 's'}. An owner can upgrade in <a href="/hub/teams/${team.id}/settings/plan">Settings</a>.</p>`
     : html`<form method="post" action="/hub/teams/${team.id}/workspaces" class="inline-form">
     ${csrfField(csrf)}
     <label class="sr-only" for="ws-name">Workspace name</label>
