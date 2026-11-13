@@ -21,7 +21,7 @@ const CLI_SOURCE = path.join(HERE, '..', '..', 'cli.js');
 export const NAV = [
   { group: 'Get started', pages: ['quickstart', 'concepts', 'compare'] },
   { group: 'Using Grapim', pages: ['reviews', 'github', 'history', 'rules', 'notifications', 'undo', 'reports', 'ask-grapim', 'workspaces'] },
-  { group: 'Reference', pages: ['cli', 'security', 'faq', 'support'] },
+  { group: 'Reference', pages: ['cli', 'security', 'data-handling', 'faq', 'support'] },
 ];
 export const ORDER = NAV.flatMap((g) => g.pages);
 export const docPath = (slug) => (slug === ORDER[0] ? '/docs' : `/docs/${slug}`);

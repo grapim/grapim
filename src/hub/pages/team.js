@@ -399,9 +399,49 @@ function askSection({ team, role, csrf, agent: a, members, capError = null }) {
 </section>`;
 }
 
-export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, notifications = null, rules = null, storage = null, revealed = null, notice = null, error = null, toast = null, capError = null }) {
+// "No code storage" (src/hub/code-storage.js). info: { mode, stored: { files, bytes } }.
+function codeStorageSection({ team, csrf, role, info }) {
+  if (!info) return '';
   const owner = role === 'owner';
-  const shown = SETTINGS_SECTIONS.filter((s) => owner || !s.owner).filter((s) => (s.id === 'github' ? !!github : s.id === 'storage' ? !!storage : s.id === 'notifications' ? !!notifications : s.id === 'rules' ? !!rules : true));
+  const on = info.mode === 'metadata';
+  const { files, bytes } = info.stored;
+  const size = bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  const versions = plural(files, 'file version');
+  return html`<section class="card" id="code-storage" aria-labelledby="code-storage-title">
+  <div class="card-head">
+    <h2 id="code-storage-title" class="card-title">Code storage</h2>
+    ${owner
+      ? html`<form method="post" action="/hub/teams/${team.id}/code-storage" class="inline-form">
+      ${csrfField(csrf)}
+      <input type="hidden" name="mode" value="${on ? 'full' : 'metadata'}">
+      <span class="badge ${on ? 'badge-ok' : ''}">${on ? 'On' : 'Off'}</span>
+      <button class="btn btn-sm" type="submit">${on ? 'Turn off' : 'Turn on'}</button>
+    </form>`
+      : html`<span class="badge ${on ? 'badge-ok' : ''}">${on ? 'On' : 'Off'}</span>`}
+  </div>
+  <p class="card-sub">No code storage: the hub keeps run metadata (agent, prompt summary, files touched, line counts, hashes, review decisions) and never stores file contents. Diffs are read from GitHub when someone opens a run, and are not saved. Prompts are kept, so a prompt that quotes code is stored with it.</p>
+  <p class="fine">${on
+    ? html`Live diffs need the repo on the <a class="link" href="/hub/teams/${team.id}/settings#github">GitHub App</a> and the run's commits pushed with provenance notes. Otherwise the diff stays on the developer's machine. <a class="link" href="/docs/data-handling">What Grapim stores</a>`
+    : html`Off: the hub keeps the contents of files agents changed, so every run shows its diff. <a class="link" href="/docs/data-handling">What Grapim stores</a>`}${owner ? '' : ' Only an owner can change this.'}</p>
+  ${owner && on && files
+    ? html`<h3 class="card-title small policy-sub">Delete stored file contents</h3>
+  <p class="fine">The hub still holds ${versions} (${size}) synced before No code storage was on. Deleting them cannot be undone: those runs then show their diff from GitHub, or not at all.</p>
+  <form method="post" action="/hub/teams/${team.id}/code-storage/delete" class="inline-form">
+    ${csrfField(csrf)}
+    <label class="toggle"><input type="checkbox" name="confirm" value="delete" required> Delete ${versions} for good</label>
+    <button class="btn btn-sm btn-danger" type="submit">Delete stored contents</button>
+  </form>`
+    : owner && !on && files
+      ? html`<p class="fine">Turning it on does not delete the ${versions} already stored. You can delete them once it is on.</p>`
+      : on && !files
+        ? html`<p class="fine">The hub holds no file contents for this team.</p>`
+        : ''}
+</section>`;
+}
+
+export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, notifications = null, rules = null, storage = null, codeStorage = null, revealed = null, notice = null, error = null, toast = null, capError = null }) {
+  const owner = role === 'owner';
+  const shown = SETTINGS_SECTIONS.filter((s) => owner || !s.owner).filter((s) => (s.id === 'github' ? !!github : s.id === 'storage' ? !!storage : s.id === 'notifications' ? !!notifications : s.id === 'rules' ? !!rules : s.id === 'code-storage' ? !!codeStorage : true));
   const newestToken = revealed?.kind === 'token' ? revealed.name : null;
   return layout({
     title: `${team.name} settings`,
@@ -514,6 +554,8 @@ ${rules ?? ''}
 ${notifications ?? ''}
 
 ${storage ?? ''}
+
+${codeStorageSection({ team, csrf, role, info: codeStorage })}
 
 ${owner
   ? team.kind === 'platform'

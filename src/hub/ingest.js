@@ -9,6 +9,7 @@
 import { tx } from './db.js';
 import { HttpError, badRequest } from './http.js';
 import { sha1 } from './secure.js';
+import { codeStorageOf } from './code-storage.js';
 import { parseGitHub, parseProvenance, provenanceBytes, storeProvenance } from './provenance.js';
 
 export const MAX_BATCH = 8 * 1024 * 1024;
@@ -146,9 +147,9 @@ const rowBytes = (row) => {
 };
 
 // Upper bound of what a batch can add to the team's stored bytes.
-function batchBytes(batch) {
+function batchBytes(batch, { blobs = true } = {}) {
   let n = 0;
-  for (const buf of batch.blobs.values()) n += buf.length;
+  if (blobs) for (const buf of batch.blobs.values()) n += buf.length;
   for (const list of [batch.runs, batch.agents, batch.changes, batch.events]) for (const r of list) n += rowBytes(r);
   n += provenanceBytes(batch.provenance ?? []);
   return n;
@@ -206,15 +207,19 @@ export class Ingest {
         m = { cursor_changes: 0, cursor_events: 0, cursor_agents: 0 };
       }
       const have = { changes: m.cursor_changes, events: m.cursor_events, agents: m.cursor_agents };
+      // "No code storage" (src/hub/code-storage.js): file contents are dropped
+      // here, whatever the client sent, and only their hashes are kept.
+      const codeStorage = codeStorageOf(this.db, team.id);
+      const keepBlobs = codeStorage === 'full';
       // The client thinks it already sent rows the hub does not have (a new
       // hub, a different team): tell it where to restart from.
       if (batch.cursor.changes > have.changes || batch.cursor.events > have.events) {
-        return { status: 409, body: { error: { code: 'cursor_mismatch', message: 'The hub has less than this machine sent. Resend from the returned cursor.' }, cursor: have } };
+        return { status: 409, body: { error: { code: 'cursor_mismatch', message: 'The hub has less than this machine sent. Resend from the returned cursor.' }, cursor: have, code_storage: codeStorage } };
       }
 
       // Per-team storage quota, so one team cannot fill the shared volume.
       const usedBytes = usageOf(this.db, team.id);
-      if (usedBytes + batchBytes(batch) > this.storageBytes) {
+      if (usedBytes + batchBytes(batch, { blobs: keepBlobs }) > this.storageBytes) {
         throw new HttpError(413, 'storage_limit', `This team has used its ${Math.round(this.storageBytes / 1024 / 1024)} MB of hub storage.`);
       }
       let added = 0;
@@ -222,7 +227,7 @@ export class Ingest {
       const key = [team.id, batch.repo.id, batch.machine];
       const counts = { runs: 0, agents: 0, changes: 0, events: 0, blobs: 0, provenance: 0 };
       const putBlob = this.db.prepare('INSERT OR IGNORE INTO h_blobs (team_id, sha, content) VALUES (?, ?, ?)');
-      for (const [sha, buf] of batch.blobs) {
+      for (const [sha, buf] of keepBlobs ? batch.blobs : []) {
         const n = putBlob.run(team.id, sha, buf).changes;
         counts.blobs += n;
         if (n) added += buf.length;
@@ -282,7 +287,7 @@ export class Ingest {
            WHERE team_id = ? AND repo_id = ? AND machine = ?`,
         )
         .run(cursor.changes, cursor.events, cursor.agents, token.id, t, ...key);
-      return { status: 200, body: { ok: true, repo: batch.repo.id, cursor, stored: counts } };
+      return { status: 200, body: { ok: true, repo: batch.repo.id, cursor, stored: counts, code_storage: codeStorage } };
     });
     if (result.status === 200 && (result.body.stored.changes || result.body.stored.events || result.body.stored.agents || result.body.stored.provenance)) {
       this.onSync(team.id, batch.repo.id);

@@ -15,7 +15,9 @@ The hub holds your team's agent history, including the contents of files agents 
 | Pull request files and blame | The GitHub App, if an owner installs it, to write its comment and check |
 | Workspace files | Agents and people writing to a workspace |
 
-Nothing is pulled from your repositories. Local absolute paths are not sent: only the worktree folder's name and paths inside the repo. Prompts can stay out of provenance notes with `grapim init --no-intents`.
+A team that cannot have its code on our servers can turn on **No code storage**: the hub then keeps no file contents, only hashes and run metadata. [What Grapim stores](/docs/data-handling) lists exactly what is kept in each mode.
+
+Nothing is pulled from your repositories, except by the GitHub App: for its comment and check, and, with No code storage on, to show a run's commit diffs on its page without saving them. Local absolute paths are not sent: only the worktree folder's name and paths inside the repo. Prompts can stay out of provenance notes with `grapim init --no-intents`.
 
 `grapim` itself has no telemetry: it connects to a server only when you run `sync`, `folder` or `mount`.
 
@@ -50,7 +52,7 @@ So you can decide for yourself:
 
 - **SSO and SAML.** Sign-in is GitHub only; anyone with a GitHub account can sign in, and seeing a team's data needs an invite.
 - **Encryption at rest** beyond the hosting platform's disk encryption.
-- **Deleting synced history.** Your plan's history window hides older data, but it is not deleted yet, and leaving a team or removing a repo does not purge it.
+- **Deleting synced history.** Your plan's history window hides older data, but it is not deleted yet, and leaving a team or removing a repo does not purge it. The one exception: with No code storage on, an owner can delete the team's stored file contents.
 - **An audit log** of who viewed what in the hub. Review decisions are kept; page views are not.
 - **A penetration test or a compliance certification.** None yet.
 

@@ -11,6 +11,7 @@ import { isTracked, replay } from '../attribution.js';
 import { hunks } from './hunks.js';
 import { HttpError } from './http.js';
 import { provenanceFor, repoByGitHub } from './provenance.js';
+import { codeStorageOf } from './code-storage.js';
 
 export { provenanceFor, repoByGitHub };
 
@@ -256,6 +257,9 @@ export class TeamRead {
       f.removed += c.removed ?? 0;
       f.untracked ||= !!c.untracked;
     }
+    // "No code storage" (src/hub/code-storage.js): contents missing for that
+    // reason say so (content: 'not_stored'), so a page can explain it.
+    const metadataOnly = codeStorageOf(this.db, team.id) === 'metadata';
     const fileList = [...files.values()].map((f) => {
       const before = blob(f.first.before_sha);
       const after = blob(f.last.after_sha);
@@ -268,6 +272,8 @@ export class TeamRead {
         removed: f.removed,
         untracked,
         state: FILE_STATE[s] ?? null,
+        // stored | untracked (binary, over 2 MB, not tracked) | not_stored (No code storage)
+        content: !untracked ? 'stored' : f.untracked || !metadataOnly ? 'untracked' : 'not_stored',
         diff: untracked ? null : { hunks: hunks(before, after) },
       };
     });
