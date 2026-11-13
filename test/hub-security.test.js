@@ -588,6 +588,9 @@ test('help and feedback: messages are kept, escaped, capped per day, and only HU
   assert.deepEqual([h.hub.teams.get(T).plan, h.hub.teams.get(T).plan_status], ['governance', 'pilot']);
   // A pilot unlocks the plan's features, like a paid plan.
   assert.equal(h.hub.limits(h.hub.teams.get(T)).features.requireReview, true, 'a Governance pilot turns on Require review');
+  // ...and Governance-only features, such as path rules, with or without billing configured.
+  assert.equal((await fay.post(`/hub/teams/${T}/rules/starter`)).status, 303);
+  assert.ok(h.hub.github.rules.list(T).length > 0);
   // A page outside the hub is dropped, not stored.
   await admin.post('/hub/support', { topic: 'help', body: 'x', page: 'https://evil.example/' });
   assert.equal(h.hub.db.prepare('SELECT page FROM support_messages WHERE login = ?').get('help-admin').page, null);

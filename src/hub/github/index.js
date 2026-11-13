@@ -91,6 +91,7 @@ function defaultGovernance(hub) {
     try {
       const l = hub.limits(team);
       if (l?.governance === true) return true;
+      if (l?.features && !Array.isArray(l.features) && typeof l.features.requireReview === 'boolean') return l.features.requireReview;
       if (Array.isArray(l?.features) && (l.features.includes('governance') || l.features.includes('require_review'))) return true;
       const b = hub.billing;
       if (typeof b?.hasFeature === 'function') return !!b.hasFeature(team, 'require_review');
