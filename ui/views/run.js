@@ -103,12 +103,13 @@ export async function mount(el, params, ctx) {
         </div>
         ${collapsed ? '' : html`
           ${stateNote ? html`<div class="file-note">${stateNote}</div>` : ''}
+          ${f.via ? html`<div class="file-note">Changed by a shell command: <code>${f.via}</code></div>` : ''}
           ${untracked ? html`<div class="file-note">This file is binary or over 2 MB, so Grapim recorded that it changed but not its content. There is no line diff, and undo can't revert it.</div>` : renderDiff(f.diff?.hunks, { mode: s.mode, path: f.path })}`}
       </section>`;
   }
 
   function files(d) {
-    if (!d.files?.length) return html`<section class="panel" style="margin-top:32px">${empty('No file changes recorded', 'This run is listed but none of its edits were recorded. Edits made through Bash are not tracked.')}</section>`;
+    if (!d.files?.length) return html`<section class="panel" style="margin-top:32px">${empty('No file changes recorded', 'This run is listed but none of its edits were recorded.')}</section>`;
     const total = d.files.length;
     const done = d.files.filter((f) => s.viewed.has(viewKey(f))).length;
     const add = d.files.reduce((n, f) => n + (f.added ?? 0), 0);

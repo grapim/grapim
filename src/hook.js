@@ -12,17 +12,26 @@
 //     snapshot the file as it is before the edit.
 //   PostToolUse: snapshot the file after the edit and record the change in the
 //     ledger, then log it. In warn mode, this is where we warn instead.
+//   PreToolUse / PostToolUse (PostToolUseFailure too) on the shell tool:
+//     snapshot the worktree before the command and record every file it
+//     changed after it (src/shell.js). Never blocks the command.
 //   SessionEnd: release everything this session held.
 //
-//   Claude Code  as above; edits are Edit, Write, MultiEdit, NotebookEdit.
+//   Claude Code  as above; edits are Edit, Write, MultiEdit, NotebookEdit;
+//                the shell is Bash.
 //   Codex CLI    the same events and fields; edits are apply_patch, whose
-//                patch text (tool_input.command) names the files.
+//                patch text (tool_input.command) names the files; the shell
+//                is Bash.
 //   Gemini CLI   BeforeAgent, BeforeTool and AfterTool for the prompt and
-//                write_file / replace. stdout must be JSON only.
+//                write_file / replace, and run_shell_command. stdout must be
+//                JSON only.
 //   Cursor       beforeSubmitPrompt, sessionEnd, and afterFileEdit, which
 //                comes after the edit with the edits made: the file as it was
 //                before is worked out by undoing them (reverseEdits). Cursor
 //                is not blocked from here; a clash is reported, not stopped.
+//                Its shell commands are not recorded: beforeShellExecution
+//                must answer a permission, and an answer could bypass
+//                Cursor's own approval of the command.
 //
 // Ledger failures are written to stderr and never block the edit.
 
@@ -35,10 +44,18 @@ import { ago, othersText, who } from './format.js';
 import { beginEdit, beginEditFrom, failOpen, finishEdit } from './ledger.js';
 import { hasGitHooks } from './provenance/hooks.js';
 import { MODEL_RE, VERSION_RE } from './inventory.js';
+import { beginShell, finishShell } from './shell.js';
 
 export const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const GEMINI_EDIT_TOOLS = new Set(['write_file', 'replace']);
 export const SOURCES = Object.freeze(['claude', 'codex', 'cursor', 'gemini']);
+// The shell tool of each agent (Codex documents its shell as Bash; the other
+// names are older Codex ones, harmless when they never come).
+const SHELL_TOOLS = {
+  claude: new Set(['Bash']),
+  codex: new Set(['Bash', 'shell', 'local_shell', 'exec_command']),
+  gemini: new Set(['run_shell_command']),
+};
 
 // \\server\share\…, //server/share/… and \\?\… device paths (Windows only).
 const isNetworkPath = (p) => process.platform === 'win32' && /^[\\/]{2}/.test(p);
@@ -112,14 +129,18 @@ function normalizeEvent(input, from, env) {
   }
   const base = { cwd: input.cwd || process.cwd(), session: input.session_id, prompt: input.prompt, id: input.tool_use_id ?? null };
   const filePath = input.tool_input?.file_path || input.tool_input?.notebook_path;
+  // A shell command: { command, dir } (Gemini's dir_path is where it runs).
+  const shell = SHELL_TOOLS[from]?.has(input.tool_name)
+    ? { command: input.tool_input?.command ?? '', dir: typeof input.tool_input?.dir_path === 'string' && input.tool_input.dir_path ? path.resolve(base.cwd, input.tool_input.dir_path) : base.cwd }
+    : null;
   if (from === 'gemini') {
     const ev = { BeforeAgent: 'UserPromptSubmit', BeforeTool: 'PreToolUse', AfterTool: 'PostToolUse' }[input.hook_event_name] ?? input.hook_event_name;
-    return { ...base, ev, files: GEMINI_EDIT_TOOLS.has(input.tool_name) && filePath ? [filePath] : [] };
+    return { ...base, ev, shell, files: GEMINI_EDIT_TOOLS.has(input.tool_name) && filePath ? [filePath] : [] };
   }
   let files = [];
   if (from === 'codex' && input.tool_name === 'apply_patch') files = patchFiles(input.tool_input?.command ?? input.tool_input?.patch ?? input.tool_input?.input);
   else if (EDIT_TOOLS.has(input.tool_name) && filePath) files = [filePath];
-  return { ...base, ev: input.hook_event_name, files };
+  return { ...base, ev: input.hook_event_name, shell, files };
 }
 
 // The holder's worktree is named only when it is not the one being edited in.
@@ -246,6 +267,8 @@ function handle(n, from, env, now) {
     });
   }
 
+  if (n.shell && (ev === 'PreToolUse' || ev === 'PostToolUse' || ev === 'PostToolUseFailure')) return shellHook(n, ev, agent, label, now, env);
+
   if (ev === 'PreToolUse' || ev === 'PostToolUse') {
     const targets = n.files.map((p) => target(cwd, p)).filter(Boolean);
     if (!targets.length) return { code: 0 };
@@ -312,9 +335,28 @@ function handle(n, from, env, now) {
       store.endSession(agent);
       // A snapshot still pending here belongs to an edit that failed: drop it.
       failOpen('clear pending snapshots', () => store.dropPending({ run: agent }));
+      failOpen('clear shell snapshots', () => store.dropShell(agent));
     });
     return { code: 0 };
   }
 
   return { code: 0 };
+}
+
+// A shell command (src/shell.js). Never blocks: whatever fails, the command
+// runs and the reason goes to stderr. Only a git worktree is covered.
+function shellHook(n, ev, agent, label, now, env) {
+  const ws = resolveWorkspace(n.shell.dir);
+  if (!ws.isGit) return { code: 0 };
+  const id = n.id ? `shell:${n.id}` : `shell:${agent}:${now()}`;
+  return withStore(ws, now, (store) => {
+    if (ev === 'PreToolUse') {
+      const r = failOpen('snapshot the worktree before the shell command', () => beginShell(store, { id, run: agent, label, ws, command: n.shell.command, env }));
+      return r?.note ? { code: 0, stderr: r.note } : { code: 0 };
+    }
+    const r = failOpen('record the shell command', () => finishShell(store, { id: n.id ? id : null, run: agent, ws }));
+    if (!r) return { code: 0 };
+    for (const c of r.changes) store.recordEdit(agent, c.path, `${c.detail} via shell: ${r.via}`);
+    return r.note ? { code: 0, stderr: r.note } : { code: 0 };
+  });
 }

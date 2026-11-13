@@ -9,6 +9,8 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 export const DEFAULT_TTL_MS = 30 * 60 * 1000;
+// An open shell window older than this belongs to a command whose end never came.
+export const STALE_SHELL_MS = 6 * 60 * 60 * 1000;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS leases (
@@ -80,6 +82,27 @@ CREATE TABLE IF NOT EXISTS changes (
   removed    INTEGER,
   ts         INTEGER NOT NULL
 );
+-- A shell command an agent is running or ran (src/shell.js): the worktree
+-- before it (pre, JSON path_key -> { path, sha, size, mtime } of the files
+-- that were dirty or untracked; NULL when too many to keep) and after it
+-- (post). mark: the newest change id when it started.
+CREATE TABLE IF NOT EXISTS shell_windows (
+  id         TEXT PRIMARY KEY,
+  run        TEXT NOT NULL,
+  label      TEXT,
+  turn       INTEGER NOT NULL,
+  root       TEXT NOT NULL,
+  root_key   TEXT NOT NULL,
+  command    TEXT,
+  head       TEXT,
+  post_head  TEXT,
+  mark       INTEGER NOT NULL,
+  pre        TEXT,
+  post       TEXT,
+  started_at INTEGER NOT NULL,
+  ended_at   INTEGER
+);
+CREATE INDEX IF NOT EXISTS shell_windows_root ON shell_windows(root_key, started_at);
 CREATE INDEX IF NOT EXISTS changes_file ON changes(root_key, path_key);
 CREATE INDEX IF NOT EXISTS changes_run ON changes(run);
 CREATE INDEX IF NOT EXISTS pending_run ON pending(run);
@@ -117,6 +140,8 @@ export class Store {
       // Files made before events had an actor (who did a review, branch,
       // undo or restore) get the column; older rows keep NULL.
       if (!this.db.prepare('PRAGMA table_info(events)').all().some((c) => c.name === 'actor')) this.db.exec('ALTER TABLE events ADD COLUMN actor TEXT');
+      // changes.via: the shell command that made the change (src/shell.js), NULL for an edit tool.
+      if (!this.db.prepare('PRAGMA table_info(changes)').all().some((c) => c.name === 'via')) this.db.exec('ALTER TABLE changes ADD COLUMN via TEXT');
     });
   }
 
@@ -363,10 +388,10 @@ export class Store {
   #insertChange(c) {
     this.db
       .prepare(
-        `INSERT INTO changes (run, label, turn, root, root_key, path_key, path, before_sha, after_sha, untracked, added, removed, ts)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO changes (run, label, turn, root, root_key, path_key, path, before_sha, after_sha, untracked, added, removed, ts, via)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(c.run, c.label ?? null, c.turn, c.root, c.root_key, c.path_key, c.path, c.before_sha, c.after_sha, c.untracked ? 1 : 0, c.added ?? null, c.removed ?? null, this.now());
+      .run(c.run, c.label ?? null, c.turn, c.root, c.root_key, c.path_key, c.path, c.before_sha, c.after_sha, c.untracked ? 1 : 0, c.added ?? null, c.removed ?? null, this.now(), c.via ?? null);
   }
 
   // Turns a pending snapshot into a change row, in one transaction.
@@ -385,6 +410,91 @@ export class Store {
       this.#putBlob(after);
       this.#insertChange({ ...c, before_sha: before.sha, after_sha: after.sha });
     });
+  }
+
+  hasBlob(sha) {
+    return !!this.db.prepare('SELECT 1 FROM blobs WHERE sha = ?').get(sha);
+  }
+
+  // ---- Shell windows (src/shell.js) ----
+
+  // w: { id, run, label, root, root_key, command, head, pre }. blobs: [{ sha, buf }].
+  openShell(w, blobs = []) {
+    this.tx(() => {
+      for (const b of blobs) this.#putBlob(b);
+      const mark = this.db.prepare('SELECT COALESCE(MAX(id), 0) AS id FROM changes').get().id;
+      this.db
+        .prepare(
+          `INSERT OR REPLACE INTO shell_windows (id, run, label, turn, root, root_key, command, head, mark, pre, started_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(w.id, w.run, w.label ?? null, this.turn(w.run), w.root, w.root_key, w.command ?? null, w.head ?? null, mark, w.pre ? JSON.stringify(w.pre) : null, this.now());
+    });
+  }
+
+  #shellRow(r) {
+    return r ? { ...r, pre: r.pre ? JSON.parse(r.pre) : null, post: r.post ? JSON.parse(r.post) : null } : null;
+  }
+
+  // The open window of this tool call (id), or, for an agent that gives no
+  // tool call id, the newest open one of the run in this worktree.
+  shellWindow(id, run, root_key) {
+    if (id) return this.#shellRow(this.db.prepare('SELECT * FROM shell_windows WHERE id = ? AND ended_at IS NULL').get(id));
+    return this.#shellRow(
+      this.db
+        .prepare('SELECT * FROM shell_windows WHERE run = ? AND root_key = ? AND ended_at IS NULL ORDER BY started_at DESC, rowid DESC LIMIT 1')
+        .get(run, root_key),
+    );
+  }
+
+  // The files of the newest window in this worktree (after, else before), for reuse of unchanged content.
+  lastShellFiles(root_key) {
+    const r = this.db.prepare('SELECT pre, post FROM shell_windows WHERE root_key = ? ORDER BY started_at DESC, rowid DESC LIMIT 1').get(root_key);
+    const j = r?.post ?? r?.pre;
+    return j ? JSON.parse(j) : null;
+  }
+
+  // Other runs' windows in the same worktree whose time overlaps w's (up to now).
+  overlappingShells(w) {
+    const now = this.now();
+    return this.db
+      .prepare(
+        `SELECT * FROM shell_windows WHERE root_key = ? AND id != ? AND run != ? AND started_at <= ?
+           AND ((ended_at IS NULL AND started_at > ?) OR ended_at >= ?)`,
+      )
+      .all(w.root_key, w.id, w.run, now, now - STALE_SHELL_MS, w.started_at)
+      .map((r) => this.#shellRow(r));
+  }
+
+  closeShell(id, post, postHead) {
+    this.tx(() => this.db.prepare('UPDATE shell_windows SET ended_at = ?, post = ?, post_head = ? WHERE id = ?').run(this.now(), post ? JSON.stringify(post) : null, postHead ?? null, id));
+  }
+
+  // The changes a shell command made, and its window closed, in one transaction.
+  finishShell(w, changes, post, postHead) {
+    this.tx(() => {
+      for (const c of changes) {
+        this.#putBlob(c.before);
+        this.#putBlob(c.after);
+        this.#insertChange({
+          run: w.run, label: w.label, turn: w.turn, root: w.root, root_key: w.root_key, path_key: c.path_key, path: c.path,
+          before_sha: c.before.sha, after_sha: c.after.sha, untracked: c.untracked, added: c.added, removed: c.removed, via: w.command ?? '',
+        });
+      }
+      this.db.prepare('UPDATE shell_windows SET ended_at = ?, post = ?, post_head = ? WHERE id = ?').run(this.now(), JSON.stringify(post), postHead ?? null, w.id);
+    });
+  }
+
+  pruneShell(before) {
+    this.tx(() => this.db.prepare('DELETE FROM shell_windows WHERE COALESCE(ended_at, started_at) < ?').run(before));
+  }
+
+  dropShell(run) {
+    this.tx(() => this.db.prepare('DELETE FROM shell_windows WHERE run = ? AND ended_at IS NULL').run(run));
+  }
+
+  changesOfFileAfter(root_key, path_key, id) {
+    return this.db.prepare('SELECT * FROM changes WHERE root_key = ? AND path_key = ? AND id > ? ORDER BY id').all(root_key, path_key, id);
   }
 
   changesOfFile(root_key, path_key) {

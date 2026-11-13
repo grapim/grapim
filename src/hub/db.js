@@ -233,6 +233,7 @@ export function openDb(dataDir) {
     if (!db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
   };
   addColumn('teams', 'kind', "TEXT NOT NULL DEFAULT 'team'"); // 'team' | 'platform'
+  addColumn('h_changes', 'via', 'TEXT'); // the shell command that made the change (src/shell.js), NULL for an edit tool
   addColumn('workspaces', 'external_id', 'TEXT'); // the platform's id for its end customer
   addColumn('workspaces', 'metadata', 'TEXT'); // JSON, up to 4 KB
   addColumn('workspaces', 'mode', 'TEXT'); // 'test' for a platform's test-mode workspace, else NULL (live)

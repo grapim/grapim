@@ -78,13 +78,15 @@ function fileInputs(store, f) {
   const changes = history(store, f.root, f.path_key);
   const now = snapshot(path.join(f.root, f.path));
   const state = isTracked(changes, now) ? { changes: changes.map(replayFields), now: { sha: now.sha, buf: now.buf }, lastAfter: f.last.after_sha, firstBefore: f.first.before_sha } : null;
-  return { path: f.path, untracked, before: untracked ? null : before, after: untracked ? null : after, state };
+  // via: the newest shell command of the run that changed it (src/shell.js), or null.
+  const via = f.changes.reduce((v, c) => c.via || v, null);
+  return { path: f.path, untracked, before: untracked ? null : before, after: untracked ? null : after, state, via };
 }
 
 // A file's detail from fileInputs (CPU only: the diff and the replay).
 export function fileDetailFrom(fi, run) {
   const d = fi.untracked ? { added: null, removed: null, diff: null } : diffJson(fi.before, fi.after);
-  return { path: fi.path, added: d.added, removed: d.removed, untracked: fi.untracked, state: fileState(fi.state, run), diff: d.diff };
+  return { path: fi.path, added: d.added, removed: d.removed, untracked: fi.untracked, state: fileState(fi.state, run), diff: d.diff, via: fi.via ?? null };
 }
 
 // The run's changes grouped by file, in the order it first touched each.

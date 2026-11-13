@@ -49,10 +49,10 @@ Runs appear in the hub's Reviews within seconds. A teammate (not the person who 
 
 | Agent | How Grapim sees its edits | What `grapim init` writes | Stops an edit to a file another agent holds | Status |
 | --- | --- | --- | --- | --- |
-| Claude Code | Native hooks: `PreToolUse` / `PostToolUse` on Edit, Write, MultiEdit, NotebookEdit | `.claude/settings.local.json` | Yes | Stable |
-| Codex CLI | Native hooks: `PreToolUse` / `PostToolUse` on `apply_patch` | `.codex/hooks.json`. Codex runs project hooks only after you trust them: run `/hooks` in Codex once. | Yes | Beta |
-| Cursor | Native hooks: `afterFileEdit`, `beforeSubmitPrompt`, `sessionEnd` | `.cursor/hooks.json` | No: Cursor reports an edit after it happens, so a clash is recorded, not stopped | Beta |
-| Gemini CLI | Native hooks: `BeforeTool` / `AfterTool` on `write_file`, `replace` | `.gemini/settings.json` | Yes | Beta |
+| Claude Code | Native hooks: `PreToolUse` / `PostToolUse` on Edit, Write, MultiEdit, NotebookEdit, and Bash (files a shell command changes, compared with `git status` before and after) | `.claude/settings.local.json` | Yes | Stable |
+| Codex CLI | Native hooks: `PreToolUse` / `PostToolUse` on `apply_patch` and `Bash` | `.codex/hooks.json`. Codex runs project hooks only after you trust them: run `/hooks` in Codex once. | Yes | Beta |
+| Cursor | Native hooks: `afterFileEdit`, `beforeSubmitPrompt`, `sessionEnd`. Shell commands are not recorded. | `.cursor/hooks.json` | No: Cursor reports an edit after it happens, so a clash is recorded, not stopped | Beta |
+| Gemini CLI | Native hooks: `BeforeTool` / `AfterTool` on `write_file`, `replace`, `run_shell_command` | `.gemini/settings.json` | Yes | Beta |
 | Other MCP clients | The `grapim mcp` server: the agent calls `claim_files` before editing and `release_files` after | nothing; add `grapim mcp` as a stdio MCP server | Yes, when the agent calls the tools | Works only if the agent cooperates |
 | GitHub Copilot coding agent | Not recorded as runs. Its commits reach your pull requests like any other. | nothing | No | Not supported |
 

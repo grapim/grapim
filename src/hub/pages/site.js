@@ -275,7 +275,7 @@ ${siteBar({ current: 'home' })}
         <div class="step-text">
           <span class="step-n" aria-hidden="true">4</span>
           <h3 id="undo-title">Undo one run, keep everything else</h3>
-          <p><code>grapim undo &lt;run&gt;</code> takes one run's changes out of every file it touched and keeps the work other agents and people did afterwards. It prints the plan first and changes nothing until you add <code>--yes</code>.</p>
+          <p><code>grapim undo &lt;run&gt;</code> takes one run's changes out of every file it touched, including files its shell commands changed or deleted, and keeps the work other agents and people did afterwards. It prints the plan first and changes nothing until you add <code>--yes</code>.</p>
           <p>If someone else has since edited the same lines, that file is left for you and undo says so. Undo runs on the machine that made the edits; the hub never changes your code.</p>
         </div>
         <div class="step-vis">${term('Terminal', UNDO)}</div>

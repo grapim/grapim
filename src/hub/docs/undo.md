@@ -34,13 +34,15 @@ To undo a single prompt of a run, add `--turn 2`.
 
 - For each file the run touched, it removes that run's edits and keeps the edits other agents and people made afterwards (with `git merge-file`, so git must be on your PATH).
 - A file the run created, and nobody changed since, is deleted. A file the run deleted is restored.
+- This includes files the run's shell commands changed, created, moved or deleted (an `rm`, `mv`, `sed -i`, a formatter or a codegen script), for Claude Code, Codex and Gemini CLI set up with `grapim init`. The plan names the command: `restore  src/old.js  deleted by this run (via shell: rm src/old.js)`.
 - If someone else has since edited the same or neighbouring lines, that file is left alone and undo says so. The other files still go ahead.
 - A file another agent is editing right now is skipped.
 - The undo is recorded as a run of its own, so blame stays right and the undo itself can be undone.
 
 ## What it cannot undo
 
-- Side effects: files changed by a shell command, generated files, installed packages.
+- Shell-command changes Grapim did not record: files outside the repo or ignored by git (build output, `node_modules`, installed packages), Cursor's shell commands, a command run while more than 2,000 files (or 50 MB) were uncommitted, changes a background process makes after its command returned, and a file two agents' commands could both have changed at the same time.
+- Anything outside the files: databases, network calls, commits, branches, the git index.
 - Binary files and files over 2 MB, whose content is not stored.
 - Anything already pushed. Undo changes your working tree; commit and push the result like any other change.
 

@@ -142,7 +142,8 @@ export function undoText(plan, applied = false) {
   const w = Math.max(...plan.files.map((f) => f.path.length));
   for (const f of plan.files) {
     const verb = applied ? DONE[f.action] : f.action;
-    out.push(`  ${verb.padEnd(9)} ${f.path.padEnd(w)}  ${f.reason ?? WHY[f.action] ?? ''}`.trimEnd());
+    const via = f.via ? ` (via shell: ${f.via})` : '';
+    out.push(`  ${verb.padEnd(9)} ${f.path.padEnd(w)}  ${f.reason ?? WHY[f.action] ?? ''}${via}`.trimEnd());
   }
   const count = (a) => plan.files.filter((f) => f.action === a).length;
   const clean = count('revert') + count('delete') + count('restore');

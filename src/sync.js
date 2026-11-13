@@ -154,6 +154,8 @@ export function buildBatch(store, cursor, { budget = BLOB_BUDGET, contents = tru
       added: c.added,
       removed: c.removed,
       ts: c.ts,
+      // The shell command that made it (src/shell.js); left out for an edit tool.
+      ...(c.via ? { via: clip(c.via, 300) } : {}),
     });
   }
   // Long free text is clipped to the hub's limits rather than failing the batch.

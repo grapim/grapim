@@ -250,9 +250,10 @@ export class TeamRead {
     const files = new Map();
     for (const c of changes) {
       const k = `${c.worktree}|${c.path}`;
-      if (!files.has(k)) files.set(k, { worktree: c.worktree, path: c.path, first: c, last: c, added: 0, removed: 0, untracked: false });
+      if (!files.has(k)) files.set(k, { worktree: c.worktree, path: c.path, first: c, last: c, added: 0, removed: 0, untracked: false, via: null });
       const f = files.get(k);
       f.last = c;
+      if (c.via) f.via = c.via;
       f.added += c.added ?? 0;
       f.removed += c.removed ?? 0;
       f.untracked ||= !!c.untracked;
@@ -275,6 +276,7 @@ export class TeamRead {
         // stored | untracked (binary, over 2 MB, not tracked) | not_stored (No code storage)
         content: !untracked ? 'stored' : f.untracked || !metadataOnly ? 'untracked' : 'not_stored',
         diff: untracked ? null : { hunks: hunks(before, after) },
+        via: f.via,
       };
     });
     return { run: summary, turns: [...turns.values()].sort((a, b) => a.turn - b.turn), files: fileList };

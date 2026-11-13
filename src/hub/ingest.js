@@ -97,6 +97,8 @@ export function parseBatch(body) {
       added: int(x.added, `changes[${i}].added`, { optional: true }),
       removed: int(x.removed, `changes[${i}].removed`, { optional: true }),
       ts: ts(x.ts, `changes[${i}].ts`),
+      // Optional (clients before shell recording leave it out): the shell command that made the change.
+      via: str(x.via, `changes[${i}].via`, 300, { optional: true }),
     };
   });
   const events = list(body.events, 'events').map((e, i) => {
@@ -254,11 +256,11 @@ export class Ingest {
       );
       for (const a of batch.agents) counts.agents += putAgent.run(...key, a.agent, a.label, a.intent, a.worktree, a.last_seen).changes;
       const putChange = this.db.prepare(
-        `INSERT INTO h_changes (team_id, repo_id, machine, local_id, run, label, turn, worktree, path, before_sha, after_sha, untracked, added, removed, ts)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(team_id, repo_id, machine, local_id) DO NOTHING`,
+        `INSERT INTO h_changes (team_id, repo_id, machine, local_id, run, label, turn, worktree, path, before_sha, after_sha, untracked, added, removed, ts, via)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(team_id, repo_id, machine, local_id) DO NOTHING`,
       );
       for (const c of batch.changes) {
-        const n = putChange.run(...key, c.id, c.run, c.label, c.turn, c.worktree, c.path, c.before_sha, c.after_sha, c.untracked, c.added, c.removed, c.ts).changes;
+        const n = putChange.run(...key, c.id, c.run, c.label, c.turn, c.worktree, c.path, c.before_sha, c.after_sha, c.untracked, c.added, c.removed, c.ts, c.via).changes;
         counts.changes += n;
         if (n) added += rowBytes(c);
       }
