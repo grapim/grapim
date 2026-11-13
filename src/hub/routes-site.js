@@ -36,7 +36,7 @@ function send(ctx, body, type = 'text/html; charset=utf-8') {
 export function siteRoutes(router, hub) {
   const origin = hub.config.origin;
   const pages = loadDocs();
-  const landing = landingPage({ origin });
+  const landing = landingPage({ origin, demo: !!hub.config.demo });
 
   router.get('/', (ctx) => {
     if (ctx.session) return redirect(ctx.res, '/hub');

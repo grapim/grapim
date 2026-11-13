@@ -710,3 +710,4 @@ body.site code { font-size: 0.86em; }
   .motion .ledger[data-play].in .ledger-rows li:nth-child(6) { animation-delay: 3.1s; }
 }
 @keyframes feed { from { opacity: 0; transform: translateY(-6px); clip-path: inset(0 0 100% 0); } to { opacity: 1; transform: none; clip-path: inset(0 0 0 0); } }
+.l-demo-note { margin: 12px 0 0; font-size: 14px; color: var(--text-3); }

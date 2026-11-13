@@ -264,7 +264,9 @@ const DATA = [
 
 const description = 'Grapim records what each coding agent changes, shell commands included, holds sensitive changes for a named reviewer, and takes one bad run back without touching anyone else’s work. For Claude Code, Codex, Cursor and Gemini CLI on GitHub.';
 
-export function landingPage({ origin }) {
+// demo: the public read-only demo at /demo is on (GRAPIM_DEMO=1); it becomes
+// the first action, since trying it needs no install and no sign-in.
+export function landingPage({ origin, demo = false }) {
   return html`${siteHead({ title: 'Grapim: a record of what your coding agents change', description, path: '/', origin })}
 <body class="site site-ledger">
 <a class="skip" href="#main">Skip to content</a>
@@ -277,9 +279,13 @@ ${siteBar({ current: 'home' })}
       <h1 id="hero-title">An agent dropped a table at 14:02.<br> It was back at 14:03.</h1>
       <p class="l-lede">Grapim keeps a record of what each coding agent changes, shell commands included, so one bad run can be taken back without touching anyone else’s work.</p>
       <div class="cta">
-        <a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Start with GitHub</span></a>
-        <a class="btn btn-lg" href="#film">Watch the one-minute demo</a>
+        ${demo
+          ? html`<a class="btn btn-primary btn-lg" href="/demo" rel="nofollow">Open the live demo</a>
+        <a class="btn btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Start with GitHub</span></a>`
+          : html`<a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Start with GitHub</span></a>
+        <a class="btn btn-lg" href="#film">Watch the one-minute demo</a>`}
       </div>
+      ${demo ? html`<p class="l-demo-note">The demo is a sample team you can click through, read-only, no sign-in.</p>` : ''}
       <p class="l-note">Free during early access. Works with Claude Code, Codex, Cursor and Gemini CLI, on your existing GitHub.</p>
     </div>
     ${ledger()}
