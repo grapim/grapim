@@ -1047,3 +1047,21 @@ main.wrap { container-type: inline-size; }
   .print-page .table th, .print-page .table td { font-size: 10px; }
   .print-page tr { break-inside: avoid; }
 }
+
+/* Agents (the agent inventory): versions and models as chips; columns that
+   matter least drop out by the page's own width, so it fits beside Ask Grapim. */
+.inv-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.inv-name { display: inline-flex; align-items: center; gap: 8px; }
+.inv-new { font-weight: 400; font-size: var(--fs-12); }
+.inv-table td.truncate { max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.inv-agents { min-width: 120px; }
+@container (max-width: 1040px) {
+  .inv-table .inv-hide-md { display: none; }
+}
+@container (max-width: 720px) {
+  .inv-table .inv-hide { display: none; }
+}
+@container (max-width: 480px) {
+  .inv-table .inv-hide-sm { display: none; }
+  .inv-table td.truncate { max-width: 140px; }
+}

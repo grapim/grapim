@@ -41,6 +41,7 @@ import { apiRoutes } from './routes-api.js';
 import { createAgent } from './agent/index.js';
 import { supportRoutes } from './support.js';
 import { pageRoutes } from './routes-pages.js';
+import { inventoryRoutes } from './inventory.js';
 import { siteRoutes, siteStatics } from './routes-site.js';
 
 const PAGES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'pages');
@@ -135,6 +136,7 @@ export async function createHub(options = {}) {
   pageRoutes(router, hub);
   apiRoutes(router, hub);
   reportRoutes(router, hub);
+  inventoryRoutes(router, hub); // the Agents page (agent inventory)
   hub.agent.routes(router);
   supportRoutes(router, hub);
   // Grapim for platforms (docs/platform.md): /v1 has its own router; its hub pages join this one.

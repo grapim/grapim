@@ -11,6 +11,7 @@ const P = {
   review: `<path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2Z" ${S}/><path d="m5.6 7 1.6 1.5 3.2-3" ${S}/>`,
   repo: `<path d="M3.5 3a1 1 0 0 1 1-1h8v10h-8a1 1 0 0 0-1 1Zm0 10a1 1 0 0 0 1 1h8v-2" ${S}/><path d="M6 5h4" ${S}/>`,
   workspace: `<path d="M2.5 4.5v7a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1H8L6.5 3.5h-3a1 1 0 0 0-1 1Z" ${S}/>`,
+  agents: `<rect x="2.5" y="4.5" width="11" height="8" rx="2" ${S}/><path d="M8 2.5v2M6 8.25v.5M10 8.25v.5" ${S}/>`,
   reports: `<path d="M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5" ${S}/>`,
   settings: `<circle cx="8" cy="8" r="2" ${S}/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1" ${S}/>`,
   search: `<circle cx="7" cy="7" r="4.5" ${S}/><path d="m10.5 10.5 3 3" ${S}/>`,

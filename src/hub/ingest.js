@@ -10,6 +10,7 @@ import { tx } from './db.js';
 import { HttpError, badRequest } from './http.js';
 import { sha1 } from './secure.js';
 import { parseGitHub, parseProvenance, provenanceBytes, storeProvenance } from './provenance.js';
+import { parseInventory, storeInventory } from './inventory.js';
 
 export const MAX_BATCH = 8 * 1024 * 1024;
 export const MAX_BLOB = 2 * 1024 * 1024;
@@ -134,7 +135,10 @@ export function parseBatch(body) {
   const github = parseGitHub(repo.github);
   const provenance = parseProvenance(body.provenance);
 
-  return { repo: { id: repo.id, name: repoName, github }, machine, cursor, runs, agents, changes, events, blobs, provenance };
+  // The agent inventory, optional (src/hub/inventory.js).
+  const inventory = parseInventory(body.inventory);
+
+  return { repo: { id: repo.id, name: repoName, github }, machine, cursor, runs, agents, changes, events, blobs, provenance, inventory };
 }
 
 // Approximate stored size of one row, for the per-team storage quota.
@@ -270,6 +274,7 @@ export class Ingest {
       // At most one GitHub repo per hub repo: the newest sync names it.
       if (batch.repo.github) this.db.prepare('UPDATE repos SET github = ? WHERE team_id = ? AND id = ? AND github IS NOT ?').run(batch.repo.github, team.id, batch.repo.id, batch.repo.github);
       if (added) this.db.prepare('UPDATE team_usage SET bytes = bytes + ? WHERE team_id = ?').run(added, team.id);
+      if (batch.inventory) counts.inventory = storeInventory(this.db, team.id, batch.repo.id, batch.machine, token.user_id, batch.inventory, t);
 
       const cursor = {
         changes: Math.max(have.changes, ...batch.changes.map((c) => c.id)),
