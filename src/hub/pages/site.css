@@ -441,3 +441,64 @@ section { scroll-margin-top: var(--bar-h); }
 
 /* A line of detail under a check's title */
 .pr-detail { display: block; margin-top: 3px; color: var(--text-3); font-size: 12px; line-height: 1.5; }
+
+/* ---- Motion ----
+   Three kinds, as on Linear, Graphite and Warp, but from Grapim's own product:
+   the hero rises in, a faint dot grid drifts behind it, and the product scenes
+   (terminals, the pull request) play once when they scroll into view. Scenes
+   only hide their steps when site.js has marked the page (html.motion), so
+   without JS or with reduced motion everything is simply shown. */
+.hero { position: relative; isolation: isolate; }
+.hero::before {
+  content: ""; position: absolute; inset: 0 0 38% 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(circle, var(--grid-dot) 1px, transparent 1.6px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 80% at 75% 35%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse 70% 80% at 75% 35%, #000 0%, transparent 72%);
+}
+:root { --grid-dot: rgb(16 16 32 / 0.16); }
+:root[data-theme="dark"] { --grid-dot: rgb(255 255 255 / 0.13); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --grid-dot: rgb(255 255 255 / 0.13); } }
+.t-line { display: inline-block; }
+.t-hl { color: #b8bcff; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero::before { animation: grid-drift 40s linear infinite; }
+  .hero-text > * { animation: rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .hero-text > :nth-child(2) { animation-delay: 0.08s; }
+  .hero-text > :nth-child(3) { animation-delay: 0.16s; }
+  .hero-text > :nth-child(4) { animation-delay: 0.24s; }
+  .frame-hero { animation: rise-far 1s 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+  /* Terminals: each line appears in turn, commands type out. */
+  .motion .term[data-play] .t-line { opacity: 0; }
+  .motion .term[data-play].in .t-line { animation: line-in 0.3s ease-out both; }
+  .motion .term[data-play].in .t-cmd { animation: type-in 0.55s steps(22, end) both; }
+  .motion .term[data-play].in .t-line:nth-child(2) { animation-delay: 0.25s; }
+  .motion .term[data-play].in .t-line:nth-child(3) { animation-delay: 0.47s; }
+  .motion .term[data-play].in .t-line:nth-child(4) { animation-delay: 0.69s; }
+  .motion .term[data-play].in .t-line:nth-child(5) { animation-delay: 0.91s; }
+  .motion .term[data-play].in .t-line:nth-child(6) { animation-delay: 1.13s; }
+  .motion .term[data-play].in .t-line:nth-child(7) { animation-delay: 1.35s; }
+  .motion .term[data-play].in .t-line:nth-child(8) { animation-delay: 1.57s; }
+  .motion .term[data-play].in .t-line:nth-child(9) { animation-delay: 1.79s; }
+  .motion .term[data-play].in .t-line:nth-child(10) { animation-delay: 2.01s; }
+  .motion .term[data-play].in .t-line:nth-child(11) { animation-delay: 2.23s; }
+  .motion .term[data-play].in .t-line:nth-child(12) { animation-delay: 2.45s; }
+  .motion .term[data-play].in .t-line:nth-child(13) { animation-delay: 2.67s; }
+  .motion .term[data-play].in .t-hl { animation-name: line-in, flash; animation-duration: 0.3s, 1.4s; }
+
+  /* The pull request: the check fails, priya approves, the check passes, it can merge. */
+  .motion .pr[data-play] .pr-event, .motion .pr[data-play] .pr-check.is-ok, .motion .pr[data-play] .pr-merge { opacity: 0; }
+  .motion .pr[data-play].in .pr-check.is-fail { animation: nudge 0.6s 0.5s ease-out both; }
+  .motion .pr[data-play].in .pr-event { animation: rise 0.5s 1.4s ease-out both; }
+  .motion .pr[data-play].in .pr-check.is-ok { animation: rise 0.5s 2.1s ease-out both; }
+  .motion .pr[data-play].in .pr-merge { animation: rise 0.5s 2.7s ease-out both; }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes rise-far { from { opacity: 0; transform: translateY(28px) scale(0.985); } }
+@keyframes line-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; } }
+@keyframes type-in { from { opacity: 1; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
+@keyframes flash { 0%, 100% { background: transparent; } 30% { background: rgb(138 144 247 / 0.22); } }
+@keyframes nudge { 0%, 100% { transform: none; } 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-1px); } }
+@keyframes grid-drift { to { background-position: 22px 44px; } }

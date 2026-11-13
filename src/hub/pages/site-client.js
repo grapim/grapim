@@ -31,6 +31,25 @@
   }
   showTheme();
 
+  // Product scenes on the landing page (data-play) play once when they
+  // scroll into view. Without IntersectionObserver, or with reduced motion,
+  // nothing is hidden: html.motion is never set.
+  const scenes = document.querySelectorAll('[data-play]');
+  if (scenes.length && 'IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    root.classList.add('motion');
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          e.target.classList.add('in');
+          io.unobserve(e.target);
+        }
+      },
+      { threshold: 0.3 },
+    );
+    for (const s of scenes) io.observe(s);
+  }
+
   // Copy buttons: the code block's text, as shown.
   for (const btn of document.querySelectorAll('[data-copy]')) {
     btn.hidden = false;

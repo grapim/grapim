@@ -104,9 +104,9 @@ function shot(name, alt, { eager = false, w = 2560, h = 1600 } = {}) {
 
 // A terminal block: the real CLI's output format, demo values.
 function term(title, lines) {
-  return html`<figure class="term">
+  return html`<figure class="term" data-play>
   <figcaption class="term-head"><span class="term-title">${title}</span><span class="term-note">Example output</span></figcaption>
-  <pre class="term-body"><code>${lines.map((l) => (l.startsWith('$ ') ? html`<span class="t-cmd"><span class="t-ps" aria-hidden="true">$ </span>${l.slice(2)}</span>\n` : l.startsWith('# ') ? html`<span class="t-dim">${l}</span>\n` : html`${l}\n`))}</code></pre>
+  <pre class="term-body"><code>${lines.map((l) => (l.startsWith('$ ') ? html`<span class="t-line t-cmd"><span class="t-ps" aria-hidden="true">$ </span>${l.slice(2)}</span>\n` : l.startsWith('# ') ? html`<span class="t-line t-dim">${l}</span>\n` : html`<span class="t-line${l.includes('via shell') ? ' t-hl' : ''}">${l}</span>\n`))}</code></pre>
 </figure>`;
 }
 
@@ -137,7 +137,7 @@ const UNDO = [
 // The pull request story: the comment and check use the wording the GitHub
 // App writes (src/provenance/render.js, src/hub/github/pull.js).
 function prThread() {
-  return html`<div class="pr" role="img" aria-label="A pull request with three agent runs. Two changed only tests and docs and were approved by the team's automatic rules. One changed payments code, so the Grapim check fails until the reviewer that rule names approves it; then the check passes.">
+  return html`<div class="pr" data-play role="img" aria-label="A pull request with three agent runs. Two changed only tests and docs and were approved by the team's automatic rules. One changed payments code, so the Grapim check fails until the reviewer that rule names approves it; then the check passes.">
   <div class="pr-title"><span class="pr-state">Open</span><span><b>Add idempotency keys to POST /orders</b> <span class="muted">acme-co/shop-api #412</span></span></div>
   <div class="pr-item">
     <div class="pr-who"><span class="pr-av" aria-hidden="true">${LOGO}</span><b>grapim</b><span class="pr-bot">bot</span><span class="muted">commented</span></div>
