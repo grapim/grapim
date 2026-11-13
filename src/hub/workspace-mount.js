@@ -587,7 +587,8 @@ export function createWorkspaceMount(
       if (!teams.membership(where.team, session.user.id)) throw notFound();
       const ws = workspaces.byName(where.team, where.name);
       if (!ws) throw notFound();
-      who = { kind: 'session', session, ws, key: `u:${session.user.id}` };
+      // The demo's visitors share one viewer (src/hub/demo.js): limited per address.
+      who = { kind: 'session', session, ws, key: session.demo ? `demo:${ctx.ip}` : `u:${session.user.id}` };
     }
     hub.limit(ctx, 'workspace', who.key);
 
@@ -616,7 +617,7 @@ export function createWorkspaceMount(
     // caller re-checked while it is open, so a revoked token, a removed
     // member or a signed-out session stops receiving.
     const stream = kind === 'api' && req.method === 'GET' && /^\/api\/stream\/?$/.test(where.rest);
-    const streamKey = who.kind === 'embed' ? who.key : `u${who.kind === 'token' ? who.token.user_id : who.session.user.id}`;
+    const streamKey = who.kind === 'embed' || who.session?.demo ? who.key : `u${who.kind === 'token' ? who.token.user_id : who.session.user.id}`;
     if (stream) {
       const open = hub.streams.get(streamKey) ?? 0;
       const total = hub.streams.get('*') ?? 0;

@@ -35,6 +35,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHub } from '../src/hub/server.js';
+import { DAY, MIN, seedTeamExtras } from '../src/hub/demo-seed.js';
 import { demoBrain, startFakeAnthropic } from './fake-anthropic.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -47,9 +48,6 @@ const PORT = Number(opt('port', 7480));
 const dataDir = path.resolve(opt('data', fs.mkdtempSync(path.join(os.tmpdir(), 'grapim-dev-hub-'))));
 const fresh = !fs.existsSync(path.join(dataDir, 'hub.db'));
 const ORIGIN = `http://127.0.0.1:${PORT}`;
-const sha1 = (s) => crypto.createHash('sha1').update(s).digest('hex');
-const DAY = 24 * 60 * 60 * 1000;
-const MIN = 60 * 1000;
 
 const USERS = [
   { id: 1001, login: 'demo', name: 'Dana Demo' },
@@ -103,131 +101,18 @@ if (toolMs) {
 }
 
 async function seedMore() {
-  const repoId = (name) => sha1(`${TEAM} ${name} root`);
-  const insUser = db.prepare('INSERT OR IGNORE INTO users (id, login, name, avatar_url, created_at, updated_at) VALUES (?, ?, ?, NULL, ?, ?)');
-  for (const u of USERS) insUser.run(u.id, u.login, u.name, now - 40 * DAY, now);
-  for (const u of USERS.slice(1)) db.prepare("INSERT OR IGNORE INTO members (team_id, user_id, role, created_at) VALUES (?, ?, 'member', ?)").run(TEAM, u.id, now - 30 * DAY);
+  // The team around the run history (src/hub/demo-seed.js, shared with the public demo).
+  await seedTeamExtras(hub, {
+    teamId: TEAM,
+    users: USERS,
+    machines: { 'dana-mbp': 1001, 'sam-linux': 1002, 'priya-mbp': 1003, 'ci-runner': 1002 },
+    installation: { id: 77001, accountId: 9001, login: 'acme-co' },
+    now,
+  });
 
-  // Who synced what: demo's laptop, the others' machines and CI.
-  const owners = { 'alex-mbp': 1001, 'sam-linux': 1002, 'priya-mbp': 1003, 'ci-runner': 1002 };
-  for (const [machine, user] of Object.entries(owners)) db.prepare('UPDATE machines SET user_id = ? WHERE team_id = ? AND machine = ?').run(user, TEAM, machine);
-
-  // The seed spreads today's runs over working hours, some later than now: drop those.
-  for (const t of ['h_changes', 'h_events']) db.prepare(`DELETE FROM ${t} WHERE team_id = ? AND ts > ?`).run(TEAM, now - 5 * MIN);
-  db.prepare('DELETE FROM h_provenance WHERE team_id = ? AND received_at > ?').run(TEAM, now);
-  db.prepare('UPDATE h_agents SET last_seen = MIN(last_seen, ?) WHERE team_id = ?').run(now - 70 * MIN, TEAM);
-
-  // Hub reviews: everything older than a day and a half is reviewed, a few hours after it ended; newer runs wait.
-  const reviews = hub.github.reviews;
-  const runs = db.prepare('SELECT repo_id, machine, run, MAX(ts) AS ts FROM h_changes WHERE team_id = ? GROUP BY repo_id, machine, run').all(TEAM);
-  for (const r of runs) {
-    if (r.run.startsWith('undo:') || now - r.ts < 1.5 * DAY) continue;
-    const owner = owners[r.machine];
-    const reviewer = USERS.find((u) => u.id !== owner).id;
-    const status = sha1(r.run).charCodeAt(0) % 9 === 0 ? 'rejected' : 'approved';
-    try {
-      reviews.record({ id: TEAM }, r.repo_id, r.run, status, reviewer, status === 'rejected' ? 'Tests do not cover the retry path.' : null);
-      const at = Math.min(now - 30 * MIN, r.ts + (1 + (parseInt(sha1(r.run).slice(0, 4), 16) % 20)) * 60 * MIN);
-      db.prepare('UPDATE hub_reviews SET reviewed_at = ? WHERE team_id = ? AND run = ?').run(at, TEAM, r.run);
-    } catch {}
-  }
-
-  // A run with real content and two turns, synced from Sam's desktop.
-  const tok = hub.teams.createToken(TEAM, { role: 'member', userId: 1002 }, 'sam-desktop');
-  const files = [
-    ['src/routes/orders.ts', "import { Router } from 'express';\nimport { createOrder } from '../orders/create';\n\nexport const orders = Router();\n\norders.post('/orders', async (req, res) => {\n  const order = await createOrder(req.body);\n  res.status(201).json(order);\n});\n", "import { Router } from 'express';\nimport { createOrder } from '../orders/create';\nimport { withIdempotency } from '../lib/idempotency';\n\nexport const orders = Router();\n\n// A retried POST with the same Idempotency-Key returns the first answer\n// instead of creating a second order.\norders.post('/orders', withIdempotency({ ttlSeconds: 24 * 60 * 60 }), async (req, res) => {\n  const order = await createOrder(req.body, { idempotencyKey: req.get('Idempotency-Key') });\n  res.status(201).json(order);\n});\n"],
-    ['src/lib/idempotency.ts', null, "import type { RequestHandler } from 'express';\nimport { redis } from './redis';\n\nexport function withIdempotency({ ttlSeconds }: { ttlSeconds: number }): RequestHandler {\n  return async (req, res, next) => {\n    const key = req.get('Idempotency-Key');\n    if (!key) return next();\n    const seen = await redis.get(`idem:${key}`);\n    if (seen) return res.status(200).json(JSON.parse(seen));\n    const send = res.json.bind(res);\n    res.json = (body) => {\n      redis.set(`idem:${key}`, JSON.stringify(body), { EX: ttlSeconds });\n      return send(body);\n    };\n    next();\n  };\n}\n"],
-    ['test/orders.test.ts', "import { request } from './helpers';\n\ntest('creates an order', async () => {\n  const res = await request.post('/orders').send({ sku: 'A1' });\n  expect(res.status).toBe(201);\n});\n", "import { request } from './helpers';\n\ntest('creates an order', async () => {\n  const res = await request.post('/orders').send({ sku: 'A1' });\n  expect(res.status).toBe(201);\n});\n\ntest('a retried POST with the same key creates one order', async () => {\n  const first = await request.post('/orders').set('Idempotency-Key', 'k1').send({ sku: 'A1' });\n  const again = await request.post('/orders').set('Idempotency-Key', 'k1').send({ sku: 'A1' });\n  expect(again.body.id).toBe(first.body.id);\n});\n"],
-  ];
-  const run = 'claude-code:7f3e21aa-55b0-4e0c-9d61-2f0c9a1b7e10';
-  const blobs = {};
-  const put = (s) => {
-    if (s === null) return null;
-    const b = Buffer.from(s);
-    blobs[sha1(b)] = b.toString('base64');
-    return sha1(b);
-  };
-  const t0 = now - 50 * MIN;
-  const lines = (s) => (s ? s.split('\n').length - 1 : 0);
-  const body = {
-    repo: { id: repoId('shop-api'), name: 'shop-api' },
-    machine: 'sam-desktop',
-    cursor: { changes: 0, events: 0, agents: 0 },
-    runs: [{ run, turn: 2, started_at: t0 }],
-    agents: [{ agent: run, label: 'claude 7f3e21aa', intent: 'Add idempotency keys to POST /orders', worktree: 'shop-api', last_seen: now - 4 * MIN }],
-    changes: files.map(([p, before, after], i) => ({ id: i + 1, run, label: 'claude 7f3e21aa', turn: i < 2 ? 1 : 2, worktree: 'shop-api', path: p, before_sha: put(before), after_sha: put(after), untracked: false, added: Math.max(1, lines(after) - lines(before) + 2), removed: before ? 2 : 0, ts: t0 + (i + 1) * 6 * MIN })),
-    events: [
-      { id: 1, ts: t0, agent: run, kind: 'intent', path: null, detail: 'Add idempotency keys to POST /orders' },
-      { id: 2, ts: t0 + 15 * MIN, agent: run, kind: 'intent', path: null, detail: 'Now add a test that a retried POST with the same key creates one order' },
-    ],
-    blobs,
-  };
-  const res = await fetch(`${ORIGIN}/hub/api/sync`, { method: 'POST', headers: { Authorization: `Bearer ${tok.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!res.ok) console.error('dev hub: sync failed', res.status, await res.text());
-
-  // Agents working right now.
-  const insAgent = db.prepare('INSERT OR REPLACE INTO h_agents (team_id, repo_id, machine, agent, label, intent, worktree, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-  insAgent.run(TEAM, repoId('web-app'), 'priya-mbp', 'cursor-vscode:4821', 'cursor 4821', 'Split the checkout page into server components', 'web-app', now - 2 * MIN);
-  insAgent.run(TEAM, repoId('billing-svc'), 'ci-runner', 'http:sandbox-3', 'sandbox-3', 'Retry failed Stripe webhooks with backoff', 'billing-svc', now - 9 * MIN);
-
-  // The GitHub App, linked, with two open pull requests holding unreviewed runs.
-  db.prepare('INSERT OR REPLACE INTO gh_installations (id, account_id, account_login, account_type, sender_id, team_id, linked_by, linked_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(77001, 9001, 'acme-co', 'Organization', 1001, TEAM, 1001, now - 20 * DAY, now - 20 * DAY, now);
-  db.prepare("UPDATE repos SET github = 'acme-co/' || name WHERE team_id = ? AND name IN ('shop-api', 'web-app')").run(TEAM);
-  hub.github.setPolicy(TEAM, { require_review: true }, 1001);
-  const waiting = db
-    .prepare("SELECT run, repo_id FROM h_changes WHERE team_id = ? AND ts > ? AND run NOT LIKE 'undo:%' GROUP BY run ORDER BY MAX(ts) DESC LIMIT 6")
-    .all(TEAM, now - 3 * DAY);
-  const pull = db.prepare('INSERT OR IGNORE INTO gh_pull_runs (team_id, installation_id, repo_gh_id, owner, name, number, head_sha, run, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  pull.run(TEAM, 77001, 5001, 'acme-co', 'shop-api', 412, sha1('h412'), run, now - 20 * MIN);
-  for (const w of waiting.slice(0, 2)) pull.run(TEAM, 77001, 5001, 'acme-co', 'shop-api', 412, sha1('h412'), w.run, now - 20 * MIN);
-  for (const w of waiting.slice(2, 4)) pull.run(TEAM, 77001, 5002, 'acme-co', 'web-app', 97, sha1('h97'), w.run, now - 3 * 60 * MIN);
-
-  // The 90-day AI history scan, as if it ran when GitHub was linked.
-  const scanId = Number(
-    db
-      .prepare("INSERT INTO gh_history_scans (team_id, status, reason, requested_by, since, created_at, started_at, finished_at, repos_total, repos_done, prs_scanned, capped) VALUES (?, 'done', 'install', 1001, ?, ?, ?, ?, 4, 4, ?, '[]')")
-      .run(TEAM, now - 90 * DAY, now - 20 * DAY, now - 20 * DAY, now - 20 * DAY + 4 * MIN, 0).lastInsertRowid,
-  );
-  const putPr = db.prepare('INSERT INTO gh_history_prs (scan_id, team_id, repo, number, title, author, merged_at, agents, ai, approved_other, approvers, commits, commits_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  const titles = ['Add idempotency keys to POST /orders', 'Retry failed Stripe webhooks with backoff', 'Split checkout into server components', 'Fix flaky cart total test', 'Bump pg to 8.12', 'Move tax calc to billing-svc', 'Add rate limit to /login', 'Cache product images at the edge', 'Terraform: separate staging VPC', 'Refactor invoice PDF renderer', 'Log refunds with request id', 'Drop the legacy v1 coupons table'];
-  const people = ['demo', 'sam', 'priya', 'jordan', 'mei'];
-  const mix = [['claude-code', 'Co-authored-by trailer'], ['cursor', 'Co-authored-by trailer'], ['copilot', 'opened the pull request'], ['codex', 'Co-authored-by trailer'], ['claude-code', 'Co-authored-by trailer']];
-  let prs = 0;
-  for (const [ri, repo] of ['acme-co/shop-api', 'acme-co/web-app', 'acme-co/billing-svc', 'acme-co/infra'].entries()) {
-    for (let i = 0; i < [64, 51, 38, 21][ri]; i++) {
-      const h = parseInt(sha1(`${repo}#${i}`).slice(0, 8), 16);
-      const ai = h % 100 < [41, 35, 30, 14][ri];
-      const agent = mix[h % mix.length];
-      const author = agent[0] === 'copilot' && ai ? 'Copilot' : people[h % people.length];
-      const approved = ai ? (h >>> 9) % 100 > 34 : (h >>> 9) % 100 > 10;
-      const reviewer = people[(h >> 3) % people.length] === author ? people[(h >> 5) % people.length] : people[(h >> 3) % people.length];
-      putPr.run(scanId, TEAM, repo, 900 - i * 3 - ri, titles[h % titles.length], author, now - ((i * 89) % 88) * DAY - (h % 20) * 60 * MIN, JSON.stringify(ai ? [{ agent: agent[0], how: [agent[1]] }] : []), ai ? 1 : 0, approved && reviewer !== author ? 1 : 0, JSON.stringify(approved && reviewer !== author ? [reviewer] : []), 1 + (h % 6), 1 + (h % 6));
-      prs++;
-    }
-  }
-  db.prepare('UPDATE gh_history_scans SET prs_scanned = ? WHERE id = ?').run(prs, scanId);
-
-  // Path rules, Slack, and runs that reached a merged pull request.
-  hub.github.rules.add(TEAM, { pattern: 'src/routes/**', approvals: 2 }, 1001);
-  hub.github.rules.add(TEAM, { pattern: 'src/lib/**', approvals: 1, approvers: [1001, 1003] }, 1001);
-  hub.github.rules.add(TEAM, { pattern: '**/migrations/**', approvals: 2, approvers: [1001, 1002, 1003] }, 1001);
+  // Slack, as if a test message just went through.
   hub.notify.save(TEAM, 'https://hooks.slack.com/services/T0DEMO1234/B0DEMO5678/demoDemoDemoDemoDemo8f2c', 1001);
   db.prepare('UPDATE team_notify SET last_ok_at = ? WHERE team_id = ?').run(now - 40 * MIN, TEAM);
-  const merged = db.prepare('INSERT OR IGNORE INTO gh_merged_runs (team_id, run, owner, name, number, head_sha, merged_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
-  const done = db.prepare("SELECT DISTINCT r.run, r.reviewed_at FROM hub_reviews r WHERE r.team_id = ? AND r.status = 'approved' ORDER BY r.reviewed_at DESC LIMIT 40").all(TEAM);
-  done.forEach((r, i) => merged.run(TEAM, r.run, 'acme-co', i % 2 ? 'web-app' : 'shop-api', 380 + Math.floor(i / 2), sha1(`m${i}`), r.reviewed_at + 2 * 60 * MIN));
-
-  // A cloud workspace with agent activity, written over HTTPS like an agent would.
-  const team = hub.teams.get(TEAM);
-  const ws = hub.workspaces.create(team, { role: 'owner', userId: 1001 }, 'research-notes');
-  hub.mount.applyTemplate(ws, 'research', 'human:demo');
-  const wt = hub.workspaces.createToken(ws, { role: 'owner', userId: 1001 }, 'e2b', 'write');
-  const write = (p, text, agent) =>
-    fetch(`${ORIGIN}/w/${TEAM}/research-notes/fs/${p}`, { method: 'PUT', headers: { Authorization: `Bearer ${wt.token}`, 'X-Grapim-Agent': agent }, body: text });
-  await write('sources/stripe-retries.md', '# Stripe retries\n\nStripe retries a failed webhook for up to 3 days with exponential backoff.\n', 'researcher');
-  await write('notes/idempotency.md', '# Idempotency keys\n\n- Keep keys 24 hours.\n- Return the first answer for a retried key.\n', 'researcher');
-  await write('drafts/rfc-orders.md', '# RFC: idempotent order creation\n\nStatus: draft\n', 'writer');
-  await hub.mount.measure(ws).catch(() => {});
 
   // An empty team with the same name as one you already have: the checklist.
   const empty = hub.teams.create({ id: 1001, login: 'demo' }, 'Acme');

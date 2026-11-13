@@ -101,7 +101,8 @@ export function apiRoutes(router, hub) {
       const { team } = ctx.member;
       const repo = ctx.repo;
       // Counted per person (a member's machine tokens share their cap) and hub wide.
-      const who = `u${ctx.member.userId}`;
+      // The demo's visitors share one viewer: counted per address instead.
+      const who = ctx.session?.demo ? `demo:${ctx.ip}` : `u${ctx.member.userId}`;
       const open = hub.streams.get(who) ?? 0;
       const total = hub.streams.get('*') ?? 0;
       if (open >= MAX_STREAMS_PER_USER || total >= MAX_STREAMS) throw new HttpError(429, 'rate_limited', 'Too many open streams.', { retryAfter: 15 });

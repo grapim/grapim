@@ -42,6 +42,10 @@ Every team page and API checks that you are a member. To anyone else, a team, re
 - Every form checks its origin and a per-session token.
 - Everything synced (paths, prompts, file contents) is treated as untrusted and escaped.
 
+## The live demo
+
+"Try the live demo" (`/demo`) opens a sample team, Acme, without signing in. Everything in it is made-up sample data: no real repo, person or GitHub account is behind it, and it is rebuilt every day. A demo visit lasts two hours and is read-only: the hub refuses every change (reviews, invites, tokens, settings, billing, workspace files, Ask Grapim) before it reaches the feature, and the demo visitor is a member of the sample team only, so no other team can be seen or reached. The people in the sample team have ids no GitHub account can have, so nobody can sign in as them.
+
 ## Ask Grapim
 
 The assistant reads with your permissions and only prepares actions; you confirm each one, through the same checks as the page's buttons. Its only outside call is to the Anthropic API. See [Ask Grapim](/docs/ask-grapim).
