@@ -398,7 +398,9 @@ test('cross-team access: every team route answers 404 to a non-member, for sessi
 
   const gets = [
     `/hub/teams/${A}`,
-    `/hub/teams/${A}/settings`,
+    `/hub/teams/${A}/settings/general`,
+    `/hub/teams/${A}/settings/members`,
+    `/hub/teams/${A}/settings/machines`,
     `/hub/teams/${A}/repos/${REPO_ID}`,
     `/hub/teams/${A}/repos/${REPO_ID}/runs/${run}`,
     `/hub/api/teams/${A}`,
@@ -466,7 +468,7 @@ test('a machine token is shown once and stored only as sha256', async (t) => {
   assert.doesNotMatch(JSON.stringify(rows), new RegExp(token.slice(4, 20)));
 
   // Never again: not on the settings page, not in the API.
-  const again = await b.req(`/hub/teams/${team}/settings`);
+  const again = await b.req(`/hub/teams/${team}/settings/machines`);
   assert.match(again.text, /ci-runner/);
   assert.doesNotMatch(again.text, new RegExp(token));
   const list = (await b.req(`/hub/api/teams/${team}/tokens`)).json();
@@ -732,7 +734,7 @@ test('billing routes call the billing module; the webhook gets the raw body; pla
   const member = await signIn(h, 'notpayer');
   await joinTeam(owner, member, team);
 
-  const settings = await owner.req(`/hub/teams/${team}/settings`);
+  const settings = await owner.req(`/hub/teams/${team}/settings/plan`);
   assert.match(settings.text, /Upgrade to Team/);
 
   const co = await owner.post('/hub/billing/checkout', { team, seats: '5', interval: 'month' });
@@ -742,8 +744,8 @@ test('billing routes call the billing module; the webhook gets the raw body; pla
   assert.equal(args.team.id, team);
   assert.equal(args.user.id, owner.user.id);
   assert.equal(args.seats, 5);
-  assert.equal(args.successUrl, `${ORIGIN}/hub/teams/${team}/settings?billing=success#billing`);
-  assert.equal(args.cancelUrl, `${ORIGIN}/hub/teams/${team}/settings?billing=cancel#billing`);
+  assert.equal(args.successUrl, `${ORIGIN}/hub/teams/${team}/settings/plan?billing=success`);
+  assert.equal(args.cancelUrl, `${ORIGIN}/hub/teams/${team}/settings/plan?billing=cancel`);
   assert.equal((await member.post('/hub/billing/checkout', { team, seats: '5' })).status, 403, 'members cannot buy');
   assert.equal((await owner.post('/hub/billing/checkout', { team, seats: '1' })).status, 400, 'fewer seats than members');
 
@@ -1007,4 +1009,50 @@ test('provenance ingest validates the commit sha, the note and its size, caps th
   const o = await signIn(h, 'prov-other');
   const other = await createTeam(o, 'Other');
   assert.deepEqual(h.hub.read.provenanceFor(other, REPO_ID, [C1]), {});
+});
+
+test('settings: one page per topic under /settings/<page>; forms land back on their page; owner pages stay owner only', async (t) => {
+  const h = await startHub();
+  t.after(h.close);
+  const owner = await signIn(h, 'set-owner');
+  const team = await createTeam(owner, 'Settled');
+  const member = await signIn(h, 'set-member');
+  await joinTeam(owner, member, team);
+  const base = `/hub/teams/${team}/settings`;
+
+  // /settings opens General; a Stripe return opens Plan and usage.
+  assert.equal((await owner.req(base)).headers.get('location'), `${base}/general`);
+  assert.equal((await owner.req(`${base}?billing=cancel`)).headers.get('location'), `${base}/plan?billing=cancel`);
+  assert.match((await owner.req(`${base}/plan?billing=cancel`)).text, /Checkout was cancelled/);
+  assert.equal((await owner.req(`${base}/nope`)).status, 404);
+
+  // Each page: its own title, the sub-nav marking it, and only its cards.
+  const general = (await owner.req(`${base}/general`)).text;
+  assert.match(general, /<h1>General<\/h1>/);
+  assert.match(general, new RegExp(`href="${base}/general" aria-current="page"`));
+  assert.match(general, /id="danger"/);
+  assert.doesNotMatch(general, /id="tokens"|id="members"|id="billing"/);
+  assert.match((await owner.req(`${base}/members`)).text, /id="members"[\s\S]*id="invites"/);
+  assert.match((await owner.req(`${base}/machines`)).text, /id="tokens"/);
+  assert.match((await owner.req(`${base}/plan`)).text, /id="billing"/);
+  assert.match((await owner.req(`${base}/data`)).text, /id="code-storage"/);
+
+  // A member: no invite card, and no owner-only page in the sub-nav or at its address.
+  const asMember = (await member.req(`${base}/members`)).text;
+  assert.doesNotMatch(asMember, /id="invites"/);
+  assert.doesNotMatch(asMember, /settings\/(notifications|platform)"/);
+  assert.equal((await member.req(`${base}/platform`)).status, 404, 'not a platform team');
+
+  // A form goes back to its page with its toast; a refusal is shown on that page.
+  await createInvite(owner, team);
+  const invite = h.hub.db.prepare('SELECT id FROM invites WHERE team_id = ? AND used_at IS NULL').get(team);
+  assert.equal((await owner.post(`/hub/teams/${team}/invites/${invite.id}/revoke`)).headers.get('location'), `${base}/members?done=invite_revoked#invites`);
+  assert.match((await owner.req(`${base}/members?done=invite_revoked`)).text, /Invite link revoked/);
+  await createToken(owner, team);
+  const token = h.hub.db.prepare('SELECT id FROM machine_tokens WHERE team_id = ?').get(team);
+  assert.equal((await owner.post(`/hub/teams/${team}/tokens/${token.id}/revoke`)).headers.get('location'), `${base}/machines?done=token_revoked`);
+  const bad = await owner.post(`/hub/teams/${team}/members/abc/remove`);
+  assert.equal(bad.status, 400);
+  assert.match(bad.text, /<h1>Members<\/h1>/);
+  assert.match(bad.text, /notice-error" role="alert">Unknown member/);
 });

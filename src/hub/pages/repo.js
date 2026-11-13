@@ -140,7 +140,7 @@ function reviewPanel({ csrf, team, repo, run, review }) {
   ${review.local && review.local.status !== 'pending' ? html`<p class="fine">${review.local.status === 'approved' ? 'Approved' : 'Rejected'} locally by ${review.local.login || review.local.machine} with <code>grapim review</code>. Shown for information: it does not count for the policy.</p>` : ''}
   <p class="fine">Synced by ${review.owners.length ? review.owners.join(', ') : 'nobody'}. The person who synced a run cannot review it.</p>
   ${review.mine
-    ? html`<p class="muted small">You synced this run, so another member has to review it. No one else in the team yet? <a class="link" href="/hub/teams/${team.id}/settings#members">Invite a teammate</a>.</p>`
+    ? html`<p class="muted small">You synced this run, so another member has to review it. No one else in the team yet? <a class="link" href="/hub/teams/${team.id}/settings/members">Invite a teammate</a>.</p>`
     : html`<form method="post" action="${action}" class="review-form" id="review-form">
     ${csrfField(csrf)}
     <input type="hidden" name="machine" value="${run.machine}">

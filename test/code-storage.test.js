@@ -182,14 +182,14 @@ test('metadata mode: ingest keeps hashes and metadata, never file contents, and 
   const tokenA = await createToken(alice, A);
 
   // Off by default: the card says so, and contents are kept.
-  const settings = await alice.req(`/hub/teams/${A}/settings`);
+  const settings = await alice.req(`/hub/teams/${A}/settings/data`);
   assert.match(settings.text, /id="code-storage"/);
   assert.match(settings.text, /never stores file contents/);
   assert.doesNotMatch(settings.text, /style="|<script>/);
 
   const on = await alice.post(`/hub/teams/${A}/code-storage`, { mode: 'metadata' });
   assert.equal(on.status, 303, on.text);
-  assert.match(on.location, /done=code_storage_on#code-storage$/);
+  assert.match(on.location, /\/settings\/data\?done=code_storage_on$/);
   assert.equal(h.hub.db.prepare('SELECT code_storage FROM teams WHERE id = ?').get(A).code_storage, 'metadata');
 
   // An older client still sends contents: accepted, contents dropped.
@@ -232,7 +232,7 @@ test('delete stored contents: owner only, needs the mode on and a confirmation, 
   const usedB = usageOf(h, B);
 
   // A member sees the setting but cannot change it or delete anything.
-  const page = await member.req(`/hub/teams/${A}/settings`);
+  const page = await member.req(`/hub/teams/${A}/settings/data`);
   assert.match(page.text, /id="code-storage"/);
   assert.match(page.text, /Only an owner can change this/);
   assert.doesNotMatch(page.text, /code-storage\/delete|name="mode"/);
@@ -251,7 +251,7 @@ test('delete stored contents: owner only, needs the mode on and a confirmation, 
   assert.match(early.text, /Turn on No code storage first/);
   assert.equal((await owner.post(`/hub/teams/${A}/code-storage`, { mode: 'nonsense' })).status, 400);
   assert.equal((await owner.post(`/hub/teams/${A}/code-storage`, { mode: 'metadata' })).status, 303);
-  const card = await owner.req(`/hub/teams/${A}/settings`);
+  const card = await owner.req(`/hub/teams/${A}/settings/data`);
   assert.match(card.text, /action="\/hub\/teams\/[^"]+\/code-storage\/delete"/);
   assert.match(card.text, /name="confirm" value="delete" required/);
   assert.match(card.text, /2 file versions/);
@@ -263,13 +263,13 @@ test('delete stored contents: owner only, needs the mode on and a confirmation, 
   const before = usageOf(h, A);
   const done = await owner.post(`/hub/teams/${A}/code-storage/delete`, { confirm: 'delete' });
   assert.equal(done.status, 303, done.text);
-  assert.match(done.location, /done=contents_deleted#code-storage$/);
+  assert.match(done.location, /\/settings\/data\?done=contents_deleted$/);
   assert.equal(blobsOf(h, A), 0);
   assert.ok(usageOf(h, A) < before, 'the deleted bytes leave the storage count');
   assert.equal(blobsOf(h, B), 2, "another team's contents are untouched");
   assert.equal(usageOf(h, B), usedB);
   assert.equal(h.hub.db.prepare('SELECT COUNT(*) AS n FROM h_changes WHERE team_id = ?').get(A).n, 1, 'run metadata stays');
-  assert.match((await owner.req(`/hub/teams/${A}/settings?done=contents_deleted`)).text, /holds no file contents/);
+  assert.match((await owner.req(`/hub/teams/${A}/settings/data?done=contents_deleted`)).text, /holds no file contents/);
 
   // Turning it off again works, and new syncs keep contents again.
   assert.match((await owner.post(`/hub/teams/${A}/code-storage`, { mode: 'full' })).location, /done=code_storage_off/);

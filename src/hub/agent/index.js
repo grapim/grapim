@@ -398,7 +398,7 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
             // The settings form (back=1) gets its page back with the error under
             // the field (?error=cap), not a JSON answer.
             if (ctx.form.back) {
-              ctx.res.writeHead(303, { Location: `/hub/teams/${team.id}/settings?error=cap#ask-grapim` });
+              ctx.res.writeHead(303, { Location: `/hub/teams/${team.id}/settings/plan?error=cap#ask-grapim` });
               return ctx.res.end();
             }
             throw new HttpError(400, 'bad_request', 'Enter an amount in dollars, like 5 or 12.50.');
@@ -407,7 +407,7 @@ export function createAgent(hub, { env = process.env, fetch: fetchImpl = globalT
         }
         store.setCap(team.id, cap);
         if (ctx.form.back) {
-          ctx.res.writeHead(303, { Location: `/hub/teams/${team.id}/settings?done=cap_saved#ask-grapim` });
+          ctx.res.writeHead(303, { Location: `/hub/teams/${team.id}/settings/plan?done=cap_saved#ask-grapim` });
           return ctx.res.end();
         }
         json(ctx, { usage: usageInfo(team) });

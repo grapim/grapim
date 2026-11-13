@@ -6,6 +6,7 @@ import { HttpError, redirect, sendHtml } from './http.js';
 import { invitePage, pickerPage, signInPage } from './pages/account.js';
 import { repoPage, runPage } from './pages/repo.js';
 import { overviewPage, reposPage, reviewsPage, settingsPage } from './pages/team.js';
+import { SETTINGS_PAGES } from './pages/layout.js';
 import { SCOPE_ROWS, WORKSPACE_TABS, workspacePage, workspacesPage } from './pages/workspaces.js';
 import { getReview } from '../review.js';
 import { cleanTemplate } from './templates.js';
@@ -66,6 +67,7 @@ const DONE = {
   slack_removed: 'Slack notifications removed.',
   rule_added: 'Rule added. It applies to the next check and every review from now on.',
   rule_removed: 'Rule removed.',
+  policy_saved: 'Review policy saved.',
   scan_started: 'History scan started. It reads the last 90 days of merged pull requests.',
   code_storage_on: 'No code storage is on. New syncs keep no file contents.',
   code_storage_off: 'No code storage is off. New syncs keep file contents again.',
@@ -77,32 +79,81 @@ export function pageRoutes(router, hub) {
   const { config, teams, read, auth, limits } = hub;
   const html = (ctx, body, status = 200, headers = {}) => sendHtml(ctx.res, status, body, headers);
 
+  // The settings pages a person can open (SETTINGS_PAGES in pages/layout.js):
+  // GitHub and Notifications need the App and an owner, Platform a platform team.
+  function settingsPages(team, role) {
+    const owner = role === 'owner';
+    const kind = team.kind ?? teams.get(team.id)?.kind;
+    return SETTINGS_PAGES.filter((p) => owner || !p.owner)
+      .filter((p) => (p.id === 'github' ? !!hub.github : p.id === 'notifications' ? !!(hub.github && hub.notify) : p.id === 'platform' ? kind === 'platform' : true))
+      .map((p) => p.id);
+  }
+  hub.settingsPages = settingsPages;
+
+  // Which settings page a form belongs to, from its address: an error it
+  // raises is shown there, with the form (renderSettings without a section).
+  const SECTION_OF = [
+    [/\/(invites|members)(\/|$)/, 'members'],
+    [/\/tokens(\/|$)/, 'machines'],
+    [/\/(code-storage|storage)(\/|$)/, 'data'],
+    [/\/(rules|github\/policy)(\/|$)/, 'rules'],
+    [/\/notifications(\/|$)/, 'notifications'],
+    [/\/github(\/|$)/, 'github'],
+    [/^\/hub\/billing\/|\/agent\/cap$/, 'plan'],
+    [/\/settings\/([a-z]+)$/, null],
+  ];
+  function sectionOf(ctx) {
+    const p = ctx.url?.pathname ?? '';
+    for (const [re, id] of SECTION_OF) {
+      const m = p.match(re);
+      if (m) return id ?? m[1];
+    }
+    return 'general';
+  }
+
   function renderSettings(ctx, extra = {}, status = 200) {
     const { team, role, userId } = ctx.member;
     const fresh = teams.get(team.id);
     const actor = { role, userId };
+    const owner = role === 'owner';
+    const pages = settingsPages(fresh, role);
+    const section = extra.section ?? sectionOf(ctx);
+    if (!pages.includes(section)) throw new HttpError(404, 'not_found', 'Not found.');
+    const csrf = ctx.session.csrf;
+    // Only what the page shows is read.
+    const on = (id, fn) => (section === id ? fn() : null);
+    // Workspace storage is drawn once the team has a workspace, or its own bucket.
+    const wsStorage = () => {
+      if (!owner || !hub.teamStorage) return null;
+      const st = hub.teamStorage.status(fresh.id);
+      return hub.workspaces.count(fresh.id) > 0 || st.config || st.move ? hub.teamStorage.settingsSection(fresh, csrf) : null;
+    };
     html(
       ctx,
       settingsPage({
+        section,
+        pages,
         user: ctx.session.user,
-        csrf: ctx.session.csrf,
+        csrf,
         team: fresh,
         role,
         members: teams.members(team.id),
-        invites: role === 'owner' ? teams.invites(team.id) : [],
-        tokens: teams.tokens(team.id, actor),
+        invites: owner ? teams.invites(team.id) : [],
+        tokens: on('machines', () => teams.tokens(team.id, actor)) ?? [],
         limits: limits(fresh),
         seatsUsed: teams.seatsUsed(team.id),
         billing: { enabled: !!hub.billing, intervals: config.billingIntervals, governanceIntervals: config.governanceIntervals ?? [] },
         origin: config.origin,
-        agent: hub.agent?.config.configured ? hub.agent.usageInfo(fresh, { people: role === 'owner' }) : null,
-        github: role === 'owner' ? hub.github?.settingsSection(fresh, ctx.session.csrf) : null,
-        notifications: role === 'owner' ? (hub.github?.notifySection?.(fresh, ctx.session.csrf) ?? null) : null,
-        rules: hub.github?.rulesSection?.(fresh, ctx.session.csrf, role) ?? null,
+        agent: on('plan', () => (hub.agent?.config.configured ? hub.agent.usageInfo(fresh, { people: owner }) : null)),
+        github: on('github', () => (owner ? hub.github?.settingsSection(fresh, csrf) : null)),
+        // Require review before merge: owners, where the GitHub App is part of the hub.
+        policy: on('rules', () => (owner ? (hub.github?.policySection?.(fresh, csrf) ?? null) : null)),
+        notifications: on('notifications', () => (owner ? (hub.github?.notifySection?.(fresh, csrf) ?? null) : null)),
+        rules: on('rules', () => hub.github?.rulesSection?.(fresh, csrf, role) ?? null),
         // A team's own bucket (src/hub/team-storage.js): owners only.
-        storage: role === 'owner' ? (hub.teamStorage?.settingsSection(fresh, ctx.session.csrf) ?? null) : null,
+        storage: on('data', wsStorage),
         // "No code storage" (src/hub/code-storage.js): every member sees the mode, owners change it.
-        codeStorage: { mode: codeStorageOf(hub.db, fresh.id), stored: storedContents(hub.db, fresh.id) },
+        codeStorage: on('data', () => ({ mode: codeStorageOf(hub.db, fresh.id), stored: storedContents(hub.db, fresh.id) })),
         ...extra,
       }),
       status,
@@ -110,6 +161,8 @@ export function pageRoutes(router, hub) {
   }
   // The storage card's routes render the page with their own error (team-storage.js).
   hub.renderSettings = renderSettings;
+
+  const settingsUrl = (teamId, section, done = null, anchor = null) => `/hub/teams/${teamId}/settings/${section}${done ? `?done=${done}` : ''}${anchor ? `#${anchor}` : ''}`;
 
   // Errors a person can fix on the settings page are shown there, not on a bare error page.
   async function onSettings(ctx, fn) {
@@ -277,14 +330,28 @@ export function pageRoutes(router, hub) {
     TEAM,
   );
 
+  // /settings opens General. Addresses from before the split (a Stripe return
+  // with ?billing=, the Ask Grapim limit's ?error=cap) go to Plan and usage.
   router.get(
     '/hub/teams/:team/settings',
     (ctx) => {
+      const q = ctx.url.searchParams;
+      const section = q.has('billing') || q.get('error') === 'cap' ? 'plan' : 'general';
+      redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings/${section}${ctx.url.search}`);
+    },
+    TEAM,
+  );
+
+  router.get(
+    '/hub/teams/:team/settings/:section',
+    (ctx) => {
+      const section = ctx.params.section;
+      if (!SETTINGS_PAGES.some((p) => p.id === section)) throw new HttpError(404, 'not_found', 'Not found.');
       const b = ctx.url.searchParams.get('billing');
-      const notice = b === 'success' ? 'Thanks. The plan updates here as soon as Stripe confirms the payment.' : b === 'cancel' ? 'Checkout was cancelled. Nothing was charged.' : null;
+      const notice = section !== 'plan' ? null : b === 'success' ? 'Thanks. The plan updates here as soon as Stripe confirms the payment.' : b === 'cancel' ? 'Checkout was cancelled. Nothing was charged.' : null;
       // The Ask Grapim limit form comes back here with ?error=cap (src/hub/agent/index.js).
-      const capError = ctx.url.searchParams.get('error') === 'cap' ? { message: 'Enter an amount in dollars, like 5 or 12.50.' } : null;
-      renderSettings(ctx, { notice, toast: doneText(ctx), capError });
+      const capError = section === 'plan' && ctx.url.searchParams.get('error') === 'cap' ? { message: 'Enter an amount in dollars, like 5 or 12.50.' } : null;
+      renderSettings(ctx, { section, notice, toast: doneText(ctx), capError });
     },
     TEAM,
   );
@@ -304,7 +371,7 @@ export function pageRoutes(router, hub) {
     (ctx) =>
       onSettings(ctx, () => {
         teams.revokeInvite(ctx.member.team.id, ctx.member, ctx.params.invite);
-        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings?done=invite_revoked#invites`);
+        redirect(ctx.res, settingsUrl(ctx.member.team.id, 'members', 'invite_revoked', 'invites'));
       }),
     TEAM_FORM,
   );
@@ -316,7 +383,7 @@ export function pageRoutes(router, hub) {
         const userId = Number(ctx.params.user);
         if (!Number.isSafeInteger(userId)) throw new HttpError(400, 'bad_request', 'Unknown member.');
         teams.removeMember(ctx.member.team.id, ctx.member, userId);
-        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings?done=member_removed#members`);
+        redirect(ctx.res, settingsUrl(ctx.member.team.id, 'members', 'member_removed'));
       }),
     TEAM_FORM,
   );
@@ -346,7 +413,7 @@ export function pageRoutes(router, hub) {
     (ctx) =>
       onSettings(ctx, () => {
         teams.revokeToken(ctx.member.team.id, ctx.member, ctx.params.token);
-        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings?done=token_revoked#tokens`);
+        redirect(ctx.res, settingsUrl(ctx.member.team.id, 'machines', 'token_revoked'));
       }),
     TEAM_FORM,
   );
@@ -361,7 +428,7 @@ export function pageRoutes(router, hub) {
         if (!mode) throw new HttpError(400, 'bad_request', 'Choose whether to keep file contents.');
         setCodeStorage(hub.db, ctx.member.team.id, mode);
         hub.log(`code storage: ${mode}`);
-        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings?done=${mode === 'metadata' ? 'code_storage_on' : 'code_storage_off'}#code-storage`);
+        redirect(ctx.res, settingsUrl(ctx.member.team.id, 'data', mode === 'metadata' ? 'code_storage_on' : 'code_storage_off'));
       }),
     { ...TEAM_FORM, owner: true },
   );
@@ -375,7 +442,7 @@ export function pageRoutes(router, hub) {
         if (ctx.form.confirm !== 'delete') throw new HttpError(400, 'bad_request', 'Tick the box to confirm that the stored file contents are deleted for good.');
         deleteContents(hub.db, teamId);
         hub.log('code storage: contents deleted');
-        redirect(ctx.res, `/hub/teams/${teamId}/settings?done=contents_deleted#code-storage`);
+        redirect(ctx.res, settingsUrl(teamId, 'data', 'contents_deleted'));
       }),
     { ...TEAM_FORM, owner: true },
   );
@@ -630,7 +697,7 @@ export function pageRoutes(router, hub) {
       const interval = ctx.form.interval === 'year' ? 'year' : 'month';
       // Team unless the form asks for Governance (the reports plan, docs/provenance.md section 7).
       const plan = ctx.form.plan === 'governance' ? 'governance' : 'team';
-      const back = `${config.origin}/hub/teams/${team.id}/settings`;
+      const back = `${config.origin}/hub/teams/${team.id}/settings/plan`;
       return billingCall(ctx, (b) =>
         b.createCheckout({
           team: billingTeam(team),
@@ -638,8 +705,8 @@ export function pageRoutes(router, hub) {
           seats,
           interval,
           plan,
-          successUrl: `${back}?billing=success#billing`,
-          cancelUrl: `${back}?billing=cancel#billing`,
+          successUrl: `${back}?billing=success`,
+          cancelUrl: `${back}?billing=cancel`,
         }),
       );
     }),
@@ -650,7 +717,7 @@ export function pageRoutes(router, hub) {
     '/hub/billing/portal',
     (ctx) => onSettings(ctx, () => {
       const { team } = ctx.member;
-      return billingCall(ctx, (b) => b.createPortal({ team: billingTeam(team), returnUrl: `${config.origin}/hub/teams/${team.id}/settings#billing` }));
+      return billingCall(ctx, (b) => b.createPortal({ team: billingTeam(team), returnUrl: `${config.origin}/hub/teams/${team.id}/settings/plan` }));
     }),
     { ...FORM, team: 'form', owner: true },
   );

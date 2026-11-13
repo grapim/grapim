@@ -13,10 +13,11 @@
 //   GET  /hub/teams/:team/github/history   the 90-day AI history report (members)
 //   POST /hub/teams/:team/github/history/scan  start a scan (owner)
 //   GET  /hub/api/teams/:team/github/history[.csv]
-//   GET  /hub/teams/:team/rules            path rules (members see, owners edit)
+//   GET  /hub/teams/:team/rules            -> /settings/rules (path rules: members see, owners edit)
 //   POST /hub/teams/:team/rules            add a rule (owner, governance)
 //   POST /hub/teams/:team/rules/:rule/delete
-// and settingsSection(team, csrf) for the settings page, reviewPanel(...) for the run page.
+// and settingsSection, policySection, rulesSection and notifySection for the
+// settings pages (src/hub/routes-pages.js), reviewPanel(...) for the run page.
 //
 // The check run carries "Approve" buttons (check run actions) for the runs
 // still to approve; a click arrives as check_run.requested_action and is
@@ -35,13 +36,13 @@ import { PathRules } from '../rules.js';
 import { hmac } from '../secure.js';
 import { csvTable } from '../reports/csv.js';
 import { AGENTS } from './agents.js';
-import { historyCard, historyPage, notifyCard, rulesCard, rulesPage, rulesPanel } from './features-page.js';
+import { historyCard, historyPage, notifyCard, rulesCard, rulesPanel } from './features-page.js';
 import { HistoryScans } from './history.js';
 import { HubReviews, MAX_NOTE } from '../reviews.js';
 import { AppAuth } from './auth.js';
 import { githubConfig } from './config.js';
 import { Installations } from './link.js';
-import { githubPage, githubSection } from './page.js';
+import { githubPage, githubSection, policyCard } from './page.js';
 import { CHECK_NAME, processPullRequest } from './pull.js';
 import { JobQueue } from './queue.js';
 import { GITHUB_SCHEMA, migrateGitHubSchema } from './schema.js';
@@ -502,7 +503,11 @@ export function createGitHubApp(hub, options = {}) {
     try {
       await fn();
     } catch (err) {
-      if (err instanceof HttpError && err.status < 500 && err.status !== 403) return render(ctx, { error: err.message }, err.status);
+      if (err instanceof HttpError && err.status < 500 && err.status !== 403) {
+        // The policy form on Settings, Review rules gets its error there.
+        if (ctx.form?.from === 'settings' && hub.renderSettings) return hub.renderSettings(ctx, { section: 'rules', error: err.message }, err.status);
+        return render(ctx, { error: err.message }, err.status);
+      }
       throw err;
     }
   }
@@ -512,8 +517,9 @@ export function createGitHubApp(hub, options = {}) {
     if (typeof v !== 'string' || !/^\d{1,12}$/.test(v)) throw new HttpError(400, 'bad_request', 'Unknown installation.');
     return Number(v);
   };
+  // The policy form sits on Settings, Review rules (from=settings) and on the GitHub page.
   const back = (ctx, done, form) =>
-    redirect(ctx.res, form?.from === 'settings' ? `/hub/teams/${ctx.member.team.id}/settings#github` : `/hub/teams/${ctx.member.team.id}/github?done=${done}`);
+    redirect(ctx.res, form?.from === 'settings' ? `/hub/teams/${ctx.member.team.id}/settings/rules?done=policy_saved` : `/hub/teams/${ctx.member.team.id}/github?done=${done}`);
 
   function routes(router) {
     router.post('/hub/github/webhook', webhook, { rate: 'webhook' });
@@ -710,18 +716,24 @@ export function createGitHubApp(hub, options = {}) {
     }, TEAM_VIEW);
 
     // ---- Path rules ----
+    // They live on Settings, Review rules (src/hub/routes-pages.js); the old
+    // address goes there. A refusal is shown on that page, above the form.
 
-    const rulesHtml = (ctx, extra = {}, status = 200) => {
-      const team = teams.get(ctx.member.team.id);
-      sendHtml(ctx.res, status, rulesPageHtml(team, ctx, extra).toString());
-    };
-    router.get('/hub/teams/:team/rules', (ctx) => rulesHtml(ctx), TEAM_VIEW);
+    const rulesBack = (ctx, done) => redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings/rules?done=${done}`);
+    async function onRules(ctx, fn) {
+      try {
+        await fn();
+      } catch (err) {
+        if (err instanceof HttpError && err.status < 500 && err.status !== 403 && err.status !== 404 && hub.renderSettings) return hub.renderSettings(ctx, { section: 'rules', error: err.message }, err.status);
+        throw err;
+      }
+    }
+    router.get('/hub/teams/:team/rules', (ctx) => redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings/rules`), TEAM_VIEW);
     router.post(
       '/hub/teams/:team/rules',
-      (ctx) => {
-        const team = teams.get(ctx.member.team.id);
-        const fromSettings = ctx.form.from === 'settings';
-        try {
+      (ctx) =>
+        onRules(ctx, () => {
+          const team = teams.get(ctx.member.team.id);
           if (!governance(team)) throw new HttpError(402, 'plan_required', 'Path rules are on the Governance plan.');
           const approvers = Object.keys(ctx.form).filter((k) => /^approver_\d{1,12}$/.test(k) && ctx.form[k] === '1').map((k) => Number(k.slice(9)));
           try {
@@ -730,50 +742,33 @@ export function createGitHubApp(hub, options = {}) {
             if (err?.code === 'bad_request') throw new HttpError(400, 'bad_request', err.message);
             throw err;
           }
-        } catch (err) {
-          if (err instanceof HttpError && err.status < 500) {
-            if (fromSettings && hub.renderSettings) return hub.renderSettings(ctx, { error: err.message }, err.status);
-            return rulesHtml(ctx, { error: err.message }, err.status);
-          }
-          throw err;
-        }
-        applyToOpenPulls(team);
-        redirect(ctx.res, fromSettings ? `/hub/teams/${team.id}/settings?done=rule_added#rules` : `/hub/teams/${team.id}/rules?done=added`);
-      },
+          applyToOpenPulls(team);
+          rulesBack(ctx, 'rule_added');
+        }),
       TEAM_FORM,
     );
     // A common starting set, added only to a team without rules.
     router.post(
       '/hub/teams/:team/rules/starter',
-      (ctx) => {
-        const team = teams.get(ctx.member.team.id);
-        if (!governance(team)) throw new HttpError(402, 'plan_required', 'Path rules are on the Governance plan.');
-        if (rules.list(team.id).length) throw new HttpError(409, 'conflict', 'The starter rules are for a team without rules. Add rules one by one instead.');
-        for (const [pattern, action] of STARTER_RULES) rules.add(team.id, { pattern, action, approvals: 1 }, ctx.session.user.id);
-        applyToOpenPulls(team);
-        redirect(ctx.res, ctx.form.from === 'settings' ? `/hub/teams/${team.id}/settings?done=rule_added#rules` : `/hub/teams/${team.id}/rules?done=added`);
-      },
+      (ctx) =>
+        onRules(ctx, () => {
+          const team = teams.get(ctx.member.team.id);
+          if (!governance(team)) throw new HttpError(402, 'plan_required', 'Path rules are on the Governance plan.');
+          if (rules.list(team.id).length) throw new HttpError(409, 'conflict', 'The starter rules are for a team without rules. Add rules one by one instead.');
+          for (const [pattern, action] of STARTER_RULES) rules.add(team.id, { pattern, action, approvals: 1 }, ctx.session.user.id);
+          applyToOpenPulls(team);
+          rulesBack(ctx, 'rule_added');
+        }),
       TEAM_FORM,
     );
     router.post(
       '/hub/teams/:team/rules/:rule/delete',
       (ctx) => {
         if (!/^\d{1,12}$/.test(ctx.params.rule) || !rules.remove(ctx.member.team.id, ctx.params.rule)) throw new HttpError(404, 'not_found', 'No such rule.');
-        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings?done=rule_removed#rules`);
+        rulesBack(ctx, 'rule_removed');
       },
       TEAM_FORM,
     );
-  }
-
-  function rulesPageHtml(team, ctx, { error = null } = {}) {
-    return rulesPage({
-      user: ctx.session.user,
-      csrf: ctx.session.csrf,
-      team,
-      error,
-      notice: ctx.url.searchParams.get('done') === 'added' ? 'Rule added.' : null,
-      card: rulesCard({ team, csrf: ctx.session.csrf, role: ctx.member.role, rules: rules.list(team.id), members: teams.members(team.id), allowed: governance(team), standalone: true }),
-    });
   }
 
   function historyInfo(team, csrf, owner = true) {
@@ -787,6 +782,8 @@ export function createGitHubApp(hub, options = {}) {
 
   const notifySection = (team, csrf) => (hub.notify ? notifyCard({ team, csrf, info: hub.notify.info(team.id) }) : null);
   const rulesSection = (team, csrf, role) => rulesCard({ team, csrf, role, rules: rules.list(team.id), members: teams.members(team.id), allowed: governance(team) });
+  // Require review before merge, on Settings, Review rules (owners).
+  const policySection = (team, csrf) => policyCard({ team, csrf, policy: policy(team.id), allowed: governance(team), slug: cfg.slug, checkName: CHECK_NAME });
 
   // What the hub run page shows about reviews (src/hub/pages/repo.js).
   function reviewPanel({ team, repo, run, userId, done = null }) {
@@ -831,6 +828,7 @@ export function createGitHubApp(hub, options = {}) {
     queue,
     routes,
     settingsSection,
+    policySection,
     reviewPanel,
     notifySection,
     rulesSection,

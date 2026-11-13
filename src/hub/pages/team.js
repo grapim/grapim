@@ -1,9 +1,9 @@
 // A team's pages: the home (what needs me now, or the setup checklist for a
-// new team), the review inbox, the repos, and the settings with their
-// sections: general, members and invites, machine tokens, billing, GitHub,
-// storage, platform, and the danger zone.
+// new team), the review inbox, the repos, and the settings pages (general,
+// members, review rules, GitHub, notifications, machines, data, plan and
+// usage, platform).
 
-import { avatar, csrfField, layout, SETTINGS_SECTIONS } from './layout.js';
+import { avatar, csrfField, layout, SETTINGS_PAGES } from './layout.js';
 import { date, html, time } from './html.js';
 import { icon } from './icons.js';
 import { agent, code, delta, emptyState, phoneMeta, plural, reviewBadge, runHref } from './parts.js';
@@ -59,7 +59,7 @@ function checklist({ team, csrf, role, origin, setup, compact = false }) {
         <input id="setup-token" name="name" type="text" maxlength="60" placeholder="Machine name, e.g. alex-macbook" required autocomplete="off" spellcheck="false">
         <button class="btn btn-primary" type="submit">Create token</button>
       </form>`,
-      link: `${base}/settings#tokens`,
+      link: `${base}/settings/machines`,
     },
     sync: {
       title: 'Connect the machine',
@@ -175,7 +175,7 @@ ${checklist({ team, csrf, role, origin, setup })}
       <div class="panel-head"><h2 id="needs-title" class="panel-title">Needs your review <span class="num muted">${waiting.length}</span></h2><a class="link small" href="${base}/reviews">All reviews</a></div>
       ${waiting.length
         ? html`<ul class="items">${waiting.slice(0, 6).map((r) => runRow(team, r))}</ul>`
-        : html`<p class="panel-empty">Nothing waits for you. ${mine.length ? html`${plural(mine.length, 'run')} you synced ${mine.length === 1 ? 'waits' : 'wait'} for another member.${setup.members < 2 ? html` <a class="link" href="${base}/settings#members">Invite a teammate</a> to review ${mine.length === 1 ? 'it' : 'them'}.` : ''}` : 'New agent runs show up here once a machine syncs them.'}</p>`}
+        : html`<p class="panel-empty">Nothing waits for you. ${mine.length ? html`${plural(mine.length, 'run')} you synced ${mine.length === 1 ? 'waits' : 'wait'} for another member.${setup.members < 2 ? html` <a class="link" href="${base}/settings/members">Invite a teammate</a> to review ${mine.length === 1 ? 'it' : 'them'}.` : ''}` : 'New agent runs show up here once a machine syncs them.'}</p>`}
     </section>
     ${pulls.list.length
       ? html`<section class="panel" aria-labelledby="prs-title">
@@ -298,13 +298,17 @@ ${repos.length
 <p class="fine">Review synced runs here: open a run to approve or reject it; that is the review the Grapim check on pull requests counts. Undo and branches change files, so for a synced repo they run on the machine, with <code>grapim undo</code> or in <code>grapim serve</code>. Cloud workspaces live on the hub, so their runs are reviewed, undone and branched in their review desk.</p>`
   : html`<div class="empty">
   <p class="empty-title">No repos synced yet</p>
-  <p class="muted">Create a machine token in <a href="/hub/teams/${team.id}/settings#tokens">Settings</a>, then run this in a repo where Grapim is set up:</p>
+  <p class="muted">Create a machine token in <a href="/hub/teams/${team.id}/settings/machines">Settings</a>, then run this in a repo where Grapim is set up:</p>
   ${syncSnippet(origin)}
 </div>`}`,
   });
 }
 
 // ---------------------------------------------------------------- settings
+//
+// One short page per topic (SETTINGS_PAGES in layout.js), as Linear, Vercel
+// and GitHub lay out theirs: a sub-nav on the left, the page title is the
+// section's name, one to three cards under it.
 
 function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
   const owner = role === 'owner';
@@ -312,7 +316,7 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
   const paid = team.plan !== 'free';
   return html`<section class="card" id="billing" aria-labelledby="billing-title">
   <div class="card-head">
-    <h2 id="billing-title" class="card-title">Billing</h2>
+    <h2 id="billing-title" class="card-title">Plan</h2>
     <span class="badge badge-plan">${team.plan}${team.plan_status && team.plan_status !== 'active' ? ` · ${team.plan_status}` : ''}</span>
   </div>
   <dl class="stats">
@@ -323,7 +327,7 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
     ${team.period_end ? html`<div><dt>Renews</dt><dd>${date(team.period_end)}</dd></div>` : ''}
   </dl>
   ${!billing.enabled
-    ? html`<p class="fine">Grapim is in early access: there is no checkout and nothing is charged. For a Team or Governance pilot (Require review and reports), <a class="link" href="/hub/support?topic=pilot&amp;from=${encodeURIComponent(`/hub/teams/${team.id}/settings`)}">talk to us</a>.</p>`
+    ? html`<p class="fine">Grapim is in early access: nothing is charged. For a Team or Governance pilot, <a class="link" href="/hub/support?topic=pilot&amp;from=${encodeURIComponent(`/hub/teams/${team.id}/settings/plan`)}">talk to us</a>.</p>`
     : !owner
       ? html`<p class="fine">Only an owner can change the plan.</p>`
       : html`<div class="billing-actions">
@@ -375,7 +379,7 @@ function askSection({ team, role, csrf, agent: a, members, capError = null }) {
   <div class="ask-meter">
     <p class="ask-meter-num"><strong>${usd(a.spent)}</strong> <span class="muted">of ${usd(a.budget)} used this month</span></p>
     <progress class="ask-meter-bar${pct >= 0.9 ? ' is-high' : ''}" max="1" value="${pct.toFixed(3)}" aria-label="Ask Grapim credit used this month">${Math.round(pct * 100)}%</progress>
-    <p class="muted small">The ${team.plan} plan includes ${usd(a.credit)} of Ask Grapim a month, counted at the model's price per token. ${a.messages} ${a.messages === 1 ? 'message' : 'messages'} so far.</p>
+    <p class="muted small">The ${team.plan} plan includes ${usd(a.credit)} a month, at the model's price per token. ${a.messages} ${a.messages === 1 ? 'message' : 'messages'} so far.</p>
   </div>
   ${owner && a.people?.length
     ? html`<table class="ask-people">
@@ -393,7 +397,7 @@ function askSection({ team, role, csrf, agent: a, members, capError = null }) {
       <button class="btn" type="submit">Save</button>
     </div>
     ${capError ? html`<p id="ask-cap-error" class="field-error">${icon('x')}<span>${capError.message}</span></p>` : ''}
-    <p id="ask-cap-hint" class="muted small">Ask Grapim stops for the team at this amount. Leave it empty to use the plan's ${usd(a.credit)}; 0 turns it off.</p>
+    <p id="ask-cap-hint" class="muted small">Ask Grapim stops for the team at this amount. Empty: the plan's ${usd(a.credit)}; 0 turns it off.</p>
   </form>`
     : ''}
 </section>`;
@@ -409,7 +413,7 @@ function codeStorageSection({ team, csrf, role, info }) {
   const versions = plural(files, 'file version');
   return html`<section class="card" id="code-storage" aria-labelledby="code-storage-title">
   <div class="card-head">
-    <h2 id="code-storage-title" class="card-title">Code storage</h2>
+    <h2 id="code-storage-title" class="card-title">No code storage</h2>
     ${owner
       ? html`<form method="post" action="/hub/teams/${team.id}/code-storage" class="inline-form">
       ${csrfField(csrf)}
@@ -419,13 +423,13 @@ function codeStorageSection({ team, csrf, role, info }) {
     </form>`
       : html`<span class="badge ${on ? 'badge-ok' : ''}">${on ? 'On' : 'Off'}</span>`}
   </div>
-  <p class="card-sub">No code storage: the hub keeps run metadata (agent, prompt summary, files touched, line counts, hashes, review decisions) and never stores file contents. Diffs are read from GitHub when someone opens a run, and are not saved. Prompts are kept, so a prompt that quotes code is stored with it.</p>
+  <p class="card-sub">When on, the hub keeps run metadata (agent, prompt, files, line counts, reviews), never stores file contents, and reads diffs from GitHub when someone opens a run.</p>
   <p class="fine">${on
-    ? html`Live diffs need the repo on the <a class="link" href="/hub/teams/${team.id}/settings#github">GitHub App</a> and the run's commits pushed with provenance notes. Otherwise the diff stays on the developer's machine. <a class="link" href="/docs/data-handling">What Grapim stores</a>`
+    ? html`Live diffs need the repo on the <a class="link" href="/hub/teams/${team.id}/settings/github">GitHub App</a> and its commits pushed with provenance notes. Prompts are still kept, so a prompt that quotes code is stored with it. <a class="link" href="/docs/data-handling">What Grapim stores</a>`
     : html`Off: the hub keeps the contents of files agents changed, so every run shows its diff. <a class="link" href="/docs/data-handling">What Grapim stores</a>`}${owner ? '' : ' Only an owner can change this.'}</p>
   ${owner && on && files
     ? html`<h3 class="card-title small policy-sub">Delete stored file contents</h3>
-  <p class="fine">The hub still holds ${versions} (${size}) synced before No code storage was on. Deleting them cannot be undone: those runs then show their diff from GitHub, or not at all.</p>
+  <p class="fine">The hub still holds ${versions} (${size}) synced before this was on. Deleting them cannot be undone: those runs then show their diff from GitHub, or not at all.</p>
   <form method="post" action="/hub/teams/${team.id}/code-storage/delete" class="inline-form">
     ${csrfField(csrf)}
     <label class="toggle"><input type="checkbox" name="confirm" value="delete" required> Delete ${versions} for good</label>
@@ -439,39 +443,34 @@ function codeStorageSection({ team, csrf, role, info }) {
 </section>`;
 }
 
-export function settingsPage({ user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, notifications = null, rules = null, storage = null, codeStorage = null, revealed = null, notice = null, error = null, toast = null, capError = null }) {
+function generalCards({ team, role, csrf }) {
   const owner = role === 'owner';
-  const shown = SETTINGS_SECTIONS.filter((s) => owner || !s.owner).filter((s) => (s.id === 'github' ? !!github : s.id === 'storage' ? !!storage : s.id === 'notifications' ? !!notifications : s.id === 'rules' ? !!rules : s.id === 'code-storage' ? !!codeStorage : true));
-  const newestToken = revealed?.kind === 'token' ? revealed.name : null;
-  return layout({
-    title: `${team.name} settings`,
-    user,
-    csrf,
-    team,
-    wide: 'mid',
-    toast,
-    crumbs: [{ label: 'Settings' }],
-    body: html`${head(team, 'settings')}
-${notice ? html`<p class="notice" role="status">${notice}</p>` : ''}
-${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
-<div class="settings">
-<nav class="subnav" aria-label="Settings sections">
-  ${shown.map((s) => html`<a class="subnav-item" href="#${s.id}" data-spy="${s.id}">${s.label}</a>`)}
-</nav>
-<div class="settings-body">
-
-<section class="card" id="general" aria-labelledby="general-title">
-  <div class="card-head"><h2 id="general-title" class="card-title">General</h2></div>
+  return html`<section class="card" id="general" aria-labelledby="general-title">
+  <div class="card-head"><h2 id="general-title" class="card-title">Team</h2></div>
   <dl class="facts">
     <div><dt>Name</dt><dd>${team.name}</dd></div>
     <div><dt>Team ID</dt><dd class="mono">${team.id}</dd></div>
     <div><dt>Created</dt><dd>${date(team.created_at)}</dd></div>
-    <div><dt>Your role</dt><dd>${role === 'owner' ? 'Owner' : 'Member'}</dd></div>
-    <div><dt>Plan</dt><dd><span class="badge badge-plan">${team.plan}</span> <a class="link small" href="#billing">Billing</a></dd></div>
+    <div><dt>Your role</dt><dd>${owner ? 'Owner' : 'Member'}</dd></div>
+    <div><dt>Plan</dt><dd><span class="badge badge-plan">${team.plan}</span> <a class="link small" href="/hub/teams/${team.id}/settings/plan">Plan and usage</a></dd></div>
   </dl>
+  ${owner && team.kind !== 'platform'
+    ? html`<p class="fine">Run agents for your own customers? A platform (beta) gives each one a workspace. <a class="link" href="/hub/teams/${team.id}/platform">Set it up</a></p>`
+    : ''}
 </section>
 
-<section class="card" id="members" aria-labelledby="members-title">
+<section class="card card-danger" id="danger" aria-labelledby="leave-title">
+  <div class="card-head">
+    <h2 id="leave-title" class="card-title">Leave team</h2>
+    <form method="post" action="/hub/teams/${team.id}/leave" data-confirm="${`Leave ${team.name}? Your machine tokens for it stop working.`}">${csrfField(csrf)}<button class="btn btn-sm btn-danger" type="submit">Leave</button></form>
+  </div>
+  <p class="card-sub">Your machine tokens for this team stop working.${owner ? ' The last owner cannot leave.' : ''}</p>
+</section>`;
+}
+
+function memberCards({ user, team, role, csrf, members, invites, limits, seatsUsed, revealed }) {
+  const owner = role === 'owner';
+  return html`<section class="card" id="members" aria-labelledby="members-title">
   <div class="card-head">
     <h2 id="members-title" class="card-title">Members</h2>
     <span class="muted">${seatsUsed} of ${Number.isFinite(limits.seats) ? limits.seats : 'unlimited'} seats</span>
@@ -498,7 +497,7 @@ ${owner
     <h2 id="invites-title" class="card-title">Invite links</h2>
     <form method="post" action="/hub/teams/${team.id}/invites">${csrfField(csrf)}<button class="btn btn-sm" type="submit">New invite link</button></form>
   </div>
-  <p class="card-sub">Each link adds one person, works once, and expires after 7 days.</p>
+  <p class="card-sub">Each link adds one person, works once and expires after 7 days.</p>
   ${revealed?.kind === 'invite'
     ? reveal({ id: 'reveal-invite', title: 'Invite link', value: revealed.value, hint: 'Copy it now and send it to one person. It will not be shown again.' })
     : ''}
@@ -514,13 +513,17 @@ ${owner
   </ul>`
     : html`<p class="muted small">No open invite links.</p>`}
 </section>`
-  : ''}
+  : ''}`;
+}
 
-<section class="card" id="tokens" aria-labelledby="tokens-title">
+function machineCards({ team, role, csrf, tokens, origin, revealed }) {
+  const owner = role === 'owner';
+  const newestToken = revealed?.kind === 'token' ? revealed.name : null;
+  return html`<section class="card" id="tokens" aria-labelledby="tokens-title">
   <div class="card-head">
     <h2 id="tokens-title" class="card-title">Machine tokens</h2>
   </div>
-  <p class="card-sub">A token lets one machine run <code>grapim sync</code> into this team. ${owner ? 'You see every token in the team.' : 'You see your own tokens.'}</p>
+  <p class="card-sub">A token lets one machine run <code>grapim sync</code> into this team.${owner ? '' : ' You see your own tokens.'}</p>
   ${revealed?.kind === 'token'
     ? reveal({ id: 'reveal-token', title: `Token for ${revealed.name}`, value: revealed.value, hint: 'Copy it now. Only a hash is stored, so it cannot be shown again. Put it in GRAPIM_HUB_TOKEN on that machine.' })
     : ''}
@@ -543,39 +546,63 @@ ${owner
     : ''}
   <h3 class="sub-title">Connect a machine</h3>
   ${syncSnippet(origin, newestToken)}
-</section>
+</section>`;
+}
 
-${billingSection({ team, role, csrf, limits, seatsUsed, billing })}
-
-${askSection({ team, role, csrf, agent, members, capError })}
-
-${github ?? ''}
-${rules ?? ''}
-${notifications ?? ''}
-
-${storage ?? ''}
-
-${codeStorageSection({ team, csrf, role, info: codeStorage })}
-
-${owner
-  ? team.kind === 'platform'
-    ? html`<section class="card" id="platform" aria-labelledby="platform-title">
+function platformCard({ team }) {
+  return html`<section class="card" id="platform" aria-labelledby="platform-title">
   <div class="card-head"><h2 id="platform-title" class="card-title">Platform</h2><a class="btn btn-sm" href="/hub/teams/${team.id}/platform">Manage</a></div>
   <p class="card-sub">API keys, the origins that may embed the review desk, webhooks and usage.</p>
-</section>`
-    : html`<section class="card" id="platform" aria-labelledby="platform-title">
-  <div class="card-head"><h2 id="platform-title" class="card-title">Platform</h2><span class="badge">beta</span></div>
-  <p class="card-sub">Run agents for your own customers? A platform creates a workspace per end customer through an API, embeds the review desk in its app, and pays by usage. <a href="/hub/teams/${team.id}/platform">Set it up</a>.</p>
-</section>`
-  : ''}
+</section>`;
+}
 
-<section class="card card-danger" id="danger" aria-labelledby="leave-title">
-  <div class="card-head">
-    <h2 id="leave-title" class="card-title">Leave team</h2>
-    <form method="post" action="/hub/teams/${team.id}/leave" data-confirm="${`Leave ${team.name}? Your machine tokens for it stop working.`}">${csrfField(csrf)}<button class="btn btn-sm btn-danger" type="submit">Leave</button></form>
-  </div>
-  <p class="card-sub">Your machine tokens for this team are revoked. ${owner ? 'The last owner cannot leave.' : ''}</p>
-</section>
+// Under each page's title: what the page is for, in one line.
+const SETTINGS_SUBS = {
+  members: 'Who can see this team and review its agent runs.',
+  rules: (team) => html`Decide which agent runs pass on their own and which need a person. <a class="link" href="/docs/rules">How rules work</a>`,
+  github: 'Pull request comments and the Grapim check.',
+  notifications: 'Slack messages about agent runs and failed checks.',
+  machines: 'Each machine syncs its agent runs with its own token.',
+  data: 'What the hub keeps, and where.',
+  plan: 'Your plan, its limits and Ask Grapim credit.',
+  platform: 'Workspaces for your own customers, through an API.',
+};
+
+// section: one of SETTINGS_PAGES; pages: the ids this person can open here.
+export function settingsPage({ section = 'general', pages = ['general'], user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, policy = null, notifications = null, rules = null, storage = null, codeStorage = null, revealed = null, notice = null, error = null, toast = null, capError = null }) {
+  const base = `/hub/teams/${team.id}/settings`;
+  const page = SETTINGS_PAGES.find((p) => p.id === section) ?? SETTINGS_PAGES[0];
+  const shown = SETTINGS_PAGES.filter((p) => pages.includes(p.id));
+  const sub = typeof SETTINGS_SUBS[page.id] === 'function' ? SETTINGS_SUBS[page.id](team) : SETTINGS_SUBS[page.id] ?? null;
+  const cards = {
+    general: () => generalCards({ team, role, csrf }),
+    members: () => memberCards({ user, team, role, csrf, members, invites, limits, seatsUsed, revealed }),
+    rules: () => html`${policy ?? ''}${rules ?? ''}`,
+    github: () => github ?? '',
+    notifications: () => notifications ?? '',
+    machines: () => machineCards({ team, role, csrf, tokens, origin, revealed }),
+    data: () => html`${codeStorageSection({ team, csrf, role, info: codeStorage })}${storage ?? ''}`,
+    plan: () => html`${billingSection({ team, role, csrf, limits, seatsUsed, billing })}${askSection({ team, role, csrf, agent, members, capError })}`,
+    platform: () => platformCard({ team }),
+  };
+  return layout({
+    title: `${page.label} · ${team.name} settings`,
+    user,
+    csrf,
+    team,
+    wide: 'mid',
+    toast,
+    crumbs: [{ label: 'Settings', href: base }, { label: page.label }],
+    body: html`<div class="settings">
+<nav class="subnav" aria-label="Settings">
+  <p class="subnav-title">Settings</p>
+  ${shown.map((p) => html`<a class="subnav-item" href="${base}/${p.id}" ${p.id === page.id ? html`aria-current="page"` : ''}>${p.label}</a>`)}
+</nav>
+<div class="settings-body">
+${head(team, 'settings', { title: page.label, sub })}
+${notice ? html`<p class="notice" role="status">${notice}</p>` : ''}
+${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
+${cards[page.id]()}
 </div>
 </div>`,
   });

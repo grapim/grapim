@@ -549,11 +549,11 @@ test('limits: the monthly credit, the owner cap, max tool calls per message, and
   assert.equal((await bob.ask(A, 'fifth')).status, 200);
 
   // Settings shows the credit to everyone, and who spent it to owners only.
-  const ownerPage = (await alice.req(`/hub/teams/${A}/settings`)).text;
+  const ownerPage = (await alice.req(`/hub/teams/${A}/settings/plan`)).text;
   assert.match(ownerPage, /id="ask-grapim"/);
   assert.match(ownerPage, /@lim-bob/);
   assert.match(ownerPage, /name="cap"/);
-  const memberPage = (await bob.req(`/hub/teams/${A}/settings`)).text;
+  const memberPage = (await bob.req(`/hub/teams/${A}/settings/plan`)).text;
   assert.match(memberPage, /id="ask-grapim"/);
   assert.doesNotMatch(memberPage, /class="ask-people"|name="cap"/);
 

@@ -611,6 +611,13 @@ test('approve from GitHub: buttons on the check; a member\'s click approves as t
 test('path rules: payments/** needs 2 approvals from named people; the check and the hub enforce it; the run page shows who is missing', async (t) => {
   const { h, alice, bob, carol, A, inst } = await governed(t);
   assert.equal((await alice.post(`/hub/teams/${A}/github/policy`, { require_review: '1' })).status, 303);
+  // The same switches on Settings, Review rules come back there, with a refusal shown there.
+  assert.match((await alice.post(`/hub/teams/${A}/github/policy`, { require_provenance: '1', from: 'settings' })).location, /\/settings\/rules\?done=policy_saved$/);
+  const nothing = await alice.post(`/hub/teams/${A}/github/policy`, { from: 'settings' });
+  assert.equal(nothing.status, 400);
+  assert.match(nothing.text, /<h1>Review rules<\/h1>[\s\S]*Nothing to change/);
+  assert.match((await alice.req(`/hub/teams/${A}/settings/rules`)).text, /id="require-review"[\s\S]*id="rules"[\s\S]*class="field rule-review-only"/);
+  assert.doesNotMatch((await bob.req(`/hub/teams/${A}/settings/rules`)).text, /id="require-review"/, 'the policy is for owners');
   // Validation: a bad pattern, too few approvers for the count.
   assert.equal((await alice.post(`/hub/teams/${A}/rules`, { pattern: '../x', approvals: '1' })).status, 400);
   const few = await alice.post(`/hub/teams/${A}/rules`, { pattern: 'payments/**', approvals: '2', [`approver_${bob.user.id}`]: '1' });
@@ -620,7 +627,7 @@ test('path rules: payments/** needs 2 approvals from named people; the check and
   assert.equal((await bob.post(`/hub/teams/${A}/rules`, { pattern: 'payments/**', approvals: '1' })).status, 403);
   const ok = await alice.post(`/hub/teams/${A}/rules`, { pattern: 'payments/**', approvals: '2', [`approver_${bob.user.id}`]: '1', [`approver_${carol.user.id}`]: '1', from: 'settings' });
   assert.equal(ok.status, 303, ok.text);
-  assert.match(ok.location, /done=rule_added#rules/);
+  assert.match(ok.location, /\/settings\/rules\?done=rule_added$/);
   assert.equal(h.hub.github.rules.list(A).length, 1);
 
   // A member not named by the rule cannot approve RUN1 (it changed payments/charge.js).
@@ -651,7 +658,8 @@ test('path rules: payments/** needs 2 approvals from named people; the check and
   assert.match(snap.rules, /payments\/\*\*/);
 
   // Rules page: members read, owners remove; another team gets 404.
-  assert.match((await bob.req(`/hub/teams/${A}/rules`)).text, /payments\/\*\*/);
+  assert.match((await bob.req(`/hub/teams/${A}/rules`)).location, /\/settings\/rules$/, 'the old address goes to Settings, Review rules');
+  assert.match((await bob.req(`/hub/teams/${A}/settings/rules`)).text, /payments\/\*\*/);
   const id = h.hub.github.rules.list(A)[0].id;
   assert.equal((await bob.post(`/hub/teams/${A}/rules/${id}/delete`)).status, 403);
   const mallory = await signIn(h, 'rules-mallory');
@@ -669,7 +677,7 @@ test('path rules are a Governance feature: refused without the plan, and kept bu
   gov = false;
   const r = await alice.post(`/hub/teams/${A}/rules`, { pattern: 'infra/**', approvals: '1' });
   assert.equal(r.status, 402);
-  assert.match((await alice.req(`/hub/teams/${A}/settings`)).text, /Path rules are on the Governance plan/);
+  assert.match((await alice.req(`/hub/teams/${A}/settings/rules`)).text, /Path rules are on the Governance plan/);
   // Inert: bob's single approval is not refused or held back by the rule.
   assert.equal((await bob.post(`${runPath(A, RUN1)}/decision`, { status: 'approved' })).status, 303);
   assert.equal(h.hub.github.rulesFor({ id: A }, [ROOT], [RUN1]).size, 0);
@@ -691,7 +699,7 @@ test('slack: owners save a webhook (sealed, never shown); a 15-minute digest of 
   const row = db.prepare('SELECT * FROM team_notify WHERE team_id = ?').get(A);
   assert.ok(!row.slack_url.includes('hooks.slack.com') && row.slack_url.startsWith('v2.'), 'sealed');
   assert.ok(!JSON.stringify(db.prepare('SELECT * FROM team_notify').all()).includes('abcdefghijklmnopqrstuvwx'));
-  const settings = await alice.req(`/hub/teams/${A}/settings`);
+  const settings = await alice.req(`/hub/teams/${A}/settings/notifications`);
   assert.match(settings.text, /Webhook ending in <code>…uvwx<\/code>/);
   assert.doesNotMatch(settings.text, /abcdefghijklmnopqrst/);
   // Copied into another team's row, the sealed URL does not open.
@@ -738,7 +746,7 @@ test('slack: owners save a webhook (sealed, never shown); a 15-minute digest of 
   slack.status = 410;
   assert.equal(await h.hub.notify.post(A, 'x'), false);
   assert.ok(db.prepare('SELECT disabled_at FROM team_notify WHERE team_id = ?').get(A).disabled_at);
-  assert.match((await alice.req(`/hub/teams/${A}/settings`)).text, /Slack answered 410/);
+  assert.match((await alice.req(`/hub/teams/${A}/settings/notifications`)).text, /Slack answered 410/);
   const before = slack.posts.length;
   await h.hub.notify.post(A, 'y');
   assert.equal(slack.posts.length, before, 'no more posts while off');

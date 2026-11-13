@@ -136,7 +136,7 @@ grapim init
 
 # commit as usual, then upload runs and notes to the hub
 grapim sync</code></pre>
-  ${r.coverage.repos_total ? '' : html`<p class="fine">Create a machine token in <a href="/hub/teams/${team.id}/settings#tokens">Settings</a> first.</p>`}
+  ${r.coverage.repos_total ? '' : html`<p class="fine">Create a machine token in <a href="/hub/teams/${team.id}/settings/machines">Settings</a> first.</p>`}
 </div>`;
 }
 
@@ -145,7 +145,7 @@ function emptyRuns(team) {
   <p class="empty-title">No synced runs in this range</p>
   <p class="muted">Agent runs reach the hub when a machine syncs. Run this in a repo where Grapim is set up:</p>
   <pre class="code" tabindex="0"><code>grapim sync --watch</code></pre>
-  <p class="fine">No machine yet? Create a token in <a href="/hub/teams/${team.id}/settings#tokens">Settings</a>.</p>
+  <p class="fine">No machine yet? Create a token in <a href="/hub/teams/${team.id}/settings/machines">Settings</a>.</p>
 </div>`;
 }
 
@@ -394,7 +394,7 @@ function teaserBody({ team, role, csrf, teaser, billing, seatsUsed }) {
   </form>`
     : !billing.enabled
       ? html`<p class="fine">You are on the ${team.plan} plan. During early access there is no checkout: Governance is available as a pilot. <a class="link" href="/hub/support?topic=pilot&amp;from=${encodeURIComponent(`/hub/teams/${team.id}/reports`)}">Talk to us</a>.</p>`
-      : html`<p class="fine">${owner ? html`Upgrade from <a href="/hub/teams/${team.id}/settings#billing">Settings → Billing</a>.` : 'Ask a team owner to upgrade.'} You are on the ${team.plan} plan.</p>`}
+      : html`<p class="fine">${owner ? html`Upgrade from <a href="/hub/teams/${team.id}/settings/plan">Settings → Plan and usage</a>.` : 'Ask a team owner to upgrade.'} You are on the ${team.plan} plan.</p>`}
 </section>`;
 }
 

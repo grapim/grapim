@@ -94,10 +94,10 @@ export function storageSection({ team, csrf, status, providers, error = null, fo
   const own = !!status.config;
   return html`<section class="card" id="storage" aria-labelledby="storage-title">
   <div class="card-head">
-    <h2 id="storage-title" class="card-title">Storage</h2>
+    <h2 id="storage-title" class="card-title">Workspace storage</h2>
     <span class="badge">${status.move ? 'moving' : own ? providers[status.provider] ?? status.provider : 'hub'}</span>
   </div>
-  <p class="card-sub">Where this team's workspace files and every version of them are kept. By default the hub keeps them. You can keep them in your own Amazon S3, Cloudflare R2, Google Cloud Storage or Azure bucket instead. <a href="https://github.com/twfly104/grapim/blob/main/docs/storage.md">The keys and policy to create</a>.</p>
+  <p class="card-sub">Where workspace files and their versions are kept: the hub, or your own S3, R2, Google Cloud Storage or Azure bucket. <a href="https://github.com/twfly104/grapim/blob/main/docs/storage.md">The keys and policy to create</a></p>
   ${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
   ${!status.available
     ? html`<p class="fine">Workspace storage is off on this hub, so there is nothing to keep elsewhere.</p>`
@@ -107,7 +107,7 @@ export function storageSection({ team, csrf, status, providers, error = null, fo
       : html`<p class="fine">In use: the hub's own storage.</p>`}
   ${status.move
     ? moveBlock({ team, csrf, status, providers })
-    : html`<details class="howto" ${error || !own ? html`open` : ''}>
+    : html`<details class="howto" ${error ? html`open` : ''}>
     <summary>${own ? 'Replace the keys, or move to another bucket' : 'Use your own bucket'}</summary>
     ${form({ team, csrf, status, providers, values: error ? values : own ? { ...status.config, region: status.config.region ?? '', account: status.config.account ?? '' } : {} })}
   </details>

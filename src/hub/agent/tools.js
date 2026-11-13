@@ -494,7 +494,7 @@ export function createTools(hub) {
           effect: 'Creates a link anyone can use once, within 7 days, to join as a member. It is shown here only to you.',
           lines: [['Team', s.team.name], ['Joins as', 'member'], ['Seats used', String(teams.seatsUsed(s.team.id))], ['As', `@${s.login}`]],
           request: { method: 'POST', url: hubPath(s.team, '/invites'), form: {}, reveal: true },
-          link: { href: hubPath(s.team, '/settings#members'), label: 'Members & invites' },
+          link: { href: hubPath(s.team, '/settings/members'), label: 'Members' },
         },
         summary: 'Prepared an invite link',
       };

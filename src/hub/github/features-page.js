@@ -195,35 +195,39 @@ function ruleRow({ team, csrf, rule, owner, members }) {
 </li>`;
 }
 
-export function rulesCard({ team, csrf, role, rules, members, allowed, standalone = false }) {
+// On Settings, Review rules. The form is one row (pattern, what a run that
+// changes it gets, how many approvals) and the approvers under it. Approvals
+// and approvers only mean something for a review rule: hub.css hides them
+// while "Passes automatically" is picked (:has, no script), and says so.
+export function rulesCard({ team, csrf, role, rules, members, allowed }) {
   const owner = role === 'owner';
   return html`<section class="card" id="rules" aria-labelledby="rules-title">
   <div class="card-head"><h2 id="rules-title" class="card-title">Path rules</h2>${allowed ? '' : html`<span class="badge">Governance</span>`}</div>
-  <p class="card-sub">Decide where a person has to look. A run whose every changed file matches an automatic rule passes on its own, with the rule and its author on record. A run that touches a review path needs the approvals that rule names. Everything else needs one approval from a member who did not sync it.</p>
+  <p class="card-sub">A run whose every file matches an automatic rule passes on its own; one that touches a review path needs that rule's approvals; any other run needs one approval from another member.</p>
   ${rules.length ? html`<ul class="list list-flush">${rules.map((rule) => ruleRow({ team, csrf, rule, owner, members }))}</ul>` : html`<p class="muted small">No rules yet.</p>`}
   ${allowed && owner && !rules.length
     ? html`<form method="post" action="/hub/teams/${team.id}/rules/starter" class="rule-starter">
     ${csrfField(csrf)}
-    ${standalone ? '' : html`<input type="hidden" name="from" value="settings">`}
-    <p class="fine">Start from a common set: tests and docs approved automatically; auth, payments, migrations, infrastructure and CI workflows reviewed by a person. You can remove any of them after.</p>
+    <p class="fine">Start from a common set: tests and docs pass automatically; auth, payments, migrations, infrastructure and CI need a person. You can remove any of them after.</p>
     <button class="btn btn-sm" type="submit">Add the starter rules</button>
   </form>`
     : ''}
   ${!allowed
-    ? html`<p class="fine">Path rules are on the Governance plan. ${rules.length ? 'These rules are kept but do not apply until then.' : ''}</p>`
+    ? html`<p class="fine">Path rules are on the Governance plan.${rules.length ? ' These rules are kept but do not apply until then.' : ''}</p>`
     : owner
       ? html`<form method="post" action="/hub/teams/${team.id}/rules" class="rule-form">
     ${csrfField(csrf)}
-    ${standalone ? '' : html`<input type="hidden" name="from" value="settings">`}
+    <h3 class="sub-title">Add a rule</h3>
     <div class="rule-fields">
-      <label class="storage-field"><span>Path pattern</span><input name="pattern" required maxlength="200" placeholder="payments/**" spellcheck="false" autocomplete="off" class="mono"></label>
-      <label class="storage-field"><span>A run that changes it</span><select name="action"><option value="review">Needs approvals</option><option value="auto">Is approved automatically</option></select></label>
-      <label class="storage-field"><span>Approvals</span><select name="approvals">${Array.from({ length: MAX_APPROVALS }, (_, i) => html`<option value="${i + 1}">${i + 1}</option>`)}</select></label>
+      <label class="field rule-pattern-field"><span class="label">Path pattern</span><input name="pattern" type="text" required maxlength="200" placeholder="payments/**" spellcheck="false" autocomplete="off" class="mono"></label>
+      <label class="field"><span class="label">A run that changes it</span><select name="action"><option value="review">Needs approval</option><option value="auto">Passes automatically</option></select></label>
+      <label class="field rule-review-only"><span class="label">Approvals</span><select name="approvals">${Array.from({ length: MAX_APPROVALS }, (_, i) => html`<option value="${i + 1}">${i + 1}</option>`)}</select></label>
     </div>
-    <fieldset class="rule-who"><legend>Who may approve <span class="muted">(none ticked: any member)</span></legend>
+    <fieldset class="rule-who rule-review-only"><legend class="label">Who may approve <span class="muted">(none ticked: any member)</span></legend>
       ${members.map((m) => html`<label class="toggle"><input type="checkbox" name="${`approver_${m.id}`}" value="1"> ${m.login}</label>`)}
     </fieldset>
-    <p class="fine">Approvals and approvers apply to review rules only. Review rules always win: a run that touches <code>payments/**</code> needs its approvals even when its other files are covered by automatic rules. <code>**</code> matches any folders, <code>*</code> any characters in a name. Patterns start at the repo root: <code>**/migrations/**</code> matches a migrations folder anywhere.</p>
+    <p class="fine rule-auto-note">Runs that only change matching files pass without a person; the rule and its author are on record.</p>
+    <p class="fine">Review rules win over automatic ones. <code>**</code> matches any folders, <code>*</code> any characters in a name, from the repo root.</p>
     <button class="btn btn-sm btn-primary" type="submit">Add rule</button>
   </form>`
       : html`<p class="fine">Team owners add and remove rules.</p>`}
@@ -234,8 +238,8 @@ export function rulesCard({ team, csrf, role, rules, members, allowed, standalon
 
 export function notifyCard({ team, csrf, info }) {
   return html`<section class="card" id="notifications" aria-labelledby="notify-title">
-  <div class="card-head"><h2 id="notify-title" class="card-title">Notifications</h2>${info ? html`<span class="badge ${info.disabled ? 'badge-warn' : 'badge-ok'}">${info.disabled ? 'Off' : 'Slack'}</span>` : ''}</div>
-  <p class="card-sub">Post to a Slack channel when agent runs wait for review (one digest at most every 15 minutes) and when the Grapim check fails on a pull request.</p>
+  <div class="card-head"><h2 id="notify-title" class="card-title">Slack</h2>${info ? html`<span class="badge ${info.disabled ? 'badge-warn' : 'badge-ok'}">${info.disabled ? 'Off' : 'On'}</span>` : ''}</div>
+  <p class="card-sub">A digest when runs wait for review (at most every 15 minutes), and a message when the Grapim check fails on a pull request.</p>
   ${info
     ? html`<p class="fine">Webhook ending in <code>…${info.hint}</code>, saved ${time(info.set_at)}.${info.last_ok_at ? html` Last delivered ${time(info.last_ok_at)}.` : ''}</p>
   ${info.last_error ? html`<p class="notice notice-error" role="alert">${info.last_error}</p>` : ''}
@@ -263,19 +267,4 @@ export function rulesPanel(evaluation) {
     (r) => html`<li class="${r.ok ? 'ok' : 'todo'}">${r.ok ? icon('check') : icon('x')}<span><code>${r.pattern}</code> (changed <code>${r.path}</code>) needs ${plural(r.approvals, 'approval')}${r.approvers.length ? ` from ${r.approvers.map((a) => a.login).join(', ')}` : ''}. ${r.ok ? html`Met by ${r.have.join(', ')}.` : html`${r.have.length ? `Has ${r.have.join(', ')}; ` : ''}<b>${plural(r.need, 'more approval')} needed</b>${r.approvers.length ? `, from ${r.approvers.filter((a) => !r.have.includes(a.login)).map((a) => a.login).join(' or ')}` : ''}.`}</span></li>`,
   )}</ul>
 </div>`;
-}
-
-export function rulesPage({ user, csrf, team, card, notice = null, error = null }) {
-  return layout({
-    title: `Path rules · ${team.name}`,
-    user,
-    csrf,
-    team,
-    wide: 'mid',
-    crumbs: [{ label: 'Settings', href: `/hub/teams/${team.id}/settings` }, { label: 'Path rules' }],
-    body: html`${head(team, 'settings', { title: 'Path rules', sub: html`Which agent runs need more than one reviewer. <a href="/docs/rules">How rules work</a>` })}
-${notice ? html`<p class="notice" role="status">${notice}</p>` : ''}
-${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
-${card}`,
-  });
 }
