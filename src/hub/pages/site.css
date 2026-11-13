@@ -220,7 +220,7 @@ section { scroll-margin-top: var(--bar-h); }
 
 /* Ask Grapim and workspaces. */
 .also { padding: 0 0 clamp(72px, 10vw, 120px); }
-.also-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 56px; border-top: 1px solid var(--border); padding-top: clamp(48px, 6vw, 72px); }
+.also-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px 48px; border-top: 1px solid var(--border); padding-top: clamp(48px, 6vw, 72px); }
 .also h3 { margin: 0; font-size: 21px; font-weight: 640; letter-spacing: -0.015em; }
 .also p { margin: 10px 0 0; color: var(--text-2); max-width: 52ch; }
 
@@ -409,3 +409,19 @@ section { scroll-margin-top: var(--bar-h); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* Announcement line above the bar (home only) */
+.announce { margin: 0; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 13px; text-align: center; }
+.announce a { display: inline-flex; align-items: center; gap: 10px; padding: 9px var(--gutter); color: var(--text-2); text-decoration: none; }
+.announce b { font-weight: 600; color: var(--accent-text); }
+.announce .announce-go { display: inline-flex; align-items: center; gap: 4px; color: var(--text); font-weight: 520; }
+.announce .announce-go svg { width: 14px; height: 14px; }
+.announce a:hover .announce-go { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 640px) { .announce .announce-long { display: none; } }
+
+/* Works with: the agents Grapim records, as plain names */
+.works { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; margin: 28px 0 0; font-size: 14px; font-weight: 560; color: var(--text-2); letter-spacing: -0.005em; }
+.works .works-label { font-size: 12px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* A line of detail under a check's title */
+.pr-detail { display: block; margin-top: 3px; color: var(--text-3); font-size: 12px; line-height: 1.5; }

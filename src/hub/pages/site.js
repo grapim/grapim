@@ -58,7 +58,7 @@ ${scripts ? html`<script src="/hub/static/site.js" defer></script>` : ''}
 export function siteBar({ current = 'home', signedIn = false } = {}) {
   const a = (href, label, id) => html`<a class="bar-link" href="${href}" ${current === id ? html`aria-current="page"` : ''}>${label}</a>`;
   const home = current === 'home' ? '' : '/';
-  return html`<header class="bar">
+  return html`${current === 'home' ? html`<p class="announce"><a href="/docs/rules"><b>New</b><span>Automatic path rules<span class="announce-long">: low-risk agent runs pass on their own.</span></span><span class="announce-go">Read how ${ICON.arrow}</span></a></p>` : ''}<header class="bar">
   <div class="bar-in">
     <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
     <nav class="bar-nav" aria-label="Site">
@@ -132,27 +132,28 @@ const UNDO = [
 // The pull request story: the comment and check use the wording the GitHub
 // App writes (src/provenance/render.js, src/hub/github/pull.js).
 function prThread() {
-  return html`<div class="pr" role="img" aria-label="A pull request with the Grapim comment: one of two agent runs is not reviewed, so the Grapim check fails. After a teammate approves the run in the Grapim hub, the check passes.">
+  return html`<div class="pr" role="img" aria-label="A pull request with three agent runs. Two changed only tests and docs and were approved by the team's automatic rules. One changed payments code, so the Grapim check fails until the reviewer that rule names approves it; then the check passes.">
   <div class="pr-title"><span class="pr-state">Open</span><span><b>Add idempotency keys to POST /orders</b> <span class="muted">acme-co/shop-api #412</span></span></div>
   <div class="pr-item">
     <div class="pr-who"><span class="pr-av" aria-hidden="true">${LOGO}</span><b>grapim</b><span class="pr-bot">bot</span><span class="muted">commented</span></div>
     <div class="pr-card">
       <p class="pr-h">Grapim provenance</p>
-      <p><b>1 agent run of 2 not reviewed yet.</b> 85% of the added lines came from agent runs (44 of 52): claude 7f3e21aa 32, claude 2b9c0d14 12</p>
+      <p><b>1 agent run of 3 not reviewed yet.</b> 88% of the added lines came from agent runs (71 of 81): claude 7f3e21aa 32, codex 4c8e1b07 27, claude 2b9c0d14 12</p>
       <div class="pr-scroll"><table class="pr-table">
         <thead><tr><th>Run</th><th>Agent</th><th class="n">Lines</th><th class="n">Files</th><th>Prompt</th><th>Review</th></tr></thead>
         <tbody>
           <tr><td class="mono">claude 7f3e21aa</td><td>claude-code</td><td class="n">32</td><td class="n">3</td><td>Add idempotency keys to POST /orders</td><td>Not reviewed</td></tr>
-          <tr><td class="mono">claude 2b9c0d14</td><td>claude-code</td><td class="n">12</td><td class="n">1</td><td>Return 409 when a key is reused with another body</td><td>Approved</td></tr>
+          <tr><td class="mono">codex 4c8e1b07</td><td>codex</td><td class="n">27</td><td class="n">2</td><td>Add tests for duplicate order keys</td><td>Approved</td></tr>
+          <tr><td class="mono">claude 2b9c0d14</td><td>claude-code</td><td class="n">12</td><td class="n">1</td><td>Document the Idempotency-Key header</td><td>Approved</td></tr>
         </tbody>
       </table></div>
       <p class="pr-sub">Not reviewed in Grapim</p>
       <ul><li class="mono">claude 7f3e21aa</li></ul>
     </div>
   </div>
-  <div class="pr-check is-fail">${ICON.x}<span><b>Grapim provenance (app)</b> <span class="muted">1 agent run not approved in the Grapim hub</span></span><span class="pr-req">Required</span></div>
+  <div class="pr-check is-fail">${ICON.x}<span><b>Grapim provenance (app)</b> <span class="muted">1 agent run not approved in the Grapim hub</span><span class="pr-detail">codex 4c8e1b07 and claude 2b9c0d14: approved by rule **/*.test.*, docs/** (set by priya). claude 7f3e21aa changed payments/: payments/** needs 1 approval from priya.</span></span><span class="pr-req">Required</span></div>
   <div class="pr-event">${ICON.check}<span><b>priya</b> approved <span class="mono">claude 7f3e21aa</span> in the Grapim hub. The check runs again; nobody pushes.</span></div>
-  <div class="pr-check is-ok">${ICON.check}<span><b>Grapim provenance (app)</b> <span class="muted">Every agent run is approved in the Grapim hub</span></span><span class="pr-req">Required</span></div>
+  <div class="pr-check is-ok">${ICON.check}<span><b>Grapim provenance (app)</b> <span class="muted">Every agent run is approved in the Grapim hub (2 by rule)</span></span><span class="pr-req">Required</span></div>
   <div class="pr-merge">${ICON.check}<span>All checks have passed. This branch can be merged.</span></div>
 </div>`;
 }
@@ -200,12 +201,13 @@ ${siteBar({ current: 'home' })}
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-text">
     <h1 id="hero-title">Merge agent code faster. Review only what matters.</h1>
-    <p class="hero-sub">Grapim records every Claude Code, Codex, Cursor and Gemini CLI run. Your rules pass low-risk changes on their own. Changes to auth, payments, migrations or infra wait for a named reviewer. Every change has someone accountable for it, and one bad run can be undone alone.</p>
+    <p class="hero-sub">Grapim records every coding-agent run. Your rules pass the low-risk ones on their own. Auth, payments and migrations wait for a named reviewer.</p>
     <div class="cta">
       <a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Sign in with GitHub</span></a>
       <a class="btn btn-lg" href="/docs">Read the docs</a>
     </div>
-    <p class="fine">Free while in early access. Records Claude Code, Codex, Cursor and Gemini CLI.</p>
+    <p class="fine">Free while in early access. Stays on your GitHub; no repos move.</p>
+    <p class="works" aria-label="Works with"><span class="works-label">Works with</span><span>Claude Code</span><span>Codex</span><span>Cursor</span><span>Gemini CLI</span><span>GitHub</span></p>
   </div>
   <figure class="frame frame-hero">
     ${shot('run', 'A run page in the Grapim hub: the run "Add idempotency keys to POST /orders" by claude 7f3e21aa, 2 turns, 3 files, +32 −4, marked Needs review, with Approve and Reject buttons, its prompts and its diff.', { eager: true })}
@@ -304,6 +306,11 @@ ${siteBar({ current: 'home' })}
     <h2 id="also-title" class="sr-only">Also in Grapim</h2>
     <div class="also-grid">
       <div>
+        <h3>Agent inventory</h3>
+        <p>Which coding agents, versions, models and MCP servers your team's machines use, and which ones appeared this week. Only names, transports and hosts are collected; never environment values, headers or arguments.</p>
+        <p><a class="link" href="/docs/inventory">What the inventory collects ${ICON.arrow}</a></p>
+      </div>
+      <div>
         <h3>Ask Grapim</h3>
         <p>An assistant in the hub that answers questions about your team's runs, reviews and reports, and prepares an approval, an invite link or a workspace change for you to confirm. It can read what you can read; it cannot change anything on its own.</p>
         <p><a class="link" href="/docs/ask-grapim">How Ask Grapim works ${ICON.arrow}</a></p>
@@ -341,7 +348,8 @@ ${siteBar({ current: 'home' })}
     <p class="sec-lede">The hub holds your team's agent history, so here is exactly what reaches it.</p>
     <div class="sec-grid">
       <ul class="ticks">
-        <li>${ICON.check}<span><b>Code reaches the hub only from machines you connect.</b> A machine runs <code>grapim sync</code> with a token you created; nothing is pulled from your repositories.</span></li>
+        <li>${ICON.check}<span><b>Code reaches the hub only from machines you connect.</b> A machine runs <code>grapim sync</code> with a token you created.</span></li>
+        <li>${ICON.check}<span><b>Or keep code off the hub entirely.</b> With <b>No code storage</b> on, the hub keeps run records (agent, prompt, files, line counts, hashes, decisions) and no file contents. When someone opens a run, the diff is read from GitHub for that view and not saved. <a class="link" href="/docs/data-handling">What Grapim stores</a></span></li>
         <li>${ICON.check}<span><b>Sign-in asks GitHub for nothing but your public profile.</b> No OAuth scopes, no email, no repository access. The GitHub token is used once and dropped.</span></li>
         <li>${ICON.check}<span><b>Tokens are stored as hashes.</b> Machine tokens and invite links are shown once and kept only as SHA-256. A member's machine tokens stop working when they leave the team.</span></li>
         <li>${ICON.check}<span><b>Teams are isolated on every route.</b> Another team's ids answer "not found"; a test calls every route as an outsider to prove it.</span></li>
