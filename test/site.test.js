@@ -38,7 +38,7 @@ function signedInCookie() {
   return h.hub.auth.createSession(4242).cookie.split(';')[0];
 }
 
-const PAGES = ['/', '/pricing', ...ORDER.map(docPath)];
+const PAGES = ['/', '/pricing', '/changelog', ...ORDER.map(docPath)];
 
 function assertCspClean(body, where) {
   assert.ok(!/<script(?![^>]*\ssrc=)[^>]*>/i.test(body), `${where}: an inline <script>`);

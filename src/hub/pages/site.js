@@ -54,7 +54,7 @@ ${scripts ? html`<script src="/hub/static/site.js" defer></script>` : ''}
 </head>`;
 }
 
-// The top bar. current: 'home' | 'docs' | 'pricing'.
+// The top bar. current: 'home' | 'docs' | 'pricing' | 'changelog'.
 export function siteBar({ current = 'home', signedIn = false } = {}) {
   const a = (href, label, id) => html`<a class="bar-link" href="${href}" ${current === id ? html`aria-current="page"` : ''}>${label}</a>`;
   const home = current === 'home' ? '' : '/';
@@ -62,7 +62,7 @@ export function siteBar({ current = 'home', signedIn = false } = {}) {
   <div class="bar-in">
     <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
     <nav class="bar-nav" aria-label="Site">
-      <span class="bar-anchors">${a(`${home}#how`, 'Product', 'how')}${a('/docs/security', 'Security', 'security')}${a('/pricing', 'Pricing', 'pricing')}</span>
+      <span class="bar-anchors">${a(`${home}#how`, 'Product', 'how')}${a('/docs/security', 'Security', 'security')}${a('/pricing', 'Pricing', 'pricing')}${a('/changelog', 'Changelog', 'changelog')}</span>
       ${a('/docs', 'Docs', 'docs')}
     </nav>
     ${signedIn
@@ -82,7 +82,7 @@ export function siteFooter() {
       <div class="theme-seg" role="group" aria-label="Theme">${theme('system', 'System', 'system')}${theme('light', 'Light', 'sun')}${theme('dark', 'Dark', 'moon')}</div>
     </div>
     <nav class="foot-cols" aria-label="Footer">
-      <div><h2>Product</h2><a href="/#how">How it works</a><a href="/docs/concepts">Supported agents</a><a href="/docs/security">Security</a><a href="/pricing">Pricing</a></div>
+      <div><h2>Product</h2><a href="/#how">How it works</a><a href="/docs/concepts">Supported agents</a><a href="/docs/security">Security</a><a href="/pricing">Pricing</a><a href="/changelog">Changelog</a></div>
       <div><h2>Docs</h2><a href="/docs">Quickstart</a><a href="/docs/github">GitHub App and PR check</a><a href="/docs/cli">CLI reference</a><a href="/docs/security">Security and privacy</a></div>
       <div><h2>Help</h2><a href="/docs/support">Support</a><a href="/docs/faq">FAQ</a><a href="/hub">Sign in</a></div>
     </nav>
@@ -242,6 +242,58 @@ function isoFigure() {
 </figure>`;
 }
 
+// Small figures for the three security notes, in the hero figure's world:
+// thin isometric plates, mono labels, one accent. Decorative (aria-hidden);
+// the text beside them says the same thing.
+function isoPlate(x, y, a, b, t, cls = '') {
+  const pts = (list) => list.map(([px, py]) => `${px},${py}`).join(' ');
+  return html`<g class="${cls}">
+    <polygon class="iso-side" points="${pts([[x - a, y], [x, y + b], [x, y + b + t], [x - a, y + t]])}"/>
+    <polygon class="iso-side iso-side-r" points="${pts([[x, y + b], [x + a, y], [x + a, y + t], [x, y + b + t]])}"/>
+    <polygon class="iso-top" points="${pts([[x, y - b], [x + a, y], [x, y + b], [x - a, y]])}"/>
+  </g>`;
+}
+const isoText = (x, y, text, cls = 'iso-label') => html`<text class="${cls}" x="${x}" y="${y}">${text}</text>`;
+
+function figure(n, caption, body) {
+  return html`<figure class="mini" aria-hidden="true"><svg viewBox="0 0 320 170" width="320" height="170" focusable="false">${body}</svg><figcaption class="iso-cap">fig. ${n} · ${caption}</figcaption></figure>`;
+}
+
+// fig. 2: the machine keeps the code; the hub gets the record of it.
+const FIG_HOME = () => figure(2, 'records go up, code stays', html`
+  ${isoPlate(80, 92, 62, 31, 8)}
+  <g class="mini-code">${[0, 1, 2, 3].map((i) => html`<path d="M${52 + i * 9} ${85 + i * 4.5}l${30 - (i % 2) * 10} ${-15 + (i % 2) * 5}"/>`)}</g>
+  ${isoText(30, 152, 'your machine')}
+  ${isoText(30, 166, 'code + diff', 'iso-note')}
+  <path class="iso-trail" d="M138 70 L186 52"/>
+  ${isoPlate(240, 64, 62, 31, 8, 'iso-out')}
+  ${isoText(214, 66, 'sha 9f2c', 'iso-note')}
+  ${isoText(196, 124, 'hub')}
+  ${isoText(196, 138, 'run, lines, hashes', 'iso-note')}`);
+
+// fig. 3: agents on the left, what they can reach on the right; one new this week.
+const FIG_REACH = () => figure(3, 'agents and what they reach', html`
+  ${[['claude', 40], ['codex', 86], ['cursor', 132]].map(([name, y]) => html`${isoPlate(54, y - 8, 34, 17, 6)}${isoText(96, y - 4, name)}`)}
+  <g class="mini-wires">
+    <path d="M150 36 C190 36 190 30 214 30"/><path d="M150 36 C190 40 190 78 214 78"/>
+    <path d="M150 82 C190 82 190 78 214 78"/><path d="M150 128 C190 128 190 126 214 126" class="mini-new"/>
+  </g>
+  ${isoText(220, 34, 'mcp: github')}
+  ${isoText(220, 82, 'mcp: postgres')}
+  ${isoText(220, 130, 'mcp: stripe', 'iso-label mini-new-t')}
+  ${isoText(220, 144, 'new this week', 'iso-note mini-new-t')}`);
+
+// fig. 4: the repo stays on GitHub; the hub only comments and checks.
+const FIG_GITHUB = () => figure(4, 'comments and checks, never pushes', html`
+  ${isoPlate(96, 104, 70, 35, 9)}
+  ${isoText(56, 164, 'your repo on GitHub')}
+  ${isoPlate(250, 46, 40, 20, 7, 'iso-out')}
+  ${isoText(222, 92, 'hub', 'iso-label')}
+  <path class="iso-trail" d="M214 62 L150 92"/>
+  ${isoText(186, 116, 'comment + check', 'iso-note')}
+  <path class="mini-x" d="M168 34 l10 10 m0 -10 l-10 10"/>
+  ${isoText(184, 44, 'no push', 'iso-note')}`);
+
 const description = 'Grapim records every change your coding agents make, shell commands included. Sensitive changes wait for a named reviewer, and any single run can be undone. For Claude Code, Codex, Cursor and Gemini CLI.';
 
 export function landingPage({ origin }) {
@@ -319,16 +371,19 @@ ${siteBar({ current: 'home' })}
     <h2 id="also-title" class="sr-only">Built for a security review</h2>
     <div class="also-grid">
       <div>
+        ${FIG_HOME()}
         <h3>Your code can stay home</h3>
         <p>With No code storage, the hub keeps run records and hashes, never file contents.</p>
         <p><a class="link" href="/docs/data-handling">What Grapim stores ${ICON.arrow}</a></p>
       </div>
       <div>
+        ${FIG_REACH()}
         <h3>Know what agents can reach</h3>
         <p>Which agents, models and MCP servers your team's machines run, and what appeared this week.</p>
         <p><a class="link" href="/docs/inventory">The agent inventory ${ICON.arrow}</a></p>
       </div>
       <div>
+        ${FIG_GITHUB()}
         <h3>Stays on your GitHub</h3>
         <p>No repos move. The hub never writes to your code; undo runs on your machine.</p>
         <p><a class="link" href="/docs/security">Security model ${ICON.arrow}</a></p>
@@ -387,6 +442,70 @@ ${siteBar({ current: 'pricing', signedIn })}
   </div>
 </section>
 
+</main>
+${siteFooter()}
+</body>
+</html>`.toString();
+}
+
+// The changelog: what shipped, newest first. Every entry is a change that is
+// live on app.grapim.com, written for the people who use it; the links go to
+// the docs page that explains it.
+const CHANGES = [
+  {
+    date: '2026-11-13',
+    items: [
+      { title: 'Cursor shell commands are recorded and undoable', body: 'Files a Cursor agent changes with a shell command (a migration, an rm, a codegen script) now belong to its run, so grapim undo can take them back like any other edit. Run grapim init again to add the hook.', link: ['/docs/undo', 'How undo works'] },
+      { title: 'Undo covers shell commands', body: 'For Claude Code, Codex and Gemini CLI, Grapim compares the worktree before and after each shell command, records every file it created, changed or deleted, and names the command in the run.', link: ['/docs/undo', 'What undo can take back'] },
+      { title: 'Automatic path rules', body: 'A run that only touches tests or docs can pass on its own, with the rule and the person who set it on record. Runs that touch payments, auth or migrations still wait for the reviewer you named. New teams can start from a starter set.', link: ['/docs/rules', 'Write your first rule'] },
+      { title: 'No code storage', body: 'Turn it on and the hub keeps run records, line counts and hashes, never file contents. When someone opens a run, the diff is read from GitHub for that view and not saved.', link: ['/docs/data-handling', 'What Grapim stores'] },
+      { title: 'Agents page', body: 'See which coding agents, versions, models and MCP servers your team’s machines run, and which appeared this week. Only names, transports and hosts are collected.', link: ['/docs/inventory', 'What the inventory collects'] },
+    ],
+    more: ['Settings are split into short pages, one topic each.', 'Approve a run from the pull request check on GitHub.', 'Your last 90 days of AI code: how many merged pull requests had agent commits, and how many merged without a second person.', 'Pilot plans now unlock Governance features.'],
+  },
+  {
+    date: '2026-11-12',
+    items: [
+      { title: 'Ask Grapim', body: 'An assistant in the hub that answers questions about your team’s runs, reviews and reports, and prepares an approval or an invite for you to confirm. It can read what you can read and changes nothing on its own.', link: ['/docs/ask-grapim', 'How Ask Grapim works'] },
+    ],
+    more: ['A collapsible, resizable sidebar.', 'Light and dark themes, with Inter and JetBrains Mono served from Grapim itself.'],
+  },
+  {
+    date: '2026-11-11',
+    items: [
+      { title: 'Grapim, first release', body: 'Every coding-agent run recorded on the machine: the agent, each prompt, the files and lines it changed. grapim undo takes one run back out and keeps everyone else’s work.', link: ['/docs', 'Quickstart'] },
+      { title: 'GitHub App and pull request check', body: 'Each pull request gets a comment listing its agent runs, and a check that blocks merging until every run is approved.', link: ['/docs/github', 'Set up the GitHub App'] },
+      { title: 'Workspaces', body: 'Agents that write documents or data, not code, get a shared folder on the hub. Every write is recorded, reviewable and undoable.', link: ['/docs/workspaces', 'How workspaces work'] },
+    ],
+    more: [],
+  },
+];
+
+const longDate = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
+export function changelogPage({ origin, signedIn = false }) {
+  return html`${siteHead({ title: 'Changelog', description: 'What shipped in Grapim, newest first: shell-command undo for Cursor, automatic path rules, no code storage, the agents page and more.', path: '/changelog', origin })}
+<body class="site">
+<a class="skip" href="#main">Skip to content</a>
+${siteBar({ current: 'changelog', signedIn })}
+<main id="main">
+<section class="log" aria-labelledby="log-title">
+  <div class="wrap">
+    <h1 id="log-title" class="sec-title">Changelog</h1>
+    <p class="sec-lede">What shipped in Grapim, newest first.</p>
+    ${CHANGES.map((day) => html`<section class="log-day" aria-labelledby="d-${day.date}">
+      <h2 class="log-date" id="d-${day.date}"><time datetime="${day.date}">${longDate(day.date)}</time></h2>
+      <div class="log-items">
+        ${day.items.map((it) => html`<article class="log-item">
+          <h3>${it.title}</h3>
+          <p>${it.body}</p>
+          <p><a class="link" href="${it.link[0]}">${it.link[1]} ${ICON.arrow}</a></p>
+        </article>`)}
+        ${day.more.length ? html`<div class="log-more"><h3>Also</h3><ul>${day.more.map((m) => html`<li>${m}</li>`)}</ul></div>` : ''}
+      </div>
+    </section>`)}
+  </div>
+</section>
 </main>
 ${siteFooter()}
 </body>

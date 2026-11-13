@@ -573,3 +573,31 @@ section { scroll-margin-top: var(--bar-h); }
 .film-title { margin: 0 0 20px; font-size: 15px; font-weight: 600; color: var(--text-2); letter-spacing: 0; }
 .film-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 14px; background: #0b0b0d; border: 1px solid var(--border); box-shadow: 0 2px 4px rgb(16 16 32 / 0.05), 0 28px 64px -28px rgb(16 16 48 / 0.35); }
 .film .vis-note { margin-top: 12px; color: var(--text-3); font-size: 13px; }
+
+/* ---- Changelog ---- */
+.log { padding: clamp(56px, 8vw, 96px) 0 clamp(72px, 10vw, 120px); }
+.log .sec-title { font-size: clamp(2.2rem, 1.5rem + 2.6vw, 3.6rem); }
+.log-day { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; margin-top: clamp(48px, 7vw, 80px); padding-top: 32px; border-top: 1px solid var(--border); }
+.log-date { margin: 0; font-size: 14px; font-weight: 500; color: var(--text-3); position: sticky; top: calc(var(--bar-h, 60px) + 24px); align-self: start; letter-spacing: 0; }
+.log-items { display: grid; gap: 36px; max-width: 680px; }
+.log-item h3 { margin: 0; font-size: 21px; font-weight: 640; letter-spacing: -0.015em; }
+.log-item p { margin: 10px 0 0; color: var(--text-2); }
+.log-more h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.log-more ul { margin: 12px 0 0; padding-left: 18px; color: var(--text-2); display: grid; gap: 6px; }
+@media (max-width: 760px) { .log-day { grid-template-columns: minmax(0, 1fr); gap: 16px; } .log-date { position: static; } }
+
+/* ---- Small figures (security notes): the hero figure's world ---- */
+.mini { margin: 0 0 22px; padding: 18px 16px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--stage); }
+.mini svg { display: block; width: 100%; height: auto; overflow: visible; }
+.mini .iso-cap { padding-left: 0; margin-top: 10px; }
+.mini-code path { stroke: var(--accent); stroke-width: 1.4; stroke-linecap: round; opacity: 0.55; }
+.mini-wires path { fill: none; stroke: var(--iso-line); stroke-width: 1.2; }
+.mini-wires .mini-new { stroke: var(--accent); stroke-dasharray: 3 4; }
+.mini-new-t { fill: var(--accent-text); }
+.mini-x { stroke: var(--danger); stroke-width: 1.6; stroke-linecap: round; fill: none; }
+.iso-trail { stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 3 5; fill: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .motion .mini-wires .mini-new { animation: wire-flow 1.6s linear infinite; }
+  .iso-trail { animation: wire-flow 1.6s linear infinite; }
+}
+@keyframes wire-flow { to { stroke-dashoffset: -16; } }
