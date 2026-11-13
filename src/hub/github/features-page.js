@@ -186,7 +186,9 @@ function ruleRow({ team, csrf, rule, owner, members }) {
   const names = rule.approvers.map((id) => members.find((m) => m.id === id)?.login ?? `user ${id}`);
   return html`<li class="row">
   <span class="row-main"><code class="rule-pattern">${rule.pattern}</code></span>
-  <span class="row-meta">${plural(rule.approvals, 'approval')}${names.length ? html` from <span class="strong">${names.join(', ')}</span>` : ' from any member'}</span>
+  <span class="row-meta">${rule.action === 'auto'
+    ? html`<span class="badge badge-ok">Approved automatically</span>`
+    : html`${plural(rule.approvals, 'approval')}${names.length ? html` from <span class="strong">${names.join(', ')}</span>` : ' from any member'}`}</span>
   ${owner
     ? html`<form method="post" action="/hub/teams/${team.id}/rules/${rule.id}/delete" data-confirm="${`Remove the rule ${rule.pattern}?`}">${csrfField(csrf)}<button class="btn btn-ghost btn-sm btn-danger" type="submit" aria-label="${`Remove the rule ${rule.pattern}`}">Remove</button></form>`
     : ''}
@@ -197,8 +199,16 @@ export function rulesCard({ team, csrf, role, rules, members, allowed, standalon
   const owner = role === 'owner';
   return html`<section class="card" id="rules" aria-labelledby="rules-title">
   <div class="card-head"><h2 id="rules-title" class="card-title">Path rules</h2>${allowed ? '' : html`<span class="badge">Governance</span>`}</div>
-  <p class="card-sub">Like CODEOWNERS, for agent runs: a run that changed a matching path needs more approvals, or approvals from named people, before the Grapim check passes. A run no rule matches needs one approval from a member who did not sync it.</p>
+  <p class="card-sub">Decide where a person has to look. A run whose every changed file matches an automatic rule passes on its own, with the rule and its author on record. A run that touches a review path needs the approvals that rule names. Everything else needs one approval from a member who did not sync it.</p>
   ${rules.length ? html`<ul class="list list-flush">${rules.map((rule) => ruleRow({ team, csrf, rule, owner, members }))}</ul>` : html`<p class="muted small">No rules yet.</p>`}
+  ${allowed && owner && !rules.length
+    ? html`<form method="post" action="/hub/teams/${team.id}/rules/starter" class="rule-starter">
+    ${csrfField(csrf)}
+    ${standalone ? '' : html`<input type="hidden" name="from" value="settings">`}
+    <p class="fine">Start from a common set: tests and docs approved automatically; auth, payments, migrations, infrastructure and CI workflows reviewed by a person. You can remove any of them after.</p>
+    <button class="btn btn-sm" type="submit">Add the starter rules</button>
+  </form>`
+    : ''}
   ${!allowed
     ? html`<p class="fine">Path rules are on the Governance plan. ${rules.length ? 'These rules are kept but do not apply until then.' : ''}</p>`
     : owner
@@ -207,12 +217,13 @@ export function rulesCard({ team, csrf, role, rules, members, allowed, standalon
     ${standalone ? '' : html`<input type="hidden" name="from" value="settings">`}
     <div class="rule-fields">
       <label class="storage-field"><span>Path pattern</span><input name="pattern" required maxlength="200" placeholder="payments/**" spellcheck="false" autocomplete="off" class="mono"></label>
+      <label class="storage-field"><span>A run that changes it</span><select name="action"><option value="review">Needs approvals</option><option value="auto">Is approved automatically</option></select></label>
       <label class="storage-field"><span>Approvals</span><select name="approvals">${Array.from({ length: MAX_APPROVALS }, (_, i) => html`<option value="${i + 1}">${i + 1}</option>`)}</select></label>
     </div>
     <fieldset class="rule-who"><legend>Who may approve <span class="muted">(none ticked: any member)</span></legend>
       ${members.map((m) => html`<label class="toggle"><input type="checkbox" name="${`approver_${m.id}`}" value="1"> ${m.login}</label>`)}
     </fieldset>
-    <p class="fine"><code>**</code> matches any folders, <code>*</code> any characters in a name. Patterns start at the repo root: <code>**/migrations/**</code> matches a migrations folder anywhere.</p>
+    <p class="fine">Approvals and approvers apply to review rules only. Review rules always win: a run that touches <code>payments/**</code> needs its approvals even when its other files are covered by automatic rules. <code>**</code> matches any folders, <code>*</code> any characters in a name. Patterns start at the repo root: <code>**/migrations/**</code> matches a migrations folder anywhere.</p>
     <button class="btn btn-sm btn-primary" type="submit">Add rule</button>
   </form>`
       : html`<p class="fine">Team owners add and remove rules.</p>`}

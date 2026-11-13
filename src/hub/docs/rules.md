@@ -1,11 +1,22 @@
 ---
 title: Path rules
 nav: Path rules
-description: Require more approvals, or approvals from named people, for agent runs that change sensitive paths. Like CODEOWNERS, for agent runs.
+description: Let low-risk agent runs pass on their own and require named reviewers for sensitive paths. Like CODEOWNERS, for agent runs.
 ---
-## What a rule does
+## Two kinds of rule
 
-A rule names a path pattern, how many approvals a run needs, and, optionally, who may give them:
+- **Automatic rules** approve a run when every file it changed matches one, for example `docs/**` or `**/*.test.*`. The check passes without anyone opening the run. The approval is recorded with the rule and the owner who set it, so someone is still accountable for it.
+- **Review rules** require approvals for runs that change a sensitive path, for example `payments/**` needs 2 approvals.
+
+Review rules always win. A run that changed `docs/setup.md` and `payments/charge.ts` needs the payments approvals, even though its docs change is covered. A run that matches no rule at all needs one approval from a member, as before. To review only sensitive paths, add an automatic rule for `**` and review rules for the paths that matter.
+
+If a run changes again after it was approved by rule, the approval goes stale, and the rules are checked again on the next sync.
+
+**Starter rules.** A team without rules can add a common set in one click: tests and docs automatic; `**/auth/**`, `**/payments/**`, `**/migrations/**`, `infra/**` and `.github/workflows/**` reviewed. Remove or change any of them after.
+
+## What a review rule does
+
+A review rule names a path pattern, how many approvals a run needs, and, optionally, who may give them:
 
 | Pattern | Approvals | From |
 |---|---|---|

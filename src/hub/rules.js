@@ -12,6 +12,13 @@
 // approvers, only those members count. A run that no rule matches needs one
 // approval, as before.
 //
+// A rule can also approve automatically ("docs/**  approved automatically"):
+// a run is approved by rule when every path it changed matches an automatic
+// rule and no review rule applies. Review rules always win, so "** approved
+// automatically" plus "payments/** needs 2 approvals" means a person reviews
+// only the runs that touch payments. The rule's author is recorded on the
+// approval, so someone is still accountable for it.
+//
 // Rules are a Governance feature: without the plan they are kept but inert.
 // Every query is scoped by team id.
 
@@ -22,6 +29,7 @@ CREATE TABLE IF NOT EXISTS hub_path_rules (
   pattern    TEXT NOT NULL,
   approvals  INTEGER NOT NULL DEFAULT 1,
   approvers  TEXT NOT NULL DEFAULT '[]',     -- JSON [user id]; [] = any member
+  action     TEXT NOT NULL DEFAULT 'review', -- 'review' (needs approvals) or 'auto' (approved automatically)
   created_by INTEGER,
   created_at INTEGER NOT NULL
 );
@@ -29,6 +37,7 @@ CREATE INDEX IF NOT EXISTS hub_path_rules_team ON hub_path_rules(team_id, id);
 `;
 
 export const MAX_RULES = 50;
+export const ACTIONS = Object.freeze(['review', 'auto']);
 export const MAX_APPROVALS = 5;
 const MAX_PATHS = 5000;
 const PATTERN = /^[A-Za-z0-9_.\-/*?@+ ]{1,200}$/;
@@ -74,20 +83,30 @@ export class PathRules {
     this.db = db;
     this.now = now;
     db.exec(RULES_SCHEMA);
+    const cols = db.prepare('PRAGMA table_info(hub_path_rules)').all().map((c) => c.name);
+    if (!cols.includes('action')) db.exec("ALTER TABLE hub_path_rules ADD COLUMN action TEXT NOT NULL DEFAULT 'review'");
   }
 
   list(teamId) {
     return this.db
       .prepare('SELECT * FROM hub_path_rules WHERE team_id = ? ORDER BY id')
       .all(teamId)
-      .map((r) => ({ id: r.id, pattern: r.pattern, approvals: r.approvals, approvers: parseIds(r.approvers), created_by: r.created_by, created_at: r.created_at }));
+      .map((r) => ({ id: r.id, pattern: r.pattern, approvals: r.approvals, approvers: parseIds(r.approvers), action: r.action === 'auto' ? 'auto' : 'review', created_by: r.created_by, created_at: r.created_at }));
   }
 
   // Throws { code: 'bad_request' } with a message a person can act on.
-  add(teamId, { pattern, approvals = 1, approvers = [] }, userId) {
+  add(teamId, { pattern, approvals = 1, approvers = [], action = 'review' }, userId) {
     const fail = (message) => Object.assign(new Error(message), { code: 'bad_request' });
     const p = String(pattern ?? '').trim();
     if (!validPattern(p)) throw fail('Write a path pattern such as payments/** or **/migrations/*.sql (letters, digits, / . - _ * ?).');
+    if (!ACTIONS.includes(action)) throw fail('Choose whether the rule needs approvals or approves automatically.');
+    if (action === 'auto') {
+      if (this.db.prepare('SELECT COUNT(*) AS n FROM hub_path_rules WHERE team_id = ?').get(teamId).n >= MAX_RULES) throw fail(`A team can have at most ${MAX_RULES} rules.`);
+      const r = this.db
+        .prepare("INSERT INTO hub_path_rules (team_id, pattern, approvals, approvers, action, created_by, created_at) VALUES (?, ?, 0, '[]', 'auto', ?, ?)")
+        .run(teamId, p.replace(/^\/+/, ''), userId, this.now());
+      return Number(r.lastInsertRowid);
+    }
     const n = Number(approvals);
     if (!Number.isInteger(n) || n < 1 || n > MAX_APPROVALS) throw fail(`Approvals must be a whole number from 1 to ${MAX_APPROVALS}.`);
     const members = new Set(this.db.prepare('SELECT user_id FROM members WHERE team_id = ?').all(teamId).map((r) => r.user_id));
@@ -132,7 +151,8 @@ export class PathRules {
   // Whether the run's current approvals meet every rule that applies.
   // approvals: [{ user_id, login }] (src/hub/reviews.js approvals()).
   // -> { rules: [{ id, pattern, path, approvals, approvers: [{ id, login }], have: [login], need, ok }], ok }
-  evaluate(teamId, repoIds, run, approvals, rules = this.list(teamId)) {
+  evaluate(teamId, repoIds, run, approvals, all = this.list(teamId)) {
+    const rules = all.filter((r) => r.action !== 'auto');
     if (!rules.length) return { rules: [], ok: true };
     const applied = this.matching(teamId, this.paths(teamId, repoIds, run), rules);
     const loginOf = this.db.prepare('SELECT login FROM users WHERE id = ?');
@@ -155,11 +175,35 @@ export class PathRules {
 
   // Whether `userId`'s approval can count: false when every rule that
   // applies names approvers and none of them is this person.
-  mayApprove(teamId, repoIds, run, userId, rules = this.list(teamId)) {
+  mayApprove(teamId, repoIds, run, userId, all = this.list(teamId)) {
+    const rules = all.filter((r) => r.action !== 'auto');
     const applied = this.matching(teamId, this.paths(teamId, repoIds, run), rules);
     const listed = applied.filter((r) => r.approvers.length);
     if (!listed.length || listed.length < applied.length) return { ok: true, rules: applied };
     return { ok: listed.some((r) => r.approvers.includes(userId)), rules: applied };
+  }
+
+  // The automatic rules that approve this run, or null: every path it changed
+  // matches an automatic rule and no review rule applies. A run with no
+  // synced changes is never approved by rule.
+  // -> { rules: [{ id, pattern, created_by, login }], paths } | null
+  autoApproval(teamId, repoIds, run, all = this.list(teamId)) {
+    const auto = all.filter((r) => r.action === 'auto').map((r) => ({ ...r, re: compilePattern(r.pattern) })).filter((r) => r.re);
+    if (!auto.length) return null;
+    const paths = this.paths(teamId, repoIds, run);
+    if (!paths.size) return null;
+    if (this.matching(teamId, paths, all.filter((r) => r.action !== 'auto')).length) return null;
+    const used = new Map();
+    for (const p of paths) {
+      const hit = auto.find((r) => r.re.test(p));
+      if (!hit) return null;
+      used.set(hit.id, hit);
+    }
+    const loginOf = this.db.prepare('SELECT login FROM users WHERE id = ?');
+    return {
+      rules: [...used.values()].map((r) => ({ id: r.id, pattern: r.pattern, created_by: r.created_by, login: (r.created_by && loginOf.get(r.created_by)?.login) || null })),
+      paths: paths.size,
+    };
   }
 }
 

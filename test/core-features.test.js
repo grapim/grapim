@@ -802,3 +802,67 @@ test('audit evidence: every run in the range with its decisions, merged pull req
   for (const p of ['/reports/evidence', '/reports/evidence/print']) assert.equal((await mallory.req(`/hub/teams/${A}${p}`)).status, 404);
   assert.equal((await mallory.req(`/hub/api/teams/${A}/reports/evidence.csv`)).status, 404);
 });
+
+test('automatic rules: a run whose every file is covered passes on its own with the rule and its author on record; review rules always win', async (t) => {
+  const { h, alice, bob, A, inst, token } = await governed(t);
+  assert.equal((await alice.post(`/hub/teams/${A}/github/policy`, { require_review: '1' })).status, 303);
+  // Only owners add automatic rules; the starter set is refused once rules exist.
+  assert.equal((await bob.post(`/hub/teams/${A}/rules`, { pattern: 'src/**', action: 'auto' })).status, 403);
+  assert.equal((await alice.post(`/hub/teams/${A}/rules`, { pattern: 'src/**', action: 'auto' })).status, 303);
+  assert.equal((await alice.post(`/hub/teams/${A}/rules`, { pattern: 'payments/**', approvals: '1' })).status, 303);
+  assert.equal((await alice.post(`/hub/teams/${A}/rules/starter`)).status, 409);
+  const list = h.hub.github.rules.list(A);
+  assert.deepEqual(list.map((r) => [r.pattern, r.action]), [['src/**', 'auto'], ['payments/**', 'review']]);
+
+  // RUN2 changed only src/app.js: approved by rule. RUN1 also changed payments/charge.js: a person must review it.
+  await hook(h, 'pull_request', prEvent(inst));
+  await h.hub.github.queue.idle();
+  assert.equal(check(h).conclusion, 'failure');
+  assert.match(check(h).output.summary, /Approved by rule \(1\)/);
+  assert.match(check(h).output.summary, /codex bbbb\*\*: approved by rule/);
+  const rows = h.hub.db.prepare("SELECT run, reviewer_user_id, rules FROM hub_reviews WHERE team_id = ? AND via = 'rule'").all(A);
+  assert.deepEqual(rows.map((r) => r.run), [RUN2]);
+  assert.equal(rows[0].reviewer_user_id, 0);
+  assert.match(rows[0].rules, /"login":"gov-alice/);
+  // A rule approval is not a member's approval.
+  assert.equal(h.hub.github.reviews.approvals(A, [ROOT], RUN2).length, 0);
+  // The run page names the rule and who set it.
+  const page = await bob.req(`${runPath(A, RUN2)}?machine=alice-laptop`);
+  assert.match(page.text, /Approved by <span class="strong">rule src\/\*\* \(set by gov-alice/);
+
+  // Bob reviews RUN1: everything passes, one of them by rule.
+  assert.equal((await bob.post(`${runPath(A, RUN1)}/decision`, { status: 'approved' })).status, 303);
+  await h.hub.github.queue.idle();
+  assert.equal(check(h).conclusion, 'success', check(h).output.summary);
+  assert.match(check(h).output.title, /\(1 by rule\)/);
+
+  // RUN2 later changes payments/: its rule approval goes stale and no new one is written.
+  await sync(h, token, {
+    repo: { id: ROOT, name: 'api', github: 'github.com/acme/api' },
+    machine: 'alice-laptop',
+    changes: [change(4, RUN2, 'codex bbbb', '', V0, 'payments/refund.js')],
+    blobs: { [sha(V0)]: b64(V0), [sha('')]: b64('') },
+  });
+  assert.equal(h.hub.github.reviews.latest(A, [ROOT], [RUN2]).get(RUN2).stale, true);
+  assert.equal(h.hub.db.prepare("SELECT COUNT(*) AS n FROM hub_reviews WHERE team_id = ? AND via = 'rule'").get(A).n, 1);
+  // A rule-only change after a sync is approved without a pull request event.
+  await sync(h, token, {
+    repo: { id: ROOT, name: 'api', github: 'github.com/acme/api' },
+    machine: 'alice-laptop',
+    runs: [{ run: 'claude-code:cccc', turn: 1, started_at: Date.now() - 1000 }],
+    changes: [change(5, 'claude-code:cccc', 'claude cccc', V0, V1, 'src/util.js')],
+    blobs: { [sha(V0)]: b64(V0), [sha(V1)]: b64(V1) },
+  });
+  assert.equal(h.hub.github.reviews.latest(A, [ROOT], ['claude-code:cccc']).get('claude-code:cccc')?.via, 'rule');
+
+  // The starter set on a team without rules.
+  for (const r of h.hub.github.rules.list(A)) h.hub.github.rules.remove(A, r.id);
+  assert.equal((await alice.post(`/hub/teams/${A}/rules/starter`, { from: 'settings' })).status, 303);
+  const starter = h.hub.github.rules.list(A);
+  assert.ok(starter.some((r) => r.pattern === 'docs/**' && r.action === 'auto'));
+  assert.ok(starter.some((r) => r.pattern === '**/payments/**' && r.action === 'review'));
+  // Another team cannot add rules here.
+  const mallory = await signIn(h, 'auto-mallory');
+  await createTeam(mallory, 'M2');
+  assert.equal((await mallory.post(`/hub/teams/${A}/rules/starter`)).status, 404);
+});

@@ -175,10 +175,14 @@ function displayReview(hubReview, local) {
 // rules: Map run id -> { ok, rules: [...] } from the team's path rules (src/hub/rules.js), or empty.
 export function decide({ requireProvenance, runs, hubReviews, localReviews, places, unrecorded, incomplete, peopleLines, link, rules = new Map() }) {
   const unapproved = [];
+  const byRule = [];
   for (const r of runs) {
     const h = hubReviews.get(r.id);
     const rule = rules.get(r.id);
-    if (h && h.status === 'approved' && !h.stale && (!rule || rule.ok)) continue;
+    if (h && h.status === 'approved' && !h.stale && (!rule || rule.ok)) {
+      if (h.via === 'rule') byRule.push(`- **${md(r.label, 60)}**: approved by ${who(h)}.`);
+      continue;
+    }
     const l = localReviews.get(r.id);
     const why = h && h.status === 'approved' && !h.stale
       ? `Approved in the hub, but a path rule needs more: ${rule.rules.filter((x) => !x.ok).map((x) => md(ruleText(x), 200)).join('; ')}.`
@@ -199,7 +203,13 @@ export function decide({ requireProvenance, runs, hubReviews, localReviews, plac
   if (unapproved.length) titles.push(`${plural(unapproved.length, 'agent run')} not approved in the Grapim hub`);
   if (missing.length) titles.push(`${plural(missing.length, 'commit')} not recorded`);
   if (incomplete.length) titles.push('not every added line could be checked');
-  const title = failing ? titles.join('; ') : 'Every agent run is approved in the Grapim hub';
+  const title = failing
+    ? titles.join('; ')
+    : byRule.length === runs.length && runs.length
+      ? `Every agent run is approved by a team rule (${plural(runs.length, 'run')})`
+      : byRule.length
+        ? `Every agent run is approved in the Grapim hub (${byRule.length} by rule)`
+        : 'Every agent run is approved in the Grapim hub';
 
   const out = [
     `**Policy: require review.** Every line an AI agent wrote must come from a run approved in the Grapim hub by a member other than the person who synced it.${rules.size ? ' Runs that touch a path with a rule need the approvals the rule names.' : ''}${requireProvenance ? ' Require provenance is on: every commit that adds lines needs a Grapim note (an empty note from a human-only commit counts).' : ''} Approvals made with \`grapim review\` on a machine are shown but do not count.`,
@@ -217,9 +227,16 @@ export function decide({ requireProvenance, runs, hubReviews, localReviews, plac
     out.push(`${plural(unrecorded.length, 'commit')} in this pull request ${unrecorded.length === 1 ? 'has' : 'have'} no Grapim note. Require provenance is off, so ${unrecorded.length === 1 ? 'it is' : 'they are'} accepted as human.`);
   }
   if (incomplete.length) out.push('#### Could not be checked', incomplete.map((s) => `- ${s}`).join('\n'));
+  if (byRule.length) {
+    out.push(
+      `#### Approved by rule (${byRule.length})`,
+      'Every file these runs changed is covered by an automatic rule a team owner set, and none of them touches a path that needs a person.',
+      [...byRule.slice(0, LIST_MAX), ...(byRule.length > LIST_MAX ? [`- and ${plural(byRule.length - LIST_MAX, 'more run')}`] : [])].join('\n'),
+    );
+  }
   if (peopleLines) out.push(`${plural(peopleLines, 'line')} from undo, restore or folder-sync runs count as people's work and need no approval.`);
   if (!failing) out.push(`Passed: every agent run in this pull request was approved in the hub${requireProvenance ? ', and every commit that adds lines has a provenance note' : ''}.`);
-  return { conclusion: failing ? 'failure' : 'success', title, summary: out.join('\n\n'), unapproved, unrecorded: missing };
+  return { conclusion: failing ? 'failure' : 'success', title, summary: out.join('\n\n'), unapproved, unrecorded: missing, byRule: byRule.length };
 }
 
 // job: { installationId, owner, name, number, headSha, repoId? (GitHub repository id) }

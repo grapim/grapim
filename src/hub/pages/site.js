@@ -190,8 +190,8 @@ const PLANS = [
 ];
 
 export function landingPage({ origin }) {
-  const description = 'Grapim records every coding-agent run, puts each one in front of a reviewer, blocks the merge until someone approves it, and undoes a single run. For teams using Claude Code, Codex, Cursor and Gemini CLI.';
-  return html`${siteHead({ title: 'Grapim: every AI change to your code has someone accountable for it', description, path: '/', origin })}
+  const description = 'Grapim records every coding-agent run. Your rules pass low-risk changes on their own, sensitive paths wait for a named reviewer, and one bad run can be undone alone. For teams using Claude Code, Codex, Cursor and Gemini CLI.';
+  return html`${siteHead({ title: 'Grapim: merge agent code faster, review only what matters', description, path: '/', origin })}
 <body class="site">
 <a class="skip" href="#main">Skip to content</a>
 ${siteBar({ current: 'home' })}
@@ -199,8 +199,8 @@ ${siteBar({ current: 'home' })}
 
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-text">
-    <h1 id="hero-title">Every AI change to your code has someone accountable for it.</h1>
-    <p class="hero-sub">Grapim records which agent run made each change and what it was asked to do, puts every run in front of a reviewer, and holds the pull request until a teammate approves it. If a run was wrong, undo just that run.</p>
+    <h1 id="hero-title">Merge agent code faster. Review only what matters.</h1>
+    <p class="hero-sub">Grapim records every Claude Code, Codex, Cursor and Gemini CLI run. Your rules pass low-risk changes on their own. Changes to auth, payments, migrations or infra wait for a named reviewer. Every change has someone accountable for it, and one bad run can be undone alone.</p>
     <div class="cta">
       <a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Sign in with GitHub</span></a>
       <a class="btn btn-lg" href="/docs">Read the docs</a>
@@ -257,9 +257,9 @@ ${siteBar({ current: 'home' })}
   <div class="wrap gate-in">
     <div class="gate-text">
       <span class="step-n" aria-hidden="true">3</span>
-      <h2 id="gate-title">The merge waits for a person.</h2>
-      <p>Install the Grapim GitHub App and every pull request gets a comment listing its agent runs: how many lines each wrote, the prompt behind it, and whether it has been reviewed.</p>
-      <p>Turn on <b>Require review</b> and the <code>Grapim provenance (app)</code> check fails until every agent run in the pull request is approved in the hub. An approval in the hub re-runs the check; nobody has to push. Make it a required check in your branch rules and unreviewed agent code cannot merge.</p>
+      <h2 id="gate-title">A person where it matters. Rules everywhere else.</h2>
+      <p>Install the Grapim GitHub App and every pull request gets a comment listing its agent runs: how many lines each wrote, the prompt behind it, and whether it has been approved.</p>
+      <p>Path rules decide who has to look. A run that only changed tests or docs passes under an automatic rule, and the check names the rule and the owner who set it. A run that touched <code>payments/**</code> waits for the reviewers that rule names. Turn on <b>Require review</b>, make <code>Grapim provenance (app)</code> a required check, and agent code nobody approved cannot merge.</p>
       <p><a class="link" href="/docs/github">Set up the GitHub App ${ICON.arrow}</a></p>
     </div>
     <div class="gate-vis">${prThread()}<p class="vis-note">Illustration with demo data. The comment and check use the App's own wording.</p></div>

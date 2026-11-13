@@ -65,6 +65,21 @@ const NOTICES = {
 };
 const REVIEW_FORM = { auth: 'session', csrf: true, team: true, repo: true };
 const TEAM_VIEW = { auth: 'session', team: true };
+// The starter path rules: low-risk files pass on their own, sensitive ones need a person.
+export const STARTER_RULES = Object.freeze([
+  ['docs/**', 'auto'],
+  ['**/*.md', 'auto'],
+  ['test/**', 'auto'],
+  ['tests/**', 'auto'],
+  ['**/__tests__/**', 'auto'],
+  ['**/*.test.*', 'auto'],
+  ['**/*.spec.*', 'auto'],
+  ['**/auth/**', 'review'],
+  ['**/payments/**', 'review'],
+  ['**/migrations/**', 'review'],
+  ['infra/**', 'review'],
+  ['.github/workflows/**', 'review'],
+]);
 const PULL_DAYS = 90;
 const NOTICE_MS = 10 * 60 * 1000;
 const LOGIN = /^[A-Za-z0-9-]{1,39}$/;
@@ -140,6 +155,68 @@ export function createGitHubApp(hub, options = {}) {
     return out;
   }
   source.rulesFor = async (team, repo, runIds) => rulesFor(team, [repo.id, ...(Array.isArray(repo.alt) ? repo.alt : [])], runIds);
+
+  // Automatic rules (src/hub/rules.js): approves a run when every file it
+  // changed is covered by one and no review rule applies. Writes an approval
+  // with via 'rule' in each repo that has the run's changes. Returns whether
+  // anything was written. Governance only, like every path rule.
+  function autoApprove(team, repoIds, run, list = rules.list(team.id)) {
+    if (!governance(team) || !list.some((r) => r.action === 'auto')) return false;
+    let wrote = false;
+    for (const repoId of repoIds) {
+      const a = rules.autoApproval(team.id, [repoId], run, list);
+      if (a && reviews.recordRule(team, repoId, run, a.rules)) wrote = true;
+    }
+    return wrote;
+  }
+  // Before the check reads reviews, approve what the rules cover.
+  const readReviews = source.hubReviewsFor;
+  source.hubReviewsFor = async (team, repo, runIds) => {
+    try {
+      const ids = [repo.id, ...(Array.isArray(repo.alt) ? repo.alt : [])];
+      const list = rules.list(team.id);
+      if (list.some((r) => r.action === 'auto')) for (const run of runIds.slice(0, 500)) autoApprove(team, ids, run, list);
+    } catch (err) {
+      log(`github app: automatic rules failed for team ${team.id}: ${err.message}`);
+    }
+    return readReviews(team, repo, runIds);
+  };
+  // After a sync, the runs it touched: approve the covered ones and re-run
+  // the checks of their open pull requests.
+  function onSync(teamId, repoId) {
+    try {
+      const team = teams.get(teamId);
+      if (!team || !governance(team)) return;
+      const list = rules.list(team.id);
+      if (!list.some((r) => r.action === 'auto')) return;
+      const recent = db
+        .prepare(
+          `SELECT c.run, MAX(c.id) AS head FROM h_changes c WHERE c.team_id = ? AND c.repo_id = ?
+           GROUP BY c.run ORDER BY head DESC LIMIT 200`,
+        )
+        .all(teamId, repoId);
+      const lastSeen = db.prepare('SELECT seen_change FROM hub_reviews WHERE team_id = ? AND repo_id = ? AND run = ? ORDER BY id DESC LIMIT 1');
+      for (const r of recent) {
+        if ((lastSeen.get(teamId, repoId, r.run)?.seen_change ?? 0) >= r.head) continue;
+        if (autoApprove(team, [repoId], r.run, list)) reevaluate(teamId, r.run);
+      }
+    } catch (err) {
+      log(`github app: automatic rules failed after a sync of team ${teamId}: ${err.message}`);
+    }
+  }
+  hub.bus?.on?.('sync', onSync);
+  // After rules change: the runs of open pull requests the new rules cover.
+  function applyToOpenPulls(team) {
+    try {
+      const list = rules.list(team.id);
+      if (!governance(team) || !list.some((r) => r.action === 'auto')) return;
+      const repoIds = db.prepare('SELECT id FROM repos WHERE team_id = ?').all(team.id).map((r) => r.id);
+      const runs = db.prepare('SELECT DISTINCT run FROM gh_pull_runs WHERE team_id = ? LIMIT 500').all(team.id).map((r) => r.run);
+      for (const run of runs) if (autoApprove(team, repoIds, run, list)) reevaluate(team.id, run);
+    } catch (err) {
+      log(`github app: automatic rules failed for team ${team.id}: ${err.message}`);
+    }
+  }
 
   // One decision, from the run page or the check's button: the same rules.
   // Throws { code } errors: own_run, not_found, bad_request, not_approver.
@@ -647,7 +724,7 @@ export function createGitHubApp(hub, options = {}) {
           if (!governance(team)) throw new HttpError(402, 'plan_required', 'Path rules are on the Governance plan.');
           const approvers = Object.keys(ctx.form).filter((k) => /^approver_\d{1,12}$/.test(k) && ctx.form[k] === '1').map((k) => Number(k.slice(9)));
           try {
-            rules.add(team.id, { pattern: ctx.form.pattern, approvals: ctx.form.approvals, approvers }, ctx.session.user.id);
+            rules.add(team.id, { pattern: ctx.form.pattern, approvals: ctx.form.approvals, approvers, action: ctx.form.action === 'auto' ? 'auto' : 'review' }, ctx.session.user.id);
           } catch (err) {
             if (err?.code === 'bad_request') throw new HttpError(400, 'bad_request', err.message);
             throw err;
@@ -659,7 +736,21 @@ export function createGitHubApp(hub, options = {}) {
           }
           throw err;
         }
+        applyToOpenPulls(team);
         redirect(ctx.res, fromSettings ? `/hub/teams/${team.id}/settings?done=rule_added#rules` : `/hub/teams/${team.id}/rules?done=added`);
+      },
+      TEAM_FORM,
+    );
+    // A common starting set, added only to a team without rules.
+    router.post(
+      '/hub/teams/:team/rules/starter',
+      (ctx) => {
+        const team = teams.get(ctx.member.team.id);
+        if (!governance(team)) throw new HttpError(402, 'plan_required', 'Path rules are on the Governance plan.');
+        if (rules.list(team.id).length) throw new HttpError(409, 'conflict', 'The starter rules are for a team without rules. Add rules one by one instead.');
+        for (const [pattern, action] of STARTER_RULES) rules.add(team.id, { pattern, action, approvals: 1 }, ctx.session.user.id);
+        applyToOpenPulls(team);
+        redirect(ctx.res, ctx.form.from === 'settings' ? `/hub/teams/${team.id}/settings?done=rule_added#rules` : `/hub/teams/${team.id}/rules?done=added`);
       },
       TEAM_FORM,
     );
@@ -746,6 +837,8 @@ export function createGitHubApp(hub, options = {}) {
     rules,
     scans,
     rulesFor,
+    autoApprove,
+    onSync,
     decideRun,
     startScan,
     reevaluate,

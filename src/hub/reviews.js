@@ -12,6 +12,10 @@
 // change (h_changes.id). When more changes of the run are synced later, the
 // approval is stale and the run needs a new one.
 //
+// A run that the team's automatic path rules cover (src/hub/rules.js) is
+// approved by rule: a row with via 'rule', reviewer_user_id 0, and the rules
+// with their authors in `rules`. It goes stale like any approval.
+//
 // Every row is keyed by team; every query filters on team_id.
 
 export const HUB_REVIEWS_SCHEMA = `
@@ -49,6 +53,16 @@ const chunks = (list, n = 400) => {
   return out;
 };
 const marks = (list) => list.map(() => '?').join(',');
+// "rule docs/** (set by alice)" from a rule row's rules JSON.
+export function ruleWho(json) {
+  let list = [];
+  try {
+    list = JSON.parse(json ?? '[]');
+  } catch {}
+  if (!Array.isArray(list) || !list.length) return 'a path rule';
+  const names = [...new Set(list.map((r) => r?.login).filter(Boolean))];
+  return `rule ${list.map((r) => r?.pattern).filter(Boolean).join(', ')}${names.length ? ` (set by ${names.join(', ')})` : ''}`;
+}
 const teamIdOf = (team) => (typeof team === 'string' ? team : team?.id);
 
 export class HubReviews {
@@ -105,6 +119,22 @@ export class HubReviews {
     return { status, reviewer_user_id: userId, reviewed_at, note: text || null, seen_change: head, via: via === 'github' ? 'github' : 'hub' };
   }
 
+  // An approval by the team's automatic rules. rules: [{ id, pattern, created_by, login }].
+  // Returns false when the run already has a current decision (nothing written).
+  recordRule(team, repoId, run, rules) {
+    const teamId = teamIdOf(team);
+    if (typeof repoId !== 'string' || !SHA.test(repoId) || typeof run !== 'string' || !run || run.length > 200) return false;
+    const head = this.headChange(teamId, repoId, run);
+    if (!head) return false;
+    const last = this.db.prepare('SELECT seen_change FROM hub_reviews WHERE team_id = ? AND repo_id = ? AND run = ? ORDER BY id DESC LIMIT 1').get(teamId, repoId, run);
+    if (last && last.seen_change >= head) return false;
+    const list = (Array.isArray(rules) ? rules : []).slice(0, 50).map((r) => ({ id: r.id, pattern: r.pattern, created_by: r.created_by ?? null, login: r.login ?? null, auto: true }));
+    this.db
+      .prepare("INSERT INTO hub_reviews (team_id, repo_id, run, status, reviewer_user_id, reviewed_at, note, seen_change, via, rules) VALUES (?, ?, ?, 'approved', 0, ?, ?, ?, 'rule', ?)")
+      .run(teamId, repoId, run, this.now(), 'Approved automatically: every file it changed is covered by an automatic rule.', head, JSON.stringify(list));
+    return true;
+  }
+
   // The members whose own newest decision on the run is a current approval
   // (it saw the run's newest change in that repo): [{ user_id, login, reviewed_at, via }].
   approvals(team, repoIds, run) {
@@ -118,7 +148,7 @@ export class HubReviews {
       )
       .all(teamId, ...repos, run);
     const newest = new Map();
-    for (const r of rows) newest.set(r.reviewer_user_id, r);
+    for (const r of rows) if (r.via !== 'rule') newest.set(r.reviewer_user_id, r);
     const head = new Map(repos.map((id) => [id, this.headChange(teamId, id, run)]));
     return [...newest.values()]
       .filter((r) => r.status === 'approved' && r.seen_change >= (head.get(r.repo_id) ?? 0))
@@ -135,7 +165,8 @@ export class HubReviews {
         `SELECT r.status, r.reviewed_at, r.note, r.via, r.rules, r.seen_change, r.repo_id, r.reviewer_user_id, u.login FROM hub_reviews r LEFT JOIN users u ON u.id = r.reviewer_user_id
          WHERE r.team_id = ? AND r.repo_id IN (${marks(repos)}) AND r.run = ? ORDER BY r.id LIMIT 200`,
       )
-      .all(teamId, ...repos, run);
+      .all(teamId, ...repos, run)
+      .map((r) => (r.via === 'rule' ? { ...r, login: ruleWho(r.rules) } : r));
   }
 
   // Map run -> the newest hub decision for it in any of `repoIds`:
@@ -161,7 +192,7 @@ export class HubReviews {
           status: r.status,
           repo_id: r.repo_id,
           reviewer_user_id: r.reviewer_user_id,
-          reviewer_login: r.reviewer_login ?? null,
+          reviewer_login: r.via === 'rule' ? ruleWho(r.rules) : r.reviewer_login ?? null,
           reviewed_at: r.reviewed_at,
           note: r.note,
           via: r.via ?? 'hub',

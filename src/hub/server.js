@@ -80,7 +80,10 @@ export async function createHub(options = {}) {
     streams: new Map(), // user id -> open SSE connections
   };
   hub.workspaces = new Workspaces({ db, now, limits, dataDir: config.dataDir });
-  hub.ingest = new Ingest({ db, now, limits, storageBytes: config.teamStorageBytes, onSync: (teamId, repoId) => bus.emit(`sync:${teamId}:${repoId}`) });
+  hub.ingest = new Ingest({ db, now, limits, storageBytes: config.teamStorageBytes, onSync: (teamId, repoId) => {
+    bus.emit(`sync:${teamId}:${repoId}`);
+    bus.emit('sync', teamId, repoId);
+  } });
   // Workspace diffs, blame and replays run in worker threads, a fair share
   // per team, never on this event loop (security review of workspaces, M7).
   hub.compute = createComputePool({ log, ...(options.compute ?? {}) });
