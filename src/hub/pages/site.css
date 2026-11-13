@@ -448,7 +448,7 @@ section { scroll-margin-top: var(--bar-h); }
    (terminals, the pull request) play once when they scroll into view. Scenes
    only hide their steps when site.js has marked the page (html.motion), so
    without JS or with reduced motion everything is simply shown. */
-.hero { position: relative; isolation: isolate; }
+.hero { position: relative; isolation: isolate; overflow-x: clip; }
 .hero::before {
   content: ""; position: absolute; inset: 0 0 38% 0; z-index: -1; pointer-events: none;
   background-image: radial-gradient(circle, var(--grid-dot) 1px, transparent 1.6px);
@@ -506,7 +506,7 @@ section { scroll-margin-top: var(--bar-h); }
 /* ---- Hero figure: runs as isometric plates; one is undone ---- */
 .hero-text { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 40px; align-items: start; }
 .hero-text > h1 { grid-column: 1 / -1; }
-.hero-text > :not(h1):not(.iso) { grid-column: 1; }
+.hero-text > :not(h1):not(.iso):not(.s3) { grid-column: 1; }
 .iso { grid-column: 2; grid-row: 2 / span 3; margin: -56px 0 0; width: 470px; max-width: 100%; }
 .iso svg { display: block; width: 100%; height: auto; overflow: visible; }
 .iso-top { fill: var(--page); stroke: var(--iso-line); stroke-width: 1; }
@@ -601,3 +601,66 @@ section { scroll-margin-top: var(--bar-h); }
   .iso-trail { animation: wire-flow 1.6s linear infinite; }
 }
 @keyframes wire-flow { to { stroke-dashoffset: -16; } }
+
+/* ---- Hero figure in 3D (CSS only): solid plates that turn toward the
+   pointer. Wide screens with motion allowed; the line figure otherwise. ---- */
+.s3 { display: none; }
+@media (prefers-reduced-motion: no-preference) and (min-width: 901px) {
+  .iso { display: none; }
+  .s3 { display: block; grid-column: 2; grid-row: 2 / span 3; margin: -70px 0 0; width: 470px; position: relative; animation: rise 1s 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+}
+.s3 { --pw: 176px; --t: 12px; --gap: 38px; }
+.s3-view { height: 360px; perspective: 1600px; perspective-origin: 50% 30%; display: grid; place-items: center; }
+.s3-rig {
+  position: relative; width: var(--pw); height: var(--pw); transform-style: preserve-3d;
+  transform: translateX(-56px) translateY(40px) rotateX(calc(58deg + var(--my, 0) * 7deg)) rotateZ(calc(-45deg + var(--mx, 0) * 10deg));
+  transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.s3-plate { position: absolute; inset: 0; transform-style: preserve-3d; }
+.s3-p0 { transform: translateZ(calc(var(--gap) * 4)); }
+.s3-p1 { transform: translateZ(calc(var(--gap) * 3)); }
+.s3-p2 { transform: translateZ(calc(var(--gap) * 2)); }
+.s3-p3 { transform: translateZ(var(--gap)); }
+.s3-f { position: absolute; display: block; box-sizing: border-box; border: 1px solid var(--iso-line); }
+.s3-top { inset: 0; transform: translateZ(var(--t)); background: var(--page); }
+.s3-n, .s3-s { left: 0; width: var(--pw); height: var(--t); transform-origin: top; transform: rotateX(90deg); background: var(--surface-2); }
+.s3-n { top: 0; }
+.s3-s { top: var(--pw); background: var(--stage); }
+.s3-w, .s3-e { top: 0; width: var(--t); height: var(--pw); transform-origin: left; transform: rotateY(-90deg); background: var(--surface-2); }
+.s3-w { left: 0; }
+.s3-e { left: var(--pw); background: var(--stage); }
+.s3-out .s3-f { border-color: var(--accent); }
+.s3-out .s3-top { background: color-mix(in srgb, var(--accent) 16%, var(--page)); }
+.s3-out .s3-n, .s3-out .s3-w { background: color-mix(in srgb, var(--accent) 10%, var(--surface-2)); }
+.s3-out .s3-s, .s3-out .s3-e { background: color-mix(in srgb, var(--accent) 22%, var(--stage)); }
+.s3-label {
+  position: absolute; left: calc(var(--pw) + 8px); top: var(--pw); white-space: nowrap;
+  transform-origin: 0 0; transform: translateZ(var(--t)) rotateZ(45deg) rotateX(-58deg) translate(14px, -10px);
+  font: 400 10.5px/1.35 var(--mono); color: var(--text-3); display: grid;
+}
+.s3-label b { font-weight: 500; font-size: 11px; color: var(--text-2); }
+.s3-out .s3-label b, .s3-out .s3-label { color: var(--accent-text); }
+.s3 .iso-cap { padding-left: 0; margin-top: 0; }
+.s3-done { position: absolute; left: 0; bottom: 34px; margin: 0; display: grid; gap: 4px; font: 500 11px/1.3 var(--mono); color: var(--text-2); opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .s3-out { animation: s3-out 10s 1.6s ease-in-out infinite both; }
+  .s3-out .s3-f, .s3-out .s3-label { animation: s3-fade 10s 1.6s ease-in-out infinite both; }
+  .s3-above { animation: s3-settle 10s 1.6s ease-in-out infinite both; }
+  .s3-done { animation: iso-done 10s 1.6s ease-in-out infinite both; }
+}
+@keyframes s3-out {
+  0%, 22% { translate: 0 0 0; }
+  40%, 86% { translate: 150px 150px 0; }
+  87%, 100% { translate: 0 0 0; }
+}
+@keyframes s3-fade {
+  0%, 26% { opacity: 1; }
+  40%, 86% { opacity: 0; }
+  87% { opacity: 0; }
+  96%, 100% { opacity: 1; }
+}
+@keyframes s3-settle {
+  0%, 42% { translate: 0 0 0; }
+  54%, 88% { translate: 0 0 calc(var(--gap) * -1); }
+  96%, 100% { translate: 0 0 0; }
+}

@@ -294,6 +294,21 @@ const FIG_GITHUB = () => figure(4, 'comments and checks, never pushes', html`
   <path class="mini-x" d="M168 34 l10 10 m0 -10 l-10 10"/>
   ${isoText(184, 44, 'no push', 'iso-note')}`);
 
+// The hero figure in real 3D (CSS transforms, no library): the same five
+// runs as solid plates. It turns a little toward the pointer, and the Cursor
+// run slides out while the runs above settle. Shown on wide screens when
+// motion is allowed; otherwise the flat line figure (isoFigure) stands in.
+function stackFigure() {
+  const faces = html`<i class="s3-f s3-top"></i><i class="s3-f s3-n"></i><i class="s3-f s3-e"></i><i class="s3-f s3-s"></i><i class="s3-f s3-w"></i>`;
+  return html`<figure class="s3" aria-hidden="true">
+  <div class="s3-view"><div class="s3-rig">
+    ${ISO_RUNS.map(([label, note], i) => html`<div class="s3-plate s3-p${i}${i === 2 ? ' s3-out' : i < 2 ? ' s3-above' : ''}">${faces}<span class="s3-label"><b>${label}</b>${note}</span></div>`)}
+  </div></div>
+  <figcaption class="iso-cap">fig. 1 · one run out, the rest kept</figcaption>
+  <p class="s3-done"><span>$ grapim undo 5d81c0e2</span><span class="iso-ok">2 files back, other runs kept</span></p>
+</figure>`;
+}
+
 const description = 'Grapim records every change your coding agents make, shell commands included. Sensitive changes wait for a named reviewer, and any single run can be undone. For Claude Code, Codex, Cursor and Gemini CLI.';
 
 export function landingPage({ origin }) {
@@ -313,6 +328,7 @@ ${siteBar({ current: 'home' })}
     </div>
     <p class="works" aria-label="Works with"><span class="works-label">Works with</span><span>Claude Code</span><span>Codex</span><span>Cursor</span><span>Gemini CLI</span><span>GitHub</span></p>
     ${isoFigure()}
+    ${stackFigure()}
   </div>
   <figure class="frame frame-hero">
     ${shot('run', 'A run page in the Grapim hub: the run "Add idempotency keys to POST /orders" by claude 7f3e21aa, 2 turns, 3 files, +32 −4, marked Needs review, with Approve and Reject buttons, its prompts and its diff.', { eager: true })}
