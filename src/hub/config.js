@@ -112,6 +112,10 @@ export function loadConfig(env = process.env) {
     platformStorageBytes: platformMb * 1024 * 1024,
     // The public read-only demo at /demo (src/hub/demo.js): off unless set.
     demo: env.GRAPIM_DEMO === '1' || env.GRAPIM_DEMO === 'true',
+    // The marketing domain (server.js siteHostRedirect): SITE_URL, or for a hub
+    // at app.<domain> the bare <domain>. That host (and www.) shows the public
+    // site; everything else asked of it moves to the hub's own origin.
+    siteOrigin: siteOriginFor(env.SITE_URL, url),
   };
   // Secrets are non-enumerable, so logging or serialising the config by
   // mistake never prints them.
@@ -121,4 +125,22 @@ export function loadConfig(env = process.env) {
   hidden(github, 'clientSecret', env.GITHUB_CLIENT_SECRET.trim());
   config.github = Object.freeze(github);
   return Object.freeze(config);
+}
+
+// The public site's origin, or null: SITE_URL when set (a bare https origin),
+// else the hub's domain without its leading "app." (https://app.grapim.com ->
+// https://grapim.com). Local hubs have none.
+function siteOriginFor(raw, hubUrl) {
+  if (raw && raw.trim()) {
+    let u;
+    try {
+      u = new URL(raw.trim());
+    } catch {
+      throw new ConfigError('grapim hub: SITE_URL is not a valid URL (example: https://example.com).');
+    }
+    if (u.pathname !== '/' || u.search || u.hash || u.protocol !== 'https:') throw new ConfigError('grapim hub: SITE_URL must be a bare https origin, like https://example.com.');
+    return u.origin === hubUrl.origin ? null : u.origin;
+  }
+  if (hubUrl.protocol !== 'https:' || !hubUrl.hostname.startsWith('app.')) return null;
+  return `https://${hubUrl.hostname.slice(4)}`;
 }

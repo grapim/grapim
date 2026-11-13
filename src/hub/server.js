@@ -216,6 +216,21 @@ export async function createHub(options = {}) {
     return form;
   }
 
+  // Where a request to the marketing domain belongs, or null to serve it here.
+  const SITE_PATH = /^\/(?:pricing|changelog|docs|support|robots\.txt|sitemap\.xml)(?:\/|$)|^\/hub\/static\//;
+  const HUB_PATH = /^\/(?:hub|v1|w|demo|api)(?:\/|$)/;
+  function siteHostRedirect(req, pathname) {
+    if (!config.siteOrigin) return null;
+    const site = new URL(config.siteOrigin).host;
+    const host = String(req.headers.host ?? '').toLowerCase();
+    if (host === `www.${site}`) return `${config.siteOrigin}${req.url}`;
+    if (host !== site) return null;
+    if (pathname === '/' || SITE_PATH.test(pathname)) return null;
+    // The hub and its APIs live on the hub's origin; any other old address
+    // (links to the product that used to live here) lands on the home page.
+    return HUB_PATH.test(pathname) ? `${config.origin}${req.url}` : `${config.siteOrigin}/`;
+  }
+
   async function handle(req, res) {
     const started = Date.now();
     securityHeaders(res, config);
@@ -225,6 +240,16 @@ export async function createHub(options = {}) {
       const url = new URL(req.url, config.origin);
       pathname = url.pathname;
       ctx.url = url;
+      // The marketing domain (config.siteOrigin): it shows the public site;
+      // the hub, its sign-in and APIs move to the hub's own origin, so cookies
+      // and the GitHub callback stay on one host. www. goes to the bare domain.
+      const moved = siteHostRedirect(req, pathname);
+      if (moved) {
+        res.writeHead(req.method === 'GET' || req.method === 'HEAD' ? 301 : 308, { Location: moved, 'Cache-Control': 'public, max-age=3600' });
+        res.end();
+        ctx.routeName = 'site-host';
+        return;
+      }
       // /v1: the platform API. JSON errors with a request_id, and a Request-Id header on every response.
       const v1 = pathname === '/v1' || pathname.startsWith('/v1/');
       if (v1) {
