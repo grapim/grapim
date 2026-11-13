@@ -9,6 +9,7 @@ import { overviewPage, reposPage, reviewsPage, settingsPage } from './pages/team
 import { SCOPE_ROWS, WORKSPACE_TABS, workspacePage, workspacesPage } from './pages/workspaces.js';
 import { getReview } from '../review.js';
 import { cleanTemplate } from './templates.js';
+import { codeStorageOf, deleteContents, liveDiffs, setCodeStorage, storedContents } from './code-storage.js';
 
 // The "Limit to folders" rows of the token form (scope_path_<i>,
 // scope_access_<i>) as rules; rows without a path are left out. None: null.
@@ -66,6 +67,9 @@ const DONE = {
   rule_added: 'Rule added. It applies to the next check and every review from now on.',
   rule_removed: 'Rule removed.',
   scan_started: 'History scan started. It reads the last 90 days of merged pull requests.',
+  code_storage_on: 'No code storage is on. New syncs keep no file contents.',
+  code_storage_off: 'No code storage is off. New syncs keep file contents again.',
+  contents_deleted: 'Stored file contents deleted.',
 };
 export const doneText = (ctx) => DONE[ctx.url?.searchParams.get('done')] ?? null;
 
@@ -97,6 +101,8 @@ export function pageRoutes(router, hub) {
         rules: hub.github?.rulesSection?.(fresh, ctx.session.csrf, role) ?? null,
         // A team's own bucket (src/hub/team-storage.js): owners only.
         storage: role === 'owner' ? (hub.teamStorage?.settingsSection(fresh, ctx.session.csrf) ?? null) : null,
+        // "No code storage" (src/hub/code-storage.js): every member sees the mode, owners change it.
+        codeStorage: { mode: codeStorageOf(hub.db, fresh.id), stored: storedContents(hub.db, fresh.id) },
         ...extra,
       }),
       status,
@@ -345,6 +351,35 @@ export function pageRoutes(router, hub) {
     TEAM_FORM,
   );
 
+  // ---- No code storage (src/hub/code-storage.js): owners only ----
+
+  router.post(
+    '/hub/teams/:team/code-storage',
+    (ctx) =>
+      onSettings(ctx, () => {
+        const mode = ctx.form.mode === 'metadata' ? 'metadata' : ctx.form.mode === 'full' ? 'full' : null;
+        if (!mode) throw new HttpError(400, 'bad_request', 'Choose whether to keep file contents.');
+        setCodeStorage(hub.db, ctx.member.team.id, mode);
+        hub.log(`code storage: ${mode}`);
+        redirect(ctx.res, `/hub/teams/${ctx.member.team.id}/settings?done=${mode === 'metadata' ? 'code_storage_on' : 'code_storage_off'}#code-storage`);
+      }),
+    { ...TEAM_FORM, owner: true },
+  );
+
+  router.post(
+    '/hub/teams/:team/code-storage/delete',
+    (ctx) =>
+      onSettings(ctx, () => {
+        const teamId = ctx.member.team.id;
+        if (codeStorageOf(hub.db, teamId) !== 'metadata') throw new HttpError(409, 'conflict', 'Turn on No code storage first, so new syncs do not store contents again.');
+        if (ctx.form.confirm !== 'delete') throw new HttpError(400, 'bad_request', 'Tick the box to confirm that the stored file contents are deleted for good.');
+        deleteContents(hub.db, teamId);
+        hub.log('code storage: contents deleted');
+        redirect(ctx.res, `/hub/teams/${teamId}/settings?done=contents_deleted#code-storage`);
+      }),
+    { ...TEAM_FORM, owner: true },
+  );
+
   // ---- Cloud workspaces (docs/workspaces.md section 1) ----
 
   const { workspaces } = hub;
@@ -548,12 +583,16 @@ export function pageRoutes(router, hub) {
 
   router.get(
     '/hub/teams/:team/repos/:repo/runs/:run',
-    (ctx) => {
+    async (ctx) => {
       const { team } = ctx.member;
       const detail = read.run(team, ctx.repo, ctx.params.run, ctx.url.searchParams.get('machine'));
       // Approve or reject in the hub: the review require_review counts (src/hub/github/index.js).
       const review = hub.github?.reviewPanel?.({ team, repo: ctx.repo, run: detail.run.run, userId: ctx.session.user.id, done: ctx.url.searchParams.get('done') }) ?? null;
-      html(ctx, runPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, repo: ctx.repo, detail, review }));
+      // No code storage: the diffs of files whose contents the hub does not
+      // keep are read from GitHub for this view only, never saved.
+      const missing = detail.files.filter((f) => f.content === 'not_stored').map((f) => f.path);
+      const live = missing.length ? await liveDiffs({ db: hub.db, github: hub.github, team, repo: ctx.repo, run: detail.run.run, paths: missing }) : null;
+      html(ctx, runPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, repo: ctx.repo, detail, review, live }));
     },
     { ...TEAM, repo: true },
   );

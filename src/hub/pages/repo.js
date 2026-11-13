@@ -151,7 +151,20 @@ function reviewPanel({ csrf, team, repo, run, review }) {
 </section>`;
 }
 
-export function runPage({ user, csrf, team, repo, detail, review = null }) {
+// A file whose contents the hub does not keep ("No code storage"): its diff
+// read live from GitHub for this view, or where to see it instead.
+function notStored(f, r, live) {
+  const parts = live?.files?.get(f.path);
+  if (parts?.length) {
+    return parts.map(
+      (p) => html`<p class="file-note">From commit <code>${p.sha.slice(0, 7)}</code>, read from GitHub for this view and not saved. The commit can include lines this run did not write.</p>
+  ${p.hunks.length ? diffTable(p) : html`<p class="file-note">No change to this file in that commit.</p>`}`,
+    );
+  }
+  return html`<p class="file-note">File contents stay on the developer's machine. Run <code>grapim serve</code> on ${r.machine} to see the diff in the review desk.</p>`;
+}
+
+export function runPage({ user, csrf, team, repo, detail, review = null, live = null }) {
   const r = detail.run;
   const state = review ? reviewState(review) : null;
   const add = detail.files.reduce((n, f) => n + (f.added ?? 0), 0);
@@ -220,9 +233,9 @@ ${detail.turns.length
   <summary class="file-head">
     ${icon('chev', 'chev')}
     <span class="file-path" title="${f.path}">${f.path}</span>
-    <span class="file-meta">${f.diff ? delta(f.added, f.removed) : html`<span class="badge badge-outline">Binary or large</span>`} <span class="badge badge-outline badge-${tone}">${label}</span></span>
+    <span class="file-meta">${f.diff || f.content === 'not_stored' ? delta(f.added, f.removed) : html`<span class="badge badge-outline">Binary or large</span>`} <span class="badge badge-outline badge-${tone}">${label}</span></span>
   </summary>
-  ${f.diff ? (f.diff.hunks.length ? diffTable(f.diff) : html`<p class="file-note">No net change.</p>`) : html`<p class="file-note">Content not kept (binary or over 2 MB).</p>`}
+  ${f.diff ? (f.diff.hunks.length ? diffTable(f.diff) : html`<p class="file-note">No net change.</p>`) : f.content === 'not_stored' ? notStored(f, r, live) : html`<p class="file-note">Content not kept (binary or over 2 MB).</p>`}
 </details>`;
     })}
     </div>

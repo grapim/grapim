@@ -6,6 +6,12 @@
 // stores the cursor the hub answers with. The hub is the source of truth: if
 // it has less than we think (a new hub, another team), it says so with 409
 // and we resend from where it is. Sending the same rows twice is harmless.
+//
+// A team with "No code storage" on answers code_storage: 'metadata'. Then no
+// file contents are sent, only their hashes. The mode is kept with the cursor;
+// before the first sync to a hub it is learnt from an empty batch, so contents
+// never leave the machine for such a team. A hub that does not answer the
+// field keeps everything ('full').
 
 import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
@@ -113,7 +119,7 @@ function writeCursor(stateDir, key, cursor) {
 
 // Everything newer than `cursor`, within the batch limits. `more` says
 // whether another batch is waiting.
-export function buildBatch(store, cursor, { budget = BLOB_BUDGET } = {}) {
+export function buildBatch(store, cursor, { budget = BLOB_BUDGET, contents = true } = {}) {
   const db = store.db;
   const rows = db.prepare('SELECT * FROM changes WHERE id > ? ORDER BY id LIMIT ?').all(cursor.changes, MAX_CHANGES);
   const blobs = {};
@@ -122,7 +128,7 @@ export function buildBatch(store, cursor, { budget = BLOB_BUDGET } = {}) {
   let cut = false;
   for (const c of rows) {
     const add = {};
-    for (const sha of [c.before_sha, c.after_sha]) {
+    for (const sha of contents ? [c.before_sha, c.after_sha] : []) {
       if (!sha || sha === 'untracked' || blobs[sha] || add[sha]) continue;
       const buf = store.blob(sha);
       if (buf) add[sha] = buf.toString('base64');
@@ -308,11 +314,16 @@ export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = gl
   const due = withInventory ? dueInventory({ ws, store, state: saved?.inventory ?? {}, home }) : { inventory: null, state: saved?.inventory ?? {} };
   let inv = due.state;
   let pendingInventory = due.inventory;
+  // 'full' | 'metadata' | undefined (not known yet: ask with an empty batch first).
+  let mode = saved?.code_storage === 'metadata' || saved?.code_storage === 'full' ? saved.code_storage : undefined;
+  const save = () => writeCursor(ws.stateDir, key, { ...cursor, notes, code_storage: mode, inventory: inv });
   const total = { batches: 0, changes: 0, events: 0, agents: 0, runs: 0, blobs: 0, notes: 0, repo: repo.id };
   let resets = 0;
   for (let i = 0; i < maxBatches; i++) {
-    const b = buildBatch(store, cursor, { budget });
-    const n = ws.isGit ? buildNotes(ws, notes) : { provenance: [], state: notes, more: false };
+    const probe = mode === undefined;
+    const contents = mode === 'full';
+    const b = probe ? { changes: [], events: [], agents: [], runs: [], blobs: {}, more: true } : buildBatch(store, cursor, { budget, contents });
+    const n = probe || !ws.isGit ? { provenance: [], state: notes, more: false } : buildNotes(ws, notes);
     const { status, data } = await post(fetchImpl, origin, token, {
       repo,
       machine,
@@ -325,16 +336,31 @@ export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = gl
       provenance: n.provenance,
       ...(pendingInventory ? { inventory: pendingInventory } : {}),
     });
+    const answered = data?.code_storage === 'metadata' ? 'metadata' : 'full';
     if (status === 409 && data?.error?.code === 'cursor_mismatch' && data.cursor && resets++ < 2) {
       cursor = { changes: data.cursor.changes ?? 0, events: data.cursor.events ?? 0, agents: data.cursor.agents ?? 0 };
       notes = {}; // the hub lost data: send every note again too
-      writeCursor(ws.stateDir, key, { ...cursor, notes, inventory: inv });
+      if (data.code_storage) mode = answered;
+      save();
       continue;
     }
     if (status !== 200 || !data?.cursor) {
       const msg = data?.error?.message || `the hub answered ${status}`;
       throw new SyncError(status === 401 ? `The hub rejected the token: ${msg} Create a new one in the hub (Settings, Machine tokens) and put it in GRAPIM_HUB_TOKEN.` : `Sync failed: ${msg}`, status, data?.error?.code ?? null);
     }
+    if (probe) {
+      mode = answered;
+      save();
+      continue;
+    }
+    // The team turned "No code storage" off since the last sync: this batch
+    // went without contents, so send it again with them (rows already stored
+    // are left as they are; the contents are added).
+    if (!contents && answered === 'full' && b.changes.length) {
+      mode = 'full';
+      continue;
+    }
+    mode = answered;
     cursor = { changes: data.cursor.changes, events: data.cursor.events, agents: data.cursor.agents };
     notes = n.state;
     if (pendingInventory) {
@@ -342,7 +368,7 @@ export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = gl
       total.inventory = { agents: pendingInventory.agents.length, mcp: pendingInventory.mcp.length };
       pendingInventory = null;
     }
-    writeCursor(ws.stateDir, key, { ...cursor, notes, inventory: inv });
+    save();
     total.batches++;
     total.notes += n.provenance.length;
     total.changes += b.changes.length;
@@ -353,6 +379,7 @@ export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = gl
     if (!b.more && !n.more) break;
   }
   total.cursor = cursor;
+  total.code_storage = mode ?? 'full';
   return total;
 }
 

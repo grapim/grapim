@@ -578,7 +578,9 @@ export async function main(argv) {
     const syncStore = new Store(ws.stateDir);
     const say = (r) => {
       const n = r.changes + r.events + (r.notes ?? 0);
-      if (n || !flags.watch) console.log(`Synced ${r.changes} change${r.changes === 1 ? '' : 's'}, ${r.events} event${r.events === 1 ? '' : 's'}, ${r.blobs} file version${r.blobs === 1 ? '' : 's'} and ${r.notes ?? 0} provenance note${r.notes === 1 ? '' : 's'} to ${new URL(hubUrl).host}.`);
+      if (!n && flags.watch) return;
+      const what = r.code_storage === 'metadata' ? `${r.changes} change${r.changes === 1 ? '' : 's'} (no file contents: the team has No code storage on)` : `${r.changes} change${r.changes === 1 ? '' : 's'}`;
+      console.log(`Synced ${what}, ${r.events} event${r.events === 1 ? '' : 's'}, ${r.code_storage === 'metadata' ? '' : `${r.blobs} file version${r.blobs === 1 ? '' : 's'} `}and ${r.notes ?? 0} provenance note${r.notes === 1 ? '' : 's'} to ${new URL(hubUrl).host}.`);
     };
     if (!flags.watch) {
       try {

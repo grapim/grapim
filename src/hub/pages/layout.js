@@ -31,6 +31,7 @@ export const SETTINGS_SECTIONS = [
   { id: 'rules', label: 'Path rules' },
   { id: 'notifications', label: 'Notifications', owner: true },
   { id: 'storage', label: 'Storage', owner: true },
+  { id: 'code-storage', label: 'Code storage' },
   { id: 'platform', label: 'Platform', owner: true },
   { id: 'danger', label: 'Danger zone' },
 ];

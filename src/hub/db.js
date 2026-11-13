@@ -247,6 +247,9 @@ export function openDb(dataDir) {
   // repo ("owner/name") a hub repo is synced from, at most one per repo.
   db.exec(PROVENANCE_SCHEMA);
   addColumn('repos', 'github', 'TEXT');
+  // "No code storage" (src/hub/code-storage.js): 'metadata' keeps no file
+  // contents (h_blobs) for the team; 'full' is the default.
+  addColumn('teams', 'code_storage', "TEXT NOT NULL DEFAULT 'full'");
   db.exec('CREATE INDEX IF NOT EXISTS repos_github ON repos(team_id, github COLLATE NOCASE) WHERE github IS NOT NULL');
   return db;
 }
