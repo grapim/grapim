@@ -34,6 +34,7 @@ import { fileKey, resolveWorkspace } from './workspace.js';
 import { ago, othersText, who } from './format.js';
 import { beginEdit, beginEditFrom, failOpen, finishEdit } from './ledger.js';
 import { hasGitHooks } from './provenance/hooks.js';
+import { MODEL_RE, VERSION_RE } from './inventory.js';
 
 export const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const GEMINI_EDIT_TOOLS = new Set(['write_file', 'replace']);
@@ -89,6 +90,19 @@ function osPath(p) {
 // Each agent's payload in one shape: { ev, cwd, session, prompt, files, id,
 // edits }. files: the paths a tool call edits ([] for any other tool).
 function normalize(input, from, env) {
+  return { ...normalizeEvent(input, from, env), ...modelOf(input, from) };
+}
+
+// The model and agent version a payload names, when it does (Cursor sends
+// both; Claude Code and Codex send the model on some events). Kept for the
+// agent inventory only if they look like a model name or a version.
+function modelOf(input, from) {
+  const model = typeof input.model === 'string' && MODEL_RE.test(input.model) ? input.model : null;
+  const v = from === 'cursor' ? input.cursor_version : null;
+  return { model, version: typeof v === 'string' && VERSION_RE.test(v) ? v : null };
+}
+
+function normalizeEvent(input, from, env) {
   if (from === 'cursor') {
     const roots = Array.isArray(input.workspace_roots) ? input.workspace_roots : [];
     const cwd = input.cwd || (roots[0] ? osPath(roots[0]) : null) || env.CURSOR_PROJECT_DIR || process.cwd();
@@ -218,6 +232,10 @@ function handle(n, from, env, now) {
       if (ev === 'UserPromptSubmit' && intent !== null && !duplicate) store.setIntent(agent, intent, { label, worktree: ws.worktree });
       else store.touch(agent, { label, worktree: ws.worktree });
       if (ev === 'UserPromptSubmit' && !duplicate) failOpen('start a new turn', () => store.nextTurn(agent));
+      try {
+        if (n.model) store.noteSeen(from, 'model', n.model);
+        if (n.version) store.noteSeen(from, 'version', n.version);
+      } catch {} // the inventory is never worth a failed prompt
       const others = othersText(store, agent);
       const hint = ev === 'SessionStart' ? initHint(ws, env) : '';
       if (!others) return hint ? { code: 0, stdout: hint } : { code: 0 };

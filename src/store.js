@@ -83,6 +83,15 @@ CREATE TABLE IF NOT EXISTS changes (
 CREATE INDEX IF NOT EXISTS changes_file ON changes(root_key, path_key);
 CREATE INDEX IF NOT EXISTS changes_run ON changes(run);
 CREATE INDEX IF NOT EXISTS pending_run ON pending(run);
+-- What the hooks saw of each agent (source: claude, codex, cursor, gemini):
+-- kind 'model' or 'version', for the agent inventory (src/inventory.js).
+CREATE TABLE IF NOT EXISTS agent_seen (
+  source    TEXT NOT NULL,
+  kind      TEXT NOT NULL,
+  value     TEXT NOT NULL,
+  last_seen INTEGER NOT NULL,
+  PRIMARY KEY (source, kind, value)
+);
 `;
 
 export class Store {
@@ -113,6 +122,19 @@ export class Store {
 
   close() {
     this.db.close();
+  }
+
+  // A model or version an agent's hook payload named. Values are checked by
+  // the caller; one row per (source, kind, value), so this never grows much.
+  noteSeen(source, kind, value) {
+    this.db
+      .prepare('INSERT INTO agent_seen (source, kind, value, last_seen) VALUES (?, ?, ?, ?) ON CONFLICT(source, kind, value) DO UPDATE SET last_seen = excluded.last_seen')
+      .run(source, kind, value, this.now());
+  }
+
+  // Newest first, since `since` (epoch ms).
+  seen(since = 0) {
+    return this.db.prepare('SELECT source, kind, value, last_seen FROM agent_seen WHERE last_seen > ? ORDER BY last_seen DESC LIMIT 200').all(since);
   }
 
   tx(fn) {

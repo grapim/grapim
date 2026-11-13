@@ -14,6 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { NOTE_REF, parseNote, serializeNote } from './provenance/note.js';
 import { readBlobs } from './provenance/git.js';
+import { collectInventory, inventoryHash, SEEN_SINCE } from './inventory.js';
 
 export const CURSOR_FILE = 'hub-sync.json';
 const MAX_CHANGES = 500;
@@ -267,8 +268,33 @@ async function post(fetchImpl, origin, token, body) {
   return { status: res.status, data };
 }
 
+// The agent inventory (src/inventory.js), when one is due: looked at again
+// at most every 5 minutes, sent when it changed or an hour after it was last
+// sent (so the hub's "last seen" stays fresh). GRAPIM_NO_INVENTORY=1 or
+// inventory: false turns it off. -> { inventory: object | null, state }
+const INVENTORY_LOOK_MS = 5 * 60 * 1000;
+const INVENTORY_RESEND_MS = 60 * 60 * 1000;
+export function dueInventory({ ws, store, state = {}, home, env = process.env, now = Date.now() }) {
+  if (env.GRAPIM_NO_INVENTORY === '1') return { inventory: null, state };
+  if (state.sentAt && now - state.sentAt < INVENTORY_RESEND_MS && state.lookedAt && now - state.lookedAt < INVENTORY_LOOK_MS) return { inventory: null, state };
+  let inv;
+  try {
+    let seen = [];
+    try {
+      seen = store.seen(SEEN_SINCE());
+    } catch {}
+    inv = collectInventory({ root: ws.root, home, env, seen });
+  } catch {
+    return { inventory: null, state }; // never let discovery fail a sync
+  }
+  const hash = inventoryHash(inv);
+  const next = { ...state, lookedAt: now };
+  if (hash === state.hash && state.sentAt && now - state.sentAt < INVENTORY_RESEND_MS) return { inventory: null, state: next };
+  return { inventory: inv, state: next, hash };
+}
+
 // Pushes everything newer than the stored cursor. Returns totals.
-export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = globalThis.fetch, machine = machineName(), maxBatches = 200, budget } = {}) {
+export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = globalThis.fetch, machine = machineName(), maxBatches = 200, budget, inventory: withInventory = true, home = os.homedir() } = {}) {
   if (!token) throw new SyncError('No hub token. Pass --token or set GRAPIM_HUB_TOKEN.');
   const origin = hubOrigin(hubUrl);
   const repo = repoIdentity(ws);
@@ -278,6 +304,10 @@ export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = gl
   const saved = readCursors(ws.stateDir)[key];
   let cursor = { changes: saved?.changes ?? 0, events: saved?.events ?? 0, agents: saved?.agents ?? 0 };
   let notes = saved?.notes ?? {};
+  // The inventory rides on the first batch the hub accepts.
+  const due = withInventory ? dueInventory({ ws, store, state: saved?.inventory ?? {}, home }) : { inventory: null, state: saved?.inventory ?? {} };
+  let inv = due.state;
+  let pendingInventory = due.inventory;
   const total = { batches: 0, changes: 0, events: 0, agents: 0, runs: 0, blobs: 0, notes: 0, repo: repo.id };
   let resets = 0;
   for (let i = 0; i < maxBatches; i++) {
@@ -293,11 +323,12 @@ export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = gl
       events: b.events,
       blobs: b.blobs,
       provenance: n.provenance,
+      ...(pendingInventory ? { inventory: pendingInventory } : {}),
     });
     if (status === 409 && data?.error?.code === 'cursor_mismatch' && data.cursor && resets++ < 2) {
       cursor = { changes: data.cursor.changes ?? 0, events: data.cursor.events ?? 0, agents: data.cursor.agents ?? 0 };
       notes = {}; // the hub lost data: send every note again too
-      writeCursor(ws.stateDir, key, { ...cursor, notes });
+      writeCursor(ws.stateDir, key, { ...cursor, notes, inventory: inv });
       continue;
     }
     if (status !== 200 || !data?.cursor) {
@@ -306,7 +337,12 @@ export async function syncOnce({ ws, store, hubUrl, token, fetch: fetchImpl = gl
     }
     cursor = { changes: data.cursor.changes, events: data.cursor.events, agents: data.cursor.agents };
     notes = n.state;
-    writeCursor(ws.stateDir, key, { ...cursor, notes });
+    if (pendingInventory) {
+      inv = { ...inv, hash: due.hash, sentAt: Date.now() };
+      total.inventory = { agents: pendingInventory.agents.length, mcp: pendingInventory.mcp.length };
+      pendingInventory = null;
+    }
+    writeCursor(ws.stateDir, key, { ...cursor, notes, inventory: inv });
     total.batches++;
     total.notes += n.provenance.length;
     total.changes += b.changes.length;

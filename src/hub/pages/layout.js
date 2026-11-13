@@ -42,6 +42,7 @@ function sections(team, kind = team.kind) {
     { id: 'overview', label: 'Overview', href: base, icon: 'home', g: 'o' },
     { id: 'reviews', label: 'Reviews', href: `${base}/reviews`, icon: 'review', g: 'r' },
     { id: 'repos', label: 'Repos', href: `${base}/repos`, icon: 'repo', g: 'p' },
+    { id: 'agents', label: 'Agents', href: `${base}/agents`, icon: 'agents', g: 'i' },
     { id: 'reports', label: 'Reports', href: `${base}/reports`, icon: 'reports', g: 'a' },
     { id: 'workspaces', label: 'Workspaces', href: `${base}/workspaces`, icon: 'workspace', g: 'w' },
     { id: 'settings', label: 'Settings', href: `${base}/settings`, icon: 'settings', g: 's' },
