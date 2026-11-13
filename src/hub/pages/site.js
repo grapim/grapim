@@ -275,7 +275,7 @@ ${siteBar({ current: 'home' })}
       <source src="/hub/static/site/demo.mp4" type="video/mp4">
       <a href="/hub/static/site/demo.mp4">Watch the one-minute demo</a>
     </video>
-    <p class="vis-note">Narrated walkthrough with demo data, 65 seconds.</p>
+    <p class="vis-note">Narrated walkthrough with demo data, one minute.</p>
   </div>
 </section>
 
