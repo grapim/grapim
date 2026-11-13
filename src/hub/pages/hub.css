@@ -314,6 +314,21 @@ form { margin: 0; }
 .notice { padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border); margin-bottom: 16px; color: var(--text-2); }
 .notice-error { background: var(--danger-bg); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); color: var(--text); }
 
+/* The public demo (src/hub/demo.js): one quiet line above every page. */
+.demo-banner {
+  display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
+  padding: 7px 16px; font-size: var(--fs-13); line-height: 1.4; text-align: center;
+  background: var(--accent-bg); color: var(--text-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+.demo-banner-tag {
+  font-size: var(--fs-11); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--accent-text); padding: 1px 6px; border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+.demo-banner a { color: var(--accent-text); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+.demo-banner a:hover { color: var(--text); }
+
 .reveal { margin: 0 0 16px; padding: 12px; border-radius: var(--radius); border: 1px solid var(--warn-border); background: var(--warn-bg); }
 .reveal-title { font-weight: 600; margin-bottom: 8px; }
 .reveal-row { display: flex; gap: 8px; }

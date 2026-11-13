@@ -110,6 +110,8 @@ export function loadConfig(env = process.env) {
     admins: admins.length ? Object.freeze(admins) : null,
     teamStorageBytes: storageMb * 1024 * 1024,
     platformStorageBytes: platformMb * 1024 * 1024,
+    // The public read-only demo at /demo (src/hub/demo.js): off unless set.
+    demo: env.GRAPIM_DEMO === '1' || env.GRAPIM_DEMO === 'true',
   };
   // Secrets are non-enumerable, so logging or serialising the config by
   // mistake never prints them.

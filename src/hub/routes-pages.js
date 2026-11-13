@@ -185,12 +185,15 @@ export function pageRoutes(router, hub) {
 
   router.get('/hub', (ctx) => {
     if (!ctx.session) return html(ctx, signInPage({}));
+    // The demo's viewer has one team (src/hub/demo.js): straight to it.
+    if (ctx.session.demo) return redirect(ctx.res, `/hub/teams/${hub.demo.teamId}`);
     html(ctx, pickerPage({ user: ctx.session.user, csrf: ctx.session.csrf, teams: hub.overview.teamsOf(ctx.session.user.id), toast: doneText(ctx) }));
   });
 
   router.get('/hub/login', (ctx) => {
     const next = safeNext(ctx.url.searchParams.get('next'));
-    if (ctx.session) return redirect(ctx.res, next);
+    // A demo visitor signs in for real from here (the demo session ends at the callback).
+    if (ctx.session && !ctx.session.demo) return redirect(ctx.res, next);
     html(ctx, signInPage({ next }));
   });
 

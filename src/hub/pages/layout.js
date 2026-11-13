@@ -191,7 +191,13 @@ function askButton(shell) {
 
 function agentRoot(team, csrf, shell) {
   if (!shell.agent) return '';
-  return html`<aside class="agent-panel" id="agent" aria-label="Ask Grapim" tabindex="-1" hidden data-team="${team.id}" data-csrf="${csrf}" data-configured="${shell.agent.configured ? '1' : '0'}" data-role="${shell.role}"></aside>`;
+  return html`<aside class="agent-panel" id="agent" aria-label="Ask Grapim" tabindex="-1" hidden data-team="${team.id}" data-csrf="${csrf}" data-configured="${shell.agent.configured ? '1' : '0'}" data-role="${shell.role}"${shell.agent.demo ? html` data-demo="1"` : ''}></aside>`;
+}
+
+// The public demo (src/hub/demo.js): on every page of a demo session.
+function demoBanner(user) {
+  if (!user?.demo) return '';
+  return html`<div class="demo-banner" role="note"><span class="demo-banner-tag">Demo</span><span>You're viewing a demo team with sample data. <a href="/hub/login">Sign in with GitHub</a> to try Grapim on your repos.</span></div>`;
 }
 
 // What a form just did, after it redirected here (?done=…): a toast that
@@ -224,6 +230,7 @@ function shellPage({ title, user, team, csrf, crumbs, body, wide, shell, toast }
     </div>
   </aside>
   <div class="main">
+    ${demoBanner(user)}
     <header class="topbar">
       <a class="brand" href="/hub" aria-label="Grapim, all teams">${LOGO}</a>
       <span class="topbar-team">${team.name}</span>
@@ -263,6 +270,7 @@ export function layout({ title, user = null, team = null, csrf = null, crumbs = 
   return html`${head(title)}
 <body>
 <a class="skip" href="#main">Skip to content</a>
+${demoBanner(user)}
 <header class="top">
   <nav class="crumbs" aria-label="Breadcrumb">
     <a class="brand" href="${user ? '/hub' : '/'}">${LOGO}<span>Grapim</span></a>
@@ -298,6 +306,21 @@ export function errorPage({ status, message, user = null, csrf = null }) {
   <h1>${heading}</h1>
   <p class="lede">${bare ? fallback : message}</p>
   <p>${user ? html`<a class="btn" href="/hub">Back to your teams</a>` : html`<a class="btn" href="/">Go to the home page</a> <a class="btn btn-ghost" href="/docs">Read the docs</a>`}</p>
+</section>`,
+  });
+}
+
+// A write refused in a demo session (src/hub/demo.js): what to do instead.
+export function demoReadOnlyPage({ user = null, csrf = null, teamId }) {
+  return layout({
+    title: 'Read-only demo',
+    user,
+    csrf,
+    body: html`<section class="empty-page">
+  <p class="muted num">Demo</p>
+  <h1>This is a read-only demo</h1>
+  <p class="lede">Nothing here can be changed: the team, its runs and its people are sample data. Sign in with GitHub to use Grapim on your own repos.</p>
+  <p><a class="btn btn-primary" href="/hub/login">Sign in with GitHub</a> <a class="btn btn-ghost" href="/hub/teams/${teamId}">Back to the demo</a></p>
 </section>`,
   });
 }

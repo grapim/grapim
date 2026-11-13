@@ -1,7 +1,7 @@
 // The hub: one node:http server. createHub() wires the modules together and
 // runs every request through the same guards before its route:
 //
-//   security headers -> global rate limit -> route match -> session ->
+//   security headers -> global rate limit -> (demo session: read-only) -> route match -> session ->
 //   (bearer token) -> CSRF (Origin + per-session token) -> team membership
 //
 // A team route answers 404 to anyone who is not a member, exactly as for a
@@ -36,7 +36,8 @@ import { createOverview } from './overview.js';
 import { createWorkspaceStorage, defaultStorageUrl, loadStorage } from './workspace-storage.js';
 import { createTeamStorage } from './team-storage.js';
 import { Workspaces } from './workspaces.js';
-import { errorPage } from './pages/layout.js';
+import { demoReadOnlyPage, errorPage } from './pages/layout.js';
+import { createDemo } from './demo.js';
 import { apiRoutes } from './routes-api.js';
 import { createAgent } from './agent/index.js';
 import { supportRoutes } from './support.js';
@@ -133,9 +134,13 @@ export async function createHub(options = {}) {
   // Ask Grapim (docs/security-agent.md): off, and hidden from members, without ANTHROPIC_API_KEY.
   hub.agent = createAgent(hub, { env, ...(options.agent ?? {}) });
 
+  // The public read-only demo at /demo (src/hub/demo.js, GRAPIM_DEMO=1).
+  hub.demo = createDemo(hub, { enabled: config.demo });
+
   const router = new Router();
   // The landing page and docs first: their / answers signed-out visitors (signed in: /hub).
   siteRoutes(router, hub);
+  hub.demo.routes(router);
   pageRoutes(router, hub);
   apiRoutes(router, hub);
   reportRoutes(router, hub);
@@ -173,12 +178,16 @@ export async function createHub(options = {}) {
     const headers = status === 429 && err.extra?.retryAfter ? { 'Retry-After': String(err.extra.retryAfter) } : {};
     if (status === 405 && err.extra?.allow) headers.Allow = err.extra.allow;
     if (ctx.json) sendJson(res, status, { error: { code, message, ...(ctx.requestId ? { request_id: ctx.requestId } : {}) }, ...(err.extra?.body ?? {}) }, headers);
+    else if (code === 'demo_read_only') sendHtml(res, status, demoReadOnlyPage({ user: ctx.session?.user, csrf: ctx.session?.csrf, teamId: hub.demo.teamId }), headers);
     else sendHtml(res, status, errorPage({ status, message, user: ctx.session?.user, csrf: ctx.session?.csrf }), headers);
   }
 
+  // Per-person buckets: the demo's visitors share one viewer (src/hub/demo.js),
+  // so theirs are counted per address instead.
+  const PER_PERSON = new Set(['form', 'read', 'workspace']);
   function limit(ctx, bucket, key) {
     const [n, windowMs] = LIMITS[bucket];
-    const k = `${bucket}:${key}`;
+    const k = `${bucket}:${ctx.session?.demo && PER_PERSON.has(bucket) ? `demo:${ctx.ip}` : key}`;
     if (!hub.rate.hit(k, n, windowMs)) {
       throw new HttpError(429, 'rate_limited', 'Too many requests. Wait a minute and try again.', { retryAfter: hub.rate.retryAfter(k) });
     }
@@ -233,6 +242,18 @@ export async function createHub(options = {}) {
       const wsAuth = String(req.headers.authorization || '');
       const agentCall = req.url.startsWith('/w/') && (/^Bearer\s+gws_/i.test(wsAuth) || (/^Basic\s/i.test(wsAuth) && /^\/w\/[^/?]+\/[^/?]+\/dav(?:[/?]|$)/.test(req.url)));
       limit(ctx, v1 || agentCall ? 'platformIp' : 'global', ctx.ip);
+
+      // The public demo (src/hub/demo.js): a demo session is read-only. Checked
+      // here, before the workspace mount, the platform API and every route, so
+      // no write path can be missed. Signing out is the one write it may make.
+      if (hub.demo.enabled && req.headers.cookie) {
+        const s = hub.auth.load(parseCookies(req.headers.cookie));
+        if (s?.demo) {
+          ctx.session = s;
+          if (req.url.startsWith('/w/')) ctx.json = true;
+          hub.demo.guard(ctx, pathname);
+        }
+      }
 
       // A cloud workspace: decided on the raw target, never on a normalised
       // one, so "/w/a/b/fs/../x" reaches the engine's path check as written.
@@ -292,6 +313,8 @@ export async function createHub(options = {}) {
 
       ctx.cookies = parseCookies(req.headers.cookie);
       ctx.session = hub.auth.load(ctx.cookies);
+      // The landing page, pricing and docs see a demo visitor as signed out.
+      if (ctx.session?.demo && !(pathname === '/demo' || pathname === '/hub' || pathname.startsWith('/hub/'))) ctx.session = null;
 
       // Machine tokens may read a team's repos through the API, nothing else.
       const bearer = /^Bearer\s+(\S+)$/i.exec(String(req.headers.authorization || ''))?.[1];
@@ -390,10 +413,12 @@ export async function createHub(options = {}) {
       hub.notify.close();
       hub.teamStorage.close();
       const connectorsDone = hub.connectors.close();
+      const demoDone = hub.demo.close();
       bus.emit('close');
       server.closeAllConnections?.();
       server.close(async () => {
         try {
+          await demoDone; // a demo seeding in flight finishes before the database closes
           await hub.restored;
           await connectorsDone; // pulls in flight finish before their engines close
           await hub.mount.closeAll();
@@ -405,5 +430,7 @@ export async function createHub(options = {}) {
         resolve();
       });
     }));
+  // The demo team, seeded before the hub takes requests (and daily after).
+  await hub.demo.start();
   return hub;
 }

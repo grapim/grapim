@@ -32,6 +32,9 @@ export class Auth {
     this.config = config;
     this.fetch = fetch;
     this.now = now;
+    // The public demo (src/hub/demo.js): sessions of its synthetic users
+    // (negative ids) load only while it is on.
+    this.demo = !!config.demo;
   }
 
   get callbackUrl() {
@@ -40,21 +43,25 @@ export class Auth {
 
   // ---- Sessions ----
 
-  createSession(userId) {
+  // ttlMs: a shorter life than the usual 30 days (a demo session).
+  createSession(userId, { ttlMs = SESSION_MS } = {}) {
     const id = randomToken(32);
     const csrf = randomToken(32);
     const t = this.now();
+    const ttl = Math.min(SESSION_MS, Math.max(60_000, ttlMs));
     this.db
       .prepare('INSERT INTO sessions (id_hash, user_id, csrf, created_at, expires_at) VALUES (?, ?, ?, ?, ?)')
-      .run(sha256(id), userId, csrf, t, t + SESSION_MS);
-    return { cookie: this.sessionCookie(sign(this.config.secret, 'session', id)), csrf };
+      .run(sha256(id), userId, csrf, t, t + ttl);
+    return { cookie: this.sessionCookie(sign(this.config.secret, 'session', id), Math.floor(ttl / 1000)), csrf };
   }
 
   sessionCookie(value, maxAge = Math.floor(SESSION_MS / 1000)) {
     return cookie(sessionCookieName(this.config), value, { maxAge, secure: this.config.secure });
   }
 
-  // { user, csrf, idHash } for a valid, unexpired session cookie, else null.
+  // { user, csrf, idHash, demo } for a valid, unexpired session cookie, else
+  // null. demo: the public demo's read-only viewer (src/hub/demo.js); user.demo
+  // says the same to the pages (not enumerable, so no JSON answer carries it).
   load(cookies) {
     const raw = cookies[sessionCookieName(this.config)];
     if (!raw) return null;
@@ -67,11 +74,11 @@ export class Auth {
       )
       .get(sha256(id));
     if (!row || row.expires_at <= this.now()) return null;
-    return {
-      idHash: row.id_hash,
-      csrf: row.csrf,
-      user: { id: row.id, login: row.login, name: row.name, avatar_url: row.avatar_url },
-    };
+    const demo = row.id < 0;
+    if (demo && !this.demo) return null;
+    const user = { id: row.id, login: row.login, name: row.name, avatar_url: row.avatar_url };
+    Object.defineProperty(user, 'demo', { value: demo, enumerable: false });
+    return { idHash: row.id_hash, csrf: row.csrf, user, demo };
   }
 
   destroy(session) {

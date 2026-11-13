@@ -183,7 +183,8 @@ export function createOverview(hub) {
       teams: teamsOf(user.id),
       reviews: waiting.length,
       // Ask Grapim's entry points: null hides them (a member, before it is set up).
-      agent: hub.agent?.shellInfo(role) ?? null,
+      // In the public demo it is shown with a note instead (no model calls; src/hub/demo.js).
+      agent: user.demo ? { configured: false, demo: true } : (hub.agent?.shellInfo(role) ?? null),
       // The settings pages this person can open (src/hub/routes-pages.js), for the palette.
       settings: hub.settingsPages?.(team, role) ?? null,
       palette: {

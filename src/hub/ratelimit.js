@@ -63,4 +63,5 @@ export const LIMITS = {
   webhook: [300, 60_000],
   platformIp: [6000, 60_000], // /v1 per address, instead of `global`; each platform key has its own token bucket (src/hub/platform/)
   embed: [120, 60_000], // embed session links redeemed, per address
+  demo: [10, 60_000], // demo sessions started at /demo, per address (src/hub/demo.js)
 };

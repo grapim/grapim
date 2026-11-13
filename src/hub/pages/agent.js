@@ -700,6 +700,14 @@
     }
 
     function emptyState() {
+      // The public demo: no model behind it, a note on what it does instead.
+      if (panel.dataset.demo === '1') {
+        return el('div', { class: 'agent-empty agent-off' },
+          el('span', { class: 'agent-empty-mark', 'aria-hidden': 'true' }, svg('spark')),
+          el('h3', { text: 'Ask Grapim is off in the demo' }),
+          el('p', { text: 'In your own team it answers questions about runs, reviews and workspaces, starting from the page you are on, and prepares approvals, undos and tokens for you to confirm.' }),
+          el('p', { class: 'agent-fine' }, el('a', { href: '/hub/login', text: 'Sign in with GitHub' }), ' to try it on your repos.'));
+      }
       if (!configured) {
         const owner = panel.dataset.role === 'owner';
         return el('div', { class: 'agent-empty agent-off' },
