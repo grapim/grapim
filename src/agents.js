@@ -9,11 +9,12 @@
 //   Codex CLI    .codex/hooks.json            the same events (no PostToolUseFailure);
 //                edits arrive as apply_patch, shell commands as Bash.
 //                Codex runs project hooks only once the user trusts them (/hooks).
-//   Cursor       .cursor/hooks.json           beforeSubmitPrompt, afterFileEdit, sessionEnd
+//   Cursor       .cursor/hooks.json           beforeSubmitPrompt, afterFileEdit, afterShellExecution, sessionEnd
 //   Gemini CLI   .gemini/settings.json        SessionStart, BeforeAgent,
 //                BeforeTool + AfterTool (write_file|replace|run_shell_command), SessionEnd
 //   Shell commands (Bash, run_shell_command) are recorded by comparing the
-//   worktree before and after them (src/shell.js). Cursor's are not.
+//   worktree before and after them (src/shell.js). Cursor's are compared from
+//   the prompt or the previous command to afterShellExecution.
 //
 // Existing config is merged, never replaced: other hooks and settings stay,
 // and our own entries are found by their command and rewritten in place, so a
@@ -142,7 +143,7 @@ const SETUPS = {
     apply(data, bin) {
       if (!Number.isInteger(data.version)) data.version = 1;
       data.hooks = data.hooks && typeof data.hooks === 'object' ? data.hooks : {};
-      mergeFlat(data.hooks, ['beforeSubmitPrompt', 'afterFileEdit', 'sessionEnd'], { command: hookCommand(bin, 'cursor'), timeout: 20 });
+      mergeFlat(data.hooks, ['beforeSubmitPrompt', 'afterFileEdit', 'afterShellExecution', 'sessionEnd'], { command: hookCommand(bin, 'cursor'), timeout: 20 });
     },
   },
   gemini: {

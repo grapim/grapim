@@ -107,7 +107,7 @@ test('init sets up each agent the way it reads hooks, keeps what was there, and 
   const cursor = readJson(dir, '.cursor/hooks.json');
   assert.equal(cursor.version, 1);
   assert.deepEqual(cursor.hooks.afterFileEdit, [mine, { command: 'node "/opt/grapim/bin/grapim.js" hook --from cursor', timeout: 20 }]);
-  assert.deepEqual(Object.keys(cursor.hooks).sort(), ['afterFileEdit', 'beforeSubmitPrompt', 'sessionEnd']);
+  assert.deepEqual(Object.keys(cursor.hooks).sort(), ['afterFileEdit', 'afterShellExecution', 'beforeSubmitPrompt', 'sessionEnd']);
 
   const gemini = readJson(dir, '.gemini/settings.json');
   assert.equal(gemini.theme, 'Dracula');

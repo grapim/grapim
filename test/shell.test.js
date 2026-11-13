@@ -259,6 +259,36 @@ test('Codex Bash and Gemini run_shell_command (with dir_path) are recorded too',
   hook({ ...gm, hook_event_name: 'AfterTool' }, { from: 'gemini' });
   assert.deepEqual(changes(dir).map((x) => [x.path, x.run.split(':')[0]]), [['a.txt', 'codex'], ['sub/b.txt', 'gemini']]);
 });
+
+test('Cursor: shell commands are compared from the prompt or the previous command to afterShellExecution, and undo reverses them', () => {
+  const dir = repo({ 'src/a.js': 'one\n', 'src/gone.js': 'bye\n' });
+  const base = { conversation_id: 'eeee5555', workspace_roots: [dir] };
+  const cur = (input) => hook({ ...base, ...input }, { from: 'cursor' });
+  assert.equal(cur({ hook_event_name: 'beforeSubmitPrompt', prompt: 'clean up' }).stdout, '{"continue":true}\n');
+  fs.rmSync(path.join(dir, 'src/gone.js'));
+  assert.equal(cur({ hook_event_name: 'afterShellExecution', command: 'rm src/gone.js', output: '', duration: 5 }).code, 0);
+  // Cursor's edit tool, then a second command that rewrites the same file.
+  write(dir, 'src/a.js', 'one\ntwo\n');
+  cur({ hook_event_name: 'afterFileEdit', file_path: path.join(dir, 'src/a.js'), edits: [{ old_string: 'one\n', new_string: 'one\ntwo\n' }] });
+  write(dir, 'src/a.js', 'ONE\ntwo\n');
+  write(dir, 'src/new.js', 'gen\n');
+  cur({ hook_event_name: 'afterShellExecution', command: 'node fix.js', output: '', duration: 9 });
+
+  const c = changes(dir);
+  assert.deepEqual(c.map((x) => [x.path, x.via ?? null]), [['src/gone.js', 'rm src/gone.js'], ['src/a.js', null], ['src/a.js', 'node fix.js'], ['src/new.js', 'node fix.js']]);
+  assert.ok(c.every((x) => x.run.startsWith('cursor:') && x.turn === 1));
+  assert.equal(c[2].added, 1, "the second command starts from the edit tool's change");
+  assert.equal(c[2].removed, 1);
+
+  const done = cli(dir, 'undo', 'eeee5555', '--yes');
+  assert.equal(done.status, 0, done.stderr);
+  assert.equal(execFileSync('git', ['status', '--porcelain'], { cwd: dir, encoding: 'utf8' }), '', 'back to HEAD exactly');
+
+  setupAgent('cursor', dir, { bin: '/opt/grapim/bin/grapim.js' });
+  const hooks = JSON.parse(fs.readFileSync(path.join(dir, '.cursor/hooks.json'), 'utf8')).hooks;
+  assert.ok(hooks.afterShellExecution?.length, 'init hooks afterShellExecution');
+  assert.equal(hooks.beforeShellExecution, undefined, "never beforeShellExecution: its answer would stand in for Cursor's approval");
+});
 
 test('a command that does not change anything records nothing, and a git commit is not a change', () => {
   const dir = repo({ 'a.txt': 'a\n' });

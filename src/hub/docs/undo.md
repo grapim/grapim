@@ -41,7 +41,7 @@ To undo a single prompt of a run, add `--turn 2`.
 
 ## What it cannot undo
 
-- Shell-command changes Grapim did not record: files outside the repo or ignored by git (build output, `node_modules`, installed packages), Cursor's shell commands, a command run while more than 2,000 files (or 50 MB) were uncommitted, changes a background process makes after its command returned, and a file two agents' commands could both have changed at the same time.
+- Shell-command changes Grapim did not record: files outside the repo or ignored by git (build output, `node_modules`, installed packages), a command run while more than 2,000 files (or 50 MB) were uncommitted, changes a background process makes after its command returned, and a file two agents' commands could both have changed at the same time.
 - Anything outside the files: databases, network calls, commits, branches, the git index.
 - Binary files and files over 2 MB, whose content is not stored.
 - Anything already pushed. Undo changes your working tree; commit and push the result like any other change.

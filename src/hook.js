@@ -29,9 +29,8 @@
 //                comes after the edit with the edits made: the file as it was
 //                before is worked out by undoing them (reverseEdits). Cursor
 //                is not blocked from here; a clash is reported, not stopped.
-//                Its shell commands are not recorded: beforeShellExecution
-//                must answer a permission, and an answer could bypass
-//                Cursor's own approval of the command.
+//                Its shell commands are compared from the prompt (or the
+//                previous command) to afterShellExecution: see cursorShell.
 //
 // Ledger failures are written to stderr and never block the edit.
 
@@ -39,12 +38,12 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DEFAULT_TTL_MS, Store } from './store.js';
-import { fileKey, resolveWorkspace } from './workspace.js';
+import { fileKey, resolveWorkspace, rootKey } from './workspace.js';
 import { ago, othersText, who } from './format.js';
 import { beginEdit, beginEditFrom, failOpen, finishEdit } from './ledger.js';
 import { hasGitHooks } from './provenance/hooks.js';
 import { MODEL_RE, VERSION_RE } from './inventory.js';
-import { beginShell, finishShell } from './shell.js';
+import { beginShell, commandText, finishShell } from './shell.js';
 
 export const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const GEMINI_EDIT_TOOLS = new Set(['write_file', 'replace']);
@@ -123,9 +122,10 @@ function normalizeEvent(input, from, env) {
   if (from === 'cursor') {
     const roots = Array.isArray(input.workspace_roots) ? input.workspace_roots : [];
     const cwd = input.cwd || (roots[0] ? osPath(roots[0]) : null) || env.CURSOR_PROJECT_DIR || process.cwd();
-    const ev = { beforeSubmitPrompt: 'UserPromptSubmit', afterFileEdit: 'FileEdited', sessionEnd: 'SessionEnd' }[input.hook_event_name] ?? null;
+    const ev = { beforeSubmitPrompt: 'UserPromptSubmit', afterFileEdit: 'FileEdited', afterShellExecution: 'ShellDone', sessionEnd: 'SessionEnd' }[input.hook_event_name] ?? null;
     const files = input.file_path ? [osPath(input.file_path)] : [];
-    return { ev, cwd, session: input.conversation_id || input.session_id, prompt: input.prompt, files, id: null, edits: input.edits };
+    const shell = ev === 'ShellDone' ? { command: input.command ?? '', dir: cwd } : null;
+    return { ev, cwd, session: input.conversation_id || input.session_id, prompt: input.prompt, files, id: null, edits: input.edits, shell };
   }
   const base = { cwd: input.cwd || process.cwd(), session: input.session_id, prompt: input.prompt, id: input.tool_use_id ?? null };
   const filePath = input.tool_input?.file_path || input.tool_input?.notebook_path;
@@ -253,6 +253,8 @@ function handle(n, from, env, now) {
       if (ev === 'UserPromptSubmit' && intent !== null && !duplicate) store.setIntent(agent, intent, { label, worktree: ws.worktree });
       else store.touch(agent, { label, worktree: ws.worktree });
       if (ev === 'UserPromptSubmit' && !duplicate) failOpen('start a new turn', () => store.nextTurn(agent));
+      // Cursor: open the shell window its next command closes (cursorShell).
+      if (from === 'cursor' && ev === 'UserPromptSubmit' && ws.isGit) failOpen('snapshot the worktree for shell commands', () => openCursorWindow(store, agent, label, ws, now, env));
       try {
         if (n.model) store.noteSeen(from, 'model', n.model);
         if (n.version) store.noteSeen(from, 'version', n.version);
@@ -268,6 +270,7 @@ function handle(n, from, env, now) {
   }
 
   if (n.shell && (ev === 'PreToolUse' || ev === 'PostToolUse' || ev === 'PostToolUseFailure')) return shellHook(n, ev, agent, label, now, env);
+  if (ev === 'ShellDone' && n.shell) return cursorShell(n, agent, label, now, env);
 
   if (ev === 'PreToolUse' || ev === 'PostToolUse') {
     const targets = n.files.map((p) => target(cwd, p)).filter(Boolean);
@@ -341,6 +344,38 @@ function handle(n, from, env, now) {
   }
 
   return { code: 0 };
+}
+
+// Cursor has no hook before a shell command that can stay silent
+// (beforeShellExecution must answer allow, deny or ask, and "allow" would skip
+// Cursor's own approval). So the window a command is compared against is
+// opened earlier: at the prompt, and again after each command. The command
+// itself is told by afterShellExecution, which only reports. Files a person
+// changes in that time are credited to the run too; edits Cursor's own edit
+// tool made in it are recorded already and not counted again.
+function openCursorWindow(store, agent, label, ws, now, env) {
+  store.dropShell(agent);
+  return beginShell(store, { id: `shell:${agent}:${now()}`, run: agent, label, ws, command: '', env });
+}
+
+function cursorShell(n, agent, label, now, env) {
+  const ws = resolveWorkspace(n.shell.dir);
+  if (!ws.isGit) return { code: 0 };
+  return withStore(ws, now, (store) => {
+    const notes = [];
+    const w = store.shellWindow(null, agent, rootKey(ws.root));
+    if (w) {
+      failOpen('name the shell command', () => store.db.prepare('UPDATE shell_windows SET command = ? WHERE id = ?').run(commandText(n.shell.command), w.id));
+      const r = failOpen('record the shell command', () => finishShell(store, { id: null, run: agent, ws }));
+      if (r) {
+        for (const c of r.changes) store.recordEdit(agent, c.path, `${c.detail} via shell: ${r.via}`);
+        if (r.note) notes.push(r.note);
+      }
+    }
+    const o = failOpen('snapshot the worktree for the next shell command', () => openCursorWindow(store, agent, label, ws, now, env));
+    if (o?.note) notes.push(o.note);
+    return notes.length ? { code: 0, stderr: notes.join('') } : { code: 0 };
+  });
 }
 
 // A shell command (src/shell.js). Never blocks: whatever fails, the command
