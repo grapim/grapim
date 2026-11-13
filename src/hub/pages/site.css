@@ -758,3 +758,9 @@ section { scroll-margin-top: var(--bar-h); }
 .foot-social { margin: 10px 0 0; display: flex; gap: 14px; font-size: 14px; }
 .foot-social a { color: var(--text-2); text-decoration: none; }
 .foot-social a:hover { color: var(--text); text-decoration: underline; }
+
+/* Brand marks (Simple Icons, CC0): one colour, the text's own, so the row stays calm. */
+.brand-mark { width: 18px; height: 18px; flex: none; }
+.works > span:not(.works-label) { display: inline-flex; align-items: center; gap: 7px; }
+.works .brand-mark { color: var(--text-2); }
+.fc-list .brand-mark { width: 16px; height: 16px; color: var(--text-2); }
