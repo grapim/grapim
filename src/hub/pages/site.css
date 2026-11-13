@@ -448,27 +448,10 @@ section { scroll-margin-top: var(--bar-h); }
    (terminals, the pull request) play once when they scroll into view. Scenes
    only hide their steps when site.js has marked the page (html.motion), so
    without JS or with reduced motion everything is simply shown. */
-.hero { position: relative; isolation: isolate; overflow-x: clip; }
-.hero::before {
-  content: ""; position: absolute; inset: 0 0 38% 0; z-index: -1; pointer-events: none;
-  background-image: radial-gradient(circle, var(--grid-dot) 1px, transparent 1.6px);
-  background-size: 22px 22px;
-  -webkit-mask-image: radial-gradient(ellipse 70% 80% at 75% 35%, #000 0%, transparent 72%);
-  mask-image: radial-gradient(ellipse 70% 80% at 75% 35%, #000 0%, transparent 72%);
-}
-:root { --grid-dot: rgb(16 16 32 / 0.16); }
-:root[data-theme="dark"] { --grid-dot: rgb(255 255 255 / 0.13); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --grid-dot: rgb(255 255 255 / 0.13); } }
 .t-line { display: inline-block; }
 .t-hl { color: #b8bcff; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .hero::before { animation: grid-drift 40s linear infinite; }
-  .hero-text > * { animation: rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-  .hero-text > :nth-child(2) { animation-delay: 0.08s; }
-  .hero-text > :nth-child(3) { animation-delay: 0.16s; }
-  .hero-text > :nth-child(4) { animation-delay: 0.24s; }
-  .frame-hero { animation: rise-far 1s 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 
   /* Terminals: each line appears in turn, commands type out. */
   .motion .term[data-play] .t-line { opacity: 0; }
@@ -501,71 +484,6 @@ section { scroll-margin-top: var(--bar-h); }
 @keyframes type-in { from { opacity: 1; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
 @keyframes flash { 0%, 100% { background: transparent; } 30% { background: rgb(138 144 247 / 0.22); } }
 @keyframes nudge { 0%, 100% { transform: none; } 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-1px); } }
-@keyframes grid-drift { to { background-position: 22px 44px; } }
-
-/* ---- Hero figure: runs as isometric plates; one is undone ---- */
-.hero-text { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 40px; align-items: start; }
-.hero-text > h1 { grid-column: 1 / -1; }
-.hero-text > :not(h1):not(.iso):not(.s3) { grid-column: 1; }
-.iso { grid-column: 2; grid-row: 2 / span 3; margin: -56px 0 0; width: 470px; max-width: 100%; }
-.iso svg { display: block; width: 100%; height: auto; overflow: visible; }
-.iso-top { fill: var(--page); stroke: var(--iso-line); stroke-width: 1; }
-.iso-side { fill: var(--surface-2); stroke: var(--iso-line); stroke-width: 1; }
-.iso-side-r { fill: var(--stage); }
-.iso-lead, .iso-base { stroke: var(--iso-line); stroke-width: 1; fill: none; }
-.iso-base { stroke-dasharray: 2 4; }
-.iso-label { font: 500 11px/1 var(--mono); fill: var(--text-2); }
-.iso-note { font: 400 10.5px/1 var(--mono); fill: var(--text-3); }
-.iso-ok { fill: var(--ok-text); }
-.iso-out .iso-top { fill: var(--iso-lit); stroke: var(--accent); }
-.iso-out .iso-side { stroke: var(--accent); }
-.iso-out .iso-label { fill: var(--accent-text); }
-.iso-cap { padding-left: 9.8%; margin-top: 6px; font: 400 11px/1.4 var(--mono); color: var(--text-3); letter-spacing: 0.02em; }
-:root { --iso-line: rgb(16 16 32 / 0.28); --iso-lit: rgb(64 72 200 / 0.10); }
-:root[data-theme="dark"] { --iso-line: rgb(255 255 255 / 0.24); --iso-lit: rgb(138 144 247 / 0.16); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --iso-line: rgb(255 255 255 / 0.24); --iso-lit: rgb(138 144 247 / 0.16); } }
-@media (max-width: 1100px) { .iso { width: 380px; } }
-@media (max-width: 900px) { .hero-text { display: block; } .iso { display: none; } }
-@media (prefers-reduced-motion: no-preference) {
-  .iso { animation: rise 1s 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-  .iso-out { animation: iso-out 10s 1.4s ease-in-out infinite both; }
-  .iso-out .iso-top { animation: iso-lit 10s 1.4s ease-in-out infinite both; }
-  .iso-out .iso-side { animation: iso-lit-side 10s 1.4s ease-in-out infinite both; }
-  .iso-out .iso-label { animation: iso-lit-text 10s 1.4s ease-in-out infinite both; }
-  .iso-above { animation: iso-settle 10s 1.4s ease-in-out infinite both; }
-  .iso-done { animation: iso-done 10s 1.4s ease-in-out infinite both; }
-}
-@keyframes iso-out {
-  0%, 24% { transform: none; opacity: 1; }
-  40%, 86% { transform: translate(150px, 75px); opacity: 0; }
-  87% { transform: none; opacity: 0; }
-  96%, 100% { transform: none; opacity: 1; }
-}
-@keyframes iso-lit {
-  0%, 8% { fill: var(--page); stroke: var(--iso-line); }
-  16%, 90% { fill: var(--iso-lit); stroke: var(--accent); }
-  98%, 100% { fill: var(--page); stroke: var(--iso-line); }
-}
-@keyframes iso-lit-side {
-  0%, 8% { stroke: var(--iso-line); }
-  16%, 90% { stroke: var(--accent); }
-  98%, 100% { stroke: var(--iso-line); }
-}
-@keyframes iso-lit-text {
-  0%, 8% { fill: var(--text-2); }
-  16%, 90% { fill: var(--accent-text); }
-  98%, 100% { fill: var(--text-2); }
-}
-@keyframes iso-settle {
-  0%, 42% { transform: none; }
-  54%, 88% { transform: translateY(30px); }
-  96%, 100% { transform: none; }
-}
-@keyframes iso-done {
-  0%, 52% { opacity: 0; }
-  58%, 84% { opacity: 1; }
-  90%, 100% { opacity: 0; }
-}
 
 /* ---- The one-minute film ---- */
 .film { padding: clamp(56px, 8vw, 96px) 0 0; background: var(--stage); }
@@ -586,81 +504,209 @@ section { scroll-margin-top: var(--bar-h); }
 .log-more ul { margin: 12px 0 0; padding-left: 18px; color: var(--text-2); display: grid; gap: 6px; }
 @media (max-width: 760px) { .log-day { grid-template-columns: minmax(0, 1fr); gap: 16px; } .log-date { position: static; } }
 
-/* ---- Small figures (security notes): the hero figure's world ---- */
-.mini { margin: 0 0 22px; padding: 18px 16px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--stage); }
-.mini svg { display: block; width: 100%; height: auto; overflow: visible; }
-.mini .iso-cap { padding-left: 0; margin-top: 10px; }
-.mini-code path { stroke: var(--accent); stroke-width: 1.4; stroke-linecap: round; opacity: 0.55; }
-.mini-wires path { fill: none; stroke: var(--iso-line); stroke-width: 1.2; }
-.mini-wires .mini-new { stroke: var(--accent); stroke-dasharray: 3 4; }
-.mini-new-t { fill: var(--accent-text); }
-.mini-x { stroke: var(--danger); stroke-width: 1.6; stroke-linecap: round; fill: none; }
-.iso-trail { stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 3 5; fill: none; }
-@media (prefers-reduced-motion: no-preference) {
-  .motion .mini-wires .mini-new { animation: wire-flow 1.6s linear infinite; }
-  .iso-trail { animation: wire-flow 1.6s linear infinite; }
-}
-@keyframes wire-flow { to { stroke-dashoffset: -16; } }
 
-/* ---- Hero figure in 3D (CSS only): solid plates that turn toward the
-   pointer. Wide screens with motion allowed; the line figure otherwise. ---- */
-.s3 { display: none; }
-@media (prefers-reduced-motion: no-preference) and (min-width: 901px) {
-  .iso { display: none; }
-  .s3 { display: block; grid-column: 2; grid-row: 2 / span 3; margin: -70px 0 0; width: 470px; position: relative; animation: rise 1s 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+/* ---- The public site's own world: an incident ledger ----
+   Paper and ink, set in Source Serif 4 (headlines) and Public Sans (text),
+   with one signal colour that means "a person has to look" and a green that
+   means "back to how it was". Monospace is only for times, commands and
+   paths. Applies to every public page (body.site); the hub keeps its own
+   tokens. Fonts: SIL OFL, served from /hub/static/fonts. */
+@font-face { font-family: "Source Serif 4"; font-style: normal; font-display: swap; font-weight: 200 900;
+  src: url("fonts/source-serif-4-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Public Sans"; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url("fonts/public-sans-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+body.site {
+  --font: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --serif: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --font-features: normal;
+  --page: #faf8f3;
+  --stage: #f2efe7;
+  --surface: #fffefb;
+  --surface-2: #ece8de;
+  --text: #1c1b18;
+  --text-2: #4a463e;
+  --text-3: #6b665c;
+  --border: #dfd9cc;
+  --border-strong: #c7c0b0;
+  --signal: #b3410e;
+  --signal-bg: #fae6d8;
+  --ok-text: #2c6a39;
+  --ok-bg: #e2eedf;
+  --accent: #1c1b18;
+  --accent-text: #1c1b18;
+  --accent-bg: #e9e2cf;
+  --on-accent: #faf8f3;
+  --focus: #b3410e;
+  --danger: #b3410e;
+  --term-bg: #1c1b18;
+  --term-text: #ece8df;
+  --term-dim: #a39d90;
+  --term-line: #34322c;
+  --bar-paper: #fffefb;
+  --bar-band: #edf2e6;
+  --bar-hole: #e4dfd3;
+  font-size: 17px;
+  letter-spacing: 0;
 }
-.s3 { --pw: 176px; --t: 12px; --gap: 38px; }
-.s3-view { height: 360px; perspective: 1600px; perspective-origin: 50% 30%; display: grid; place-items: center; }
-.s3-rig {
-  position: relative; width: var(--pw); height: var(--pw); transform-style: preserve-3d;
-  transform: translateX(-56px) translateY(40px) rotateX(calc(58deg + var(--my, 0) * 7deg)) rotateZ(calc(-45deg + var(--mx, 0) * 10deg));
-  transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+:root[data-theme="dark"] body.site {
+  --page: #15140f;
+  --stage: #1b1a15;
+  --surface: #1f1e19;
+  --surface-2: #282620;
+  --text: #ede9df;
+  --text-2: #bdb7aa;
+  --text-3: #9a9486;
+  --border: #2e2b24;
+  --border-strong: #423e35;
+  --signal: #f08d55;
+  --signal-bg: #3a2216;
+  --ok-text: #86c995;
+  --ok-bg: #1c2c1e;
+  --accent: #ede9df;
+  --accent-text: #ede9df;
+  --accent-bg: #3a3527;
+  --on-accent: #15140f;
+  --focus: #f08d55;
+  --danger: #f08d55;
+  --term-bg: #0f0e0b;
+  --term-line: #2a2822;
+  --bar-paper: #1e1d18;
+  --bar-band: #222a1f;
+  --bar-hole: #15140f;
 }
-.s3-plate { position: absolute; inset: 0; transform-style: preserve-3d; }
-.s3-p0 { transform: translateZ(calc(var(--gap) * 4)); }
-.s3-p1 { transform: translateZ(calc(var(--gap) * 3)); }
-.s3-p2 { transform: translateZ(calc(var(--gap) * 2)); }
-.s3-p3 { transform: translateZ(var(--gap)); }
-.s3-f { position: absolute; display: block; box-sizing: border-box; border: 1px solid var(--iso-line); }
-.s3-top { inset: 0; transform: translateZ(var(--t)); background: var(--page); }
-.s3-n, .s3-s { left: 0; width: var(--pw); height: var(--t); transform-origin: top; transform: rotateX(90deg); background: var(--surface-2); }
-.s3-n { top: 0; }
-.s3-s { top: var(--pw); background: var(--stage); }
-.s3-w, .s3-e { top: 0; width: var(--t); height: var(--pw); transform-origin: left; transform: rotateY(-90deg); background: var(--surface-2); }
-.s3-w { left: 0; }
-.s3-e { left: var(--pw); background: var(--stage); }
-.s3-out .s3-f { border-color: var(--accent); }
-.s3-out .s3-top { background: color-mix(in srgb, var(--accent) 16%, var(--page)); }
-.s3-out .s3-n, .s3-out .s3-w { background: color-mix(in srgb, var(--accent) 10%, var(--surface-2)); }
-.s3-out .s3-s, .s3-out .s3-e { background: color-mix(in srgb, var(--accent) 22%, var(--stage)); }
-.s3-label {
-  position: absolute; left: calc(var(--pw) + 8px); top: var(--pw); white-space: nowrap;
-  transform-origin: 0 0; transform: translateZ(var(--t)) rotateZ(45deg) rotateX(-58deg) translate(14px, -10px);
-  font: 400 10.5px/1.35 var(--mono); color: var(--text-3); display: grid;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body.site {
+    --page: #15140f;
+    --stage: #1b1a15;
+    --surface: #1f1e19;
+    --surface-2: #282620;
+    --text: #ede9df;
+    --text-2: #bdb7aa;
+    --text-3: #9a9486;
+    --border: #2e2b24;
+    --border-strong: #423e35;
+    --signal: #f08d55;
+    --signal-bg: #3a2216;
+    --ok-text: #86c995;
+    --ok-bg: #1c2c1e;
+    --accent: #ede9df;
+    --accent-text: #ede9df;
+    --accent-bg: #3a3527;
+    --on-accent: #15140f;
+    --focus: #f08d55;
+    --danger: #f08d55;
+    --term-bg: #0f0e0b;
+    --term-line: #2a2822;
+    --bar-paper: #1e1d18;
+    --bar-band: #222a1f;
+    --bar-hole: #15140f;
+  }
 }
-.s3-label b { font-weight: 500; font-size: 11px; color: var(--text-2); }
-.s3-out .s3-label b, .s3-out .s3-label { color: var(--accent-text); }
-.s3 .iso-cap { padding-left: 0; margin-top: 0; }
-.s3-done { position: absolute; left: 0; bottom: 34px; margin: 0; display: grid; gap: 4px; font: 500 11px/1.3 var(--mono); color: var(--text-2); opacity: 0; }
+body.site ::selection { background: var(--signal-bg); color: var(--text); }
+body.site h1, body.site h2, body.site h3 { font-family: var(--serif); font-optical-sizing: auto; letter-spacing: -0.012em; }
+body.site .btn { border-radius: 4px; font-weight: 550; }
+body.site .btn-primary:hover { background: color-mix(in srgb, var(--text) 86%, var(--signal)); border-color: transparent; }
+body.site .link { color: var(--text); text-decoration-color: var(--border-strong); }
+body.site .link:hover { text-decoration-color: var(--signal); }
+body.site code { font-size: 0.86em; }
+
+/* Top bar: links on wide screens, a menu on phones. */
+.bar-menu { display: none; position: relative; }
+.bar-menu summary { list-style: none; cursor: pointer; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 4px; color: var(--text); }
+.bar-menu summary::-webkit-details-marker { display: none; }
+.bar-menu-list { position: absolute; right: 0; top: 46px; min-width: 200px; display: grid; padding: 8px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 6px; box-shadow: 0 12px 32px -12px rgb(20 18 10 / 0.25); }
+.bar-menu-list .bar-link { padding: 10px 12px; font-size: 15px; }
+@media (max-width: 860px) {
+  .bar-nav { display: none; }
+  .bar-menu { display: block; margin-left: auto; }
+}
+
+/* Hero: the headline is the incident; the ledger beside it is the record. */
+.l-hero { padding: clamp(48px, 7vw, 96px) 0 clamp(28px, 4vw, 40px); border-bottom: 1px solid var(--border); }
+.l-hero-in { display: grid; grid-template-columns: minmax(0, 13fr) minmax(0, 12fr); gap: clamp(32px, 5vw, 72px); align-items: start; }
+.l-hero h1 { margin: 0; font-size: clamp(2.4rem, 1.4rem + 3vw, 4rem); line-height: 1.04; font-weight: 560; letter-spacing: -0.022em; text-wrap: balance; }
+.l-lede { margin: 26px 0 0; max-width: 34em; font-size: 1.18rem; line-height: 1.55; color: var(--text-2); }
+.l-note { margin: 18px 0 0; font-size: 14px; color: var(--text-3); max-width: 40em; }
+.l-sample { margin-top: clamp(28px, 4vw, 40px); font-size: 13px; color: var(--text-3); }
+
+/* The ledger: tractor-feed paper, one line per thing that happened. */
+.ledger { margin: 8px 0 0; background: var(--bar-paper); border: 1px solid var(--border-strong); border-radius: 2px; position: relative; padding: 0 0 0 28px; box-shadow: 0 1px 0 var(--border), 0 18px 40px -26px rgb(40 30 10 / 0.35); }
+.ledger::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 28px; border-right: 1px dashed var(--border-strong);
+  background: radial-gradient(circle at 13px 50%, var(--bar-hole) 0 5px, transparent 5.5px) 0 0 / 28px 30px repeat-y; }
+.ledger-head { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px 10px; border-bottom: 1px solid var(--border); font: 500 12px/1.4 var(--mono); color: var(--text-3); }
+.ledger-rows { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+.ledger-rows li { display: grid; grid-template-columns: 74px 124px minmax(0, 1fr) auto; gap: 4px 12px; padding: 9px 16px; align-items: baseline; }
+.ledger-rows li:nth-child(odd) { background: var(--bar-band); }
+.ledger-rows time, .ledger-who, .ledger-n { font: 500 12.5px/1.5 var(--mono); }
+.ledger-rows time { color: var(--text-3); }
+.ledger-who { color: var(--text); }
+.ledger-what { color: var(--text-2); line-height: 1.45; }
+.ledger-what code { color: var(--text); }
+.ledger-n { color: var(--text-3); text-align: right; white-space: nowrap; }
+.ledger-rows .is-bad .ledger-who, .ledger-rows .is-bad .ledger-n { color: var(--signal); }
+.ledger-rows .is-hold { box-shadow: inset 3px 0 0 var(--signal); }
+.ledger-rows .is-hold .ledger-what { color: var(--signal); font-weight: 500; }
+.ledger-rows .is-undo .ledger-who, .ledger-rows .is-undo .ledger-what { color: var(--ok-text); }
+.ledger-rows .is-undo .ledger-what code { color: var(--ok-text); }
+/* Once undo has run, the Cursor lines are struck through: still on the record, no longer in the code. */
+.ledger.done .is-bad .ledger-what, .ledger.done .is-bad .ledger-n { text-decoration: line-through; text-decoration-color: var(--signal); text-decoration-thickness: 1.5px; }
+@media (max-width: 980px) { .l-hero-in { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .ledger-rows li { grid-template-columns: 64px minmax(0, 1fr) auto; }
+  .ledger-who { grid-column: 2; }
+  .ledger-what { grid-column: 2 / -1; }
+  .ledger-n { grid-row: 1; grid-column: 3; }
+}
+
+/* The real product, right under the record. */
+.l-shot { padding: clamp(40px, 6vw, 72px) 0; background: var(--stage); border-bottom: 1px solid var(--border); }
+.l-shot .frame img { border-radius: 6px; border-color: var(--border-strong); box-shadow: 0 2px 3px rgb(30 25 10 / 0.06), 0 30px 60px -36px rgb(30 25 10 / 0.4); }
+
+/* The walkthrough: a time gutter on the left, the stage on the right. */
+.l-h2 { margin: 0; font-size: clamp(1.8rem, 1.3rem + 1.6vw, 2.7rem); line-height: 1.1; font-weight: 560; max-width: 22em; text-wrap: balance; }
+.l-steps { padding: clamp(64px, 9vw, 120px) 0; }
+.l-stage-list { list-style: none; margin: clamp(32px, 5vw, 56px) 0 0; padding: 0; }
+.l-stage { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 0 clamp(20px, 3vw, 40px); padding: clamp(32px, 5vw, 56px) 0; border-top: 1px solid var(--border); }
+.l-stage-time { margin: 6px 0 0; font: 500 14px/1 var(--mono); color: var(--signal); }
+.l-stage-body h3 { margin: 0; font-size: clamp(1.4rem, 1.1rem + 0.9vw, 1.9rem); line-height: 1.15; font-weight: 600; max-width: 26em; }
+.l-stage-body > p { margin: 14px 0 0; max-width: 40em; color: var(--text-2); }
+.l-stage-vis { margin-top: 28px; max-width: 860px; }
+.l-stage-vis .pr { max-width: 860px; }
+@media (max-width: 640px) { .l-stage { grid-template-columns: minmax(0, 1fr); } .l-stage-time { margin-bottom: 12px; } }
+
+/* Film. */
+.l-film { padding: clamp(56px, 8vw, 104px) 0; background: var(--stage); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.l-film .film-video { margin-top: 28px; max-width: 1040px; border-radius: 6px; border-color: var(--border-strong); background: var(--term-bg); }
+
+/* What leaves the machine: a plain table, the way a security reviewer reads it. */
+.l-data { padding: clamp(64px, 9vw, 120px) 0; }
+.l-data-in { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(32px, 5vw, 64px); align-items: start; }
+.l-data-copy p { margin: 16px 0 0; color: var(--text-2); }
+.l-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.l-table th, .l-table td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.l-table thead th { font: 600 12.5px/1.3 var(--font); color: var(--text-3); border-bottom-color: var(--border-strong); }
+.l-table tbody th { font-weight: 450; color: var(--text); }
+.l-table td { white-space: nowrap; color: var(--text-2); }
+.l-table td.is-never { color: var(--ok-text); font-weight: 550; }
+@media (max-width: 900px) { .l-data-in { grid-template-columns: minmax(0, 1fr); } .l-table td { white-space: normal; } }
+
+/* Close. */
+.l-close { padding: clamp(72px, 10vw, 128px) 0; border-top: 1px solid var(--border); background: var(--stage); }
+.l-close h2 { margin: 0; font-size: clamp(2rem, 1.3rem + 2.4vw, 3.2rem); line-height: 1.08; font-weight: 560; max-width: 18em; }
+.l-close p { margin: 18px 0 0; color: var(--text-2); max-width: 40em; }
+
+/* Motion, one authored moment: the ledger prints line by line, and when
+   the undo line lands the Cursor lines are struck through. */
 @media (prefers-reduced-motion: no-preference) {
-  .s3-out { animation: s3-out 10s 1.6s ease-in-out infinite both; }
-  .s3-out .s3-f, .s3-out .s3-label { animation: s3-fade 10s 1.6s ease-in-out infinite both; }
-  .s3-above { animation: s3-settle 10s 1.6s ease-in-out infinite both; }
-  .s3-done { animation: iso-done 10s 1.6s ease-in-out infinite both; }
+  .motion .ledger[data-play] .ledger-rows li { opacity: 0; }
+  .motion .ledger[data-play].in .ledger-rows li { animation: feed 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .motion .ledger[data-play].in .ledger-rows li:nth-child(2) { animation-delay: 0.35s; }
+  .motion .ledger[data-play].in .ledger-rows li:nth-child(3) { animation-delay: 0.9s; }
+  .motion .ledger[data-play].in .ledger-rows li:nth-child(4) { animation-delay: 1.35s; }
+  .motion .ledger[data-play].in .ledger-rows li:nth-child(5) { animation-delay: 2.1s; }
+  .motion .ledger[data-play].in .ledger-rows li:nth-child(6) { animation-delay: 3.1s; }
 }
-@keyframes s3-out {
-  0%, 22% { translate: 0 0 0; }
-  40%, 86% { translate: 150px 150px 0; }
-  87%, 100% { translate: 0 0 0; }
-}
-@keyframes s3-fade {
-  0%, 26% { opacity: 1; }
-  40%, 86% { opacity: 0; }
-  87% { opacity: 0; }
-  96%, 100% { opacity: 1; }
-}
-@keyframes s3-settle {
-  0%, 42% { translate: 0 0 0; }
-  54%, 88% { translate: 0 0 calc(var(--gap) * -1); }
-  96%, 100% { translate: 0 0 0; }
-}
+@keyframes feed { from { opacity: 0; transform: translateY(-6px); clip-path: inset(0 0 100% 0); } to { opacity: 1; transform: none; clip-path: inset(0 0 0 0); } }

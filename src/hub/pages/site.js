@@ -58,13 +58,15 @@ ${scripts ? html`<script src="/hub/static/site.js" defer></script>` : ''}
 export function siteBar({ current = 'home', signedIn = false } = {}) {
   const a = (href, label, id) => html`<a class="bar-link" href="${href}" ${current === id ? html`aria-current="page"` : ''}>${label}</a>`;
   const home = current === 'home' ? '' : '/';
-  return html`${current === 'home' ? html`<p class="announce"><a href="/docs/undo"><b>New</b><span>Cursor shell commands<span class="announce-long"> are now recorded and undoable.</span></span><span class="announce-go">Read how ${ICON.arrow}</span></a></p>` : ''}<header class="bar">
+  const links = html`${a(`${home}#how`, 'How it works', 'how')}${a('/docs/security', 'Security', 'security')}${a('/pricing', 'Pricing', 'pricing')}${a('/changelog', 'Changelog', 'changelog')}${a('/docs', 'Docs', 'docs')}`;
+  return html`<header class="bar">
   <div class="bar-in">
     <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
-    <nav class="bar-nav" aria-label="Site">
-      <span class="bar-anchors">${a(`${home}#how`, 'Product', 'how')}${a('/docs/security', 'Security', 'security')}${a('/pricing', 'Pricing', 'pricing')}${a('/changelog', 'Changelog', 'changelog')}</span>
-      ${a('/docs', 'Docs', 'docs')}
-    </nav>
+    <nav class="bar-nav" aria-label="Site">${links}</nav>
+    <details class="bar-menu">
+      <summary aria-label="Menu">${ICON.menu}</summary>
+      <nav class="bar-menu-list" aria-label="Site, small screens">${links}</nav>
+    </details>
     ${signedIn
       ? html`<a class="btn btn-sm" href="/hub">Open the hub</a>`
       : html`<a class="btn btn-sm" href="${SIGN_IN}" rel="nofollow">${GH}<span>Sign in</span></a>`}
@@ -78,7 +80,7 @@ export function siteFooter() {
   <div class="foot-in">
     <div class="foot-brand">
       <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
-      <p>See and undo what your coding agents change.</p>
+      <p>A record of what your coding agents change, and a way to take one run back.</p>
       <div class="theme-seg" role="group" aria-label="Theme">${theme('system', 'System', 'system')}${theme('light', 'Light', 'sun')}${theme('dark', 'Dark', 'moon')}</div>
     </div>
     <nav class="foot-cols" aria-label="Footer">
@@ -104,59 +106,35 @@ function shot(name, alt, { eager = false, w = 2560, h = 1600 } = {}) {
 
 // A terminal block: the real CLI's output format, demo values.
 function term(title, lines) {
-  return html`<figure class="term" data-play>
-  <figcaption class="term-head"><span class="term-title">${title}</span><span class="term-note">Example output</span></figcaption>
+  return html`<figure class="term">
+  <figcaption class="term-head"><span class="term-title">${title}</span></figcaption>
   <pre class="term-body"><code>${lines.map((l) => (l.startsWith('$ ') ? html`<span class="t-line t-cmd"><span class="t-ps" aria-hidden="true">$ </span>${l.slice(2)}</span>\n` : l.startsWith('# ') ? html`<span class="t-line t-dim">${l}</span>\n` : html`<span class="t-line${l.includes('via shell') ? ' t-hl' : ''}">${l}</span>\n`))}</code></pre>
 </figure>`;
 }
 
-const RUNS = [
-  '$ grapim runs',
-  'RUN              WORKING ON                            FILES  +     -',
-  'claude 7f3e21aa  Add idempotency keys to POST /orders  4      +32   -19',
-  'cursor 5d81c0e2  Drop the legacy orders table          2      +3    -88',
-  'codex 11349      Clean up the feature flag for search  1      +86   -32',
-  '',
-  '$ grapim log',
-  '14:02:07  cursor 5d81c0e2 edited db/014.sql +3 -0 via shell: prisma migrate',
-  '14:02:19  cursor 5d81c0e2 edited seed.js +0 -88 via shell: rm seed.js',
-];
-
-const UNDO = [
-  '$ grapim undo 5d81c0e2',
-  'Undo cursor 5d81c0e2 · 2 files',
-  '',
-  '  delete    db/014.sql  created by this run (via shell: prisma migrate)',
-  '  restore   seed.js     deleted by this run (via shell: rm seed.js)',
-  '',
-  'Nothing was changed. Run again with --yes to apply the 2 clean ones.',
-  '',
-  '$ grapim undo 5d81c0e2 --yes',
-];
-
 // The pull request story: the comment and check use the wording the GitHub
 // App writes (src/provenance/render.js, src/hub/github/pull.js).
 function prThread() {
-  return html`<div class="pr" data-play role="img" aria-label="A pull request with three agent runs. Two changed only tests and docs and were approved by the team's automatic rules. One changed payments code, so the Grapim check fails until the reviewer that rule names approves it; then the check passes.">
+  return html`<div class="pr" data-play role="img" aria-label="Pull request 412 with three agent runs. The Codex run changed only tests and passed by rule, the Claude run was approved by sam, and the Cursor run changed db/, so the Grapim check fails until priya approves it. Alex undoes the Cursor run and pushes; the check runs again and passes.">
   <div class="pr-title"><span class="pr-state">Open</span><span><b>Add idempotency keys to POST /orders</b> <span class="muted">acme-co/shop-api #412</span></span></div>
   <div class="pr-item">
     <div class="pr-who"><span class="pr-av" aria-hidden="true">${LOGO}</span><b>grapim</b><span class="pr-bot">bot</span><span class="muted">commented</span></div>
     <div class="pr-card">
       <p class="pr-h">Grapim provenance</p>
-      <p><b>1 agent run of 3 not reviewed yet.</b> 88% of the added lines came from agent runs (71 of 81).</p>
+      <p><b>1 agent run of 3 not reviewed yet.</b> 62 of the 74 added lines came from agent runs.</p>
       <div class="pr-scroll"><table class="pr-table">
         <thead><tr><th>Run</th><th class="n">Lines</th><th>Prompt</th><th>Review</th></tr></thead>
         <tbody>
-          <tr><td class="mono">claude 7f3e21aa</td><td class="n">32</td><td>Add idempotency keys to POST /orders</td><td>Not reviewed</td></tr>
+          <tr><td class="mono">claude 7f3e21aa</td><td class="n">32</td><td>Add idempotency keys to POST /orders</td><td>Approved by sam</td></tr>
           <tr><td class="mono">codex 4c8e1b07</td><td class="n">27</td><td>Add tests for duplicate order keys</td><td>Approved by rule</td></tr>
-          <tr><td class="mono">claude 2b9c0d14</td><td class="n">12</td><td>Document the Idempotency-Key header</td><td>Approved by rule</td></tr>
+          <tr><td class="mono">cursor 5d81c0e2</td><td class="n">3</td><td>Clean up the old orders schema</td><td>Not reviewed</td></tr>
         </tbody>
       </table></div>
     </div>
   </div>
-  <div class="pr-check is-fail">${ICON.x}<span><b>Grapim provenance (app)</b> <span class="muted">claude 7f3e21aa changed payments/: needs 1 approval from priya</span></span><span class="pr-req">Required</span></div>
-  <div class="pr-event">${ICON.check}<span><b>priya</b> approved <span class="mono">claude 7f3e21aa</span> in the Grapim hub.</span></div>
-  <div class="pr-check is-ok">${ICON.check}<span><b>Grapim provenance (app)</b> <span class="muted">Every agent run is approved in the Grapim hub (2 by rule)</span></span><span class="pr-req">Required</span></div>
+  <div class="pr-check is-fail">${ICON.x}<span><b>Grapim provenance (app)</b> <span class="muted">cursor 5d81c0e2 changed db/: db/** needs 1 approval from priya</span></span><span class="pr-req">Required</span></div>
+  <div class="pr-event">${ICON.check}<span><b>alex</b> ran <span class="mono">grapim undo 5d81c0e2</span> and pushed. The check runs again.</span></div>
+  <div class="pr-check is-ok">${ICON.check}<span><b>Grapim provenance (app)</b> <span class="muted">Every agent run is approved in the Grapim hub (1 by rule)</span></span><span class="pr-req">Required</span></div>
   <div class="pr-merge">${ICON.check}<span>All checks have passed. This branch can be merged.</span></div>
 </div>`;
 }
@@ -201,220 +179,168 @@ const FAQ = [
   ['Which agents are covered?', 'Claude Code, Codex CLI, Cursor and Gemini CLI, including files their shell commands change. Any other MCP client can report the files it claims.'],
 ];
 
-// The hero figure: a stack of agent runs drawn as thin isometric plates.
-// One run (a Cursor run whose shell command dropped a table) lights up,
-// slides out of the stack, and the runs above it settle into its place:
-// grapim undo, keeping everyone else's work. Pure SVG; the motion is CSS
-// (.iso in site.css) and stops under reduced motion.
-const ISO_RUNS = [
-  ['claude 2b9c0d14', 'docs'],
-  ['codex 4c8e1b07', 'tests'],
-  ['cursor 5d81c0e2', 'via shell: prisma migrate'],
-  ['claude 7f3e21aa', 'payments/'],
-  ['gemini 91ad3f60', 'src/search'],
+// One incident, used on the whole page: in acme-co/shop-api, three agents
+// work on PR #412. A Cursor run's shell commands add a migration that drops
+// the legacy orders table and delete seed.js; the check holds the PR; one
+// command takes that run back and keeps the other two. Sample data from the
+// demo repo, in the real output formats of the CLI and the GitHub App.
+const RUNS = [
+  '$ grapim log',
+  '14:01:52  claude 7f3e21aa edited src/routes/orders.ts +32 -4',
+  '14:01:58  codex 4c8e1b07 edited test/orders.test.ts +27 -0',
+  '14:02:07  cursor 5d81c0e2 edited db/014.sql +3 -0 via shell: prisma migrate',
+  '14:02:19  cursor 5d81c0e2 edited seed.js +0 -88 via shell: rm seed.js',
 ];
-function isoFigure() {
-  const cx = 150;
-  const a = 104;
-  const b = 52;
-  const t = 9;
-  const gap = 30;
-  const top = 64;
-  const pts = (list) => list.map(([x, y]) => `${x},${y}`).join(' ');
-  const plate = (i) => {
-    const y = top + i * gap;
-    const [label, note] = ISO_RUNS[i];
-    return html`<g class="iso-run iso-run-${i}${i === 2 ? ' iso-out' : i < 2 ? ' iso-above' : ''}">
-      <polygon class="iso-side" points="${pts([[cx - a, y], [cx, y + b], [cx, y + b + t], [cx - a, y + t]])}"/>
-      <polygon class="iso-side iso-side-r" points="${pts([[cx, y + b], [cx + a, y], [cx + a, y + t], [cx, y + b + t]])}"/>
-      <polygon class="iso-top" points="${pts([[cx, y - b], [cx + a, y], [cx, y + b], [cx - a, y]])}"/>
-      <path class="iso-lead" d="M${cx + a + 6} ${y + 4}h18"/>
-      <text class="iso-label" x="${cx + a + 30}" y="${y + 3}">${label}</text>
-      <text class="iso-note" x="${cx + a + 30}" y="${y + 17}">${note}</text>
-    </g>`;
-  };
-  return html`<figure class="iso" aria-hidden="true">
-  <svg viewBox="0 0 470 300" width="470" height="300" focusable="false">
-    ${[4, 3, 2, 1, 0].map(plate)}
-    <g class="iso-done"><path d="M${cx - a} ${top + 5 * gap + 34}h${2 * a}" class="iso-base"/><text class="iso-label" x="${cx - a}" y="${top + 5 * gap + 56}">$ grapim undo 5d81c0e2</text><text class="iso-note iso-ok" x="${cx - a}" y="${top + 5 * gap + 72}">2 files back, other runs kept</text></g>
-  </svg>
-  <figcaption class="iso-cap">fig. 1 · one run out, the rest kept</figcaption>
+
+const UNDO = [
+  '$ grapim undo 5d81c0e2 --yes',
+  'Undo cursor 5d81c0e2 · 2 files',
+  '',
+  '  deleted   db/014.sql  created by this run (via shell: prisma migrate)',
+  '  restored  seed.js     deleted by this run (via shell: rm seed.js)',
+  '',
+  'Done: 2 files changed.',
+];
+
+// The incident as a printed log: each line is one thing that happened, in
+// order. The rows print in turn (site.css .ledger), and once the undo line
+// lands the two Cursor rows are struck through.
+const LEDGER = [
+  { t: '14:01:52', who: 'claude 7f3e21aa', what: html`edited <code>src/routes/orders.ts</code>`, n: '+32 −4' },
+  { t: '14:01:58', who: 'codex 4c8e1b07', what: html`edited <code>test/orders.test.ts</code>`, n: '+27' },
+  { t: '14:02:07', who: 'cursor 5d81c0e2', what: html`ran <code>prisma migrate</code>, which wrote <code>db/014.sql</code>: drop table legacy_orders`, n: '+3', cls: 'is-bad' },
+  { t: '14:02:19', who: 'cursor 5d81c0e2', what: html`ran <code>rm seed.js</code>`, n: '−88', cls: 'is-bad' },
+  { t: '14:02:40', who: 'PR #412', what: html`check held: <code>db/</code> changes wait for priya`, cls: 'is-hold' },
+  { t: '14:03:05', who: 'alex', what: html`ran <code>grapim undo 5d81c0e2 --yes</code>. Both files back; the Claude and Codex runs stay.`, cls: 'is-undo' },
+];
+
+function ledger() {
+  return html`<figure class="ledger" data-play aria-label="Log of PR 412 in acme-co/shop-api. At 14:02 a Cursor run ran prisma migrate, writing a migration that drops the legacy orders table, and deleted seed.js. The pull request check held the change for priya. At 14:03 grapim undo took that Cursor run back; the Claude and Codex runs stayed.">
+  <figcaption class="ledger-head"><span>acme-co/shop-api · PR #412</span><span>Thu 13 Nov</span></figcaption>
+  <ol class="ledger-rows">
+    ${LEDGER.map((r) => html`<li class="${r.cls ?? ''}"><time>${r.t}</time><span class="ledger-who">${r.who}</span><span class="ledger-what">${r.what}</span><span class="ledger-n">${r.n ?? ''}</span></li>`)}
+  </ol>
 </figure>`;
 }
 
-// Small figures for the three security notes, in the hero figure's world:
-// thin isometric plates, mono labels, one accent. Decorative (aria-hidden);
-// the text beside them says the same thing.
-function isoPlate(x, y, a, b, t, cls = '') {
-  const pts = (list) => list.map(([px, py]) => `${px},${py}`).join(' ');
-  return html`<g class="${cls}">
-    <polygon class="iso-side" points="${pts([[x - a, y], [x, y + b], [x, y + b + t], [x - a, y + t]])}"/>
-    <polygon class="iso-side iso-side-r" points="${pts([[x, y + b], [x + a, y], [x + a, y + t], [x, y + b + t]])}"/>
-    <polygon class="iso-top" points="${pts([[x, y - b], [x + a, y], [x, y + b], [x - a, y]])}"/>
-  </g>`;
-}
-const isoText = (x, y, text, cls = 'iso-label') => html`<text class="${cls}" x="${x}" y="${y}">${text}</text>`;
+// The walkthrough: the same incident, one stage at a time, each with the
+// artifact a team would actually see.
+const STAGES = [
+  {
+    id: 'recorded',
+    t: '14:02',
+    title: 'It was on the record before anyone looked',
+    body: 'Grapim hooks into Claude Code, Codex, Cursor and Gemini CLI on the developer’s machine. Each edit, and each file a shell command creates or deletes, is written down under the run that made it, with the prompt that started it.',
+    link: ['/docs/cli', 'What the hooks record'],
+    vis: () => term('Terminal', RUNS),
+  },
+  {
+    id: 'held',
+    t: '14:02:40',
+    title: 'The pull request waited for priya',
+    body: 'You choose which paths need a person. A run that touches them keeps the Grapim check red until the reviewer you named approves it in the hub. Runs that only change tests or docs can pass on a rule, and the rule’s author is on record.',
+    link: ['/docs/rules', 'How review rules work'],
+    vis: () => prThread(),
+  },
+  {
+    id: 'undone',
+    t: '14:03',
+    title: 'One run came back out, and nothing else moved',
+    body: html`<code>grapim undo</code> removes a single run from every file it touched, including what its shell commands did. Work that other agents and people did around it stays. It prints a plan first and changes nothing until you add <code>--yes</code>.`,
+    link: ['/docs/undo', 'What undo can and cannot take back'],
+    vis: () => term('Terminal', UNDO),
+  },
+];
 
-function figure(n, caption, body) {
-  return html`<figure class="mini" aria-hidden="true"><svg viewBox="0 0 320 170" width="320" height="170" focusable="false">${body}</svg><figcaption class="iso-cap">fig. ${n} · ${caption}</figcaption></figure>`;
-}
+// What leaves the developer's machine (src/hub/docs/data-handling.md).
+const DATA = [
+  ['Run id, agent, start time, the first line of each prompt', 'Sent', 'Sent'],
+  ['File paths, lines added and removed, a hash of each version', 'Sent', 'Sent'],
+  ['Shell command text, with tokens and passwords masked', 'Sent', 'Sent'],
+  ['Review decisions: who approved what, and when', 'Kept in the hub', 'Kept in the hub'],
+  ['File contents, up to 2 MB a file', 'Sent', 'Never stored'],
+  ['Environment values, keys, MCP arguments', 'Never collected', 'Never collected'],
+];
 
-// fig. 2: the machine keeps the code; the hub gets the record of it.
-const FIG_HOME = () => figure(2, 'records go up, code stays', html`
-  ${isoPlate(80, 92, 62, 31, 8)}
-  <g class="mini-code">${[0, 1, 2, 3].map((i) => html`<path d="M${52 + i * 9} ${85 + i * 4.5}l${30 - (i % 2) * 10} ${-15 + (i % 2) * 5}"/>`)}</g>
-  ${isoText(30, 152, 'your machine')}
-  ${isoText(30, 166, 'code + diff', 'iso-note')}
-  <path class="iso-trail" d="M138 70 L186 52"/>
-  ${isoPlate(240, 64, 62, 31, 8, 'iso-out')}
-  ${isoText(214, 66, 'sha 9f2c', 'iso-note')}
-  ${isoText(196, 124, 'hub')}
-  ${isoText(196, 138, 'run, lines, hashes', 'iso-note')}`);
-
-// fig. 3: agents on the left, what they can reach on the right; one new this week.
-const FIG_REACH = () => figure(3, 'agents and what they reach', html`
-  ${[['claude', 40], ['codex', 86], ['cursor', 132]].map(([name, y]) => html`${isoPlate(54, y - 8, 34, 17, 6)}${isoText(96, y - 4, name)}`)}
-  <g class="mini-wires">
-    <path d="M150 36 C190 36 190 30 214 30"/><path d="M150 36 C190 40 190 78 214 78"/>
-    <path d="M150 82 C190 82 190 78 214 78"/><path d="M150 128 C190 128 190 126 214 126" class="mini-new"/>
-  </g>
-  ${isoText(220, 34, 'mcp: github')}
-  ${isoText(220, 82, 'mcp: postgres')}
-  ${isoText(220, 130, 'mcp: stripe', 'iso-label mini-new-t')}
-  ${isoText(220, 144, 'new this week', 'iso-note mini-new-t')}`);
-
-// fig. 4: the repo stays on GitHub; the hub only comments and checks.
-const FIG_GITHUB = () => figure(4, 'comments and checks, never pushes', html`
-  ${isoPlate(96, 104, 70, 35, 9)}
-  ${isoText(56, 164, 'your repo on GitHub')}
-  ${isoPlate(250, 46, 40, 20, 7, 'iso-out')}
-  ${isoText(222, 92, 'hub', 'iso-label')}
-  <path class="iso-trail" d="M214 62 L150 92"/>
-  ${isoText(186, 116, 'comment + check', 'iso-note')}
-  <path class="mini-x" d="M168 34 l10 10 m0 -10 l-10 10"/>
-  ${isoText(184, 44, 'no push', 'iso-note')}`);
-
-// The hero figure in real 3D (CSS transforms, no library): the same five
-// runs as solid plates. It turns a little toward the pointer, and the Cursor
-// run slides out while the runs above settle. Shown on wide screens when
-// motion is allowed; otherwise the flat line figure (isoFigure) stands in.
-function stackFigure() {
-  const faces = html`<i class="s3-f s3-top"></i><i class="s3-f s3-n"></i><i class="s3-f s3-e"></i><i class="s3-f s3-s"></i><i class="s3-f s3-w"></i>`;
-  return html`<figure class="s3" aria-hidden="true">
-  <div class="s3-view"><div class="s3-rig">
-    ${ISO_RUNS.map(([label, note], i) => html`<div class="s3-plate s3-p${i}${i === 2 ? ' s3-out' : i < 2 ? ' s3-above' : ''}">${faces}<span class="s3-label"><b>${label}</b>${note}</span></div>`)}
-  </div></div>
-  <figcaption class="iso-cap">fig. 1 · one run out, the rest kept</figcaption>
-  <p class="s3-done"><span>$ grapim undo 5d81c0e2</span><span class="iso-ok">2 files back, other runs kept</span></p>
-</figure>`;
-}
-
-const description = 'Grapim records every change your coding agents make, shell commands included. Sensitive changes wait for a named reviewer, and any single run can be undone. For Claude Code, Codex, Cursor and Gemini CLI.';
+const description = 'Grapim records what each coding agent changes, shell commands included, holds sensitive changes for a named reviewer, and takes one bad run back without touching anyone else’s work. For Claude Code, Codex, Cursor and Gemini CLI on GitHub.';
 
 export function landingPage({ origin }) {
-  return html`${siteHead({ title: 'Grapim: see and undo what your coding agents change', description, path: '/', origin })}
-<body class="site">
+  return html`${siteHead({ title: 'Grapim: a record of what your coding agents change', description, path: '/', origin })}
+<body class="site site-ledger">
 <a class="skip" href="#main">Skip to content</a>
 ${siteBar({ current: 'home' })}
 <main id="main">
 
-<section class="hero" aria-labelledby="hero-title">
-  <div class="hero-text">
-    <h1 id="hero-title">See every agent change.<br> Undo any run.</h1>
-    <p class="hero-sub">Every edit and shell command, recorded per run. Sensitive changes wait for a person. A bad run comes out on its own.</p>
-    <div class="cta">
-      <a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Start with GitHub</span></a>
-      <a class="btn btn-lg" href="/docs/support">Talk to us</a>
+<section class="l-hero" aria-labelledby="hero-title">
+  <div class="wrap l-hero-in">
+    <div class="l-hero-copy">
+      <h1 id="hero-title">An agent dropped a table at 14:02.<br> It was back at 14:03.</h1>
+      <p class="l-lede">Grapim keeps a record of what each coding agent changes, shell commands included, so one bad run can be taken back without touching anyone else’s work.</p>
+      <div class="cta">
+        <a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Start with GitHub</span></a>
+        <a class="btn btn-lg" href="#film">Watch the one-minute demo</a>
+      </div>
+      <p class="l-note">Free during early access. Works with Claude Code, Codex, Cursor and Gemini CLI, on your existing GitHub.</p>
     </div>
-    <p class="works" aria-label="Works with"><span class="works-label">Works with</span><span>Claude Code</span><span>Codex</span><span>Cursor</span><span>Gemini CLI</span><span>GitHub</span></p>
-    ${isoFigure()}
-    ${stackFigure()}
+    ${ledger()}
   </div>
-  <figure class="frame frame-hero">
+  <p class="wrap l-sample">The incident on this page is sample data from our demo repo, shown in the CLI’s and the GitHub App’s real output.</p>
+</section>
+
+<section class="l-shot" aria-label="The run page in the Grapim hub">
+  <figure class="wrap frame">
     ${shot('run', 'A run page in the Grapim hub: the run "Add idempotency keys to POST /orders" by claude 7f3e21aa, 2 turns, 3 files, +32 −4, marked Needs review, with Approve and Reject buttons, its prompts and its diff.', { eager: true })}
-    <figcaption>A run waiting for review in the Grapim hub. Demo data.</figcaption>
   </figure>
 </section>
 
-<section class="film" aria-labelledby="film-title">
-  <div class="wrap film-in">
-    <h2 id="film-title" class="film-title">Grapim in a minute</h2>
-    <video class="film-video" controls preload="none" playsinline poster="/hub/static/site/demo-poster.webp" width="1280" height="720">
-      <source src="/hub/static/site/demo.mp4" type="video/mp4">
-      <a href="/hub/static/site/demo.mp4">Watch the one-minute demo</a>
-    </video>
-    <p class="vis-note">Narrated walkthrough with demo data, one minute.</p>
-  </div>
-</section>
-
-<section class="how" id="how" aria-labelledby="how-title">
+<section class="l-steps" id="how" aria-labelledby="how-title">
   <div class="wrap">
-    <h2 id="how-title" class="sr-only">How Grapim works</h2>
-    <ol class="steps">
-      <li class="step">
-        <div class="step-text">
-          <h3>Every change, every run</h3>
-          <p>One record across Claude Code, Codex, Cursor and Gemini CLI: the prompt, the files, the lines. Files a shell command changed or deleted are in it too.</p>
-          <p><a class="link" href="/docs">Set up in five minutes ${ICON.arrow}</a></p>
+    <h2 id="how-title" class="l-h2">How the 14:02 incident played out</h2>
+    <ol class="l-stage-list">
+      ${STAGES.map((s) => html`<li class="l-stage" id="${s.id}">
+        <p class="l-stage-time"><time>${s.t}</time></p>
+        <div class="l-stage-body">
+          <h3>${s.title}</h3>
+          <p>${s.body}</p>
+          <p><a class="link" href="${s.link[0]}">${s.link[1]}</a></p>
+          <div class="l-stage-vis">${s.vis()}</div>
         </div>
-        <div class="step-vis">${term('Terminal', RUNS)}</div>
-      </li>
-      <li class="step">
-        <div class="step-text">
-          <h3>Undo one run. Keep the rest.</h3>
-          <p>Take a single run back out of every file it touched, including what its shell commands did. Work by other agents and people stays.</p>
-          <p><a class="link" href="/docs/undo">How undo works ${ICON.arrow}</a></p>
-        </div>
-        <div class="step-vis">${term('Terminal', UNDO)}</div>
-      </li>
+      </li>`)}
     </ol>
   </div>
 </section>
 
-<section class="gate" id="review" aria-labelledby="gate-title">
-  <div class="wrap gate-in">
-    <div class="gate-text">
-      <h2 id="gate-title">A person where it matters. Rules everywhere else.</h2>
-      <p>Runs that only touch tests or docs pass by rule. Runs that touch payments, auth or migrations wait for the reviewer you named, and the PR check blocks the merge until then.</p>
-      <p><a class="link" href="/docs/rules">Write your first rule ${ICON.arrow}</a></p>
-    </div>
-    <div class="gate-vis">${prThread()}<p class="vis-note">Illustration with demo data, in the GitHub App's own wording.</p></div>
+<section class="l-film" id="film" aria-labelledby="film-title">
+  <div class="wrap l-film-in">
+    <h2 id="film-title" class="l-h2">The same afternoon, narrated, in one minute</h2>
+    <video class="film-video" controls preload="none" playsinline poster="/hub/static/site/demo-poster.webp" width="1280" height="720">
+      <source src="/hub/static/site/demo.mp4" type="video/mp4">
+      <a href="/hub/static/site/demo.mp4">Watch the one-minute demo</a>
+    </video>
   </div>
 </section>
 
-<section class="also" id="security" aria-labelledby="also-title">
+<section class="l-data" id="security" aria-labelledby="data-title">
+  <div class="wrap l-data-in">
+    <div class="l-data-copy">
+      <h2 id="data-title" class="l-h2">What leaves the developer’s machine</h2>
+      <p>Your repositories stay on GitHub and the hub never writes to them. Undo runs on the machine that made the edits. If you would rather the hub never hold your code, turn on No code storage: diffs are then read from GitHub when someone opens a run, and not kept.</p>
+      <p><a class="link" href="/docs/data-handling">The full list, field by field</a></p>
+    </div>
+    <div class="table-scroll"><table class="l-table">
+      <thead><tr><th scope="col">What</th><th scope="col">Default</th><th scope="col">No code storage</th></tr></thead>
+      <tbody>${DATA.map(([what, a, b]) => html`<tr><th scope="row">${what}</th><td class="${a.startsWith('Never') ? 'is-never' : ''}">${a}</td><td class="${b.startsWith('Never') ? 'is-never' : ''}">${b}</td></tr>`)}</tbody>
+    </table></div>
+  </div>
+</section>
+
+<section class="l-close" aria-labelledby="close-title">
   <div class="wrap">
-    <h2 id="also-title" class="sr-only">Built for a security review</h2>
-    <div class="also-grid">
-      <div>
-        ${FIG_HOME()}
-        <h3>Your code can stay home</h3>
-        <p>With No code storage, the hub keeps run records and hashes, never file contents.</p>
-        <p><a class="link" href="/docs/data-handling">What Grapim stores ${ICON.arrow}</a></p>
-      </div>
-      <div>
-        ${FIG_REACH()}
-        <h3>Know what agents can reach</h3>
-        <p>Which agents, models and MCP servers your team's machines run, and what appeared this week.</p>
-        <p><a class="link" href="/docs/inventory">The agent inventory ${ICON.arrow}</a></p>
-      </div>
-      <div>
-        ${FIG_GITHUB()}
-        <h3>Stays on your GitHub</h3>
-        <p>No repos move. The hub never writes to your code; undo runs on your machine.</p>
-        <p><a class="link" href="/docs/security">Security model ${ICON.arrow}</a></p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="close" aria-labelledby="close-title">
-  <div class="wrap close-in">
-    <h2 id="close-title">Know what every agent changed.</h2>
-    <p>Free while in early access. One repo, about five minutes.</p>
+    <h2 id="close-title">Put it on the repo your agents touch most.</h2>
+    <p>Sign in with GitHub, run <code>grapim init</code> in that repo, and the next agent run is on the record. About five minutes.</p>
     <div class="cta">
       <a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">${GH}<span>Start with GitHub</span></a>
-      <a class="btn btn-lg" href="/pricing">See pricing</a>
+      <a class="btn btn-lg" href="/pricing">Pricing</a>
     </div>
   </div>
 </section>
