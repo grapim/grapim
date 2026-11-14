@@ -36,7 +36,39 @@
   // nothing is hidden: html.motion is never set.
   const scenes = document.querySelectorAll('[data-play]');
   if (scenes.length && 'IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    // The hero performs one review. Its comment opens inside the card, so the
+    // stage keeps the finished height (measured before anything is hidden)
+    // and nothing below it moves. After the first play, a Replay button.
+    const review = document.querySelector('[data-play="review"]');
+    const stage = review?.querySelector('.hero-stage');
+    const replay = review?.querySelector('[data-replay]');
+    const reserve = () => {
+      if (stage) stage.style.minHeight = `${stage.offsetHeight}px`;
+    };
+    reserve();
     root.classList.add('motion');
+    review?.classList.add('armed');
+    if (review) {
+      review.addEventListener('animationend', (e) => {
+        if (!e.target.classList.contains('t4')) return;
+        stage.style.minHeight = '';
+        if (replay) replay.hidden = false;
+      });
+      replay?.addEventListener('click', () => {
+        reserve();
+        review.classList.remove('in');
+        void review.offsetWidth;
+        review.classList.add('in');
+      });
+      // A new width before it plays: measure the finished state again.
+      addEventListener('resize', () => {
+        if (review.classList.contains('in')) return;
+        stage.style.minHeight = '';
+        review.classList.remove('armed');
+        reserve();
+        review.classList.add('armed');
+      });
+    }
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {

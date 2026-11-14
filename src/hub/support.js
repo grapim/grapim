@@ -64,7 +64,7 @@ function adminPage({ user, csrf, rows, teams = [], toast = null }) {
     body: html`<header class="page-head"><div class="page-head-main"><h1>Admin</h1><p class="page-sub">Design partner teams and Help and feedback messages.</p></div></header>
 <section class="card" aria-labelledby="pilot-title">
   <div class="card-head"><h2 id="pilot-title" class="card-title">Pilot plans</h2></div>
-  <p class="muted small">Puts a team on a plan without billing, for a design partner pilot (Governance turns on Require review and reports). Shown to the team as "pilot".</p>
+  <p class="muted small">Puts a team on a plan without billing, for a design partner pilot (Governance turns on Require approval and reports). Shown to the team as "pilot".</p>
   ${teams.length
     ? html`<ul class="list">${teams.map((t) => html`<li class="row">
     <div class="row-main"><p><strong>${t.name}</strong> <span class="muted small mono">${t.id}</span> · ${t.members} ${t.members === 1 ? 'member' : 'members'} · <span class="badge">${t.plan}${t.plan_status ? ` · ${t.plan_status}` : ''}</span></p></div>

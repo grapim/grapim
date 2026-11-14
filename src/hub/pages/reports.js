@@ -375,7 +375,7 @@ function teaserBody({ team, role, csrf, teaser, billing, seatsUsed }) {
   <div class="card-head"><h2 id="up-title" class="card-title">Governance</h2><span class="price"><b>$40</b> per seat a month, or $384 a year</span></div>
   <p class="card-sub">The record a manager needs before rolling AI agents out wider.</p>
   <ul class="checks">
-    <li><b>Require review</b>: the Grapim GitHub check fails a pull request until a teammate, not the run’s author, approves each agent run, and until every commit is recorded</li>
+    <li><b>Require approval</b>: the Grapim GitHub check fails a pull request until a teammate, not the run’s author, approves each agent run, and until every commit is recorded</li>
     <li><b>Unreviewed</b>: AI lines in commits from runs nobody approved</li>
     <li><b>Agents</b>: runs, undo rate, reject rate and median review time per agent</li>
     <li><b>AI share</b> of added lines by week, repo and agent, back 365 days</li>

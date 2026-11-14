@@ -39,7 +39,7 @@ The notes travel with your branch (`pre-push` pushes them) and survive `--amend`
 
 `grapim sync` sends a repo's ledger and notes to your team's hub at app.grapim.com. The hub:
 
-- lists runs to review, with their prompts and diffs ([Reviewing runs](/docs/reviews));
+- lists runs to approve, with their prompts and diffs ([Approving runs](/docs/reviews));
 - comments on pull requests and runs the merge check, through the GitHub App ([GitHub App and PR check](/docs/github));
 - builds [reports](/docs/reports) from the notes and the review decisions.
 

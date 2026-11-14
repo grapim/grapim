@@ -7,8 +7,9 @@ import { avatar, csrfField, layout, SETTINGS_PAGES } from './layout.js';
 import { date, html, time } from './html.js';
 import { icon } from './icons.js';
 import { agent, code, delta, emptyState, phoneMeta, plural, reviewBadge, runHref } from './parts.js';
+import { REVIEW_PROVIDERS, WORKFLOW_PATH } from './review-setup.js';
 
-const TITLES = { overview: 'Overview', reviews: 'Reviews', repos: 'Repos', workspaces: 'Workspaces', reports: 'Reports', settings: 'Settings', platform: 'Platform' };
+const TITLES = { overview: 'Overview', reviews: 'Approvals', repos: 'Repos', workspaces: 'Workspaces', reports: 'Reports', settings: 'Settings', platform: 'Platform' };
 
 // The page heading. The sidebar says which section this is; the heading names it.
 export function head(team, current, { sub = null, actions = null, title = null } = {}) {
@@ -63,12 +64,12 @@ function checklist({ team, csrf, role, origin, setup, compact = false }) {
     },
     sync: {
       title: 'Send your agents’ work to Grapim',
-      body: html`Run this in the repo with the token set. Each new run then shows up here for a teammate to review.`,
+      body: html`Run this in the repo with the token set. Each new run then shows up here for a teammate to approve.`,
       action: syncSnippet(origin),
       link: null,
     },
     github: {
-      title: 'Hold pull requests until agent work is reviewed',
+      title: 'Hold pull requests until agent work is approved',
       body: owner
         ? html`Install the GitHub App. Each pull request gets a comment listing its agent runs and which are approved, and a check that can block the merge until all of them are.`
         : html`An owner of ${team.name} installs the GitHub App. Pull requests then list their agent runs and get a check.`,
@@ -97,7 +98,7 @@ function checklist({ team, csrf, role, origin, setup, compact = false }) {
   </ul>
 </section>`;
   }
-  return html`<ol class="steps-list" aria-label="Setup steps">
+  return html`<ol class="steps-list" aria-label="Steps to record agent runs">
   ${steps.map(
     (s, i) => html`<li class="step ${s.done ? 'is-done' : ''}">
     <span class="step-mark" aria-hidden="true">${s.done ? icon('check') : i + 1}</span>
@@ -108,6 +109,60 @@ function checklist({ team, csrf, role, origin, setup, compact = false }) {
     </div>
   </li>`,
   )}
+</ol>`;
+}
+
+// Grapim Review, the first path for a new team: pick the model account, copy
+// the workflow file for it, open a pull request. The hub never receives the
+// Action's results, so step 3 says where the review shows up instead of
+// pretending to wait for it. The pick is radio buttons and CSS, no script.
+const CREDENTIALS = {
+  anthropic: html`Add your Anthropic API key as the repository secret <code>ANTHROPIC_API_KEY</code>: on GitHub, <strong>Settings</strong>, <strong>Secrets and variables</strong>, <strong>Actions</strong>.`,
+  bedrock: html`No keys to store: the job signs in with GitHub's OIDC token. Create an IAM role that GitHub can assume for this repository and that may invoke Claude on Amazon Bedrock, then put its ARN and your region in the file.`,
+  vertex: html`No keys to store: the job signs in with Workload Identity Federation. Give it a service account that can call Claude on Vertex AI, then put the provider, the service account and your project in the file.`,
+  foundry: html`Add your Foundry API key as the repository secret <code>ANTHROPIC_FOUNDRY_API_KEY</code>, and put your Foundry resource name in the file.`,
+};
+const HOW = { anthropic: 'API key', bedrock: 'AWS IAM role', vertex: 'Google Cloud project', foundry: 'API key' };
+const docsId = (label) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+function reviewSetup() {
+  return html`<ol class="steps-list review-setup" aria-label="Set up Grapim Review">
+  <li class="step">
+    <span class="step-mark" aria-hidden="true">1</span>
+    <div class="step-body">
+      <h2 class="step-title" id="pick-title">Choose the model account that reviews your code</h2>
+      <p class="step-text">Grapim Review calls Claude with your own credentials. Your code goes only there, and the provider bills you directly.</p>
+      <div class="step-action pick" role="radiogroup" aria-labelledby="pick-title">
+        ${REVIEW_PROVIDERS.map(
+          (p, i) => html`<label class="pick-item"><input type="radio" name="review-provider" value="${p.key}" ${i === 0 ? html`checked` : ''}><span class="pick-name">${p.label}</span><span class="pick-sub">${HOW[p.key]}</span></label>`,
+        )}
+      </div>
+    </div>
+  </li>
+  <li class="step">
+    <span class="step-mark" aria-hidden="true">2</span>
+    <div class="step-body">
+      <h2 class="step-title">Add the workflow file</h2>
+      <p class="step-text">Commit it to your default branch as <code>${WORKFLOW_PATH}</code>.</p>
+      <div class="step-action">
+        ${REVIEW_PROVIDERS.map(
+          (p) => html`<div class="wf" data-provider="${p.key}">
+          <p class="step-text wf-note">${CREDENTIALS[p.key]} <a class="link" href="/docs/review#${docsId(p.label)}">Details</a></p>
+          ${code(p.yaml, `Workflow file for ${p.label}`)}
+        </div>`,
+        )}
+      </div>
+    </div>
+  </li>
+  <li class="step">
+    <span class="step-mark" aria-hidden="true">3</span>
+    <div class="step-body">
+      <h2 class="step-title">Waiting for the first pull request review</h2>
+      <p class="step-text">Open a pull request in that repository, or push to an open one. The job <strong>Grapim Review / review</strong> posts its review on the pull request, usually within a few minutes.</p>
+      <p class="step-text">The review stays on GitHub and Grapim never receives it, so this page will not change.</p>
+      <p class="step-action step-links"><a class="link" href="/docs/review#what-the-comments-look-like">What the review looks like</a><a class="link" href="/docs/review#open-a-pull-request">If no review appears</a></p>
+    </div>
+  </li>
 </ol>`;
 }
 
@@ -155,9 +210,13 @@ export function overviewPage({ toast = null, user, csrf, team, role, origin, set
       team,
       toast,
       crumbs: [{ label: 'Overview' }],
-      body: html`${head(team, 'overview', { title: `Set up ${team.name}`, sub: 'See what your AI agents changed and who approved it. Grapim records each agent session, a teammate reviews it here, and GitHub holds the pull request until they do.' })}
-${checklist({ team, csrf, role, origin, setup })}
-<p class="setup-also">${icon('workspace')}<span>Agents writing docs or data outside a repo? Give them a <a class="link" href="${base}/workspaces">workspace</a>: a shared folder where every change is recorded and can be undone.</span></p>`,
+      body: html`${head(team, 'overview', { title: `Set up ${team.name}`, sub: 'Grapim Review comments on every pull request from your own GitHub Actions. Your code goes only to the model account you choose.' })}
+${reviewSetup()}
+<details class="setup-more" ${setup.done ? html`open` : ''}>
+  <summary><span class="setup-more-title">Also record every agent run (CLI)</span><span class="muted small">Optional</span></summary>
+  <p class="setup-more-text"><code>grapim init</code> records each coding agent session as a run: the agent, what it was asked and the lines it changed. Grapim Review then knows which agent wrote each line. Sync the runs here so a teammate can approve them, and undo one run without touching the rest.</p>
+  ${checklist({ team, csrf, role, origin, setup })}
+</details>`,
     });
   }
   const left = setup.steps.some((s) => !s.done);
@@ -168,18 +227,18 @@ ${checklist({ team, csrf, role, origin, setup })}
     team,
     wide: true,
     crumbs: [{ label: 'Overview' }],
-    body: html`${head(team, 'overview', { sub: html`<span class="plan">${team.plan}</span> plan${waiting.length ? html` · <a class="link" href="${base}/reviews">${plural(waiting.length, 'run')} waiting for your review</a>` : ' · nothing waiting for you'}` })}
+    body: html`${head(team, 'overview', { sub: html`<span class="plan">${team.plan}</span> plan${waiting.length ? html` · <a class="link" href="${base}/reviews">${plural(waiting.length, 'run')} waiting for your approval</a>` : ' · nothing waiting for you'}` })}
 <div class="overview">
   <div class="ov-main">
     <section class="panel" aria-labelledby="needs-title">
-      <div class="panel-head"><h2 id="needs-title" class="panel-title">Needs your review <span class="num muted">${waiting.length}</span></h2><a class="link small" href="${base}/reviews">All reviews</a></div>
+      <div class="panel-head"><h2 id="needs-title" class="panel-title">Needs your approval <span class="num muted">${waiting.length}</span></h2><a class="link small" href="${base}/reviews">All approvals</a></div>
       ${waiting.length
         ? html`<ul class="items">${waiting.slice(0, 6).map((r) => runRow(team, r))}</ul>`
-        : html`<p class="panel-empty">Nothing waits for you. ${mine.length ? html`${plural(mine.length, 'run')} of yours ${mine.length === 1 ? 'waits' : 'wait'} for a teammate.${setup.members < 2 ? html` <a class="link" href="${base}/settings/members">Invite a teammate</a> to review ${mine.length === 1 ? 'it' : 'them'}.` : ''}` : 'New agent work shows up here as soon as a teammate’s computer sends it.'}</p>`}
+        : html`<p class="panel-empty">Nothing waits for you. ${mine.length ? html`${plural(mine.length, 'run')} of yours ${mine.length === 1 ? 'waits' : 'wait'} for a teammate.${setup.members < 2 ? html` <a class="link" href="${base}/settings/members">Invite a teammate</a> to approve ${mine.length === 1 ? 'it' : 'them'}.` : ''}` : 'New agent work shows up here as soon as a teammate’s computer sends it.'}</p>`}
     </section>
     ${pulls.list.length
       ? html`<section class="panel" aria-labelledby="prs-title">
-      <div class="panel-head"><h2 id="prs-title" class="panel-title">${pulls.enforced ? 'Pull requests waiting on review' : 'Pull requests with unreviewed agent work'} <span class="num muted">${pulls.list.length}</span></h2></div>
+      <div class="panel-head"><h2 id="prs-title" class="panel-title">${pulls.enforced ? 'Pull requests waiting on approval' : 'Pull requests with unapproved agent work'} <span class="num muted">${pulls.list.length}</span></h2></div>
       <ul class="items">${pulls.list.slice(0, 6).map(
         (p) => html`<li class="item"><div class="item-link">
           <span class="item-main"><span class="item-title">${p.url ? html`<a class="link" href="${p.url}" rel="noopener noreferrer">${p.owner}/${p.name}#${p.number}</a>` : html`${p.owner}/${p.name}#${p.number}`}</span>
@@ -220,21 +279,21 @@ ${checklist({ team, csrf, role, origin, setup })}
 
 // [key, label, the label on a phone (the three must fit 343 px)].
 const FILTERS = [
-  ['yours', 'Needs your review', 'To review'],
+  ['yours', 'Needs your approval', 'To approve'],
   ['mine', 'Your runs', 'Your runs'],
-  ['done', 'Reviewed', 'Reviewed'],
+  ['done', 'Decided', 'Decided'],
 ];
 
 export function reviewsPage({ user, csrf, team, filter, runs, counts }) {
   const base = `/hub/teams/${team.id}/reviews`;
   return layout({
-    title: `Reviews · ${team.name}`,
+    title: `Approvals · ${team.name}`,
     user,
     csrf,
     team,
     wide: true,
-    crumbs: [{ label: 'Reviews' }],
-    body: html`${head(team, 'reviews', { sub: 'Approve or reject what your team’s agents changed. The Grapim check on pull requests counts these approvals. Nobody reviews their own runs.' })}
+    crumbs: [{ label: 'Approvals' }],
+    body: html`${head(team, 'reviews', { sub: 'Approve or reject what your team’s agents changed. The Grapim check on pull requests counts these approvals. Nobody approves their own runs.' })}
 <nav class="seg" aria-label="Filter">
   ${FILTERS.map(([k, label, short]) => html`<a class="seg-item" href="${`${base}?f=${k}`}" ${k === filter ? html`aria-current="page"` : ''}>${short === label ? label : html`<span class="hide-sm">${label}</span><span class="show-sm">${short}</span>`} <span class="num muted">${counts[k]}</span></a>`)}
 </nav>
@@ -242,7 +301,7 @@ ${runs.length
   ? html`<div class="table-wrap">
 <table class="table">
   <caption class="sr-only">${FILTERS.find(([k]) => k === filter)[1]}, newest first</caption>
-  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Repo</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num hide-sm">Lines</th><th scope="col" class="hide-sm">Review</th><th scope="col">Last change</th></tr></thead>
+  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Repo</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num hide-sm">Lines</th><th scope="col" class="hide-sm">Approval</th><th scope="col">Last change</th></tr></thead>
   <tbody>
   ${runs.map(
     (r) => html`<tr>
@@ -258,10 +317,10 @@ ${runs.length
 </table>
 </div>`
   : emptyState(
-      filter === 'yours' ? 'You’re all caught up' : filter === 'mine' ? 'None of your runs is waiting' : 'Nothing reviewed yet',
-      filter === 'yours' ? 'Your teammates’ agent runs show up here until someone approves or rejects them.' : filter === 'mine' ? 'Runs from your computer wait here until a teammate reviews them.' : 'Approved and rejected runs show up here.',
+      filter === 'yours' ? 'You’re all caught up' : filter === 'mine' ? 'None of your runs is waiting' : 'Nothing decided yet',
+      filter === 'yours' ? 'Your teammates’ agent runs show up here until someone approves or rejects them.' : filter === 'mine' ? 'Runs from your computer wait here until a teammate approves them.' : 'Approved and rejected runs show up here.',
     )}
-<p class="fine">Agent work in a <a href="/hub/teams/${team.id}/workspaces">workspace</a> is reviewed inside that workspace.</p>`,
+<p class="fine">Agent work in a <a href="/hub/teams/${team.id}/workspaces">workspace</a> is approved inside that workspace.</p>`,
   });
 }
 
@@ -280,7 +339,7 @@ ${repos.length
   ? html`<div class="table-wrap">
 <table class="table">
   <caption class="sr-only">Repos synced to ${team.name}</caption>
-  <thead><tr><th scope="col">Repo</th><th scope="col" class="num">Runs</th><th scope="col" class="num">To review</th><th scope="col" class="num hide-sm">Computers</th><th scope="col">Last change</th><th scope="col" class="hide-sm">Last update</th></tr></thead>
+  <thead><tr><th scope="col">Repo</th><th scope="col" class="num">Runs</th><th scope="col" class="num">To approve</th><th scope="col" class="num hide-sm">Computers</th><th scope="col">Last change</th><th scope="col" class="hide-sm">Last update</th></tr></thead>
   <tbody>
   ${repos.map(
     (r) => html`<tr>
@@ -339,7 +398,7 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
         ? html`<label class="sr-only" for="plan">Plan</label>
       <select id="plan" name="plan">
         ${billing.intervals.length ? html`<option value="team" ${team.plan === 'governance' ? '' : 'selected'}>Team · $20 per seat</option>` : ''}
-        <option value="governance" ${team.plan === 'governance' || !billing.intervals.length ? 'selected' : ''}>Governance · $40 per seat, reports and required review</option>
+        <option value="governance" ${team.plan === 'governance' || !billing.intervals.length ? 'selected' : ''}>Governance · $40 per seat, reports and required approval</option>
       </select>`
         : ''}
       <label for="seats">Seats</label>
@@ -558,7 +617,7 @@ function platformCard({ team }) {
 
 // Under each page's title: what the page is for, in one line.
 const SETTINGS_SUBS = {
-  members: 'Who can see this team and review its agent runs.',
+  members: 'Who can see this team and approve its agent runs.',
   rules: (team) => html`Decide which agent runs pass on their own and which need a person. <a class="link" href="/docs/rules">How rules work</a>`,
   github: 'Pull request comments and the Grapim check.',
   notifications: 'Slack messages about agent runs and failed checks.',

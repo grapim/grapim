@@ -1,22 +1,22 @@
 ---
 title: Path rules
 nav: Path rules
-description: Let low-risk agent runs pass on their own and require named reviewers for sensitive paths. Like CODEOWNERS, for agent runs.
+description: Let low-risk agent runs pass on their own and require named approvers for sensitive paths. Like CODEOWNERS, for agent runs.
 ---
 ## Two kinds of rule
 
 - **Automatic rules** approve a run when every file it changed matches one, for example `docs/**` or `**/*.test.*`. The check passes without anyone opening the run. The approval is recorded with the rule and the owner who set it, so someone is still accountable for it.
-- **Review rules** require approvals for runs that change a sensitive path, for example `payments/**` needs 2 approvals.
+- **Approval rules** require approvals for runs that change a sensitive path, for example `payments/**` needs 2 approvals.
 
-Review rules always win. A run that changed `docs/setup.md` and `payments/charge.ts` needs the payments approvals, even though its docs change is covered. A run that matches no rule at all needs one approval from a member, as before. To review only sensitive paths, add an automatic rule for `**` and review rules for the paths that matter.
+Approval rules always win. A run that changed `docs/setup.md` and `payments/charge.ts` needs the payments approvals, even though its docs change is covered. A run that matches no rule at all needs one approval from a member, as before. To ask for approval only on sensitive paths, add an automatic rule for `**` and approval rules for the paths that matter.
 
 If a run changes again after it was approved by rule, the approval goes stale, and the rules are checked again on the next sync.
 
 **Starter rules.** A team without rules can add a common set in one click: tests and docs automatic; `**/auth/**`, `**/payments/**`, `**/migrations/**`, `infra/**` and `.github/workflows/**` reviewed. Remove or change any of them after.
 
-## What a review rule does
+## What an approval rule does
 
-A review rule names a path pattern, how many approvals a run needs, and, optionally, who may give them:
+An approval rule names a path pattern, how many approvals a run needs, and, optionally, who may give them:
 
 | Pattern | Approvals | From |
 |---|---|---|
@@ -36,7 +36,7 @@ If every rule that applies names approvers and you are not one of them, the hub 
 
 ## Where rules apply
 
-- **The pull request check:** with [Require review](/docs/github#require-review) on, the `Grapim provenance (app)` check fails until every rule is met, and its summary names the rule and what is missing.
+- **The pull request check:** with [Require approval](/docs/github#require-approval) on, the `Grapim provenance (app)` check fails until every rule is met, and its summary names the rule and what is missing.
 - **The run page** lists the rules that apply, which file matched, who has approved and who still needs to.
 - **Approve from GitHub:** a click on the check's button follows the same rules.
 - **Audit evidence:** each run lists the rules that apply now, and the rules in force when each decision was made.

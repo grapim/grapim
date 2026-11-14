@@ -27,7 +27,7 @@ export function branchRule({ slug, checkName }) {
       <li>Add the check <code>${checkName}</code>.</li>
       <li>Set its source to the GitHub App <b>Grapim</b>${slug ? html` (<code>${slug}</code>)` : ''}, not "any source". Otherwise a workflow or another App could post a passing check with the same name.</li>
     </ol>
-    <p>The Grapim GitHub Action only comments. It is never a merge gate.</p>
+    <p>Only this App check waits for approvals in the hub. The provenance Action (<code>grapim/grapim/action</code>) only comments and never fails. <a class="link" href="/docs/review#block-merging-on-a-blocker">Grapim Review</a>, the AI review job, fails when it finds a blocker (the default <code>fail-on</code>), and you can require it as a separate check.</p>
   </div>`;
 }
 
@@ -39,7 +39,7 @@ function policyForm({ team, csrf, policy, allowed, from = null, slug = null, che
     ? html`The <code>${checkName}</code> check fails while a pull request has lines from an agent run that no member approved on its run page in this hub. The run's owner (whoever synced it) cannot approve it, and approvals made with <code>grapim review</code> on a machine do not count.`
     : allowed
       ? html`When on, the <code>${checkName}</code> check fails while a pull request has lines from an agent run that another member has not approved in this hub. When off, it is always neutral.`
-      : 'Requiring review is on the Governance plan. The check stays neutral until then.'}</p>
+      : 'Requiring approval is on the Governance plan. The check stays neutral until then.'}</p>
   ${on
     ? html`<h3 class="card-title small policy-sub">Require provenance</h3>
   ${toggle({ team, csrf, field: 'require_provenance', on: prov, allowed, from })}
@@ -61,7 +61,7 @@ export function githubSection({ team, configured, installations, checkName, hist
     ? 'The GitHub App is not configured on this hub.'
     : installations.length
       ? html`Pull requests in ${installations.map((i, n) => html`${n ? ', ' : ''}<span class="strong">${i.account_login || `installation ${i.id}`}</span>`)} get a provenance comment and a "${checkName}" check.`
-      : 'Install the App so each pull request lists its agent runs and who reviewed them, with a check that can block merging.'}</p>
+      : 'Install the App so each pull request lists its agent runs and who approved them, with a check that can block merging.'}</p>
   ${history}
 </section>`;
 }
@@ -74,7 +74,7 @@ export function policyCard({ team, csrf, policy, allowed, slug = null, checkName
   const prov = policy.require_provenance === undefined ? true : !!policy.require_provenance;
   return html`<section class="card" id="require-review" aria-labelledby="require-review-title">
   <div class="card-head">
-    <h2 id="require-review-title" class="card-title">Require review before merge</h2>
+    <h2 id="require-review-title" class="card-title">Require approval before merge</h2>
     ${toggle({ team, csrf, field: 'require_review', on, allowed, from: 'settings' })}
   </div>
   <p class="card-sub">${allowed || on
@@ -111,7 +111,7 @@ ${!configured
     <h2 id="gh-title" class="card-title">GitHub App</h2>
     <form method="post" action="/hub/teams/${team.id}/github/install">${csrfField(csrf)}<button class="btn btn-sm btn-primary" type="submit">Install on GitHub</button></form>
   </div>
-  <p class="card-sub">Each pull request in a linked account gets one comment, updated on every push, listing each agent run (what it was asked, its lines, who reviewed it) and the share of added lines from agents, and a "${checkName}" check. It reads the provenance this team synced; a repo maps to its GitHub name through its <code>origin</code> remote.</p>
+  <p class="card-sub">Each pull request in a linked account gets one comment, updated on every push, listing each agent run (what it was asked, its lines, who approved it) and the share of added lines from agents, and a "${checkName}" check. It reads the provenance this team synced; a repo maps to its GitHub name through its <code>origin</code> remote.</p>
   ${installations.length
     ? html`<ul class="list list-flush">
     ${installations.map(
@@ -142,7 +142,7 @@ ${!configured
 </section>`}
 
 <section class="card" id="policy" aria-labelledby="policy-title">
-  <div class="card-head"><h2 id="policy-title" class="card-title">Require review before merge</h2></div>
+  <div class="card-head"><h2 id="policy-title" class="card-title">Require approval before merge</h2></div>
   ${policyForm({ team, csrf, policy, allowed, slug, checkName })}
 </section>`,
   });

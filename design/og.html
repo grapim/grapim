@@ -2,77 +2,36 @@
 <!-- The share image (og.png, 1200x630). Render with headless Chrome at
      1200x630 and save to src/hub/pages/site-img/og.png:
        node design/render.mjs file:///<repo>/design/og.html src/hub/pages/site-img/og.png 1200 630 dark
-     Same world as the landing page hero: agent runs as isometric plates,
-     one run (the Cursor run whose shell command changed the schema) pulled
-     out of the stack. -->
+     Brand C, "Clearance" (design/brand.md): the deep spruce band, the
+     landing headline, and the signature element, the clearance line, as the
+     one picture. No abstract graphic. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <style>
-  @font-face { font-family: Inter; src: url("../ui/fonts/inter-latin.woff2") format("woff2"); font-weight: 100 900; }
-  @font-face { font-family: Mono; src: url("../ui/fonts/jetbrains-mono-latin.woff2") format("woff2"); font-weight: 100 800; }
+  @font-face { font-family: "Public Sans"; src: url("../ui/fonts/public-sans-latin.woff2") format("woff2"); font-weight: 100 900; }
+  @font-face { font-family: "IBM Plex Mono"; src: url("../ui/fonts/ibm-plex-mono-400-latin.woff2") format("woff2"); font-weight: 400; }
+  @font-face { font-family: "IBM Plex Mono"; src: url("../ui/fonts/ibm-plex-mono-500-latin.woff2") format("woff2"); font-weight: 500; }
   html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
-  body {
-    font-family: Inter, sans-serif; color: #f4f4f6;
-    background:
-      radial-gradient(ellipse 60% 70% at 78% 45%, rgb(80 88 220 / 0.20), transparent 70%),
-      radial-gradient(circle, rgb(255 255 255 / 0.10) 1px, transparent 1.6px) 0 0 / 24px 24px,
-      #0b0b0e;
-    position: relative;
-  }
-  .brand { position: absolute; left: 72px; top: 64px; display: flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 620; letter-spacing: -0.01em; }
-  .brand svg { width: 34px; height: 34px; color: #fff; }
-  .copy { position: absolute; left: 72px; top: 200px; width: 660px; }
-  h1 { margin: 0; font-size: 56px; white-space: nowrap; line-height: 1.04; font-weight: 680; letter-spacing: -0.04em; }
-  p { margin: 26px 0 0; width: 500px; font-size: 24px; line-height: 1.42; color: #a9abb8; }
-  .url { position: absolute; left: 72px; bottom: 60px; font: 500 20px Mono, monospace; color: #8a90f7; }
-  svg.stack { position: absolute; right: 24px; top: 118px; width: 540px; height: 500px; overflow: visible; }
-  .top { fill: #121217; stroke: rgb(255 255 255 / 0.34); stroke-width: 1.4; }
-  .side { fill: #1a1a20; stroke: rgb(255 255 255 / 0.30); stroke-width: 1.4; }
-  .lit .top { fill: rgb(138 144 247 / 0.20); stroke: #8a90f7; }
-  .lit .side { fill: rgb(138 144 247 / 0.10); stroke: #8a90f7; }
-  .label { font: 500 15px Mono, monospace; fill: #c9cad3; }
-  .note { font: 400 13.5px Mono, monospace; fill: #7c7e8a; }
-  .lit .label { fill: #b8bcff; }
-  .lit .note { fill: #8a90f7; }
-  .lead { stroke: rgb(255 255 255 / 0.30); stroke-width: 1.2; }
-  .lit .lead { stroke: #8a90f7; }
-  .trail { stroke: #8a90f7; stroke-width: 1.4; stroke-dasharray: 3 6; fill: none; opacity: 0.8; }
+  body { font-family: "Public Sans", sans-serif; color: #e5eeeb; background: #0b2a26; position: relative; }
+  .brand { position: absolute; left: 72px; top: 64px; display: flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 700; letter-spacing: -0.005em; }
+  .brand svg { width: 32px; height: 32px; color: #e5eeeb; }
+  h1 { position: absolute; left: 72px; top: 156px; margin: 0; width: 900px; font-size: 64px; line-height: 1.04; font-weight: 640; letter-spacing: -0.032em; }
+  .card { position: absolute; left: 72px; right: 72px; bottom: 112px; padding: 22px 24px; border-radius: 16px; background: #0f2f2a; border: 1px solid #2d433e; }
+  .meta { margin: 0 0 16px; font-size: 21px; line-height: 1.45; color: #a9bab5; }
+  .seal { position: relative; margin: 0; padding: 16px 20px 16px 62px; border-radius: 12px; background: #5ec2ad; color: #06110f; font-size: 23px; line-height: 1.4; font-weight: 560; }
+  .seal::before { content: ""; position: absolute; left: 20px; top: 18px; width: 26px; height: 26px; border-radius: 50%; background: #06110f; }
+  .seal::after { content: ""; position: absolute; left: 29px; top: 22px; width: 7px; height: 13px; border: solid #5ec2ad; border-width: 0 3px 3px 0; transform: rotate(45deg); }
+  .url { position: absolute; left: 72px; bottom: 52px; font: 500 20px "IBM Plex Mono", monospace; color: #7dd3c1; }
 </style>
 </head>
 <body>
   <div class="brand"><svg viewBox="0 0 64 64"><rect x="25" y="9" width="30" height="30" rx="5" transform="rotate(45 40 24)" fill="none" stroke="currentColor" stroke-width="5"/><rect x="6" y="26" width="34" height="34" rx="8" fill="currentColor"/></svg>Grapim</div>
-  <div class="copy"><h1>See every agent change.<br>Undo any run.</h1>
-  <p>Every edit and shell command of Claude Code, Codex, Cursor and Gemini CLI, recorded per run.</p></div>
+  <h1>AI code review that never sends your code to us.</h1>
+  <div class="card">
+    <p class="meta">Model: claude-opus-5-5 on Amazon Bedrock (us-east-1). 2 requests, 18,412 input and 2,906 output tokens.</p>
+    <p class="seal">Your code was sent only to Amazon Bedrock (us-east-1). Grapim received nothing.</p>
+  </div>
   <div class="url">app.grapim.com</div>
-  <svg class="stack" viewBox="0 0 540 500"></svg>
-<script>
-(() => {
-  const runs = [['claude 2b9c0d14', 'docs'], ['codex 4c8e1b07', 'tests'], ['cursor 5d81c0e2', 'via shell: prisma migrate'], ['claude 7f3e21aa', 'payments/'], ['gemini 91ad3f60', 'src/search']];
-  const cx = 170, a = 118, b = 59, t = 11, gap = 40, top = 170;
-  const pts = (l) => l.map(([x, y]) => x + ',' + y).join(' ');
-  let out = '';
-  // The pulled run sits out to the right and down; a dashed trail marks where it came from.
-  const ox = 160, oy = -100;
-  const plate = (i, lit) => {
-    const dx = lit ? ox : 0, dy = lit ? oy : (i > 2 ? 0 : 0);
-    const y = top + i * gap + dy, x = cx + dx;
-    const [label, note] = runs[i];
-    return `<g class="${lit ? 'lit' : ''}">
-      <polygon class="side" points="${pts([[x - a, y], [x, y + b], [x, y + b + t], [x - a, y + t]])}"/>
-      <polygon class="side" points="${pts([[x, y + b], [x + a, y], [x + a, y + t], [x, y + b + t]])}"/>
-      <polygon class="top" points="${pts([[x, y - b], [x + a, y], [x, y + b], [x - a, y]])}"/>
-      ${lit ? `<text class="label" x="${x - 70}" y="${y - b - 40}">${label}</text>
-      <text class="note" x="${x - 70}" y="${y - b - 20}">${note}</text>` : ''}
-    </g>`;
-  };
-  // Drawn bottom to top so upper plates cover lower ones; the pulled run last.
-  for (const i of [4, 3, 1, 0]) out += plate(i, false);
-  const y2 = top + 2 * gap;
-  out += `<path class="trail" d="M${cx + a} ${y2} L${cx + a + ox} ${y2 + oy}"/>`;
-  out += plate(2, true);
-  document.querySelector('svg.stack').innerHTML = out;
-})();
-</script>
 </body>
 </html>

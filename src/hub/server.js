@@ -101,7 +101,7 @@ export async function createHub(options = {}) {
     // The design tokens the review desk uses too (ui/tokens.css): one source, no drift.
     '/hub/static/tokens.css': ['text/css; charset=utf-8', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'tokens.css'))],
     // Self-hosted type (ui/fonts, SIL OFL): tokens.css asks for fonts/<file> next to itself.
-    ...Object.fromEntries(['inter-latin.woff2', 'inter-latin-ext.woff2', 'jetbrains-mono-latin.woff2', 'source-serif-4-latin.woff2', 'public-sans-latin.woff2'].map((f) => [
+    ...Object.fromEntries(['public-sans-latin.woff2', 'ibm-plex-mono-400-latin.woff2', 'ibm-plex-mono-500-latin.woff2', 'ibm-plex-mono-600-latin.woff2'].map((f) => [
       `/hub/static/fonts/${f}`, ['font/woff2', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'fonts', f))]])),
     // The sidebar's collapse and resize, shared with the desk.
     '/hub/static/sidebar.js': ['text/javascript; charset=utf-8', fs.readFileSync(path.join(PAGES, '..', '..', '..', 'ui', 'sidebar.js'))],

@@ -119,8 +119,8 @@ function nextSteps(team) {
   <div class="card-head"><h2 id="next-title" class="card-title">Make the next 90 days answerable</h2></div>
   <ol class="steps-list compact">
     <li class="step"><span class="step-mark" aria-hidden="true">1</span><span class="step-body"><span class="step-title">Record every agent run</span><span class="step-text"><code>npm install -g grapim</code> then <code>grapim init</code> in each repo: each commit gets a note naming the run and prompt behind each line.</span></span></li>
-    <li class="step"><span class="step-mark" aria-hidden="true">2</span><span class="step-body"><span class="step-title">Review runs, not just pull requests</span><span class="step-text">A teammate other than the run's author approves it in Grapim, or from the button on the GitHub check.</span></span></li>
-    <li class="step"><span class="step-mark" aria-hidden="true">3</span><span class="step-body"><span class="step-title">Block unreviewed merges</span><span class="step-text"><a class="link" href="/hub/teams/${team.id}/github#policy">Require review</a> makes the Grapim check fail until every run is approved.</span></span></li>
+    <li class="step"><span class="step-mark" aria-hidden="true">2</span><span class="step-body"><span class="step-title">Approve runs, not just pull requests</span><span class="step-text">A teammate other than the run's author approves it in Grapim, or from the button on the GitHub check.</span></span></li>
+    <li class="step"><span class="step-mark" aria-hidden="true">3</span><span class="step-body"><span class="step-title">Block unapproved merges</span><span class="step-text"><a class="link" href="/hub/teams/${team.id}/github#policy">Require approval</a> makes the Grapim check fail until every run is approved.</span></span></li>
   </ol>
 </section>`;
 }
@@ -227,7 +227,7 @@ export function rulesCard({ team, csrf, role, rules, members, allowed }) {
       ${members.map((m) => html`<label class="toggle"><input type="checkbox" name="${`approver_${m.id}`}" value="1"> ${m.login}</label>`)}
     </fieldset>
     <p class="fine rule-auto-note">Runs that only change matching files pass without a person; the rule and its author are on record.</p>
-    <p class="fine">Review rules win over automatic ones. <code>**</code> matches any folders, <code>*</code> any characters in a name, from the repo root.</p>
+    <p class="fine">Approval rules win over automatic ones. <code>**</code> matches any folders, <code>*</code> any characters in a name, from the repo root.</p>
     <button class="btn btn-sm btn-primary" type="submit">Add rule</button>
   </form>`
       : html`<p class="fine">Team owners add and remove rules.</p>`}
@@ -239,7 +239,7 @@ export function rulesCard({ team, csrf, role, rules, members, allowed }) {
 export function notifyCard({ team, csrf, info }) {
   return html`<section class="card" id="notifications" aria-labelledby="notify-title">
   <div class="card-head"><h2 id="notify-title" class="card-title">Slack</h2>${info ? html`<span class="badge ${info.disabled ? 'badge-warn' : 'badge-ok'}">${info.disabled ? 'Off' : 'On'}</span>` : ''}</div>
-  <p class="card-sub">A digest when runs wait for review (at most every 15 minutes), and a message when the Grapim check fails on a pull request.</p>
+  <p class="card-sub">A digest when runs wait for approval (at most every 15 minutes), and a message when the Grapim check fails on a pull request.</p>
   ${info
     ? html`<p class="fine">Webhook ending in <code>…${info.hint}</code>, saved ${time(info.set_at)}.${info.last_ok_at ? html` Last delivered ${time(info.last_ok_at)}.` : ''}</p>
   ${info.last_error ? html`<p class="notice notice-error" role="alert">${info.last_error}</p>` : ''}

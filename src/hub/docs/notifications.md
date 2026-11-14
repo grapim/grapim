@@ -1,11 +1,11 @@
 ---
 title: Slack notifications
 nav: Slack notifications
-description: Post to a Slack channel when agent runs wait for review and when the Grapim check fails on a pull request.
+description: Post to a Slack channel when agent runs wait for approval and when the Grapim check fails on a pull request.
 ---
 ## What gets posted
 
-- **Runs waiting for review:** one message at most every 15 minutes, listing each new agent run nobody has approved yet, with a link to its review page. Each run is listed once.
+- **Runs waiting for approval:** one message at most every 15 minutes, listing each new agent run nobody has approved yet, with a link to its review page. Each run is listed once.
 - **A failed check:** when the `Grapim provenance (app)` check fails on a pull request, once per pushed commit, with a link to the pull request.
 
 ## Set it up

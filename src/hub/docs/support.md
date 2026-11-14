@@ -21,7 +21,7 @@ Write to the people who build Grapim from **Help and feedback** in the hub. We r
 | `This repo has no commits yet` | Commit once, then sync. |
 | `grapim sync works in a git repo` | Run it inside the repo, not a parent folder. |
 | A Codex run is not recorded | Trust the project hooks once in Codex with `/hooks`, then start a new session. |
-| The PR check stays neutral | Require review is off, or the team is not on Governance. See [the GitHub App and PR check](/docs/github). |
+| The PR check stays neutral | Require approval is off, or the team is not on Governance. See [the GitHub App and PR check](/docs/github). |
 | Lines show as not recorded | The commits were made on a machine without `grapim init`, or before it. |
 
 ## Security problems

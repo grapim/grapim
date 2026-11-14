@@ -63,7 +63,7 @@ ${runs.length
   ? html`<div class="table-wrap">
 <table class="table">
   <caption class="sr-only">Agent runs in ${repo.name}, newest first</caption>
-  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Computer</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num hide-sm">Lines</th><th scope="col" class="hide-sm">Still in code</th><th scope="col" class="hide-sm">Review</th><th scope="col">Last change</th></tr></thead>
+  <thead><tr><th scope="col">Run</th><th scope="col" class="hide-sm">Computer</th><th scope="col" class="num hide-sm">Files</th><th scope="col" class="num hide-sm">Lines</th><th scope="col" class="hide-sm">Still in code</th><th scope="col" class="hide-sm">Approval</th><th scope="col">Last change</th></tr></thead>
   <tbody>
   ${runs.map(
     (r) => html`<tr>
@@ -116,7 +116,7 @@ function reviewState(review) {
 }
 
 function reviewActions({ review, state }) {
-  if (review.mine) return html`<span class="muted small">Your run: a teammate reviews it</span>`;
+  if (review.mine) return html`<span class="muted small">Your run: a teammate approves it</span>`;
   return html`<button class="btn ${state === 'approved' ? '' : 'btn-primary'}" type="submit" form="review-form" name="status" value="approved">${icon('check')}Approve</button>
     <button class="btn btn-danger" type="submit" form="review-form" name="status" value="rejected">${icon('x')}Reject</button>`;
 }
@@ -129,8 +129,8 @@ function reviewPanel({ csrf, team, repo, run, review }) {
   <div class="panel-body">
   ${review.done ? html`<p class="notice" role="status">${review.done === 'approved' ? 'Approved.' : 'Rejected.'} Open pull requests with this run are checked again.</p>` : ''}
   <p>${h
-    ? html`${h.status === 'approved' ? 'Approved' : 'Rejected'} by <span class="strong">${h.reviewer_login || 'a member'}</span>${h.via === 'github' ? ' from the GitHub check' : ''} ${time(h.reviewed_at)}${h.note ? html`: ${h.note}` : ''}.${h.stale ? ' The agent changed more since then, so it needs a new review.' : ''}`
-    : 'Not reviewed yet.'}
+    ? html`${h.status === 'approved' ? 'Approved' : 'Rejected'} by <span class="strong">${h.reviewer_login || 'a member'}</span>${h.via === 'github' ? ' from the GitHub check' : ''} ${time(h.reviewed_at)}${h.note ? html`: ${h.note}` : ''}.${h.stale ? ' The agent changed more since then, so it needs a new approval.' : ''}`
+    : 'Not approved yet.'}
   ${review.enforced && !(h && h.status === 'approved' && !h.stale && (!review.rules || review.rules.ok)) ? ' Pull requests that include it fail the Grapim check until it is approved here.' : ''}</p>
   ${review.rulesHtml ?? ''}
   ${review.pulls.length
@@ -139,10 +139,10 @@ function reviewPanel({ csrf, team, repo, run, review }) {
         return html`${i ? ', ' : ''}${url ? html`<a class="link mono" href="${url}" rel="noopener noreferrer">${p.owner}/${p.name}#${p.number}</a>` : html`<code>${p.owner}/${p.name}#${p.number}</code>`}`;
       })}</span></p>`
     : ''}
-  ${review.local && review.local.status !== 'pending' ? html`<p class="fine">${review.local.status === 'approved' ? 'Approved' : 'Rejected'} by ${review.local.login || review.local.machine} on their own computer, with <code>grapim review</code>. That does not count; only a review here does.</p>` : ''}
-  <p class="fine">From ${review.owners.length ? `${review.owners.join(', ')}’s computer` : 'an unknown computer'}. Nobody can review their own run.</p>
+  ${review.local && review.local.status !== 'pending' ? html`<p class="fine">${review.local.status === 'approved' ? 'Approved' : 'Rejected'} by ${review.local.login || review.local.machine} on their own computer, with <code>grapim review</code>. That does not count; only an approval here does.</p>` : ''}
+  <p class="fine">From ${review.owners.length ? `${review.owners.join(', ')}’s computer` : 'an unknown computer'}. Nobody can approve their own run.</p>
   ${review.mine
-    ? html`<p class="muted small">This is your run, so a teammate has to review it. Nobody else on the team yet? <a class="link" href="/hub/teams/${team.id}/settings/members">Invite a teammate</a>.</p>`
+    ? html`<p class="muted small">This is your run, so a teammate has to approve it. Nobody else on the team yet? <a class="link" href="/hub/teams/${team.id}/settings/members">Invite a teammate</a>.</p>`
     : html`<form method="post" action="${action}" class="review-form" id="review-form">
     ${csrfField(csrf)}
     <input type="hidden" name="machine" value="${run.machine}">
@@ -186,7 +186,7 @@ export function runPage({ user, csrf, team, repo, detail, review = null, live = 
   </div>
   <div class="run-bar-actions">
     <button class="btn btn-ghost ask-run" type="button" hidden data-agent-ask="Summarize this run: what it changed and why, whether its lines are still in the tree, and anything a reviewer should check before approving.">${icon('spark')}Ask about this run</button>
-    ${review ? html`<span class="run-bar-review" role="group" aria-label="Review">${reviewActions({ review, state })}</span>` : ''}
+    ${review ? html`<span class="run-bar-review" role="group" aria-label="Approval">${reviewActions({ review, state })}</span>` : ''}
   </div>
 </header>
 <div class="run-meta">

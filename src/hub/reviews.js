@@ -111,7 +111,7 @@ export class HubReviews {
     if (!STATUSES.includes(status)) throw fail('bad_request', 'Choose approve or reject.');
     const text = typeof note === 'string' ? note.replace(/\s+/g, ' ').trim().slice(0, MAX_NOTE) : '';
     const owners = this.owners(teamId, run);
-    if (!Number.isSafeInteger(userId) || owners.has(userId)) throw fail('own_run', 'You synced this run, so another member has to review it.');
+    if (!Number.isSafeInteger(userId) || owners.has(userId)) throw fail('own_run', 'You synced this run, so another member has to approve it.');
     const reviewed_at = this.now();
     this.db
       .prepare('INSERT INTO hub_reviews (team_id, repo_id, run, status, reviewer_user_id, reviewed_at, note, seen_change, via, rules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')

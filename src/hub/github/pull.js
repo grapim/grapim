@@ -212,7 +212,7 @@ export function decide({ requireProvenance, runs, hubReviews, localReviews, plac
         : 'Every agent run is approved in the Grapim hub';
 
   const out = [
-    `**Policy: require review.** Every line an AI agent wrote must come from a run approved in the Grapim hub by a member other than the person who synced it.${rules.size ? ' Runs that touch a path with a rule need the approvals the rule names.' : ''}${requireProvenance ? ' Require provenance is on: every commit that adds lines needs a Grapim note (an empty note from a human-only commit counts).' : ''} Approvals made with \`grapim review\` on a machine are shown but do not count.`,
+    `**Policy: require approval.** Every line an AI agent wrote must come from a run approved in the Grapim hub by a member other than the person who synced it.${rules.size ? ' Runs that touch a path with a rule need the approvals the rule names.' : ''}${requireProvenance ? ' Require provenance is on: every commit that adds lines needs a Grapim note (an empty note from a human-only commit counts).' : ''} Approvals made with \`grapim review\` on a machine are shown but do not count.`,
   ];
   if (unapproved.length) {
     out.push(`#### Runs to approve in the hub (${unapproved.length})`, [...unapproved.slice(0, LIST_MAX).map((u) => u.line), ...(unapproved.length > LIST_MAX ? [`- and ${plural(unapproved.length - LIST_MAX, 'more run')}`] : [])].join('\n'));

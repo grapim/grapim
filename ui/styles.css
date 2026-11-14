@@ -53,8 +53,8 @@ kbd {
   position: sticky; top: 0; height: 100vh;
   display: flex; flex-direction: column; gap: 16px;
   padding: 16px 12px;
-  border-right: 1px solid var(--border);
-  background: var(--bg);
+  border-right: 0;
+  background: var(--band);
 }
 .brand { display: flex; align-items: center; gap: 8px; padding: 0 8px; height: 28px; }
 /* The product mark: the hub's diamond, the same everywhere. */
@@ -80,6 +80,8 @@ kbd {
 }
 .nav a:hover { background: var(--surface-2); color: var(--text); }
 .nav a[aria-current="page"] { background: var(--surface-3); color: var(--text); }
+.sidebar .nav a[aria-current="page"] { background: rgb(255 255 255 / 0.08); color: #fff; }
+.sidebar .nav a[aria-current="page"] .icon { color: var(--accent-text); }
 .nav .icon { color: var(--text-3); }
 .nav a[aria-current="page"] .icon { color: var(--text); }
 .nav .label { flex: 1; }
@@ -139,9 +141,9 @@ kbd {
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  height: 32px; padding: 0 12px; border-radius: var(--radius);
+  height: 32px; padding: 0 14px; border-radius: 999px;
   border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
-  font-size: var(--fs-13); font-weight: 500; white-space: nowrap; box-shadow: var(--shadow-1);
+  font-size: var(--fs-13); font-weight: 600; white-space: nowrap; box-shadow: var(--shadow-1);
   transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 .btn:hover { background: var(--surface-2); }
@@ -739,7 +741,7 @@ html.embed .toasts { bottom: auto; top: calc(var(--vis-top, 0px) + var(--vis-h, 
 }
 
 /* ------------------------------------------------------------ code text
-   Code reads as typed: JetBrains Mono's contextual alternates would turn =>
+   Code reads as typed: a mono's contextual alternates would turn =>
    into an arrow and === into a bar. Last in the file, because every `font:`
    shorthand above resets these two properties. */
 :is(code, pre, .mono, .chip, .plusminus, .file-path, .ftree .p, .tree-row .name, .agent .id, .empty .cmd, .plan-row .p, .feed-item time, .confirm input),

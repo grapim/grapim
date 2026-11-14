@@ -606,7 +606,7 @@ export function createGitHubApp(hub, options = {}) {
           const change = {};
           for (const k of ['require_review', 'require_provenance']) if (ctx.form[k] === '1' || ctx.form[k] === '0') change[k] = ctx.form[k] === '1';
           if (!Object.keys(change).length) throw new HttpError(400, 'bad_request', 'Nothing to change.');
-          if (Object.values(change).some(Boolean) && !governance(team)) throw new HttpError(402, 'plan_required', 'Requiring review is on the Governance plan.');
+          if (Object.values(change).some(Boolean) && !governance(team)) throw new HttpError(402, 'plan_required', 'Requiring approval is on the Governance plan.');
           setPolicy(team.id, change, ctx.session.user.id);
           back(ctx, 'policy', ctx.form);
         }),

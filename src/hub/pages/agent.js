@@ -236,7 +236,7 @@
 
   function contextLabel(ctx) {
     const title = (document.querySelector('.crumbs .crumb.current')?.textContent || document.title.replace(/\s*·\s*Grapim$/, '')).trim();
-    const names = { run: 'Run', repo: 'Repo', workspace: 'Workspace', reviews: 'Reviews', reports: 'Reports', settings: 'Settings', workspaces: 'Workspaces', repos: 'Repos', overview: 'Overview' };
+    const names = { run: 'Run', repo: 'Repo', workspace: 'Workspace', reviews: 'Approvals', reports: 'Reports', settings: 'Settings', workspaces: 'Workspaces', repos: 'Repos', overview: 'Overview' };
     const kind = names[ctx.kind] ?? 'Page';
     return ctx.kind === 'run' || ctx.kind === 'repo' || ctx.kind === 'workspace' ? `${kind} · ${title}` : kind;
   }

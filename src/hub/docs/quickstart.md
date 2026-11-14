@@ -1,7 +1,7 @@
 ---
 title: Quickstart
 nav: Quickstart
-description: From sign-in to your first reviewed agent run in about five minutes.
+description: Record every agent run and approve it in the hub, from sign-in to your first approved run in about five minutes. For AI review of pull requests, see AI review.
 ---
 You need Node 22.13 or newer and git on the machine where your agents work, a GitHub account, and a repo with at least one commit.
 
@@ -9,7 +9,7 @@ You need Node 22.13 or newer and git on the machine where your agents work, a Gi
 
 Sign in at [app.grapim.com](/hub) with GitHub. Grapim reads your public profile (name and avatar) and asks for no other access.
 
-Create a team on the teams page. A team is the people who review each other's agent work; its owner invites the others later.
+Create a team on the teams page. A team is the people who approve each other's agent work; its owner invites the others later.
 
 > **Early access.** Anyone can sign up and create a team; one account can own up to 5 free teams. To join an existing team instead, open the invite link its owner sends you.
 
@@ -45,14 +45,15 @@ On Windows PowerShell, set the token with `$env:GRAPIM_HUB_TOKEN = "cmh_your_tok
 
 `--watch` syncs every 5 seconds until you stop it. Without it, `grapim sync` sends what is new once and exits. Each sync sends the runs, the changed files' contents and the provenance notes; the repo's GitHub name comes from its `origin` remote.
 
-## 5. Review your first run
+## 5. Approve your first run
 
-Ask your agent for a small change. Within seconds the run appears in your team's **Reviews**: the agent, what it was asked, turn by turn, and the diff.
+Ask your agent for a small change. Within seconds the run appears in your team's **Approvals**: the agent, what it was asked, turn by turn, and the diff.
 
-A run is reviewed by someone other than the person who synced it. Invite a teammate from **Settings**, **Members & invites**; the link works once and expires after 7 days. They open the run and choose **Approve** or **Reject**.
+A run is approved by someone other than the person who synced it. Invite a teammate from **Settings**, **Members**; the link works once and expires after 7 days. They open the run and choose **Approve** or **Reject**.
 
 ## Next
 
-- [Turn on the pull request check](/docs/github), so unreviewed agent code cannot merge.
+- [Turn on the pull request check](/docs/github), so unapproved agent code cannot merge.
+- [Add AI review](/docs/review) to every pull request, in your own GitHub Actions.
 - Learn [how a run is recorded](/docs/concepts).
 - [Undo a run](/docs/undo) that went wrong.

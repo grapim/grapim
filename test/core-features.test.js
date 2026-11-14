@@ -611,11 +611,11 @@ test('approve from GitHub: buttons on the check; a member\'s click approves as t
 test('path rules: payments/** needs 2 approvals from named people; the check and the hub enforce it; the run page shows who is missing', async (t) => {
   const { h, alice, bob, carol, A, inst } = await governed(t);
   assert.equal((await alice.post(`/hub/teams/${A}/github/policy`, { require_review: '1' })).status, 303);
-  // The same switches on Settings, Review rules come back there, with a refusal shown there.
+  // The same switches on Settings, Approval rules come back there, with a refusal shown there.
   assert.match((await alice.post(`/hub/teams/${A}/github/policy`, { require_provenance: '1', from: 'settings' })).location, /\/settings\/rules\?done=policy_saved$/);
   const nothing = await alice.post(`/hub/teams/${A}/github/policy`, { from: 'settings' });
   assert.equal(nothing.status, 400);
-  assert.match(nothing.text, /<h1>Review rules<\/h1>[\s\S]*Nothing to change/);
+  assert.match(nothing.text, /<h1>Approval rules<\/h1>[\s\S]*Nothing to change/);
   assert.match((await alice.req(`/hub/teams/${A}/settings/rules`)).text, /id="require-review"[\s\S]*id="rules"[\s\S]*class="field rule-review-only"/);
   assert.doesNotMatch((await bob.req(`/hub/teams/${A}/settings/rules`)).text, /id="require-review"/, 'the policy is for owners');
   // Validation: a bad pattern, too few approvers for the count.
@@ -648,7 +648,7 @@ test('path rules: payments/** needs 2 approvals from named people; the check and
   const page = await carol.req(`${runPath(A, RUN1)}?machine=alice-laptop`);
   assert.match(page.text, /Approvals this run needs/);
   assert.match(page.text, /<b>1 more approval needed<\/b>, from gov-carol/);
-  assert.match(page.text, /Needs review/, 'the badge does not say Approved while a rule is unmet');
+  assert.match(page.text, /Needs approval/, 'the badge does not say Approved while a rule is unmet');
   // Carol approves: the check passes through re-evaluation.
   assert.equal((await carol.post(`${runPath(A, RUN1)}/decision`, { status: 'approved' })).status, 303);
   await h.hub.github.queue.idle();
@@ -658,7 +658,7 @@ test('path rules: payments/** needs 2 approvals from named people; the check and
   assert.match(snap.rules, /payments\/\*\*/);
 
   // Rules page: members read, owners remove; another team gets 404.
-  assert.match((await bob.req(`/hub/teams/${A}/rules`)).location, /\/settings\/rules$/, 'the old address goes to Settings, Review rules');
+  assert.match((await bob.req(`/hub/teams/${A}/rules`)).location, /\/settings\/rules$/, 'the old address goes to Settings, Approval rules');
   assert.match((await bob.req(`/hub/teams/${A}/settings/rules`)).text, /payments\/\*\*/);
   const id = h.hub.github.rules.list(A)[0].id;
   assert.equal((await bob.post(`/hub/teams/${A}/rules/${id}/delete`)).status, 403);

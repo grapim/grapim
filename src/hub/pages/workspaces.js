@@ -273,7 +273,7 @@ ${owner
   : html`<p class="fine">Only a team owner can delete this workspace.</p>`}`;
 }
 
-const REVIEW = { pending: ['Needs review', 'pending'], approved: ['Approved', 'ok'], rejected: ['Rejected', 'danger'] };
+const REVIEW = { pending: ['Needs approval', 'pending'], approved: ['Approved', 'ok'], rejected: ['Rejected', 'danger'] };
 
 function activityTab({ team, ws, activity }) {
   const desk = deskPath(team, ws);

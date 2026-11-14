@@ -19,7 +19,7 @@ export const agent = (label, kind) => {
 };
 
 // Hub review state of a synced run. status: pending | stale | approved | rejected.
-const REVIEW = { pending: ['Needs review', 'pending'], stale: ['Changed since review', 'warn'], approved: ['Approved', 'ok'], rejected: ['Rejected', 'danger'] };
+const REVIEW = { pending: ['Needs approval', 'pending'], stale: ['Changed since approval', 'warn'], approved: ['Approved', 'ok'], rejected: ['Rejected', 'danger'] };
 export const reviewBadge = (status) => {
   const [label, tone] = REVIEW[status] ?? REVIEW.pending;
   return html`<span class="badge badge-${tone}">${label}</span>`;

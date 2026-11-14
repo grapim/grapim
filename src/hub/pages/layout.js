@@ -26,7 +26,7 @@ export { avatar };
 export const SETTINGS_PAGES = [
   { id: 'general', label: 'General' },
   { id: 'members', label: 'Members' },
-  { id: 'rules', label: 'Review rules' },
+  { id: 'rules', label: 'Approval rules' },
   { id: 'github', label: 'GitHub', owner: true },
   { id: 'notifications', label: 'Notifications', owner: true },
   { id: 'machines', label: 'Machines' },
@@ -43,7 +43,7 @@ function sections(team, kind = team.kind) {
   const base = `/hub/teams/${team.id}`;
   const list = [
     { id: 'overview', label: 'Overview', href: base, icon: 'home', g: 'o' },
-    { id: 'reviews', label: 'Reviews', href: `${base}/reviews`, icon: 'review', g: 'r' },
+    { id: 'reviews', label: 'Approvals', href: `${base}/reviews`, icon: 'review', g: 'r' },
     { id: 'repos', label: 'Repos', href: `${base}/repos`, icon: 'repo', g: 'p' },
     { id: 'agents', label: 'Agents', href: `${base}/agents`, icon: 'agents', g: 'i' },
     { id: 'reports', label: 'Reports', href: `${base}/reports`, icon: 'reports', g: 'a' },
@@ -89,7 +89,7 @@ function navLinks(team, shell, current) {
   // Before that its link stays hidden, so "g w" and the palette still reach it.
   const shown = (s) => s.id !== 'workspaces' || shell.palette.workspaces.length > 0 || current === 'workspaces';
   const link = (s) => html`<a class="nav-item" href="${s.href}" data-g="${s.g}" ${current === s.id ? html`aria-current="page"` : ''} ${shown(s) ? '' : html`hidden`}>${icon(s.icon)}<span class="nav-label">${s.label}</span>${
-    s.id === 'reviews' && shell.reviews ? html`<span class="count num" title="${`${shell.reviews} run${shell.reviews === 1 ? '' : 's'} you can review`}">${shell.reviews}</span>` : ''
+    s.id === 'reviews' && shell.reviews ? html`<span class="count num" title="${`${shell.reviews} run${shell.reviews === 1 ? '' : 's'} waiting for your approval`}">${shell.reviews}</span>` : ''
   }</a>`;
   const more = list.filter((s) => s.secondary);
   return html`${list.filter((s) => !s.secondary).map(link)}${more.some(shown) ? html`<div class="nav-sep" role="separator"></div>` : ''}${more.map(link)}`;
@@ -102,7 +102,7 @@ function paletteSource(team, shell) {
   const owner = shell.role === 'owner';
   return html`<template id="palette-src">
   ${sections(team, shell.teams.find((t) => t.id === team.id)?.kind).map((s) => item('Go to', s.href, s.label, '', `g ${s.g}`))}
-  ${shell.palette.runs.map((r) => item('Runs to review', `${base}/repos/${r.repo_id}/runs/${encodeURIComponent(r.run)}?machine=${encodeURIComponent(r.machine)}`, r.intent || r.label, `${r.label} · ${r.repo}`))}
+  ${shell.palette.runs.map((r) => item('Runs to approve', `${base}/repos/${r.repo_id}/runs/${encodeURIComponent(r.run)}?machine=${encodeURIComponent(r.machine)}`, r.intent || r.label, `${r.label} · ${r.repo}`))}
   ${shell.palette.repos.map((r) => item('Repos', `${base}/repos/${r.id}`, r.name))}
   ${shell.palette.workspaces.map((w) => item('Workspaces', `${base}/workspaces/${w.id}`, w.name, 'workspace'))}
   ${shell.palette.workspaces.map((w) => item('Workspaces', `/w/${team.id}/${w.name}/`, `Open ${w.name} in the review desk`, 'review desk'))}
@@ -131,6 +131,8 @@ function head(title) {
 <script src="/hub/static/theme.js"></script>
 <script src="/hub/static/sidebar.js"></script>
 <link rel="icon" href="/hub/static/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/hub/static/fonts/public-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/hub/static/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/hub/static/tokens.css">
 <link rel="stylesheet" href="/hub/static/shell.css">
 <link rel="stylesheet" href="/hub/static/hub.css">

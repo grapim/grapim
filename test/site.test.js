@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHub } from '../src/hub/server.js';
 import { cliHelp, docPath, loadDocs, ORDER, parseHelp, renderMarkdown } from '../src/hub/pages/docs.js';
+import { REVIEW_PROVIDERS } from '../src/hub/pages/review-setup.js';
 
 const ORIGIN = 'http://localhost:7998';
 let h;
@@ -56,17 +57,32 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   assert.match(out.headers.get('content-type'), /text\/html/);
   assert.match(out.headers.get('content-security-policy'), /script-src 'self'/);
   const body = await out.text();
-  assert.match(body, /See what your AI agents changed\.<br> Undo the mistakes\./);
-  assert.match(body, /href="\/hub\/auth\/github"/, 'the primary action signs in with GitHub');
+  assert.match(body, /AI code review that never sends your code to us\./);
+  assert.match(body, /class="btn btn-primary btn-lg" href="\/docs\/review">Add to a repo</, 'the primary action is the Review setup');
+  assert.match(body, /Your code was sent only to Amazon Bedrock \(us-east-1\)\. Grapim received nothing\./, 'the summary line, as the Action writes it');
+  assert.match(body, /href="\/hub\/auth\/github"/, 'sign in stays in the bar');
   assert.match(body, /href="\/docs"/);
   assert.match(body, /href="\/pricing"/);
-  for (const id of ['how', 'review', 'security']) assert.match(body, new RegExp(`id="${id}"`), `section #${id}`);
+  for (const id of ['where', 'how']) assert.match(body, new RegExp(`id="${id}"`), `section #${id}`);
+  // The hero plays one review, but its markup is the finished state (no JS, print, reduced motion).
+  assert.match(body, /<figure class="hero-vis" data-play="review">/);
+  assert.match(body, /<span class="ck-run" aria-hidden="true">In progress<\/span><span class="ck-fail">Failing after 52s<\/span>/, 'the check ends failing; its in-progress wording is hidden from screen readers');
+  assert.match(body, /<button type="button" class="replay" data-replay hidden>Replay<\/button>/, 'Replay only appears once the review has played');
+  // Code lives in the docs: the landing shows only the workflow lines that
+  // matter, links to the whole file, and has no config file.
+  assert.match(body, /<a class="link" href="\/docs\/review#amazon-bedrock">See the full file/);
+  assert.match(body, /<span class="cl cl-gap">…<\/span>/, 'left-out lines are marked');
+  assert.equal((body.match(/<span class="cl[ "]/g) ?? []).length, 6, 'six lines of the workflow');
+  assert.ok(!/review\.json|actions\/checkout/.test(body), 'no config file and no full workflow on the landing');
+  assert.match(body, /<dd class="fd-hi">depth high<\/dd>/, 'the depth fragment uses the summary’s words');
   const words = body.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
-  assert.ok(words < 900, `the landing page stays short (${words} words)`);
+  assert.ok(words < 500, `the landing page stays short (${words} words)`);
 
   // Pricing has its own page. Honest pricing: no checkout while billing is not live.
   const pricing = await (await get('/pricing')).text();
   assert.match(pricing, /nothing is charged yet/);
+  assert.match(pricing, /<details open><summary>Does our code have to leave our machines\?/, 'the data question is answered open');
+  assert.match(pricing, /model usage is paid on your own model account/);
   for (const p of ['free', 'team', 'governance', 'enterprise']) assert.match(pricing, new RegExp(`<h2 id="plan-${p}">`));
   for (const b of [body, pricing]) assert.ok(!/start (your )?(free )?trial|buy now|checkout\.stripe/i.test(b));
 
@@ -120,7 +136,7 @@ test('every internal link and image on the public pages resolves', async () => {
 test('docs: pages, prev and next, the quickstart redirect, and a 404 for unknown pages', async () => {
   const first = await (await get('/docs')).text();
   assert.match(first, /<h1>Quickstart<\/h1>/);
-  assert.match(first, /class="pager-next" href="\/docs\/concepts"/);
+  assert.match(first, /class="pager-next" href="\/docs\/review"/);
   assert.match(first, /aria-current="page"[^>]*>Quickstart|>Quickstart<\/a>/);
   const quick = await get('/docs/quickstart');
   assert.equal(quick.status, 303);
@@ -239,4 +255,19 @@ test('the site statics are served with their types', async () => {
   }
   const css = await (await get('/hub/static/site.css')).text();
   assert.ok(!/@import|url\(\s*["']?https?:/i.test(css), 'no external stylesheet or asset');
+});
+
+test('AI review: /docs/review and action/review/README.md show the same workflow files the setup checklist hands over', async () => {
+  const page = await get('/docs/review');
+  assert.equal(page.status, 200);
+  const body = await page.text();
+  assert.match(body, /<h1>AI review<\/h1>/);
+  const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const src = read('../src/hub/docs/review.md');
+  const readme = read('../action/review/README.md');
+  for (const p of REVIEW_PROVIDERS) {
+    assert.ok(src.includes(p.yaml), `docs/review.md has the ${p.key} workflow`);
+    assert.ok(readme.includes(p.yaml), `action/review/README.md has the ${p.key} workflow`);
+    assert.match(body, new RegExp(`id="${p.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}"`), `a heading for ${p.label}`);
+  }
 });
