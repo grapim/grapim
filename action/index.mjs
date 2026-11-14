@@ -11,7 +11,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectFromGit, git, NOTES_REF, resolveCommit } from './dist/pr.js';
+import { collectFromGit, prepareHistory } from './dist/pr.js';
 import { MARKER, renderEmpty, renderSummary } from './dist/render.js';
 
 const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -75,22 +75,6 @@ function printSafely(log, title, text) {
   log(`::stop-commands::${token}`);
   log(`${title}\n\n${text}`);
   log(`::${token}::`);
-}
-
-function prepareHistory(cwd, { base, head, number }, log) {
-  if (git(cwd, ['fetch', '--no-tags', '--quiet', 'origin', `+${NOTES_REF}:${NOTES_REF}`], { allowFail: true }) === null) log(`No ${NOTES_REF} on the remote yet.`);
-  if ((git(cwd, ['rev-parse', '--is-shallow-repository'], { allowFail: true }) ?? '').trim() === 'true') {
-    log('The checkout is shallow: fetching the full history (set fetch-depth: 0 on actions/checkout to skip this).');
-    git(cwd, ['fetch', '--no-tags', '--quiet', '--unshallow', 'origin'], { allowFail: true });
-  }
-  for (const [sha, extra] of [
-    [base, null],
-    [head, Number.isSafeInteger(number) ? `+refs/pull/${number}/head` : null],
-  ]) {
-    if (resolveCommit(cwd, sha)) continue;
-    git(cwd, ['fetch', '--no-tags', '--quiet', 'origin', sha], { allowFail: true });
-    if (!resolveCommit(cwd, sha) && extra) git(cwd, ['fetch', '--no-tags', '--quiet', 'origin', extra], { allowFail: true });
-  }
 }
 
 function setOutputs(env, stats) {

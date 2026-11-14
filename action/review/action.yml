@@ -1,0 +1,42 @@
+name: Grapim Review
+description: AI code review that runs in your own CI. Knows which agent run wrote each line and what it was asked to do. Your code goes only to the model endpoint you choose.
+author: Grapim
+branding:
+  icon: check-circle
+  color: purple
+# Model credentials are read from the environment (ANTHROPIC_API_KEY; the AWS_*
+# variables aws-actions/configure-aws-credentials sets; GOOGLE_OAUTH_ACCESS_TOKEN
+# from google-github-actions/auth; ANTHROPIC_FOUNDRY_API_KEY), never from inputs.
+inputs:
+  github-token:
+    description: Token used to post the review and the summary comment. Needs pull-requests write. On a pull request from a fork it is read-only, and the review goes to the job summary instead.
+    required: false
+    default: ${{ github.token }}
+  provider:
+    description: anthropic, bedrock, vertex or foundry. Empty to pick from the credentials in the environment (GRAPIM_REVIEW_PROVIDER, else the one whose credentials are set).
+    required: false
+    default: ''
+  model:
+    description: Model id, overriding "model" in the config file. Empty for the config file's (default claude-opus-5-5).
+    required: false
+    default: ''
+  fail-on:
+    description: blocker to fail the job when the review finds a blocker, never to only comment. Empty for the config file's failOn (default blocker).
+    required: false
+    default: ''
+  config-path:
+    description: The review config file, relative to the repository root.
+    required: false
+    default: .grapim/review.json
+outputs:
+  blockers:
+    description: Blocker findings.
+  warnings:
+    description: Warning findings.
+  nits:
+    description: Nit findings.
+  reviewed-hunks:
+    description: Diff hunks sent to the model.
+runs:
+  using: node24
+  main: index.mjs

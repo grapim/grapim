@@ -41,11 +41,15 @@ Get started
                                send this repo's runs to your team's hub for review (default
                                ${HUB}; machine token from $GRAPIM_HUB_TOKEN)
 
-Review and undo agent runs
+Agent runs: AI review, approval, undo
   grapim runs                  every agent run: intent, turns, files, +/- lines, still in the tree?
+  grapim review --ai [<base>..<head>] [--json] [--fail-on blocker|never]
+                               AI review of a branch with the model your env credentials point
+                               at (ANTHROPIC_API_KEY, Bedrock, Vertex, Foundry); deepest on
+                               agent-written lines. Exit 1 on a blocker (unless --fail-on never)
   grapim review <run> --approve|--reject|--pending [--note "..."]
-                               mark a run reviewed on this machine (without a flag, show its
-                               review). The pull request check counts approvals in the hub only
+                               approve or reject a run on this machine (without a flag, show its
+                               approval). The pull request check counts approvals in the hub only
   grapim undo <run> [--turn N] [--yes]
                                remove one run's (or one turn's) changes, keep everyone else's.
                                <run> is a run id, label or session id prefix. Without --yes it
@@ -460,6 +464,11 @@ export async function main(argv) {
     const one = commandHelp(args[0]);
     console.log(one ?? HELP);
     return 0;
+  }
+  if (cmd === 'review' && args.includes('--ai') && !args.includes('--help') && !args.includes('-h')) {
+    // The AI reviewer (docs/design-ai-review.md): its own flags, no ledger.
+    const { reviewAiCommand } = await import('./review-ai.js');
+    return reviewAiCommand(args, { out: (s) => process.stdout.write(term(s)), err: (s) => process.stderr.write(term(s)) });
   }
   if (OWN_PARSER.includes(cmd)) {
     // Parsed by the command itself below.

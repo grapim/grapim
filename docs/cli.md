@@ -1,6 +1,6 @@
 # grapim CLI
 
-`grapim` records every change AI coding agents make in a repo as a run, lets you blame, review and undo runs on your machine, and sends them to your team's hub for review. This page covers every command. Start with the [README](../README.md) for the quickstart.
+`grapim` records every change AI coding agents make in a repo as a run, lets you blame, approve and undo runs on your machine, runs AI review on a branch, and sends runs to your team's hub for approval. This page covers every command. Start with the [README](../README.md) for the quickstart.
 
 Requires Node.js 22.13 or newer (the first Node 22 release with the built-in SQLite module unflagged). On an older Node, `grapim` exits with code 1 and says which version it found.
 
@@ -64,7 +64,7 @@ grapim sync [--watch] [--hub <url>] [--token <token>]
 
 Sends this repo's runs, changes, file versions and provenance notes to your team's hub, by default `https://app.grapim.com` (or `$GRAPIM_HUB_URL`). The machine token comes from `$GRAPIM_HUB_TOKEN`; create one in the hub under Settings, Machine tokens. `--token` works too, but leaves the token in your shell history. `--watch` keeps syncing every 5 seconds and backs off when the hub cannot be reached.
 
-## Runs: blame, review, undo
+## Runs: blame, approve, undo
 
 | Command | What it does |
 | --- | --- |
@@ -74,11 +74,25 @@ Sends this repo's runs, changes, file versions and provenance notes to your team
 | `grapim undo <run> [--turn N] [--yes]` | Removes one run's changes (or one turn's) and keeps everyone else's, including files its shell commands changed, created or deleted (as recorded above). Without `--yes` it only prints the plan. Needs git. |
 | `grapim restore <file> <sha> [--yes]` | Puts a file back to a recorded version, as its own run that can be undone |
 | `grapim branch <run>` | Puts one run's changes on a new branch `grapim/<label>` from HEAD, without touching your working tree |
-| `grapim review <run> --approve\|--reject\|--pending [--note "..."]` | Marks a run reviewed; without a flag, shows its review |
+| `grapim review <run> --approve\|--reject\|--pending [--note "..."]` | Approves or rejects a run on this machine; without a flag, shows its approval. The pull request check counts approvals made in the hub only |
 | `grapim provenance record\|show\|stats\|push` | Git-note provenance for commits |
 | `grapim provenance pr <base>..<head>` | The AI provenance summary a pull request gets |
 
 `<run>` is a run id, its label (`claude 1a2b3c4d`) or a session id prefix (`1a2b`). `runs`, `blame`, `undo`, `restore`, `branch` and `review` take `--json`.
+
+## AI review
+
+```
+grapim review --ai [<base>..<head>] [--json] [--fail-on blocker|never] [--provider <name>] [--model <id>]
+```
+
+AI review of the changes on a branch with a Claude model, the same review the Grapim Review GitHub Action posts on a pull request ([setup](https://app.grapim.com/docs/review), `action/review/README.md`). It knows which agent run wrote each line and what the run was asked to do (from the provenance notes), so agent-written lines get the deepest review: does the change do what was asked, and nothing else.
+
+- `<base>..<head>`: the changes since the two split (their merge base), like a pull request. A single `<base>` means `<base>..HEAD`. Without a range, the engine reviews your branch against the default branch.
+- The code goes only to the model endpoint your environment's credentials point at, never to Grapim: `ANTHROPIC_API_KEY` (Anthropic API), `AWS_REGION` and AWS credentials (Amazon Bedrock), `GOOGLE_CLOUD_PROJECT` and `GOOGLE_OAUTH_ACCESS_TOKEN` (Vertex AI), or `ANTHROPIC_FOUNDRY_API_KEY` and `ANTHROPIC_FOUNDRY_RESOURCE` (Microsoft Foundry). `--provider` (or `$GRAPIM_REVIEW_PROVIDER`) picks one when several are set.
+- The config is `.grapim/review.json` in the repository (model, which lines to review, sensitive paths, ignored paths, team instructions, caps, `failOn`). An unknown key or a missing credential stops with a plain message.
+- Prints the findings grouped by file: severity, title, `path:line`, the explanation, and for agent-written lines the run and its prompt. `--json` prints `{ counts, findings, summary, stats, skipped }`.
+- Exit code 1 when there is a blocker, unless `--fail-on never` (or `"failOn": "never"` in the config); 1 also for a usage or config error.
 
 ## Coordinating agents
 

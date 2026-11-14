@@ -32,6 +32,27 @@ export const resolveCommit = (cwd, rev) => {
   return out ? out.trim() : null;
 };
 
+// What a CI checkout lacks for base..head: refs/notes/grapim (actions/checkout
+// never fetches it), the full history if the clone is shallow, and the base
+// and head commits (head from refs/pull/<n>/head when it is not on a branch).
+// Shared by the provenance and review Actions. Never fails: whatever is still
+// missing shows up as an unknown commit later.
+export function prepareHistory(cwd, { base, head, number }, log = () => {}) {
+  if (git(cwd, ['fetch', '--no-tags', '--quiet', 'origin', `+${NOTES_REF}:${NOTES_REF}`], { allowFail: true }) === null) log(`No ${NOTES_REF} on the remote yet.`);
+  if ((git(cwd, ['rev-parse', '--is-shallow-repository'], { allowFail: true }) ?? '').trim() === 'true') {
+    log('The checkout is shallow: fetching the full history (set fetch-depth: 0 on actions/checkout to skip this).');
+    git(cwd, ['fetch', '--no-tags', '--quiet', '--unshallow', 'origin'], { allowFail: true });
+  }
+  for (const [sha, extra] of [
+    [base, null],
+    [head, Number.isSafeInteger(number) ? `+refs/pull/${number}/head` : null],
+  ]) {
+    if (resolveCommit(cwd, sha)) continue;
+    git(cwd, ['fetch', '--no-tags', '--quiet', 'origin', sha], { allowFail: true });
+    if (!resolveCommit(cwd, sha) && extra) git(cwd, ['fetch', '--no-tags', '--quiet', 'origin', extra], { allowFail: true });
+  }
+}
+
 // `git diff --numstat -z` entries: { path, oldPath, added, binary }.
 function numstat(cwd, from, to) {
   const out = git(cwd, ['diff', '--numstat', '-z', '-M', '--no-ext-diff', '--no-textconv', from, to]);

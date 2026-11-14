@@ -49,12 +49,14 @@ Outputs: `added-lines`, `ai-lines`, `ai-share` (0 to 1) and `unreviewed-runs`, f
 
 ## Informational only: never a merge gate
 
+This is the provenance Action. Grapim Review, the AI review Action in [`action/review`](review/README.md), is different: it fails its job when it finds a blocker (`fail-on: blocker`), and you can make that job a required check.
+
 The Action's comment and outputs describe the pull request. They never block a merge, and you should not make this workflow (or a step that reads `unreviewed-runs`) a required status check:
 
 - Its review statuses are what collaborators' machines recorded (`grapim review`, the notes' `review` field). Anyone can approve their own run that way.
 - The workflow runs from the pull request's branch, so the pull request can change or skip it.
 
-To require review before merge, use the Grapim GitHub App with the team's **Require review** policy (Governance plan). Its check, **Grapim provenance (app)**, only passes when another team member has approved each agent run on its page in the Grapim hub, and (with Require provenance) when every commit that adds lines has a note. In the repo's **Settings**, **Rules**, **Rulesets** (or **Branches**, **Branch protection rules**), for the default branch:
+To require approval before merge, use the Grapim GitHub App with the team's **Require approval** policy (Governance plan). Its check, **Grapim provenance (app)**, only passes when another team member has approved each agent run on its page in the Grapim hub, and (with Require provenance) when every commit that adds lines has a note. In the repo's **Settings**, **Rules**, **Rulesets** (or **Branches**, **Branch protection rules**), for the default branch:
 
 1. Turn on **Require status checks to pass**.
 2. Add the check `Grapim provenance (app)`.
