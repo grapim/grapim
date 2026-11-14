@@ -901,3 +901,107 @@ test('require_review fails closed on what it cannot check line by line: a file w
   assert.equal(c.conclusion, 'failure');
   assert.match(c.output.summary, /\*\*claude lock\*\*: up to 40 lines\. Not reviewed in the hub\./, c.output.summary);
 });
+
+// Regression (twfly104/grapim#2, 2026-11-14): the agent commit's note was
+// pushed to refs/notes/grapim but never sent with `grapim sync`. The hub had
+// older notes for the repo, so the App rendered a summary from hub notes only
+// and said "None of the 28 added lines came from an AI agent run", while the
+// Grapim Review Action, reading the pushed notes, found the Claude Code run.
+// Layout: BASE (users.js + its test) <- AG (the agent commit, with the note)
+// <- H (an empty "Re-run review" commit, the PR head).
+test('App reads notes pushed to refs/notes/grapim for commits the hub has no note for (PR #2 regression)', async (t) => {
+  const AG = sha('agent-commit');
+  const NOTE = '{"v":1,"tool":"grapim","runs":[{"id":"claude-code:demo-session-1","label":"claude-code","kind":"claude-code","turns":[{"turn":1,"intent":"Add pagination to the users list endpoint"}],"review":"pending"}],"files":{"examples/review-demo/src/users.js":[[1,12,0,1]],"examples/review-demo/migrations/20261114_users_cleanup.sql":[[1,3,0,1]]}}\n';
+  let gov = false;
+  const h = await startHub({
+    github: {
+      governance: () => gov,
+      repoFor: () => ({ id: sha('root') }),
+      provenanceFor: () => [], // nothing synced for these commits
+      hasProvenance: () => true, // but the repo has older synced notes
+      hubReviewsFor: () => new Map(),
+      placesFor: () => ({}),
+    },
+  });
+  t.after(h.close);
+  const alice = await signIn(h, 'pushed-alice');
+  const A = await createTeam(alice, 'Pushed');
+  await link(h, alice, A, 741);
+  const s = h.gh.s;
+
+  const USERS = 'examples/review-demo/src/users.js';
+  const SQL = 'examples/review-demo/migrations/20261114_users_cleanup.sql';
+  const WF = '.github/workflows/grapim-review.yml';
+  const users = [
+    "import { db } from './db.js';",
+    '',
+    "const BILLING_KEY = 'sk_live_DEMO_NOT_A_REAL_KEY';",
+    '',
+    'export async function listUsers(req, res) {',
+    '  const page = Number(req.query.page ?? 1);',
+    '  const size = Number(req.query.size ?? 20);',
+    '  const offset = page * size;',
+    "  const sort = req.query.sort ?? 'id';",
+    "  const rows = await db.query('SELECT id, name FROM users ORDER BY ' + sort + ' LIMIT ' + size + ' OFFSET ' + offset);",
+    '  res.json({ page, size, rows, billing: BILLING_KEY.slice(0, 7) });',
+    '}',
+  ];
+  const sql = ['-- Tidy up the users table.', 'ALTER TABLE users DROP COLUMN email;', "DELETE FROM users WHERE last_login_at < now() - interval '90 days';"];
+  const wf = Array.from({ length: 17 }, (_, i) => `# workflow line ${i + 1}`);
+  for (const c of [AG, H]) {
+    s.files.set(`${c}:${USERS}`, `${users.join('\n')}\n`);
+    s.files.set(`${c}:${SQL}`, `${sql.join('\n')}\n`);
+    s.files.set(`${c}:${WF}`, `${wf.join('\n')}\n`);
+  }
+  s.blame.set(`${H}:${USERS}`, [
+    { startingLine: 1, endingLine: 2, commit: { oid: BASE } },
+    { startingLine: 3, endingLine: 4, commit: { oid: AG } },
+    { startingLine: 5, endingLine: 5, commit: { oid: BASE } },
+    { startingLine: 6, endingLine: 11, commit: { oid: AG } },
+    { startingLine: 12, endingLine: 12, commit: { oid: BASE } },
+  ]);
+  s.blame.set(`${H}:${SQL}`, [{ startingLine: 1, endingLine: 3, commit: { oid: AG } }]);
+  s.blame.set(`${H}:${WF}`, [{ startingLine: 1, endingLine: 17, commit: { oid: AG } }]);
+  const plus = (lines) => lines.map((l) => `+${l}`).join('\n');
+  s.prFiles = [
+    { filename: WF, status: 'added', additions: 17, patch: `@@ -0,0 +1,17 @@\n${plus(wf)}` },
+    { filename: SQL, status: 'added', additions: 3, patch: `@@ -0,0 +1,3 @@\n${plus(sql)}` },
+    { filename: USERS, status: 'modified', additions: 8, patch: `@@ -1,6 +1,12 @@\n ${users[0]}\n \n${plus(users.slice(2, 4))}\n ${users[4]}\n-  const rows = await db.query('SELECT id, name, email FROM users ORDER BY id');\n-  res.json(rows);\n${plus(users.slice(5, 11))}\n }` },
+    { filename: 'examples/review-demo/test/users.test.js', status: 'removed', additions: 0, deletions: 9 },
+  ];
+  const comment = () => s.comments.find((c) => c.body.startsWith(MARKER)).body;
+  const run = async () => {
+    await hook(h, 'pull_request', prEvent(741, 'opened'));
+    await h.hub.github.queue.idle();
+    return comment();
+  };
+
+  // Before the fix: no note anywhere the App looked. Never "human" without a word:
+  // the lines are in a commit with no note, so they are unknown.
+  let body = await run();
+  assert.match(body, /None of the 28 added lines came from an AI agent run Grapim recorded\.\*\* 28 added lines are in commits with no Grapim note, so who wrote them is unknown\./);
+
+  // The note as pushed (flat path in the notes tree): the agent's 11 lines are found.
+  s.files.set(`refs/notes/grapim:${AG}`, NOTE);
+  body = await run();
+  assert.doesNotMatch(body, /None of the/);
+  assert.match(body, /\*\*1 agent run of 1 not reviewed yet\.\*\* 39% of the added lines came from agent runs \(11 of 28\): claude&#45;code 11/, body);
+  assert.match(body, /Add pagination to the users list endpoint/);
+  assert.doesNotMatch(body, /unknown/, 'the workflow lines are in a noted commit: human, not unknown');
+  // In git's fan-out layout (a larger notes tree) too.
+  s.files.delete(`refs/notes/grapim:${AG}`);
+  s.files.set(`refs/notes/grapim:${AG.slice(0, 2)}/${AG.slice(2)}`, NOTE);
+  body = await run();
+  assert.match(body, /\(11 of 28\)/);
+
+  // Under require_review a pushed note adds the run to approve, but never makes
+  // the commit count as recorded: anyone who can push can write one.
+  gov = true;
+  assert.equal((await alice.post(`/hub/teams/${A}/github/policy`, { require_review: '1' })).status, 303);
+  await run();
+  const c = s.checks.find((x) => x.name === 'Grapim provenance (app)');
+  assert.equal(c.conclusion, 'failure');
+  assert.match(c.output.summary, /\*\*claude&#45;code\*\*: 11 lines\. Not reviewed in the hub\./, c.output.summary);
+  assert.match(c.output.summary, /Not recorded: 1 commit without a Grapim note in the hub/);
+  assert.ok(c.output.summary.includes(`\`${AG.slice(0, 12)}\``));
+});

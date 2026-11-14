@@ -16,7 +16,7 @@ permissions:
   pull-requests: write
 ```
 
-Add `id-token: write` for Bedrock or Vertex with OIDC (below). Credentials go in `env`, from secrets or from the cloud's auth action. The Action has no input for them, so they never show up in the inputs it logs.
+Add `issues: read` if the repository is private and you want the review to read the issues a pull request closes (see "What it compares with"); without it those issues are left out and the review goes on. Add `id-token: write` for Bedrock or Vertex with OIDC (below). Credentials go in `env`, from secrets or from the cloud's auth action. The Action has no input for them, so they never show up in the inputs it logs.
 
 ## Workflow
 
@@ -158,8 +158,19 @@ Pin a release tag or a commit sha instead of `main` once you depend on it.
 | `model` | the config's `model` | Model id, for example `claude-opus-5-5`. |
 | `fail-on` | the config's `failOn` (`blocker`) | `blocker` fails the job when a blocker is found, after posting. `never` only comments. |
 | `config-path` | `.grapim/review.json` | The config file, relative to the repository root. |
+| `use-pr-request` | `true` | `true` compares the change with what the pull request asked for (below). `false` leaves the title, description and linked issues out of the review. |
 
 Outputs: `blockers`, `warnings`, `nits` and `reviewed-hunks`.
+
+## What it compares with
+
+The review checks the change against what was asked for, with or without Grapim's notes:
+
+- **Linked issues**: the issues the pull request description closes with GitHub's closing keywords (`Closes #12`, `Fixes: #3`, `Resolves acme/api#7`, or the issue's URL), in this repository only, at most 3. They are read with `github-token`; one that cannot be read (deleted, private without `issues: read`) is left out. These count as what was asked.
+- **The pull request's title and description**: what the author says the change does. An agent often writes the description after the work, describing the result rather than the request, so the reviewer weighs it below a linked issue.
+- **Agent run prompts** from the notes stay the authority for the lines those runs wrote.
+
+The reviewer reports only a concrete mismatch (asked for X, the change does Y; or a change nobody asked for), never wording or style. The request is untrusted text like the diff: it is fenced off, capped at about 2,000 tokens per request to the model, and instructions inside it are never followed. It never changes which lines are reviewed. When it was used, the summary comment says so in one line, for example **Compared with:** issue #12, PR description.
 
 ## Config
 
@@ -207,4 +218,7 @@ The same review, on your branch, printed to the terminal:
 ```bash
 grapim review --ai origin/main..HEAD
 grapim review --ai origin/main..HEAD --json
+grapim review --ai origin/main..HEAD --request-file task.md
 ```
+
+Without `--request-file`, it compares with the branch's open pull request and the issues it closes when the `gh` CLI is installed and signed in, and goes without otherwise.

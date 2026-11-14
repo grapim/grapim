@@ -4,7 +4,7 @@
 // chose, and returns validated findings plus a short summary. No GitHub code,
 // no dependencies: node: builtins and plain fetch.
 //
-//   reviewChanges({ cwd, base, head, config, provider, fetchImpl, log, now })
+//   reviewChanges({ cwd, base, head, config, provider, request, fetchImpl, log, now })
 //     -> { findings, summary, stats, skipped }
 //   loadConfig(cwd, { rev }?) -> config
 //   providerFromEnv(env, config) -> provider (throws ConfigError)
@@ -13,12 +13,14 @@ import { git, GitError } from '../provenance/pr.js';
 import { ConfigError, DEFAULT_CONFIG, loadConfig, validateConfig } from './config.js';
 import { collectChanges, planReview, splitBatch, runAtLine, maxDepth, DEFAULT_LIMITS } from './diff.js';
 import { buildRequest } from './prompt.js';
+import { normalizeRequest } from './request.js';
 import { ProviderError, providerFromEnv, describeProvider } from './providers.js';
 import { parseFindingsText, validateFindings, capFindings, rankFindings, renderReviewSummary, isTestFile } from './findings.js';
 
 export { ConfigError, DEFAULT_CONFIG, loadConfig, validateConfig } from './config.js';
 export { ProviderError, providerFromEnv, anthropicProvider, bedrockProvider, vertexProvider, foundryProvider, describeProvider } from './providers.js';
-export { SYSTEM_PROMPT, FINDINGS_SCHEMA, buildRequest } from './prompt.js';
+export { SYSTEM_PROMPT, FINDINGS_SCHEMA, REQUEST_GUIDE, buildRequest } from './prompt.js';
+export { normalizeRequest, closingIssues, requestFromFile, REQUEST_LIMITS } from './request.js';
 export { GitError };
 
 export const REVIEW_MARKER = '<!-- grapim:review -->';
@@ -45,6 +47,9 @@ export async function reviewChanges({
   head = 'HEAD',
   config,
   provider,
+  // The pull request's stated request: { title, body, issues: [{ number, title, body }] }.
+  // Context for every batch; it never changes which hunks are reviewed.
+  request,
   fetchImpl,
   log = () => {},
   now,
@@ -62,10 +67,12 @@ export async function reviewChanges({
     return v instanceof Date ? v : new Date(v);
   };
   const lim = { ...DEFAULT_LIMITS, ...limits };
+  const req = normalizeRequest(request);
 
   const changes = collectChanges({ cwd, base, head, config: cfg, limits: lim });
   const plan = planReview(changes, cfg, { limits: lim, fileText: headFileReader(cwd, changes.head) });
   log(`Grapim Review: ${changes.files.length} files changed, ${plan.stats.hunks} hunks (${plan.stats.aiHunks} by agent runs); ${plan.batches.length} requests to ${describeProvider(prov)}.`);
+  if (req && plan.batches.length) log(`Compared with: ${req.sources.join(', ')}.`);
 
   const skipped = [...plan.skipped];
   const skipKeys = new Set(skipped.map((s) => `${s.path}\u0000${s.reason}`));
@@ -103,7 +110,7 @@ export async function reviewChanges({
   };
 
   async function runBatch(batch) {
-    const { body } = buildRequest(batch, { model: cfg.model, instructions: cfg.instructions });
+    const { body } = buildRequest(batch, { model: cfg.model, instructions: cfg.instructions, request: req });
     const files = batch.units.length;
     log(`Request ${batch.id}: ${files} file${files === 1 ? '' : 's'}, effort ${batch.effort}, about ${batch.tokens.toLocaleString('en-US')} tokens.`);
     let msg;
@@ -192,6 +199,7 @@ export async function reviewChanges({
     requests: usage.requests,
     droppedFindings: dropped,
     omittedFindings: omitted,
+    comparedWith: req && reviewedHunks ? req.sources : [],
   };
   const runList = [...runs.values()].sort((a, b) => b.hunks - a.hunks || a.label.localeCompare(b.label));
   const deletedTests = changes.files.filter((f) => f.status === 'deleted' && isTestFile(f.path)).map((f) => f.path);

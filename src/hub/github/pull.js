@@ -17,6 +17,7 @@ import { ignoreEol, matchLines, splitLines } from '../../diff.js';
 import { MARKER, md, parseNote, renderEmpty, renderSummary } from '../../provenance/render.js';
 import { GitHubClient } from './client.js';
 import { ruleText } from '../rules.js';
+import { NOTE_REF, MAX_NOTE_BYTES, parseNote as readNote, serializeNote } from '../../provenance/note.js';
 
 export const MAX_BLAME_FILES = 50;
 export const MAX_BLOB_BYTES = 3 * 1024 * 1024;
@@ -109,6 +110,32 @@ async function blame(gh, owner, name, oid, path) {
 }
 
 const overlaps = (r, ranges) => ranges.some(([s, e]) => r.start <= e && r.end >= s);
+
+// The notes of `shas` as pushed to the repository's refs/notes/grapim (the
+// pre-push hook does that), for the commits the hub has no synced note for.
+// A note lives at <sha>, or under git's fan-out directories once the notes
+// tree grows: all three layouts are asked for in one GraphQL query per chunk.
+// -> Map sha -> normalised note JSON. A note that does not parse is left out.
+export const MAX_REPO_NOTE_COMMITS = 300;
+async function repoNotes(gh, owner, name, shas, maxBytes) {
+  const out = new Map();
+  const list = shas.filter((s) => SHA.test(s)).slice(0, MAX_REPO_NOTE_COMMITS);
+  const paths = (s) => [s, `${s.slice(0, 2)}/${s.slice(2)}`, `${s.slice(0, 2)}/${s.slice(2, 4)}/${s.slice(4)}`].map((p) => `${NOTE_REF}:${p}`);
+  let budget = maxBytes;
+  for (let i = 0; i < list.length && budget > 0; i += 8) {
+    const chunk = list.slice(i, i + 8);
+    const got = await blobs(gh, owner, name, chunk.flatMap(paths), 'byteSize isBinary text', 24);
+    for (const s of chunk) {
+      const b = paths(s).map((e) => got.get(e)).find((x) => typeof x?.text === 'string' && !x.isBinary);
+      if (!b || Number(b.byteSize) > MAX_NOTE_BYTES || b.text.length > budget) continue;
+      budget -= b.text.length;
+      try {
+        out.set(s, serializeNote(readNote(b.text)));
+      } catch {}
+    }
+  }
+  return out;
+}
 
 // Splits a blame range into runs of head lines whose positions in the
 // commit's version are consecutive. from[i]: index in that version of head line i+1, or -1.
@@ -219,8 +246,8 @@ export function decide({ requireProvenance, runs, hubReviews, localReviews, plac
   }
   if (missing.length) {
     out.push(
-      `#### Not recorded: ${plural(missing.length, 'commit')} without a Grapim note`,
-      'These commits add lines to this pull request but have no provenance note, so nobody can tell whether an agent wrote them. On the machine that made them, run `grapim init`, then `grapim provenance record <commit>` and `grapim sync`. If these are human-only commits from a machine without Grapim, an owner can turn off Require provenance in the hub (Settings, GitHub).',
+      `#### Not recorded: ${plural(missing.length, 'commit')} without a Grapim note in the hub`,
+      'These commits add lines to this pull request but the hub has no provenance note for them, so nobody can tell whether an agent wrote them. A note pushed to the repository alone does not count: anyone who can push can write one. If they were made with Grapim, run `grapim sync` on that machine. Otherwise run `grapim init` there, then `grapim provenance record <commit>` and `grapim sync`. If these are human-only commits from a machine without Grapim, an owner can turn off Require provenance in the hub (Settings, GitHub).',
       [...missing.slice(0, LIST_MAX).map((c) => `- \`${c.slice(0, 12)}\``), ...(missing.length > LIST_MAX ? [`- and ${plural(missing.length - LIST_MAX, 'more commit')}`] : [])].join('\n'),
     );
   } else if (unrecorded.length) {
@@ -307,7 +334,17 @@ export async function processPullRequest(ctx, job) {
   }
 
   // 2. Notes for those commits, and whether this repo has provenance at all.
-  const notes = hubRepo ? await source.notesFor(team, hubRepo, [...commits], { maxBytes: MAX_NOTE_BYTES_PER_JOB }) : new Map();
+  // The hub's synced notes first. A commit the hub has no note for may still
+  // carry one in the repository's refs/notes/grapim (pushed by the pre-push
+  // hook, with no `grapim sync` since): read it there, so the comment never
+  // calls an agent's lines human because a sync had not run yet. Those notes
+  // only ever add attribution: under require_review they never make a commit
+  // count as recorded (`noted` below stays the hub's), and a run they name
+  // still needs a hub approval like any other.
+  const hubNotes = hubRepo ? await source.notesFor(team, hubRepo, [...commits], { maxBytes: MAX_NOTE_BYTES_PER_JOB }) : new Map();
+  const unsynced = [...commits].filter((c) => !hubNotes.has(c));
+  const pushedNotes = unsynced.length ? await repoNotes(gh, job.owner, job.name, unsynced, MAX_NOTE_BYTES_PER_JOB) : new Map();
+  const notes = new Map([...hubNotes, ...pushedNotes]);
   const noProvenance = !notes.size && !(hubRepo && (await source.hasAny(team, hubRepo)));
   if (noProvenance && !requireReview) return finishEmpty();
   const parsed = new Map([...notes].map(([sha, n]) => [sha, parseNote(n)]));
@@ -359,7 +396,7 @@ export async function processPullRequest(ctx, job) {
   const extra = new Map(); // run id -> { id, label, kind, lines (upper bound), estimate: true }
   if (requireReview) {
     // Commits of added lines: a stored note, an unreadable one, or none at all.
-    const noted = hubRepo ? ((await source.notedFor?.(team, hubRepo, [...commits])) ?? new Set(notes.keys())) : new Set();
+    const noted = hubRepo ? ((await source.notedFor?.(team, hubRepo, [...commits])) ?? new Set(hubNotes.keys())) : new Set();
     let unreadable = 0;
     for (const c of commits) {
       if (!noted.has(c)) unrecorded.add(c);

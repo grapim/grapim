@@ -46,7 +46,10 @@ Agent runs: AI review, approval, undo
   grapim review --ai [<base>..<head>] [--json] [--fail-on blocker|never]
                                AI review of a branch with the model your env credentials point
                                at (ANTHROPIC_API_KEY, Bedrock, Vertex, Foundry); deepest on
-                               agent-written lines. Exit 1 on a blocker (unless --fail-on never)
+                               agent-written lines. Exit 1 on a blocker (unless --fail-on never).
+                               Checks the change against what was asked: --request-file <path>
+                               (Markdown, or JSON {title, body, issues}), else this branch's open
+                               pull request and the issues it closes, via gh if installed
   grapim review <run> --approve|--reject|--pending [--note "..."]
                                approve or reject a run on this machine (without a flag, show its
                                approval). The pull request check counts approvals in the hub only

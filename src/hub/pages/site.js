@@ -9,7 +9,6 @@ import { LOGO } from './icons.js';
 
 export const SIGN_IN = '/hub/auth/github';
 
-const GH = raw('<svg class="gh" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>');
 const S = 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"';
 const ICON = {
   arrow: raw(`<svg class="i" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M3 8h10M9 4l4 4-4 4" ${S}/></svg>`),
@@ -66,11 +65,11 @@ export function siteBar({ current = 'home', signedIn = false } = {}) {
     <nav class="bar-nav" aria-label="Site">${links}</nav>
     <details class="bar-menu">
       <summary aria-label="Menu">${ICON.menu}</summary>
-      <nav class="bar-menu-list" aria-label="Site, small screens">${links}</nav>
+      <nav class="bar-menu-list" aria-label="Site, small screens">${links}${signedIn ? '' : html`<a class="bar-link" href="${SIGN_IN}" rel="nofollow">Sign in</a>`}</nav>
     </details>
     ${signedIn
-      ? html`<a class="btn btn-sm" href="/hub">Open the hub</a>`
-      : html`<a class="btn btn-sm" href="${SIGN_IN}" rel="nofollow">${GH}<span>Sign in</span></a>`}
+      ? html`<a class="btn btn-primary btn-sm" href="/hub">Open the hub</a>`
+      : html`<a class="bar-signin" href="${SIGN_IN}" rel="nofollow">Sign in</a><a class="btn btn-primary btn-sm" href="/docs/review">Add to a repo</a>`}
   </div>
 </header>`;
 }
@@ -282,6 +281,30 @@ function filmSection() {
 }
 
 const REVIEW_DOCS = '/docs/review';
+
+// The facts row under the product shot. Each one is checked against the code:
+// the Action calls only api.github.com and the provider's endpoint
+// (action/review/index.mjs, src/airev/providers.js), the four providers are
+// PROVIDERS in src/airev/providers.js, each workflow in action/review/README.md
+// is the whole setup, and the Action imports only Node built-ins.
+const FACTS = [
+  ['Nothing reaches Grapim.', 'No code, no diffs, no telemetry.'],
+  ['Your model account.', 'Anthropic, Bedrock, Vertex or Foundry.'],
+  ['One workflow file.', 'No new vendor in the data path.'],
+  ['Zero dependencies.', 'Node built-ins only, source you can read.'],
+];
+
+// The path a review takes, drawn as one hairline that stops at your model
+// account. Grapim sits past the gap, ghosted: it is not on the path.
+function pathLine() {
+  const stop = (name, note, cls = '') => html`<li class="path-stop${cls}"><span class="path-dot" aria-hidden="true"></span><b>${name}</b>${note ? html`<span>${note}</span>` : ''}</li>`;
+  return html`<ol class="path" aria-label="Where your code goes" data-reveal>
+      ${stop('Your GitHub')}
+      ${stop('Your CI runner')}
+      ${stop('Your model account', '', ' path-end')}
+      ${stop('Grapim', 'receives nothing', ' path-off')}
+    </ol>`;
+}
 const description = 'Grapim Review runs in your own CI on your own model account: Anthropic, Amazon Bedrock, Google Vertex AI or Microsoft Foundry. It knows which agent wrote each line and what it was asked to do, and flags the changes nobody asked for.';
 
 export function landingPage({ origin }) {
@@ -293,6 +316,7 @@ ${siteBar({ current: 'home' })}
 
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-text">
+    <a class="eyebrow" href="${REVIEW_DOCS}"><b>Grapim Review</b><span>Early access</span>${ICON.arrow}</a>
     <h1 id="hero-title">AI code review that never sends your code to us.</h1>
     <p class="hero-sub">Grapim reviews every pull request in your own CI, on your model account. It knows what each agent was asked and flags what nobody asked for.</p>
     <div class="cta">
@@ -302,15 +326,19 @@ ${siteBar({ current: 'home' })}
     <p class="works" aria-label="Works with"><span class="works-label">Works with</span><span>${brand('claude', '')}Claude Code</span><span>${brand('openai', '')}Codex</span><span>${brand('cursor', '')}Cursor</span><span>${brand('googlegemini', '')}Gemini CLI</span><span>${brand('github', '')}GitHub</span></p>
   </div>
   <div class="wrap">${reviewComment()}</div>
+  <div class="wrap"><ul class="facts" data-reveal>${FACTS.map(([lead, rest]) => html`<li><b>${lead}</b> ${rest}</li>`)}</ul></div>
 </section>
 
 <section class="where" id="where" aria-labelledby="where-title">
   <div class="wrap">
-    <h2 id="where-title" class="sec-title">Your code goes only to the model account you choose.</h2>
-    <p class="sec-lede">The review runs on your runner, and Grapim’s servers receive nothing.</p>
+    <div class="sec-head" data-reveal>
+      <h2 id="where-title" class="sec-title">Your code goes only to the model account you choose.</h2>
+      <p class="sec-lede">The review runs on your runner, and Grapim’s servers receive nothing.</p>
+    </div>
+    ${pathLine()}
     <div class="where-grid">
-      <figure class="where-fig">${codePanel('.github/workflows/grapim-review.yml', BEDROCK, ['role-to-assume', 'aws-region', 'provider:'], `${REVIEW_DOCS}#amazon-bedrock`)}<figcaption>Amazon Bedrock, with no long-lived keys.</figcaption></figure>
-      <figure class="where-fig" data-play>${summaryEnd()}<figcaption>How every summary comment ends.</figcaption></figure>
+      <figure class="where-fig" data-reveal>${codePanel('.github/workflows/grapim-review.yml', BEDROCK, ['role-to-assume', 'aws-region', 'provider:'], `${REVIEW_DOCS}#amazon-bedrock`)}<figcaption>Amazon Bedrock, with no long-lived keys.</figcaption></figure>
+      <figure class="where-fig" data-play data-reveal>${summaryEnd()}<figcaption>How every summary comment ends.</figcaption></figure>
     </div>
     <p class="where-links"><a class="link" href="/docs/security">Security and privacy ${ICON.arrow}</a></p>
   </div>
@@ -318,19 +346,19 @@ ${siteBar({ current: 'home' })}
 
 <section class="how" id="how" aria-labelledby="how-title">
   <div class="wrap">
-    <h2 id="how-title" class="sr-only">How Grapim Review works</h2>
-    <div class="points">
-      <div data-play>
+    <div class="sec-head" data-reveal><h2 id="how-title" class="sec-title">How it works</h2></div>
+    <div class="points" data-reveal>
+      <div>
         ${FIG_CHECK()}
         <h3>Runs where your code already is</h3>
         <p>A GitHub Action in your own workflow. No new vendor holds your source.</p>
       </div>
-      <div data-play>
+      <div>
         ${FIG_RUNS()}
         <h3>Reviews agent code against the request</h3>
         <p>Asked to add pagination, Claude Code should not drop a column. Grapim flags work beyond the prompt.</p>
       </div>
-      <div data-play>
+      <div>
         ${FIG_DEPTH()}
         <h3>Spends effort where the risk is</h3>
         <p>The deepest review goes where agents touch sensitive code.</p>
@@ -343,7 +371,7 @@ ${siteBar({ current: 'home' })}
 ${SHOW_FILM ? filmSection() : ''}
 
 <section class="close" aria-labelledby="close-title">
-  <div class="wrap close-in">
+  <div class="wrap close-in" data-reveal>
     <h2 id="close-title">Try it on one repo.</h2>
     <p>One workflow file. Free in early access.</p>
     <div class="cta">

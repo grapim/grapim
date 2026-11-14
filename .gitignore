@@ -5,3 +5,4 @@ node_modules/
 outreach/
 video/build/
 video/out/
+bench/cache/

@@ -12,7 +12,7 @@ Direction chosen 2026-11-14 ("2+4"): sell to teams that are not allowed to send 
 |---|---|---|
 | Engine | `src/airev/` | Plan (which hunks, which depth), prompt, model call, parse and validate findings. No GitHub code. No dependencies (node: builtins and plain `fetch`, like the rest of Grapim). |
 | Action | `action/review/` (`action.yml`, `index.mjs`, `dist/` bundled by `action/bundle.mjs`) | `uses: grapim/grapim/action/review@main`. Posts one PR review with inline comments, plus a summary. Fails the job on blockers when `fail-on: blocker`. |
-| CLI | `grapim review --ai [<base>..<head>]` in `src/cli.js` | The same engine on a local branch, printed to the terminal. |
+| CLI | `grapim review --ai [<base>..<head>] [--request-file <path>]` in `src/cli.js` | The same engine on a local branch, printed to the terminal. |
 
 ## Engine interface (`src/airev/index.js`)
 
@@ -22,12 +22,13 @@ reviewChanges({
   base, head,          // commits (head defaults to HEAD, base to merge-base with the default branch)
   config,              // parsed .grapim/review.json merged with defaults (loadConfig)
   provider,            // from providerFromEnv(env, config)
+  request,             // optional: what the PR was asked to do, { title, body, issues: [{ number, title, body }] }
   fetchImpl, log, now,
 }) -> Promise<{
   findings: [{ path, line, side: 'RIGHT', endLine?, severity: 'blocker'|'warning'|'nit',
                category, title, body, run?: { id, kind, intent } }],
   summary: string,     // markdown, short
-  stats: { files, hunks, reviewedHunks, aiHunks, skippedHunks, inputTokens, outputTokens, model, provider },
+  stats: { files, hunks, reviewedHunks, aiHunks, skippedHunks, inputTokens, outputTokens, model, provider, comparedWith },
   skipped: [{ path, reason }],
 }>
 
@@ -36,6 +37,16 @@ providerFromEnv(env, config) -> provider | throws ConfigError with a plain-words
 ```
 
 Every finding's `path`/`line` must lie on a line the diff adds or changes (validated; others are dropped and counted).
+
+## What was asked: the pull request's own request (2026-11-14)
+
+Provenance notes give the prompt of each agent run, but most repos have no notes yet. So the pull request's stated request is an intent source too, for everyone:
+
+- **Sources.** Linked issues (closing keywords `closes/fixes/resolves #N`, `owner/repo#N` or the issue URL, same repo only, at most 3) count as *what was asked*. The PR title and description count as *what the author says it does*: agent-written descriptions often describe the result, not the request, so the prompt weighs them lower. A run's prompt from the notes stays the authority for the hunks it wrote.
+- **Where it comes from.** The Action: the `pull_request` event's title and body, and the linked issues read with `github-token` (a 403/404 leaves that issue out). Input `use-pr-request` (default `true`). The CLI: `--request-file <path>` (JSON in the engine's shape, or Markdown taken as the request, first `# ` heading as title), else the branch's open PR through `gh pr view` / `gh issue view` when `gh` is installed and signed in; otherwise none.
+- **Prompt.** `src/airev/request.js` normalizes and caps it (titles 200 chars, each issue 2,500, the description 3,000, about 8,000 chars in all, issues first). `prompt.js` adds a fixed guide (`REQUEST_GUIDE`, Grapim's words) and one fenced `REQUEST` block per source (`source="linked issue" number=12` / `source="pull request"`), with the same random nonce as the other untrusted blocks. The model is told to report only concrete mismatches (asked X, does Y; or a change nobody asked for), as `intent_mismatch`/`scope`, warning at most, and never that something is missing from the hunks of one batch alone (other batches may hold it).
+- **Bounded.** The request is context only: it never changes which hunks are reviewed or their depth. It adds at most about 2,000 tokens to each request. With no request the user message and the system prompt are byte for byte what they were.
+- **Summary.** One line when it was used: `**Compared with:** issue #12, PR description`.
 
 ## Config `.grapim/review.json` (all optional)
 

@@ -31,10 +31,11 @@
   }
   showTheme();
 
-  // Product scenes on the landing page (data-play) play once when they
-  // scroll into view. Without IntersectionObserver, or with reduced motion,
-  // nothing is hidden: html.motion is never set.
-  const scenes = document.querySelectorAll('[data-play]');
+  // The landing page's motion. Product scenes (data-play) play once and
+  // sections (data-reveal) fade up once, as they scroll into view. Without
+  // IntersectionObserver, or with reduced motion, nothing is hidden:
+  // html.motion is never set.
+  const scenes = document.querySelectorAll('[data-play], [data-reveal]');
   if (scenes.length && 'IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
     // The hero performs one review. Its comment opens inside the card, so the
     // stage keeps the finished height (measured before anything is hidden)
@@ -77,33 +78,9 @@
           io.unobserve(e.target);
         }
       },
-      { threshold: 0.3 },
+      { threshold: 0.15, rootMargin: '0px 0px -8% 0px' },
     );
     for (const s of scenes) io.observe(s);
-  }
-
-  // The 3D hero figure turns a little toward the pointer (CSS variables
-  // --mx, --my from -1 to 1; the rig eases to them). Skipped with reduced
-  // motion or a touch screen, where the figure simply stays put.
-  const fig = document.querySelector('.s3');
-  const hero = document.querySelector('.hero');
-  if (fig && hero && matchMedia('(hover: hover) and (prefers-reduced-motion: no-preference)').matches) {
-    let frame = 0;
-    hero.addEventListener('pointermove', (e) => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        const r = fig.getBoundingClientRect();
-        const mx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (window.innerWidth / 2)));
-        const my = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / (window.innerHeight / 2)));
-        fig.style.setProperty('--mx', mx.toFixed(3));
-        fig.style.setProperty('--my', my.toFixed(3));
-      });
-    });
-    hero.addEventListener('pointerleave', () => {
-      fig.style.setProperty('--mx', '0');
-      fig.style.setProperty('--my', '0');
-    });
   }
 
   // Copy buttons: the code block's text, as shown.

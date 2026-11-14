@@ -6,31 +6,31 @@
   /* Report charts (docs/provenance.md section 7). Agent kinds keep one colour
      each, in a fixed order, checked for colour-blind separation; unknown is a
      neutral, never a hue. Review states follow the brand's status colours:
-     approved is a pale spruce green, pending is the warning slate, and
+     approved is a pale green (the OK colour), pending is a neutral grey, and
      rejected is the coral (a rejection is a block). Everything else
      (colour, type, radius, shadow, focus, motion) is in tokens.css, shared
      with the review desk. */
-  --k1: #0f6f62; --k2: #c98a1b; --k3: #3f78c0; --k4: #8b5e34; --k5: #b5527f; --k6: #6b7f2a;
-  --k-unknown: #d3dcd9;
-  --k-pending: #8193b3; --k-rejected: #e0533b; --k-approved: #a9d3c0;
-  --chart-grid: #e6ecea;
+  --k1: #0a0a0a; --k2: #c98a1b; --k3: #12808a; --k4: #8b5e34; --k5: #b5527f; --k6: #6b7f2a;
+  --k-unknown: #e5e5e5;
+  --k-pending: #8f8f8f; --k-rejected: #e0533b; --k-approved: #a9d3c0;
+  --chart-grid: #ebebeb;
 }
 
 /* Dark, from the system or from the theme picked in the profile menu
    (html[data-theme], as tokens.css does it). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --k1: #3fb5a1; --k2: #d9a03a; --k3: #6c9fe0; --k4: #c08a5a; --k5: #d77aa3; --k6: #9cb34a;
-    --k-unknown: #2a3a36;
-    --k-pending: #7a8cab; --k-rejected: #ff7a62; --k-approved: #2b5a48;
-    --chart-grid: #18241f;
+    --k1: #ededed; --k2: #d9a03a; --k3: #3fbfc9; --k4: #c08a5a; --k5: #d77aa3; --k6: #9cb34a;
+    --k-unknown: #262626;
+    --k-pending: #737373; --k-rejected: #ff7a62; --k-approved: #2b5a48;
+    --chart-grid: #1a1a1a;
   }
 }
 :root[data-theme="dark"] {
-  --k1: #3fb5a1; --k2: #d9a03a; --k3: #6c9fe0; --k4: #c08a5a; --k5: #d77aa3; --k6: #9cb34a;
-  --k-unknown: #2a3a36;
-  --k-pending: #7a8cab; --k-rejected: #ff7a62; --k-approved: #2b5a48;
-  --chart-grid: #18241f;
+  --k1: #ededed; --k2: #d9a03a; --k3: #3fbfc9; --k4: #c08a5a; --k5: #d77aa3; --k6: #9cb34a;
+  --k-unknown: #262626;
+  --k-pending: #737373; --k-rejected: #ff7a62; --k-approved: #2b5a48;
+  --chart-grid: #1a1a1a;
 }
 
 /* ---------------------------------------------------------------- base */
@@ -50,8 +50,8 @@ body {
 h1, h2, h3, p, ol, ul, dl, dd, pre { margin: 0; }
 ol, ul { padding: 0; list-style: none; }
 a { color: inherit; text-decoration: none; }
-p a, .fine a, .muted a, .link { color: var(--accent-text); text-underline-offset: 2px; }
-p a:hover, .fine a:hover, .link:hover { text-decoration: underline; }
+p a, .fine a, .muted a, .link { color: var(--accent-text); text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+p a:hover, .fine a:hover, .link:hover { text-decoration-color: currentColor; }
 .link-quiet:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
 button, input, select, textarea { font: inherit; color: inherit; }
 code, pre, kbd, .mono { font-family: var(--mono); font-size: var(--fs-12); font-variant-ligatures: none; }
@@ -133,9 +133,9 @@ kbd {
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-item { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px; border-radius: var(--radius); color: var(--text-2); font-weight: 500; }
 .nav-item:hover { background: var(--surface-2); color: var(--text); }
-.nav-item[aria-current="page"] { background: rgb(255 255 255 / 0.08); color: #fff; }
+.nav-item[aria-current="page"] { background: var(--band-head); color: #fff; }
 .nav-item .icon { color: var(--text-3); }
-.nav-item[aria-current="page"] .icon { color: var(--accent-text); }
+.nav-item[aria-current="page"] .icon { color: #fff; }
 .nav-item[hidden] { display: none; }
 .nav-sep { height: 1px; background: var(--border); margin: 6px 8px; }
 .nav-item .count { margin-left: auto; color: var(--accent-text); font-size: var(--fs-12); font-weight: 600; }

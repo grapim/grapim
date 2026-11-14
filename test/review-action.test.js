@@ -9,10 +9,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { INLINE_MARKER, MARKER, diffLines, redact, runReview } from '../action/review/index.mjs';
+import { INLINE_MARKER, MARKER, currentBase, diffLines, redact, runReview, statedRequest } from '../action/review/index.mjs';
+import { git as realGit } from '../src/provenance/pr.js';
 import { bundledReview, checkReview, importsOf } from '../action/bundle.mjs';
 import { md } from '../src/provenance/render.js';
-import { parseReviewAiArgs, reviewAiCommand } from '../src/review-ai.js';
+import { parseReviewAiArgs, reviewAiCommand, requestFromGh } from '../src/review-ai.js';
+import { closingIssues } from '../src/airev/request.js';
 
 const BASE = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
@@ -37,6 +39,7 @@ function fakeLib({ findings = FINDINGS, loadConfig, providerFromEnv, config = {}
     calls,
     ConfigError,
     md,
+    closingIssues,
     loadConfig: loadConfig ?? ((cwd) => (calls.loadConfig.push({ cwd }), { model: 'claude-opus-5-5', ...config })),
     validateConfig: (raw) => {
       if (raw.bogus) throw new ConfigError('unknown setting "bogus"');
@@ -61,7 +64,7 @@ function fakeLib({ findings = FINDINGS, loadConfig, providerFromEnv, config = {}
 }
 
 // A fake api.github.com as a fetch function.
-function fakeGitHub({ reject422 = 0, files = [], comments = [], reviews = [], deny = false } = {}) {
+function fakeGitHub({ reject422 = 0, files = [], comments = [], reviews = [], deny = false, issues = {} } = {}) {
   const s = { requests: [], reviews: [...reviews], comments: [...comments], posts: [] };
   let refusals = reject422;
   const fetch = async (url, init) => {
@@ -80,6 +83,11 @@ function fakeGitHub({ reject422 = 0, files = [], comments = [], reviews = [], de
       return send(200, r);
     }
     if (u.pathname === '/repos/acme/api/pulls/7/files') return send(200, files);
+    const issue = /^\/repos\/acme\/api\/issues\/(\d+)$/.exec(u.pathname);
+    if (issue && init.method === 'GET') {
+      const i = issues[issue[1]];
+      return typeof i === 'number' ? send(i, { message: 'nope' }) : i ? send(200, i) : send(404, { message: 'Not Found' });
+    }
     if (u.pathname === '/repos/acme/api/issues/7/comments') {
       if (init.method === 'GET') return send(200, s.comments);
       if (deny) return send(403, {});
@@ -98,10 +106,10 @@ function fakeGitHub({ reject422 = 0, files = [], comments = [], reviews = [], de
   return { s, fetch };
 }
 
-function envFor({ fork = false, extra = {} } = {}) {
+function envFor({ fork = false, extra = {}, pr = {} } = {}) {
   const dir = tmp('grapim-review-env-');
   const event = path.join(dir, 'event.json');
-  fs.writeFileSync(event, JSON.stringify({ pull_request: { number: 7, base: { sha: BASE, repo: { full_name: 'acme/api' } }, head: { sha: HEAD, repo: { full_name: fork ? 'someone/api' : 'acme/api' } } }, repository: { full_name: 'acme/api' } }));
+  fs.writeFileSync(event, JSON.stringify({ pull_request: { ...pr, number: 7, base: { sha: BASE, repo: { full_name: 'acme/api' } }, head: { sha: HEAD, repo: { full_name: fork ? 'someone/api' : 'acme/api' } } }, repository: { full_name: 'acme/api' } }));
   return {
     GITHUB_EVENT_PATH: event,
     GITHUB_EVENT_NAME: 'pull_request',
@@ -292,7 +300,7 @@ test('review action: action.yml, zero dependencies, and the bundle', () => {
   assert.match(yml, /^name: Grapim Review$/m);
   assert.match(yml, /using: node24/);
   assert.match(yml, /main: index\.mjs/);
-  for (const k of ['github-token', 'provider', 'model', 'fail-on', 'config-path', 'blockers', 'warnings', 'nits', 'reviewed-hunks']) assert.match(yml, new RegExp(`^  ${k}:$`, 'm'), k);
+  for (const k of ['github-token', 'provider', 'model', 'fail-on', 'config-path', 'use-pr-request', 'blockers', 'warnings', 'nits', 'reviewed-hunks']) assert.match(yml, new RegExp(`^  ${k}:$`, 'm'), k);
   assert.doesNotMatch(yml, /api-key|secret-access|access-token:/i, 'credentials are env, never inputs');
   const src = fs.readFileSync(new URL('../action/review/index.mjs', import.meta.url), 'utf8');
   for (const spec of importsOf(src)) assert.ok(spec.startsWith('node:') || spec.startsWith('./dist/'), spec);
@@ -313,12 +321,93 @@ test('review action: action.yml, zero dependencies, and the bundle', () => {
   assert.deepEqual(checkReview(), [], 'run: node action/bundle.mjs');
 });
 
+// ---- what the pull request asked for ----
+
+const PR_BODY = 'Adds rate limiting.\n\nCloses #12, fixes #13\nResolves other/repo#99\nFixes acme/api#14 and fixes #15';
+
+test('review action: the PR title, body and linked issues reach the engine; unreadable issues are left out', async () => {
+  const lib = fakeLib();
+  const gh = fakeGitHub({ issues: { 12: { number: 12, title: 'Login is brute-forceable', body: 'Limit attempts.' }, 13: 403 } });
+  const logs = [];
+  const out = await runReview({ env: envFor({ pr: { title: 'Rate limit login', body: PR_BODY } }), fetch: gh.fetch, lib, log: (l) => logs.push(l) });
+  assert.equal(out.status, 'posted', logs.join('\n'));
+  assert.deepEqual(lib.calls.reviewChanges[0].request, { title: 'Rate limit login', body: PR_BODY, issues: [{ number: 12, title: 'Login is brute-forceable', body: 'Limit attempts.' }] });
+  // At most 3, same repository only, read-only GETs.
+  assert.deepEqual(gh.s.requests.filter((r) => r.includes('/issues/') && !r.includes('/comments')), ['GET /repos/acme/api/issues/12', 'GET /repos/acme/api/issues/13', 'GET /repos/acme/api/issues/14']);
+  assert.ok(logs.includes('Grapim Review: linked issue #13 could not be read (HTTP 403); left out.'));
+  assert.ok(logs.includes('Grapim Review: linked issue #14 could not be read (HTTP 404); left out.'));
+
+  // use-pr-request: false sends nothing; a bad value is a config error.
+  const lib2 = fakeLib();
+  const gh2 = fakeGitHub();
+  await runReview({ env: envFor({ pr: { title: 'T', body: PR_BODY }, extra: { 'INPUT_USE-PR-REQUEST': 'false' } }), fetch: gh2.fetch, lib: lib2, log: () => {} });
+  assert.equal(lib2.calls.reviewChanges[0].request, undefined);
+  assert.ok(!gh2.s.requests.some((r) => /\/issues\/\d+$/.test(r)));
+  const bad = await runReview({ env: envFor({ extra: { 'INPUT_USE-PR-REQUEST': 'maybe' } }), fetch: fakeGitHub().fetch, lib: fakeLib(), log: () => {} });
+  assert.equal(bad.status, 'config-error');
+
+  // No title or body (and so no issues): no request at all.
+  const lib3 = fakeLib();
+  await runReview({ env: envFor(), fetch: fakeGitHub().fetch, lib: lib3, log: () => {} });
+  assert.equal(lib3.calls.reviewChanges[0].request, undefined);
+});
+
+test('review action: statedRequest skips pull requests named as issues and works without a token', async () => {
+  const lib = { closingIssues };
+  const request = async (method, url) => (url.endsWith('/12') ? { ok: true, status: 200, json: { number: 12, title: 'A PR', body: '', pull_request: {} } } : Promise.reject(new Error('network')));
+  const r = await statedRequest({ pr: { title: 'T', body: 'fixes #12, fixes #13' }, repo: 'acme/api', request, lib });
+  assert.deepEqual(r, { title: 'T', body: 'fixes #12, fixes #13', issues: [] });
+  assert.deepEqual(await statedRequest({ pr: { title: 'T', body: 'fixes #12' }, repo: 'acme/api', request: null, lib }), { title: 'T', body: 'fixes #12', issues: [] });
+  assert.equal(await statedRequest({ pr: { title: ' ', body: null }, repo: 'acme/api', request, lib }), null);
+});
+
+test('grapim review --ai: --request-file, else the open PR through gh, else nothing', async () => {
+  const repo = tmp('grapim-review-req-');
+  const git = (...a) => execFileSync('git', ['-c', 'user.name=T', '-c', 'user.email=t@example.com', '-c', 'commit.gpgsign=false', ...a], { cwd: repo, encoding: 'utf8' }).trim();
+  git('init', '-q', '-b', 'main');
+  fs.writeFileSync(path.join(repo, 'a.txt'), '1\n');
+  git('add', '.');
+  git('commit', '-qm', 'one');
+  fs.writeFileSync(path.join(repo, 'task.md'), '# Add retries\n\nRetry the upload 3 times.\n');
+  fs.writeFileSync(path.join(repo, 'bad.json'), '{ nope');
+
+  const lib = fakeLib({ findings: [] });
+  const engine = { reviewChanges: lib.reviewChanges, loadConfig: (cwd) => lib.loadConfig(cwd), validateConfig: lib.validateConfig, providerFromEnv: lib.providerFromEnv, ConfigError };
+  let err = '';
+  const ghCalls = [];
+  const gh = (args) => {
+    ghCalls.push(args.slice(0, 2).join(' '));
+    if (args[0] === 'pr') return JSON.stringify({ title: 'Retry uploads', body: 'Fixes #4 and fixes other/x#5', url: 'https://github.com/acme/api/pull/9', state: 'OPEN' });
+    if (args[0] === 'issue' && args[2] === '4') return JSON.stringify({ number: 4, title: 'Uploads fail', body: 'Retry them.' });
+    return null;
+  };
+  const io = { cwd: repo, env: {}, engine, gh, out: () => {}, err: (s) => (err += s) };
+
+  assert.equal(await reviewAiCommand(['--ai', '--request-file', 'task.md'], io), 0, err);
+  assert.deepEqual(lib.calls.reviewChanges[0].request, { issues: [{ title: 'Add retries', body: 'Retry the upload 3 times.', source: 'request file' }] });
+  assert.deepEqual(ghCalls, [], 'a request file means no gh');
+
+  assert.equal(await reviewAiCommand(['--ai'], io), 0);
+  assert.deepEqual(lib.calls.reviewChanges[1].request, { title: 'Retry uploads', body: 'Fixes #4 and fixes other/x#5', issues: [{ number: 4, title: 'Uploads fail', body: 'Retry them.' }] });
+  assert.deepEqual(ghCalls, ['pr view', 'issue view']);
+
+  // gh missing or no PR: the review goes on without.
+  assert.equal(await reviewAiCommand(['--ai'], { ...io, gh: () => null }), 0);
+  assert.equal(lib.calls.reviewChanges[2].request, undefined);
+  assert.equal(requestFromGh(repo, () => JSON.stringify({ title: 'Old', body: '', url: 'https://github.com/a/b/pull/1', state: 'MERGED' })), null);
+
+  assert.equal(await reviewAiCommand(['--ai', '--request-file', 'missing.md'], io), 1);
+  assert.match(err, /--request-file missing\.md: no such file/);
+  assert.equal(await reviewAiCommand(['--ai', '--request-file', 'bad.json'], io), 1);
+  assert.equal(parseReviewAiArgs(['--ai', '--request-file']).error, '--request-file needs a value.');
+});
+
 // ---- grapim review --ai ----
 
 test('grapim review --ai: argument parsing', () => {
-  assert.deepEqual(parseReviewAiArgs(['--ai']), { json: false, failOn: null, provider: null, model: null, base: undefined, head: undefined });
-  assert.deepEqual(parseReviewAiArgs(['--ai', 'origin/main..HEAD', '--json', '--fail-on', 'never']), { json: true, failOn: 'never', provider: null, model: null, base: 'origin/main', head: 'HEAD' });
-  assert.deepEqual(parseReviewAiArgs(['main...feature', '--ai', '--provider', 'vertex', '--model', 'claude-opus-5-5']), { json: false, failOn: null, provider: 'vertex', model: 'claude-opus-5-5', base: 'main', head: 'feature' });
+  assert.deepEqual(parseReviewAiArgs(['--ai']), { json: false, failOn: null, provider: null, model: null, requestFile: null, base: undefined, head: undefined });
+  assert.deepEqual(parseReviewAiArgs(['--ai', 'origin/main..HEAD', '--json', '--fail-on', 'never']), { json: true, failOn: 'never', provider: null, model: null, requestFile: null, base: 'origin/main', head: 'HEAD' });
+  assert.deepEqual(parseReviewAiArgs(['main...feature', '--ai', '--provider', 'vertex', '--model', 'claude-opus-5-5']), { json: false, failOn: null, provider: 'vertex', model: 'claude-opus-5-5', requestFile: null, base: 'main', head: 'feature' });
   assert.equal(parseReviewAiArgs(['--ai', 'main']).head, 'HEAD');
   assert.equal(parseReviewAiArgs(['--ai', 'main..']).head, 'HEAD');
   assert.match(parseReviewAiArgs(['--ai', '--fail-on', 'warning']).error, /blocker or never/);
@@ -344,7 +433,7 @@ test('grapim review --ai: findings grouped by file, exit 1 on a blocker, --json,
   const engine = { reviewChanges: lib.reviewChanges, loadConfig: (cwd) => lib.loadConfig(cwd), validateConfig: lib.validateConfig, providerFromEnv: lib.providerFromEnv, ConfigError };
   let out = '';
   let err = '';
-  const io = { cwd: repo, env: {}, engine, out: (s) => (out += s), err: (s) => (err += s) };
+  const io = { cwd: repo, env: {}, engine, gh: () => null, out: (s) => (out += s), err: (s) => (err += s) };
   assert.equal(await reviewAiCommand(['--ai', `${first}..HEAD`], io), 1, err);
   assert.equal(lib.calls.reviewChanges[0].base, first, 'the merge base');
   assert.equal(lib.calls.reviewChanges[0].head, 'HEAD');
@@ -415,4 +504,60 @@ test('review action: the bundled engine reviews a real PR and the review is post
   assert.match(gh.s.comments[0].body, /Grapim received nothing/);
   assert.equal(out.exitCode, 1);
   assert.match(fs.readFileSync(env.GITHUB_OUTPUT, 'utf8'), /blockers=1/);
+});
+
+// Regression (twfly104/grapim#2): demo/base was fast-forwarded OLD -> BASE
+// while the PR was closed; on "reopened" the event still said base OLD, so the
+// review covered OLD..head (BASE's own commit included, the deleted test file
+// missing). GitHub's merge commit for the event has the current base as its
+// first parent.
+test('review action: a reopened PR whose base moved is reviewed against the base of GitHub\'s merge commit', async () => {
+  const repo = tmp('grapim-review-base-');
+  const git = (...a) => execFileSync('git', ['-c', 'user.name=T', '-c', 'user.email=t@example.com', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', ...a], { cwd: repo, encoding: 'utf8' }).trim();
+  const write = (p, text) => {
+    fs.mkdirSync(path.dirname(path.join(repo, p)), { recursive: true });
+    fs.writeFileSync(path.join(repo, p), text);
+  };
+  git('init', '-q', '-b', 'main');
+  write('README.md', 'demo\n');
+  git('add', '.');
+  git('commit', '-qm', 'engine');
+  const old = git('rev-parse', 'HEAD');
+  write('examples/review-demo/src/users.js', "import { db } from './db.js';\n\nexport async function listUsers(req, res) {\n  res.json(await db.query('SELECT id FROM users'));\n}\n");
+  write('examples/review-demo/test/users.test.js', "import { listUsers } from '../src/users.js';\n");
+  git('add', '.');
+  git('commit', '-qm', 'review demo: users endpoint (base)');
+  const base = git('rev-parse', 'HEAD');
+  git('checkout', '-qb', 'agent');
+  write('examples/review-demo/src/users.js', "import { db } from './db.js';\n\nexport async function listUsers(req, res) {\n  const page = Number(req.query.page ?? 1);\n  res.json(await db.query('SELECT id FROM users LIMIT 20 OFFSET ' + page * 20));\n}\n");
+  write('examples/review-demo/migrations/20261114_users_cleanup.sql', 'ALTER TABLE users DROP COLUMN email;\n');
+  git('rm', '-q', 'examples/review-demo/test/users.test.js');
+  git('add', '.');
+  git('commit', '-qm', 'Add pagination to the users list endpoint');
+  const head = git('rev-parse', 'HEAD');
+  // refs/pull/7/merge: head merged into the current base tip.
+  git('checkout', '-q', '--detach', base);
+  git('merge', '-q', '--no-ff', '-m', 'Merge head into base', head);
+  const merge = git('rev-parse', 'HEAD');
+
+  const lib = { ...fakeLib(), git: realGit, prepareHistory: () => {} };
+  const logs = [];
+  assert.equal(currentBase(lib, repo, { env: { GITHUB_EVENT_NAME: 'pull_request', GITHUB_SHA: merge }, base: old, head, number: 7 }, (l) => logs.push(l)), base);
+  assert.match(logs.join('\n'), /base branch moved/);
+  // Nothing to go on: the event's base, as before.
+  assert.equal(currentBase(lib, repo, { env: { GITHUB_EVENT_NAME: 'pull_request' }, base: old, head }), old);
+  assert.equal(currentBase(lib, repo, { env: { GITHUB_EVENT_NAME: 'pull_request_target', GITHUB_SHA: merge }, base: old, head }), old);
+  assert.equal(currentBase(lib, repo, { env: { GITHUB_EVENT_NAME: 'pull_request', GITHUB_SHA: head }, base: old, head }), old, 'a checkout of the head itself');
+  assert.equal(currentBase(lib, repo, { env: { GITHUB_EVENT_NAME: 'pull_request', GITHUB_SHA: base }, base: old, head }), old, 'not a merge of this head');
+
+  // Through runReview: the stale "reopened" event, with GitHub's merge commit checked out.
+  const dir = tmp('grapim-review-base-env-');
+  const event = path.join(dir, 'event.json');
+  fs.writeFileSync(event, JSON.stringify({ action: 'reopened', pull_request: { number: 7, base: { sha: old, repo: { full_name: 'acme/api' } }, head: { sha: head, repo: { full_name: 'acme/api' } } } }));
+  const env = { GITHUB_EVENT_PATH: event, GITHUB_EVENT_NAME: 'pull_request', GITHUB_SHA: merge, GITHUB_REPOSITORY: 'acme/api', GITHUB_API_URL: 'https://api.example', 'INPUT_GITHUB-TOKEN': 'test-token', GITHUB_OUTPUT: path.join(dir, 'out.txt') };
+  await runReview({ env, cwd: repo, fetch: fakeGitHub().fetch, lib, log: () => {} });
+  const call = lib.calls.reviewChanges.at(-1);
+  assert.equal(call.base, base, 'merge-base(current base, head), not the stale event base');
+  const changed = git('diff', '--name-status', call.base, call.head).split('\n').sort();
+  assert.deepEqual(changed, ['A\texamples/review-demo/migrations/20261114_users_cleanup.sql', 'D\texamples/review-demo/test/users.test.js', 'M\texamples/review-demo/src/users.js'], 'the deleted test file is in the reviewed range');
 });

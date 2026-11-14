@@ -24,36 +24,36 @@
   --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-16: 16px; --fs-20: 20px; --fs-24: 24px; --fs-display: 40px; --fs-display-sm: 32px;
   --font-features: "kern", "liga";
 
-  /* Mist neutrals: tinted toward spruce, never zinc grey. */
-  --bg: #f3f6f5;
+  /* Monochrome neutrals: pure greys, no tint (design/brand.md). */
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #eef3f1;
-  --surface-3: #e1e9e6;
-  --border: #dae3df;
-  --border-strong: #c3cfca;
-  --text: #0c1a18;
-  --text-2: #43534f;
-  --text-3: #5a6a66;
-  /* Spruce: the one brand colour. It means "cleared". */
-  --accent: #0f5a50;
-  --accent-hover: #0a4840;
-  --accent-text: #0e5a50;
-  --accent-bg: #e1efeb;
+  --surface-2: #fafafa;
+  --surface-3: #f2f2f2;
+  --border: #ebebeb;
+  --border-strong: #d4d4d4;
+  --text: #0a0a0a;
+  --text-2: #4d4d4d;
+  --text-3: #6b6b6b;
+  /* The accent is the text colour: black buttons, black links, black focus. */
+  --accent: #0a0a0a;
+  --accent-hover: #2e2e2e;
+  --accent-text: #0a0a0a;
+  --accent-bg: #f2f2f2;
   --on-accent: #ffffff;
   --on-danger: #ffffff;
-  --backdrop: rgb(8 24 21 / 0.42);
-  --focus: #0f5a50;
+  --backdrop: rgb(0 0 0 / 0.4);
+  --focus: #0a0a0a;
 
   --add-text: #0f6a4f;
   --add-bg: #e6f2ec;
   --add-strong: #c6e3d5;
-  --del-text: #5a6a66;
+  --del-text: #6b6b6b;
   --del-bg: #fbedea;
   --del-strong: #f3d0c8;
-  /* Warnings are slate, not amber, so nothing competes with the coral. */
-  --warn-text: #46597a;
-  --warn-bg: #e8edf5;
-  --warn-border: #c8d3e6;
+  /* Warnings are grey, not amber, so nothing competes with the coral. */
+  --warn-text: #4d4d4d;
+  --warn-bg: #f2f2f2;
+  --warn-border: #d4d4d4;
   /* Danger text and fills. The coral itself (--coral) marks a Blocker only. */
   --danger: #c13c25;
   --danger-hover: #a8321e;
@@ -62,14 +62,15 @@
   --ok-bg: #e1f1ea;
 
   /* The fixed brand colours, the same in light and dark: the coral of a
-     Blocker, and the deep spruce band (the hub sidebar, the landing's
-     #where section) with its raised surfaces. */
+     Blocker, and the black band (the hub sidebar, the landing's #where
+     section) with its raised surfaces. */
   --coral: #e0533b;
-  --band: #0b2a26;
-  --band-raise: #0f2f2a;
-  --band-head: #143a34;
+  --band: #0a0a0a;
+  --band-raise: #141414;
+  --band-head: #1c1c1c;
 
-  /* Agent colours: distinct hues, each at least 3:1 against the surface. */
+  /* Agent colours: distinct hues, each at least 3:1 against the surface.
+     Data only, never decoration. */
   --a0: #0d8073;
   --a1: #b06400;
   --a2: #8446cc;
@@ -78,53 +79,55 @@
   --a5: #687a0e;
   --a6: #c4492a;
   --a7: #8b5e34;
-  --outside: #9aa8a4;
+  --outside: #a3a3a3;
 
-  --code-kw: #8b2fc9;
+  /* Quiet syntax: keywords and names in the text colour, strings dark green,
+     comments grey. */
+  --code-kw: #0a0a0a;
   --code-str: #1a6e3a;
-  --code-num: #a05a00;
-  --code-com: #5a6a66;
-  --code-fn: #0e5a50;
+  --code-num: #4d4d4d;
+  --code-com: #6b6b6b;
+  --code-fn: #0a0a0a;
 
-  --shadow-1: 0 1px 2px rgb(12 42 38 / 0.06);
-  --shadow-pop: 0 1px 2px rgb(12 42 38 / 0.08), 0 12px 32px -8px rgb(12 42 38 / 0.24);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.05), 0 0 0 1px rgb(0 0 0 / 0.04), 0 12px 32px -8px rgb(0 0 0 / 0.14);
   /* Soft, round shapes; buttons and badges are pills (hub.css, site.css). */
   --radius: 8px;
   --radius-lg: 14px;
   --sidebar: 232px;
 }
 
-/* Dark: from [data-theme], from the system, and always inside the deep
-   spruce band (.side, .sidebar, .where), which reads as dark in both themes. */
+/* Dark: from [data-theme], from the system, and always inside the black
+   band (.side, .sidebar, .where), which reads as dark in both themes. */
 :root[data-theme="dark"],
 :is(.side, .sidebar, .where) {
   color-scheme: dark;
-  --bg: #08110f;
-  --surface: #0e1917;
-  --surface-2: #13211e;
-  --surface-3: #1b2c28;
-  --border: #1f302c;
-  --border-strong: #2d433e;
-  --text: #e5eeeb;
-  --text-2: #a9bab5;
-  --text-3: #8b9d97;
-  --accent: #5ec2ad;
-  --accent-hover: #7dd3c1;
-  --accent-text: #7dd3c1;
-  --accent-bg: #12302a;
-  --on-accent: #06110f;
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --surface-2: #111111;
+  --surface-3: #1a1a1a;
+  --border: #1f1f1f;
+  --border-strong: #2e2e2e;
+  --text: #ededed;
+  --text-2: #a1a1a1;
+  --text-3: #8f8f8f;
+  --accent: #ededed;
+  --accent-hover: #ffffff;
+  --accent-text: #ededed;
+  --accent-bg: #1a1a1a;
+  --on-accent: #0a0a0a;
   --on-danger: #160807;
   --backdrop: rgb(0 0 0 / 0.6);
-  --focus: #5ec2ad;
+  --focus: #ededed;
   --add-text: #6fd0a8;
   --add-bg: rgb(111 208 168 / 0.09);
   --add-strong: rgb(111 208 168 / 0.22);
-  --del-text: #a9bab5;
+  --del-text: #a1a1a1;
   --del-bg: rgb(255 122 98 / 0.09);
   --del-strong: rgb(255 122 98 / 0.22);
-  --warn-text: #a8badb;
-  --warn-bg: rgb(168 186 219 / 0.12);
-  --warn-border: rgb(168 186 219 / 0.3);
+  --warn-text: #a1a1a1;
+  --warn-bg: rgb(255 255 255 / 0.07);
+  --warn-border: rgb(255 255 255 / 0.18);
   --danger: #ff7a62;
   --danger-hover: #ff9480;
   --danger-bg: rgb(255 122 98 / 0.13);
@@ -138,45 +141,45 @@
   --a5: #b6cc4c;
   --a6: #f58b6c;
   --a7: #d6a878;
-  --outside: #85978f;
-  --code-kw: #c9a0ff;
+  --outside: #737373;
+  --code-kw: #ededed;
   --code-str: #8fd6a2;
-  --code-num: #f0b46a;
-  --code-com: #8b9d97;
-  --code-fn: #7dd3c1;
-  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px -8px rgb(0 0 0 / 0.6);
+  --code-num: #a1a1a1;
+  --code-com: #8f8f8f;
+  --code-fn: #ededed;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06), 0 16px 40px -8px rgb(0 0 0 / 0.7);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #08110f;
-    --surface: #0e1917;
-    --surface-2: #13211e;
-    --surface-3: #1b2c28;
-    --border: #1f302c;
-    --border-strong: #2d433e;
-    --text: #e5eeeb;
-    --text-2: #a9bab5;
-    --text-3: #8b9d97;
-    --accent: #5ec2ad;
-    --accent-hover: #7dd3c1;
-    --accent-text: #7dd3c1;
-    --accent-bg: #12302a;
-    --on-accent: #06110f;
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface-2: #111111;
+    --surface-3: #1a1a1a;
+    --border: #1f1f1f;
+    --border-strong: #2e2e2e;
+    --text: #ededed;
+    --text-2: #a1a1a1;
+    --text-3: #8f8f8f;
+    --accent: #ededed;
+    --accent-hover: #ffffff;
+    --accent-text: #ededed;
+    --accent-bg: #1a1a1a;
+    --on-accent: #0a0a0a;
     --on-danger: #160807;
     --backdrop: rgb(0 0 0 / 0.6);
-    --focus: #5ec2ad;
+    --focus: #ededed;
     --add-text: #6fd0a8;
     --add-bg: rgb(111 208 168 / 0.09);
     --add-strong: rgb(111 208 168 / 0.22);
-    --del-text: #a9bab5;
+    --del-text: #a1a1a1;
     --del-bg: rgb(255 122 98 / 0.09);
     --del-strong: rgb(255 122 98 / 0.22);
-    --warn-text: #a8badb;
-    --warn-bg: rgb(168 186 219 / 0.12);
-    --warn-border: rgb(168 186 219 / 0.3);
+    --warn-text: #a1a1a1;
+    --warn-bg: rgb(255 255 255 / 0.07);
+    --warn-border: rgb(255 255 255 / 0.18);
     --danger: #ff7a62;
     --danger-hover: #ff9480;
     --danger-bg: rgb(255 122 98 / 0.13);
@@ -190,14 +193,14 @@
     --a5: #b6cc4c;
     --a6: #f58b6c;
     --a7: #d6a878;
-    --outside: #85978f;
-    --code-kw: #c9a0ff;
+    --outside: #737373;
+    --code-kw: #ededed;
     --code-str: #8fd6a2;
-    --code-num: #f0b46a;
-    --code-com: #8b9d97;
-    --code-fn: #7dd3c1;
-    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
-    --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px -8px rgb(0 0 0 / 0.6);
+    --code-num: #a1a1a1;
+    --code-com: #8f8f8f;
+    --code-fn: #ededed;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+    --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06), 0 16px 40px -8px rgb(0 0 0 / 0.7);
   }
 }
 

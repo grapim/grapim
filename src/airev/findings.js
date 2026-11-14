@@ -95,6 +95,8 @@ const AGENT_NAMES = { 'claude-code': 'Claude Code', codex: 'Codex', cursor: 'Cur
 const TEST_FILE = /(^|\/)(test|tests|__tests__|spec|specs)\/|\.(test|spec)\.[^/]+$|_test\.(go|py|rb|exs?)$|(^|\/)test_[^/]+\.py$|Tests?\.(java|kt|cs|swift)$/;
 export const isTestFile = (p) => TEST_FILE.test(String(p ?? ''));
 
+const OWN_SOURCE = /^(issue #[1-9][0-9]{0,9}|PR description|PR title)$/;
+
 export function renderReviewSummary({ findings, stats, skipped, runs, providerText, requests, deletedTests = [] }) {
   const n = (s) => findings.filter((f) => f.severity === s).length;
   const lines = ['### Grapim Review', ''];
@@ -104,6 +106,9 @@ export function renderReviewSummary({ findings, stats, skipped, runs, providerTe
   else lines.push('**Nothing was reviewed.**');
   const human = stats.reviewedHunks - stats.reviewedAiHunks;
   lines.push(`Reviewed ${plural(stats.reviewedHunks, 'hunk')} of ${stats.hunks} changed (${stats.reviewedAiHunks} written by agent runs, ${human} human-written) in ${plural(stats.reviewedFiles, 'file')} of ${stats.files}.`);
+  // The sources are Grapim's own labels ("issue #12", "PR description"), except
+  // a caller-named source, which goes through md().
+  if (stats.comparedWith?.length) lines.push(`**Compared with:** ${stats.comparedWith.map((s) => (OWN_SOURCE.test(s) ? s : md(s, 60))).join(', ')}.`);
 
   if (deletedTests.length) {
     lines.push('', `**Tests deleted:** this pull request deletes ${plural(deletedTests.length, 'test file')}: ${deletedTests.slice(0, 5).map(code).join(', ')}${deletedTests.length > 5 ? ` and ${plural(deletedTests.length - 5, 'more')}` : ''}. Check that was intended.`);

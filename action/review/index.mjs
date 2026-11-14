@@ -8,6 +8,8 @@
 // and creates or updates one summary comment (found by its marker). A forked
 // PR gets a read-only token: everything goes to the job summary instead.
 // It never runs code from the repository, and never prints the environment.
+// What the pull request asked for (its title, description and the issues it
+// closes) goes to the engine as one more untrusted intent source.
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -39,6 +41,7 @@ export async function loadLib() {
     validateConfig: engine.validateConfig,
     providerFromEnv: engine.providerFromEnv,
     ConfigError: engine.ConfigError,
+    closingIssues: engine.closingIssues,
     md: render.md,
     prepareHistory: pr.prepareHistory,
     git: pr.git,
@@ -249,6 +252,54 @@ function readConfig(lib, dir, configPath, base) {
   return lib.validateConfig(raw);
 }
 
+// What the pull request was asked to do: its title and description from the
+// event, and the issues its description closes ("Fixes #12"; same repository
+// only, at most 3), read with the workflow's token. An issue that cannot be
+// read (deleted, private, no token, an error) is left out; the review goes on.
+export const MAX_ISSUES = 3;
+export async function statedRequest({ pr, repo, request, lib, log = () => {} }) {
+  const title = typeof pr?.title === 'string' ? pr.title : '';
+  const body = typeof pr?.body === 'string' ? pr.body : '';
+  const numbers = lib.closingIssues && body ? lib.closingIssues(body, repo, { max: MAX_ISSUES }) : [];
+  const issues = [];
+  for (const n of request ? numbers : []) {
+    let r = null;
+    try {
+      r = await request('GET', `/repos/${repo}/issues/${n}`);
+    } catch {}
+    // An issue number can name a pull request: that is not a request.
+    if (r?.ok && r.json && typeof r.json === 'object' && !r.json.pull_request) issues.push({ number: n, title: String(r.json.title ?? ''), body: String(r.json.body ?? '') });
+    else log(`Grapim Review: linked issue #${n} could not be read${r?.status ? ` (HTTP ${r.status})` : ''}; left out.`);
+  }
+  if (!title.trim() && !body.trim() && !issues.length) return null;
+  return { title, body, issues };
+}
+
+// The base GitHub compares the pull request with now. The event's
+// pull_request.base.sha is the base stored on the pull request, and GitHub
+// does not move it when the base branch advances while the PR is closed: a
+// "reopened" event still names the old base, and merge-base(old, head) adds
+// the base branch's own new commits to the review (twfly104/grapim#2). The
+// merge commit GitHub built for a pull_request event (GITHUB_SHA, the
+// refs/pull/<n>/merge the workflow checked out) has the base branch tip it
+// merged into as first parent and the head as second: that first parent is
+// the current base. Anything else (pull_request_target, a checkout without the
+// merge commit, a merge ref GitHub could not build) keeps the event's base.
+export function currentBase(lib, dir, { env = {}, base, head, number }, log = () => {}) {
+  if (env.GITHUB_EVENT_NAME && env.GITHUB_EVENT_NAME !== 'pull_request') return base;
+  const merge = String(env.GITHUB_SHA ?? '');
+  if (!SHA.test(merge) || merge === head || typeof lib.git !== 'function') return base;
+  const parents = () => String(lib.git(dir, ['rev-list', '--parents', '-n', '1', merge], { allowFail: true }) ?? '').trim().split(/\s+/).slice(1);
+  let p = parents();
+  if (!p.length && Number.isSafeInteger(number)) {
+    lib.git(dir, ['fetch', '--no-tags', '--quiet', 'origin', `+refs/pull/${number}/merge`], { allowFail: true });
+    p = parents();
+  }
+  if (p.length !== 2 || p[1] !== head || !SHA.test(p[0])) return base;
+  if (p[0] !== base) log(`Grapim Review: the base branch moved since the event's base ${base.slice(0, 7)}; reviewing against ${p[0].slice(0, 7)}, the base of GitHub's merge commit.`);
+  return p[0];
+}
+
 const isConfigError = (err, lib) => (lib.ConfigError && err instanceof lib.ConfigError) || err?.name === 'ConfigError';
 
 // -> { status, exitCode, counts?, review?, markdown? }
@@ -262,10 +313,10 @@ export async function runReview({ env = process.env, cwd, fetch = globalThis.fet
     return { status: 'skipped', exitCode: 0 };
   }
   const repo = env.GITHUB_REPOSITORY || event.repository?.full_name;
-  const base = pr.base?.sha;
+  const eventBase = pr.base?.sha;
   const head = pr.head?.sha;
   const number = pr.number;
-  if (!REPO.test(String(repo)) || !SHA.test(String(base)) || !SHA.test(String(head)) || !Number.isSafeInteger(number)) throw new Error('The pull_request event is missing the repository, base or head.');
+  if (!REPO.test(String(repo)) || !SHA.test(String(eventBase)) || !SHA.test(String(head)) || !Number.isSafeInteger(number)) throw new Error('The pull_request event is missing the repository, base or head.');
   const dir = cwd ?? env.GITHUB_WORKSPACE ?? process.cwd();
   // pull_request from a fork: GitHub gives a read-only token and no secrets.
   const fork = (pr.head?.repo?.full_name ?? null) !== (pr.base?.repo?.full_name ?? repo) && env.GITHUB_EVENT_NAME !== 'pull_request_target';
@@ -282,7 +333,8 @@ export async function runReview({ env = process.env, cwd, fetch = globalThis.fet
 
   lib ??= await loadLib();
   // History first: the config is read from the base commit.
-  lib.prepareHistory(dir, { base, head, number }, log);
+  lib.prepareHistory(dir, { base: eventBase, head, number }, log);
+  const base = currentBase(lib, dir, { env, base: eventBase, head, number }, log);
   let config, provider;
   try {
     config = readConfig(lib, dir, configPath, base);
@@ -303,13 +355,19 @@ export async function runReview({ env = process.env, cwd, fetch = globalThis.fet
     return configError(err.message);
   }
   const failOn = failOnInput || (config?.failOn === 'never' ? 'never' : 'blocker');
+  const useRequest = input('use-pr-request').toLowerCase();
+  if (useRequest && !['true', 'false'].includes(useRequest)) return configError(`use-pr-request must be true or false, not "${useRequest.slice(0, 40)}".`);
+
+  const token = env['INPUT_GITHUB-TOKEN'] || env.GITHUB_TOKEN;
+  const request = token ? client({ api: (env.GITHUB_API_URL || 'https://api.github.com').replace(/\/+$/, ''), token, fetch, wait }) : null;
+  const prRequest = useRequest === 'false' ? null : await statedRequest({ pr, repo, request, lib, log });
 
   // The diff GitHub shows: from the merge base, like the review engine's lines.
   const mergeBase = (lib.git?.(dir, ['merge-base', base, head], { allowFail: true }) ?? '').trim() || base;
 
   let result;
   try {
-    result = await lib.reviewChanges({ cwd: dir, base: mergeBase, head, config, provider, fetchImpl: fetch, log, now });
+    result = await lib.reviewChanges({ cwd: dir, base: mergeBase, head, config, provider, ...(prRequest ? { request: prRequest } : {}), fetchImpl: fetch, log, now });
   } catch (err) {
     if (isConfigError(err, lib)) return configError(err.message);
     throw err;
@@ -330,13 +388,11 @@ export async function runReview({ env = process.env, cwd, fetch = globalThis.fet
   const full = summaryMarkdown({ summary: result.summary, extra: findings, heading: 'Findings', md });
   if (env.GITHUB_STEP_SUMMARY) fs.appendFileSync(env.GITHUB_STEP_SUMMARY, full.split('\n').filter((l) => !l.startsWith('<!-- grapim')).join('\n'));
 
-  const token = env['INPUT_GITHUB-TOKEN'] || env.GITHUB_TOKEN;
   if (!token || fork) {
     printSafely(log, `Grapim Review (${!token ? 'no token' : 'pull request from a fork: the token is read-only'}, so it is printed here instead of posted):`, full);
     return done({ status: 'log', markdown: full });
   }
 
-  const request = client({ api: (env.GITHUB_API_URL || 'https://api.github.com').replace(/\/+$/, ''), token, fetch, wait });
   const denied = () => {
     printSafely(log, 'Grapim Review (the token cannot comment here: it needs pull-requests: write):', full);
     return done({ status: 'log', markdown: full });

@@ -157,6 +157,7 @@ export function attribute({ files = [], notesByCommit, blameByFile, reviews } = 
   const perFile = [];
   let added = 0;
   let ai = 0;
+  let unrecorded = 0; // added lines from a commit with no readable note: unknown, not human
   const seen = new Set();
   for (const f of Array.isArray(files) ? files : []) {
     if (!f || typeof f.path !== 'string' || seen.has(f.path)) continue;
@@ -176,7 +177,10 @@ export function attribute({ files = [], notesByCommit, blameByFile, reviews } = 
         const b = blame[bi];
         if (!b || b.start > line) continue;
         const note = noteOf(b.commit);
-        if (!note) continue;
+        if (!note) {
+          unrecorded++;
+          continue;
+        }
         if (!Number.isSafeInteger(b.orig)) continue;
         const list = note.files.get(typeof b.path === 'string' ? b.path : f.path);
         const hit = list && entryAt(list, b.orig + (line - b.start));
@@ -218,7 +222,7 @@ export function attribute({ files = [], notesByCommit, blameByFile, reviews } = 
       return { id: r.id, label: r.label || r.id, kind: r.kind, lines: r.lines, files: r.files.size, review, reviewText, prompts: turns.filter((t) => t.intent).length, intent: turns.find((t) => t.intent)?.intent ?? null, turns: turns.map((t) => ({ turn: t.turn, lines: t.lines, intent: t.intent })) };
     })
     .sort((a, b) => b.lines - a.lines || a.label.localeCompare(b.label));
-  return { added, ai, runs: runList, files: perFile, notes: [...notes.values()].filter(Boolean).length };
+  return { added, ai, unrecorded, runs: runList, files: perFile, notes: [...notes.values()].filter(Boolean).length };
 }
 
 // ---- Rendering ----
@@ -233,9 +237,16 @@ function share(ai, added) {
   return `${p}%`;
 }
 
+// Lines from commits without a note are unknown, never human (docs/provenance.md).
+function unknownText(a) {
+  if (!a.unrecorded) return '';
+  const one = a.unrecorded === 1;
+  return ` ${plural(a.unrecorded, 'added line')} ${one ? 'is' : 'are'} in commits with no Grapim note, so who wrote ${one ? 'it' : 'them'} is unknown.`;
+}
+
 function headline(a) {
   if (!a.added) return '**No added lines to attribute in this pull request.**';
-  if (!a.ai) return `**None of the ${plural(a.added, 'added line')} came from an AI agent run Grapim recorded.**`;
+  if (!a.ai) return `**None of the ${plural(a.added, 'added line')} came from an AI agent run Grapim recorded.**${unknownText(a)}`;
   const top = a.runs.slice(0, 5).map((r) => `${md(r.label, 60)} ${num(r.lines)}`);
   const rest = a.runs.slice(5);
   if (rest.length) top.push(`${plural(rest.length, 'more run')} ${num(rest.reduce((n, r) => n + r.lines, 0))}`);
@@ -243,7 +254,7 @@ function headline(a) {
   const lead = open
     ? `**${plural(open, 'agent run')} of ${a.runs.length} not reviewed yet.**`
     : `**${a.runs.length === 1 ? 'The agent run' : `All ${a.runs.length} agent runs`} here ${a.runs.length === 1 ? 'is' : 'are'} reviewed.**`;
-  return `${lead} ${share(a.ai, a.added)} of the added lines came from agent runs (${num(a.ai)} of ${num(a.added)}): ${top.join(', ')}`;
+  return `${lead} ${share(a.ai, a.added)} of the added lines came from agent runs (${num(a.ai)} of ${num(a.added)}): ${top.join(', ')}${a.unrecorded ? '.' : ''}${unknownText(a)}`;
 }
 
 const runRow = (r) => {
@@ -344,6 +355,7 @@ export function renderSummary({ files = [], notesByCommit = {}, blameByFile = {}
     omittedFiles: omitted,
     added: a.added,
     ai: a.ai,
+    unrecorded: a.unrecorded,
     share: a.added ? a.ai / a.added : 0,
     notes: a.notes,
     runs: a.runs.map(({ id, label, kind, lines, files: n, review, intent }) => ({ id, label, kind, lines, files: n, review, intent })),

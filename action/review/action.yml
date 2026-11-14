@@ -28,6 +28,10 @@ inputs:
     description: The review config file, relative to the repository root.
     required: false
     default: .grapim/review.json
+  use-pr-request:
+    description: true to compare the change with what the pull request asked for (its title and description, and up to 3 issues it closes with "Fixes #N", read with github-token). false to leave them out.
+    required: false
+    default: 'true'
 outputs:
   blockers:
     description: Blocker findings.

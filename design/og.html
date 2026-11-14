@@ -2,7 +2,7 @@
 <!-- The share image (og.png, 1200x630). Render with headless Chrome at
      1200x630 and save to src/hub/pages/site-img/og.png:
        node design/render.mjs file:///<repo>/design/og.html src/hub/pages/site-img/og.png 1200 630 dark
-     Brand C, "Clearance" (design/brand.md): the deep spruce band, the
+     Monochrome (design/brand.md): the black band, the
      landing headline, and the signature element, the clearance line, as the
      one picture. No abstract graphic. -->
 <html lang="en">
@@ -13,16 +13,16 @@
   @font-face { font-family: "IBM Plex Mono"; src: url("../ui/fonts/ibm-plex-mono-400-latin.woff2") format("woff2"); font-weight: 400; }
   @font-face { font-family: "IBM Plex Mono"; src: url("../ui/fonts/ibm-plex-mono-500-latin.woff2") format("woff2"); font-weight: 500; }
   html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
-  body { font-family: "Public Sans", sans-serif; color: #e5eeeb; background: #0b2a26; position: relative; }
+  body { font-family: "Public Sans", sans-serif; color: #ededed; background: #0a0a0a; position: relative; }
   .brand { position: absolute; left: 72px; top: 64px; display: flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 700; letter-spacing: -0.005em; }
-  .brand svg { width: 32px; height: 32px; color: #e5eeeb; }
-  h1 { position: absolute; left: 72px; top: 156px; margin: 0; width: 900px; font-size: 64px; line-height: 1.04; font-weight: 640; letter-spacing: -0.032em; }
-  .card { position: absolute; left: 72px; right: 72px; bottom: 112px; padding: 22px 24px; border-radius: 16px; background: #0f2f2a; border: 1px solid #2d433e; }
-  .meta { margin: 0 0 16px; font-size: 21px; line-height: 1.45; color: #a9bab5; }
-  .seal { position: relative; margin: 0; padding: 16px 20px 16px 62px; border-radius: 12px; background: #5ec2ad; color: #06110f; font-size: 23px; line-height: 1.4; font-weight: 560; }
-  .seal::before { content: ""; position: absolute; left: 20px; top: 18px; width: 26px; height: 26px; border-radius: 50%; background: #06110f; }
-  .seal::after { content: ""; position: absolute; left: 29px; top: 22px; width: 7px; height: 13px; border: solid #5ec2ad; border-width: 0 3px 3px 0; transform: rotate(45deg); }
-  .url { position: absolute; left: 72px; bottom: 52px; font: 500 20px "IBM Plex Mono", monospace; color: #7dd3c1; }
+  .brand svg { width: 32px; height: 32px; color: #ededed; }
+  h1 { position: absolute; left: 72px; top: 156px; margin: 0; width: 900px; font-size: 64px; line-height: 1.04; font-weight: 640; letter-spacing: -0.04em; }
+  .card { position: absolute; left: 72px; right: 72px; bottom: 112px; padding: 22px 24px; border-radius: 16px; background: #141414; border: 1px solid #2e2e2e; }
+  .meta { margin: 0 0 16px; font-size: 21px; line-height: 1.45; color: #a1a1a1; }
+  .seal { position: relative; margin: 0; padding: 16px 20px 16px 62px; border-radius: 12px; background: #ededed; color: #0a0a0a; font-size: 23px; line-height: 1.4; font-weight: 560; }
+  .seal::before { content: ""; position: absolute; left: 20px; top: 18px; width: 26px; height: 26px; border-radius: 50%; background: #0a0a0a; }
+  .seal::after { content: ""; position: absolute; left: 29px; top: 22px; width: 7px; height: 13px; border: solid #ededed; border-width: 0 3px 3px 0; transform: rotate(45deg); }
+  .url { position: absolute; left: 72px; bottom: 52px; font: 500 20px "IBM Plex Mono", monospace; color: #8f8f8f; }
 </style>
 </head>
 <body>
