@@ -28,7 +28,7 @@
   "homepage": "https://grapim.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/twfly104/grapim.git",
+    "url": "git+https://github.com/grapim/grapim.git",
     "directory": "sdk/js"
   },
   "keywords": [

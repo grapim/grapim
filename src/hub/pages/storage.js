@@ -97,7 +97,7 @@ export function storageSection({ team, csrf, status, providers, error = null, fo
     <h2 id="storage-title" class="card-title">Workspace storage</h2>
     <span class="badge">${status.move ? 'moving' : own ? providers[status.provider] ?? status.provider : 'hub'}</span>
   </div>
-  <p class="card-sub">Where workspace files and their versions are kept: the hub, or your own S3, R2, Google Cloud Storage or Azure bucket. <a href="https://github.com/twfly104/grapim/blob/main/docs/storage.md">The keys and policy to create</a></p>
+  <p class="card-sub">Where workspace files and their versions are kept: the hub, or your own S3, R2, Google Cloud Storage or Azure bucket. <a href="https://github.com/grapim/grapim/blob/main/docs/storage.md">The keys and policy to create</a></p>
   ${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
   ${!status.available
     ? html`<p class="fine">Workspace storage is off on this hub, so there is nothing to keep elsewhere.</p>`

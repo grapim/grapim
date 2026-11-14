@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # blame needs the history; notes are fetched by the action
-      - uses: twfly104/grapim/action@main
+      - uses: grapim/grapim/action@main
 ```
 
 Pin a release tag or a commit sha instead of `main` once you depend on it.

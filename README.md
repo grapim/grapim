@@ -58,7 +58,7 @@ Runs appear in the hub's Reviews within seconds. A teammate (not the person who 
 
 Beta: built from each agent's published hook reference and tested with its documented payloads, not yet across every version of the agent. Tell us when something is missed.
 
-What no hook sees, for any agent: files changed by shell commands the agent runs (`sed -i`, a code generator, `npm install`). Those lines show as `outside agents` in `grapim blame`.
+Shell commands an agent runs (`sed -i`, a code generator) are recorded by comparing `git status` before and after each command. Files git ignores (`node_modules` after `npm install`) and files outside the repository are not recorded. Changes no agent made show as `outside agents` in `grapim blame`.
 
 `grapim init --agents claude,codex,cursor,gemini` (or `all`) sets up agents it did not find. A config file `init` creates is added to `.git/info/exclude`, since it holds a path on your machine. A file that is not valid JSON is left alone and reported.
 

@@ -20,7 +20,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://grapim.com"
-Repository = "https://github.com/twfly104/grapim"
+Repository = "https://github.com/grapim/grapim"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/grapim"]
