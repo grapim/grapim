@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # The full macOS and Windows run, once a week. In a private repo a macOS
+  # minute counts as 10 and a Windows minute as 2 against the Actions quota,
+  # so pushes and pull requests test on Ubuntu only.
+  schedule:
+    - cron: '0 3 * * 1'
 
 permissions:
   contents: read
@@ -21,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest","macos-latest","windows-latest"]' || '["ubuntu-latest"]') }}
     steps:
       # The tests make real git repos and commits.
       - name: Git identity for test commits
