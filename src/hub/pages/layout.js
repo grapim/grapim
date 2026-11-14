@@ -264,11 +264,11 @@ ${toastEl(toast)}
 </html>`.toString();
 }
 
-export function layout({ title, user = null, team = null, csrf = null, crumbs = [], body, wide = false, toast = null }) {
+export function layout({ title, user = null, team = null, csrf = null, crumbs = [], body, wide = false, toast = null, bodyClass = '' }) {
   const shell = user && team && typeof user.shell === 'function' ? user.shell(team) : null;
   if (shell) return shellPage({ title, user, team, csrf, crumbs, body, wide, shell, toast });
   return html`${head(title)}
-<body>
+<body${bodyClass ? html` class="${bodyClass}"` : ''}>
 <a class="skip" href="#main">Skip to content</a>
 ${demoBanner(user)}
 <header class="top">

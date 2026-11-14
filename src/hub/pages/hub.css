@@ -1135,3 +1135,18 @@ main.wrap { container-type: inline-size; }
 :root[data-theme="dark"] .brand-mark.brand-openai { fill: #fff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand-mark.brand-openai { fill: #fff; } }
 .agent .brand-mark.brand-openai, .brand-mark.brand-openai { margin: -6px -6px -6px -6px; vertical-align: middle; }
+
+/* The sign-in page, seen before anyone has an account, shares the public
+   site's ground: the page surface with the landing hero's dot grid. */
+body.site-bg { background: var(--site-page); position: relative; isolation: isolate; }
+body.site-bg .top { background: color-mix(in srgb, var(--site-page) 92%, transparent); }
+body.site-bg::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(circle, var(--grid-dot) 1px, transparent 1.6px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 70% at 50% 30%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse 60% 70% at 50% 30%, #000 0%, transparent 72%);
+}
+:root { --site-page: var(--surface); --grid-dot: rgb(16 16 32 / 0.16); }
+:root[data-theme="dark"] { --site-page: var(--bg); --grid-dot: rgb(255 255 255 / 0.13); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --site-page: var(--bg); --grid-dot: rgb(255 255 255 / 0.13); } }

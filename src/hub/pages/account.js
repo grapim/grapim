@@ -7,6 +7,7 @@ export function signInPage({ next = '/hub', error = null }) {
   const href = next && next !== '/hub' ? `/hub/auth/github?next=${encodeURIComponent(next)}` : '/hub/auth/github';
   return layout({
     title: 'Sign in',
+    bodyClass: 'site-bg',
     body: html`<section class="auth">
   <h1>Sign in to Grapim</h1>
   <p class="lede">Every AI change to your code, with someone accountable for it: see which agent run made it and what it was asked to do, review it, stop unreviewed agent code at the pull request, and undo one run without touching the rest.</p>
