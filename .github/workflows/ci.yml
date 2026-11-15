@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-  # Where each OS runs: in the private repo (twfly104/grapim) a macOS minute
+  # Where each OS runs: in the private repo (alexanderko104/grapim) a macOS minute
   # counts as 10 and a Windows minute as 2 against the Actions quota, so it
   # tests on Ubuntu only. The public mirror (grapim/grapim, published by
   # scripts/publish-public.sh) has free Actions and runs all three on every

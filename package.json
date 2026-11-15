@@ -56,5 +56,5 @@
     "test": "node --test \"test/*.test.js\" \"sdk/js/test/*.test.js\"",
     "test:sdk": "node --test \"sdk/js/test/*.test.js\""
   },
-  "mcpName": "io.github.twfly104/grapim"
+  "mcpName": "io.github.grapim/grapim"
 }
