@@ -15,6 +15,10 @@ It runs two ways:
 
 Setup for both: [app.grapim.com/docs/review](https://app.grapim.com/docs/review).
 
+## Free for open source
+
+Install the [GitHub App](https://github.com/apps/grapim) on a public repository and every pull request is reviewed free, with no account to create. Each repository gets about 50 free reviews a month, and pull requests opened by bots are skipped. Private repositories need a team with cloud review on. Details: [Free for open source](https://grapim.com/docs/review#free-for-open-source).
+
 ## The Grapim CLI: runs, blame and undo
 
 The review knows who wrote each line because the CLI records every change your coding agents make as a *run*: which agent, which prompt, which turn, which lines. Your team approves runs at [app.grapim.com](https://app.grapim.com), and any single run can be undone without touching anyone else's work.
