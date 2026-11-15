@@ -437,7 +437,7 @@ test('grapim review --ai: findings grouped by file, exit 1 on a blocker, --json,
   assert.equal(await reviewAiCommand(['--ai', `${first}..HEAD`], io), 1, err);
   assert.equal(lib.calls.reviewChanges[0].base, first, 'the merge base');
   assert.equal(lib.calls.reviewChanges[0].head, 'HEAD');
-  assert.equal(fs.realpathSync(lib.calls.reviewChanges[0].cwd), fs.realpathSync(repo));
+  assert.equal(fs.realpathSync.native(lib.calls.reviewChanges[0].cwd), fs.realpathSync.native(repo));
   assert.match(out, /^Grapim Review: 1 blocker, 1 nit in 3 reviewed hunks \(claude-opus-5-5 via anthropic\)\.\n/);
   assert.match(out, /\nsrc\/pay\.js\n  BLOCKER  Deletes the refund check  src\/pay\.js:10-12\n           The run was asked to rename a field\.\n           It also removed the check\./);
   assert.match(out, /           Written by Claude Code run: "Rename amount to total @team <b>now<\/b>"\n/);
