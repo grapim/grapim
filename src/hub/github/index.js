@@ -375,7 +375,7 @@ export function createGitHubApp(hub, options = {}) {
         }
         if (!PR_ACTIONS.has(p.action) || p.pull_request?.draft) return { ignored: 'action' };
         const row = installs.get(inst?.id);
-        if (!row?.team_id || row.deleted_at || row.suspended_at) return { ignored: 'unlinked' };
+        if (!row || row.deleted_at || row.suspended_at) return { ignored: 'unlinked' };
         if (!auth || !cfg.slug) return { ignored: 'not_configured' };
         const job = {
           installationId: row.id,
@@ -385,9 +385,16 @@ export function createGitHubApp(hub, options = {}) {
           number: p.pull_request?.number,
           headSha: String(p.pull_request?.head?.sha ?? ''),
         };
+        // Public repositories are reviewed free, also for an installation no
+        // team has linked yet (cloud-review.js checks again with the API).
+        const isPublic = p.repository?.private === false;
+        if (!row.team_id) {
+          const reviewing = isPublic && cloud.onPullRequest({ ...job, teamId: null, public: true });
+          return reviewing ? { queued: true, review: true } : { ignored: 'unlinked' };
+        }
         const queued = queue.push(`${row.id}:${p.repository?.id}:${job.number}`, job, String(row.id));
         // Cloud review (cloud-review.js), when the team turned it on.
-        const reviewing = cloud.onPullRequest({ ...job, teamId: row.team_id });
+        const reviewing = cloud.onPullRequest({ ...job, teamId: row.team_id, public: isPublic });
         return queued || reviewing ? { queued: true, ...(reviewing ? { review: true } : {}) } : { ignored: 'busy' };
       }
       case 'check_run':

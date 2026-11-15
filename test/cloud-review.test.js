@@ -48,12 +48,12 @@ function listen(handler) {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve({ base: `http://127.0.0.1:${server.address().port}`, close: () => new Promise((r) => server.close(r)) })));
 }
 
-function fakeGitHub(head) {
+function fakeGitHub(head, { isPrivate = true, userType = 'User' } = {}) {
   const s = { checks: [], reviews: [], comments: [], nextId: 1, auth: [] };
   return listen((req, url, body, send) => {
     s.auth.push(req.headers.authorization);
     const p = url.pathname;
-    if (p === '/repos/acme/api/pulls/7' && req.method === 'GET') return send(200, { number: 7, state: 'open', title: 'Make the constants bigger', body: 'Bump a and b.', base: { ref: 'main' }, head: { sha: head } });
+    if (p === '/repos/acme/api/pulls/7' && req.method === 'GET') return send(200, { number: 7, state: 'open', title: 'Make the constants bigger', body: 'Bump a and b.', base: { ref: 'main', repo: { private: isPrivate } }, head: { sha: head }, user: { login: 'dev', type: userType } });
     if (p === '/repos/acme/api/check-runs' && req.method === 'POST') {
       const c = { id: s.nextId++, ...body };
       s.checks.push(c);
@@ -93,9 +93,9 @@ function fakeAnthropic() {
   }).then((srv) => ({ ...srv, s }));
 }
 
-async function setup(t, { plan = 'free', credit = null } = {}) {
+async function setup(t, { plan = 'free', credit = null, env: extra = {}, isPrivate = true, userType = 'User' } = {}) {
   const src = sourceRepo();
-  const gh = await fakeGitHub(src.head);
+  const gh = await fakeGitHub(src.head, { isPrivate, userType });
   const model = await fakeAnthropic();
   t.after(async () => {
     await gh.close();
@@ -104,7 +104,7 @@ async function setup(t, { plan = 'free', credit = null } = {}) {
   const db = new DatabaseSync(':memory:');
   const logs = [];
   const hub = { db, now: () => Date.now(), log: (l) => logs.push(l), teams: { get: (id) => ({ id, plan }) } };
-  const env = { GRAPIM_REVIEW_ANTHROPIC_KEY: 'sk-test-cloud', ANTHROPIC_BASE_URL: model.base, ...(credit ? { GRAPIM_REVIEW_MONTHLY_CREDIT: JSON.stringify(credit) } : {}) };
+  const env = { GRAPIM_REVIEW_ANTHROPIC_KEY: 'sk-test-cloud', ANTHROPIC_BASE_URL: model.base, ...(credit ? { GRAPIM_REVIEW_MONTHLY_CREDIT: JSON.stringify(credit) } : {}), ...extra };
   const cloud = createCloudReview(hub, {
     auth: { installationToken: async () => TOKEN },
     installs: { forTeam: () => [{ id: 1 }] },
@@ -213,4 +213,50 @@ test('one comment per pull request: the provenance section joins the review summ
   cloud.saveProvenance({ installationId: job.installationId, repoId: job.repoId, number: job.number, headSha: 'f'.repeat(40), markdown: prov });
   assert.equal(cloud.provenanceFor(job), undefined);
   assert.equal(provenanceSection(null), '');
+});
+
+test('free for open source: an unlinked installation gets public repositories reviewed, from the open-source pool', async (t) => {
+  const { cloud, gh, db, job } = await setup(t, { isPrivate: false });
+  const oss = { ...job, teamId: null, public: true };
+  const r = await cloud.review(oss, AbortSignal.timeout(60_000));
+  assert.equal(r.done, true, JSON.stringify(r));
+  const row = db.prepare('SELECT team_id, oss, status FROM cloud_reviews').get();
+  assert.deepEqual({ ...row }, { team_id: '', oss: 1, status: 'done' });
+  assert.match(gh.s.comments[0].body, /free for public repositories/);
+  assert.equal(cloud.usage({ id: 'team1', plan: 'free' }).reviews, 0, 'a team credit is not touched');
+});
+
+test('a linked team: its public repositories use the pool, not its credit, while it has cloud review on', async (t) => {
+  const { cloud, db, job } = await setup(t, { isPrivate: false, credit: { free: 0 } });
+  assert.equal((await cloud.review({ ...job, public: true }, AbortSignal.timeout(30_000))).skipped, 'off', 'the team switch still decides');
+  cloud.setEnabled('team1', true, 'u1');
+  const r = await cloud.review({ ...job, public: true }, AbortSignal.timeout(60_000));
+  assert.equal(r.done, true, 'no team credit needed for a public repository');
+  assert.equal(db.prepare('SELECT oss FROM cloud_reviews').get().oss, 1);
+  assert.equal((await cloud.review({ ...job, public: false }, AbortSignal.timeout(30_000))).skipped, 'no_credit', 'a private one still needs credit');
+});
+
+test('open source: the API must agree the repository is public, bots are skipped, the model is never called', async (t) => {
+  const priv = await setup(t, { isPrivate: true });
+  assert.equal((await priv.cloud.review({ ...priv.job, teamId: null, public: true }, AbortSignal.timeout(30_000))).skipped, 'not_public');
+  assert.equal(priv.model.s.requests.length, 0);
+  assert.equal(priv.gh.s.checks.at(-1).conclusion, 'skipped');
+  const bot = await setup(t, { isPrivate: false, userType: 'Bot' });
+  assert.equal((await bot.cloud.review({ ...bot.job, teamId: null, public: true }, AbortSignal.timeout(30_000))).skipped, 'bot_author');
+  assert.equal(bot.model.s.requests.length, 0);
+});
+
+test('open source: a cap per repository and a switch to turn the pool off', async (t) => {
+  const { cloud, gh, model, job } = await setup(t, { isPrivate: false, env: { GRAPIM_REVIEW_OSS_REPO_MONTHLY: '0.000001' } });
+  const oss = { ...job, teamId: null, public: true };
+  assert.equal((await cloud.review(oss, AbortSignal.timeout(60_000))).done, true);
+  const calls = model.s.requests.length;
+  assert.equal((await cloud.review(oss, AbortSignal.timeout(30_000))).skipped, 'no_credit');
+  assert.equal(model.s.requests.length, calls);
+  assert.match(gh.s.checks.at(-1).output.title, /used up for this repository/);
+
+  const off = await setup(t, { isPrivate: false, env: { GRAPIM_REVIEW_OSS_MONTHLY: '0' } });
+  assert.equal(off.cloud.onPullRequest({ ...off.job, teamId: null, public: true }), false);
+  assert.equal((await off.cloud.review({ ...off.job, teamId: null, public: true }, AbortSignal.timeout(30_000))).skipped, 'off');
+  assert.equal(off.cloud.onPullRequest({ ...off.job, teamId: null, public: false }), false, 'never a private repository of an unlinked installation');
 });

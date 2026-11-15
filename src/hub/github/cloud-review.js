@@ -17,10 +17,19 @@
 // A review usually takes under two minutes; a very large pull request may run
 // up to JOB_MS (30 minutes).
 //
+// Free for open source: a pull request on a public repository is reviewed
+// without using the team's credit, and an installation that no team has
+// linked is reviewed too, on its public repositories only (install the App,
+// open a pull request, nothing else). Those reviews draw on one shared monthly
+// pool with a cap per repository; pull requests opened by bots are skipped.
+// The repository must be public by the webhook and by the API.
+//
 // env:
 //   GRAPIM_REVIEW_ANTHROPIC_KEY   the key cloud reviews use (else ANTHROPIC_API_KEY)
 //   GRAPIM_REVIEW_MODEL           default claude-opus-5-5
 //   GRAPIM_REVIEW_MONTHLY_CREDIT  JSON { plan: dollars }, e.g. {"free":10,"team":100}
+//   GRAPIM_REVIEW_OSS_MONTHLY     dollars a month for all public repositories, default 200; 0 turns it off
+//   GRAPIM_REVIEW_OSS_REPO_MONTHLY  dollars a month per public repository, default 10
 //   GRAPIM_REVIEW_PRICE           JSON { input, output } dollars per million tokens
 //   GRAPIM_REVIEW_JOB_MS          per review, 60000..3600000
 //   GRAPIM_REVIEW_CONCURRENCY     reviews at once on this hub, 1..8
@@ -57,6 +66,9 @@ export const PRICES = Object.freeze({
 // Dollars of review per month, by plan. An Opus 5.5 review of a typical pull
 // request costs about $0.20, so the free plan's $10 is about 50 reviews.
 export const DEFAULT_CREDIT = Object.freeze({ free: 10, team: 100, governance: 300, enterprise: 1000 });
+// Public repositories: about 1,000 reviews a month in all, about 50 per repository.
+export const DEFAULT_OSS = Object.freeze({ monthly: 200, repoMonthly: 10 });
+const OSS_FOOTER = '\n\n<sub>Grapim Review is free for public repositories. <a href="https://grapim.com">grapim.com</a></sub>\n';
 export const JOB_MS = 30 * 60 * 1000;
 const MICROS = 1_000_000;
 const NAME = /^[A-Za-z0-9_.-]{1,100}$/;
@@ -73,6 +85,8 @@ CREATE TABLE IF NOT EXISTS cloud_review_settings (
   updated_at  INTEGER
 );
 -- One row per cloud review: what it reviewed, how it ended, what it cost.
+-- oss = 1: a public repository, paid from the open-source pool (team_id is
+-- '' when no team linked the installation).
 CREATE TABLE IF NOT EXISTS cloud_reviews (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   team_id       TEXT NOT NULL,
@@ -88,7 +102,8 @@ CREATE TABLE IF NOT EXISTS cloud_reviews (
   input_tokens  INTEGER NOT NULL DEFAULT 0,
   output_tokens INTEGER NOT NULL DEFAULT 0,
   cost_micros   INTEGER NOT NULL DEFAULT 0,
-  error         TEXT
+  error         TEXT,
+  oss           INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS cloud_reviews_team ON cloud_reviews (team_id, started_at);
 -- The provenance section of a pull request whose team has cloud review on
@@ -139,6 +154,11 @@ export function cloudConfig(env = process.env) {
       if (Number.isFinite(n) && n >= 0 && n <= 1e6) credit[plan] = n;
     }
   } catch {}
+  const dollarsEnv = (v, d) => {
+    const n = v === undefined || v === '' ? NaN : Number(v);
+    return Number.isFinite(n) && n >= 0 && n <= 1e6 ? n : d;
+  };
+  const oss = Object.freeze({ monthly: dollarsEnv(env.GRAPIM_REVIEW_OSS_MONTHLY, DEFAULT_OSS.monthly), repoMonthly: dollarsEnv(env.GRAPIM_REVIEW_OSS_REPO_MONTHLY, DEFAULT_OSS.repoMonthly) });
   let price = PRICES[model] ?? PRICES[DEFAULT_MODEL];
   try {
     const p = env.GRAPIM_REVIEW_PRICE ? JSON.parse(env.GRAPIM_REVIEW_PRICE) : null;
@@ -149,6 +169,7 @@ export function cloudConfig(env = process.env) {
     modelName: MODEL_NAMES[model] ?? model,
     baseUrl: String(env.ANTHROPIC_BASE_URL ?? '').trim() || null,
     credit: Object.freeze(credit),
+    oss,
     price: Object.freeze(price),
     jobMs: int(env.GRAPIM_REVIEW_JOB_MS, JOB_MS, 60_000, 3_600_000),
     concurrency: int(env.GRAPIM_REVIEW_CONCURRENCY, 2, 1, 8),
@@ -233,6 +254,9 @@ function runWorker(job, { key, baseUrl, signal, timeoutMs, log }) {
 export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, env = process.env, gitUrl = null, signal: stopSignal, provenanceWaitMs = 2000 } = {}) {
   const { db, now, log, teams } = hub;
   db.exec(CLOUD_SCHEMA);
+  // Hubs created before the open-source pool: add the column.
+  if (!db.prepare('PRAGMA table_info(cloud_reviews)').all().some((c) => c.name === 'oss')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN oss INTEGER NOT NULL DEFAULT 0');
+  db.exec('CREATE INDEX IF NOT EXISTS cloud_reviews_oss ON cloud_reviews (oss, started_at)');
   const cfg = cloudConfig(env);
   const remote = gitUrl ?? ((owner, name) => `${apiBase === 'https://api.github.com' ? 'https://github.com' : apiBase.replace(/\/api\/v3$/, '')}/${owner}/${name}.git`);
 
@@ -247,9 +271,17 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
   }
   function month(teamId) {
     const from = monthStart(now());
-    const r = db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(cost_micros), 0) AS spent FROM cloud_reviews WHERE team_id = ? AND started_at >= ? AND status != 'no_credit'").get(teamId, from);
+    const r = db.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(cost_micros), 0) AS spent FROM cloud_reviews WHERE team_id = ? AND started_at >= ? AND status != 'no_credit' AND oss = 0").get(teamId, from);
     return { reviews: r.n, spent: r.spent };
   }
+  // The open-source pool this month: in all, and for one repository.
+  function ossMonth(owner, name) {
+    const from = monthStart(now());
+    const all = db.prepare("SELECT COALESCE(SUM(cost_micros), 0) AS spent FROM cloud_reviews WHERE oss = 1 AND started_at >= ? AND status != 'no_credit'").get(from).spent;
+    const repo = db.prepare("SELECT COALESCE(SUM(cost_micros), 0) AS spent FROM cloud_reviews WHERE oss = 1 AND started_at >= ? AND status != 'no_credit' AND lower(owner) = lower(?) AND lower(name) = lower(?)").get(from, owner, name).spent;
+    return { all, repo };
+  }
+  const ossOn = () => cfg.oss.monthly > 0 && cfg.oss.repoMonthly > 0;
   function usage(team) {
     const m = month(team.id);
     return { reviews: m.reviews, spent: m.spent / MICROS, budget: budgetOf(team) / MICROS, resets_at: nextMonth(now()), model: cfg.model };
@@ -319,31 +351,36 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
   }
 
   async function review(job, signal) {
-    const team = teams.get(job.teamId);
-    if (!team || !enabled(team.id) || !cfg.configured || !auth) return { skipped: 'off' };
+    if (!cfg.configured || !auth) return { skipped: 'off' };
+    // A public repository goes to the open-source pool; an installation no
+    // team linked is reviewed only there.
+    const oss = job.public === true && ossOn();
+    const team = job.teamId ? teams.get(job.teamId) : null;
+    if (job.teamId ? !team || !enabled(team.id) : !oss) return { skipped: 'off' };
     if (!NAME.test(job.owner) || !NAME.test(job.name) || !Number.isSafeInteger(job.number) || !SHA.test(job.headSha)) return { skipped: 'bad_job' };
     const repo = `${job.owner}/${job.name}`;
     const token = await auth.installationToken(job.installationId);
     const client = new GitHubClient({ apiBase, token, fetch, now, signal });
     const started = now();
-    const budget = budgetOf(team);
-    const m = month(team.id);
+    let noCredit = null;
+    if (oss) {
+      const o = ossMonth(job.owner, job.name);
+      if (o.all >= Math.round(cfg.oss.monthly * MICROS)) noCredit = { title: 'Free reviews are used up this month', summary: `Grapim's free reviews for public repositories are used up for this month. They start again on ${day(nextMonth(started))}.` };
+      else if (o.repo >= Math.round(cfg.oss.repoMonthly * MICROS)) noCredit = { title: 'Free reviews are used up for this repository', summary: `This repository has used this month's ${dollars(Math.round(cfg.oss.repoMonthly * MICROS))} of free review for public repositories. It starts again on ${day(nextMonth(started))}.` };
+    } else {
+      const budget = budgetOf(team);
+      if (month(team.id).spent >= budget) noCredit = { title: 'No review credit left this month', summary: `Your team has used this month's ${dollars(budget)} of cloud review on the ${team.plan} plan. It renews on ${day(nextMonth(started))}. An owner can upgrade the plan in Settings.` };
+    }
     const rowId = db
-      .prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(team.id, job.owner, job.name, job.number, job.headSha, m.spent >= budget ? 'no_credit' : 'running', started).lastInsertRowid;
+      .prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, oss) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(team?.id ?? '', job.owner, job.name, job.number, job.headSha, noCredit ? 'no_credit' : 'running', started, oss ? 1 : 0).lastInsertRowid;
     const finish = (fields) => {
       const keys = Object.keys(fields);
       db.prepare(`UPDATE cloud_reviews SET ${[...keys.map((k) => `${k} = ?`), 'finished_at = ?'].join(', ')} WHERE id = ?`).run(...keys.map((k) => fields[k]), now(), rowId);
     };
 
-    if (m.spent >= budget) {
-      await check(client, repo, null, {
-        name: CLOUD_CHECK,
-        head_sha: job.headSha,
-        status: 'completed',
-        conclusion: 'neutral',
-        output: { title: 'No review credit left this month', summary: `Your team has used this month's ${dollars(budget)} of cloud review on the ${team.plan} plan. It renews on ${day(nextMonth(started))}. An owner can upgrade the plan in Settings.` },
-      });
+    if (noCredit) {
+      await check(client, repo, null, { name: CLOUD_CHECK, head_sha: job.headSha, status: 'completed', conclusion: 'neutral', output: noCredit });
       finish({});
       return { skipped: 'no_credit' };
     }
@@ -363,6 +400,16 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
         finish({ status: 'failed', error: 'closed' });
         await check(client, repo, checkId, { status: 'completed', conclusion: 'skipped', output: { title: 'Pull request closed', summary: 'Nothing was reviewed.' } });
         return { skipped: 'closed' };
+      }
+      if (oss && pr?.base?.repo?.private !== false) {
+        finish({ status: 'failed', error: 'not_public' });
+        await check(client, repo, checkId, { status: 'completed', conclusion: 'skipped', output: { title: 'Not a public repository', summary: 'Free reviews are for public repositories. A team can turn on cloud review for private ones in Settings.' } });
+        return { skipped: 'not_public' };
+      }
+      if (oss && pr?.user?.type === 'Bot') {
+        finish({ status: 'failed', error: 'bot_author' });
+        await check(client, repo, checkId, { status: 'completed', conclusion: 'skipped', output: { title: 'Opened by a bot', summary: 'Free reviews skip pull requests opened by bots, such as dependency updates.' } });
+        return { skipped: 'bot_author' };
       }
       const baseRef = String(pr.base?.ref ?? '');
       if (!baseRef || baseRef.length > 250 || /\.\.|[\s~^:?*[\\]/.test(baseRef)) throw new Error('The base branch name is not one Grapim can fetch.');
@@ -401,7 +448,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
         provMd = provenanceFor(job);
       }
       const prov = provenanceSection(provMd);
-      const text = summaryMarkdown({ summary: prov ? `${result.summary}\n\n${prov}` : result.summary, extra: posted.moved, heading: 'Not on a changed line', md, limit: LIMIT }).replace(MARKER, CLOUD_MARKER);
+      const text = `${summaryMarkdown({ summary: prov ? `${result.summary}\n\n${prov}` : result.summary, extra: posted.moved, heading: 'Not on a changed line', md, limit: LIMIT - OSS_FOOTER.length }).replace(MARKER, CLOUD_MARKER).trimEnd()}${oss ? OSS_FOOTER : '\n'}`;
       await summary(client, repo, job.number, text);
       const failOn = result.failOn === 'never' ? 'never' : 'blocker';
       await check(client, repo, checkId, {
@@ -432,8 +479,11 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
   });
 
   // From the App's pull_request handler. True when a review was queued.
+  // job.public: the webhook says the repository is public. A linked team's
+  // reviews follow its switch; an unlinked installation only gets public ones.
   function onPullRequest(job) {
-    if (!cfg.configured || !auth || !job.teamId || !enabled(job.teamId)) return false;
+    if (!cfg.configured || !auth) return false;
+    if (job.teamId ? !enabled(job.teamId) : !(job.public === true && ossOn())) return false;
     return queue.push(`${job.installationId}:${job.repoId}:${job.number}`, job, String(job.installationId));
   }
 
@@ -459,7 +509,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       ? 'Connect the GitHub App first. Then Grapim can review every pull request without any setup in CI.'
       : html`Grapim reviews every pull request with ${cfg.modelName} on Grapim's model account, with nothing to set up in CI. A review usually takes a minute or two and posts its findings as comments and a <code>${CLOUD_CHECK}</code> check.`}</p>
   ${cfg.configured && linked
-    ? html`<p class="fine">This month: ${plural(u.reviews, 'review')}, $${u.spent.toFixed(2)} of $${u.budget.toFixed(2)} credit on the ${team.plan} plan. Renews ${day(u.resets_at)}.</p>
+    ? html`<p class="fine">This month: ${plural(u.reviews, 'review')}, $${u.spent.toFixed(2)} of $${u.budget.toFixed(2)} credit on the ${team.plan} plan. Renews ${day(u.resets_at)}.${ossOn() ? ' Public repositories are reviewed free and use none of it.' : ''}</p>
   <p class="fine">The code of each pull request is fetched into a temporary folder on Grapim's server, sent to Anthropic for the review, and deleted when the review ends. To keep code off Grapim's servers, run <a class="link" href="/docs/review">Grapim Review in your own CI</a> instead.</p>`
     : ''}
 </section>`;

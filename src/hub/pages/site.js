@@ -215,7 +215,7 @@ const PLANS = [
     price: '$0',
     per: '',
     lede: 'For one team trying it on a repo.',
-    items: ['Cloud review of about 50 pull requests a month', 'Grapim Review in your own CI, free', 'Up to 3 people', '2 repos, 7 days of history', 'Every run recorded, and undo'],
+    items: ['Cloud review of about 50 pull requests a month', 'Public repositories reviewed free, no account needed', 'Grapim Review in your own CI, free', 'Up to 3 people', '2 repos, 7 days of history', 'Every run recorded, and undo'],
   },
   {
     name: 'Team',
@@ -245,6 +245,7 @@ const PLANS = [
 const FAQ = [
   ['Does our code have to leave our machines?', 'Not if you choose so. Run Grapim Review in your own CI and it sends changes only to your Anthropic API key, Amazon Bedrock, Google Vertex AI or Microsoft Foundry, and Grapim’s servers receive nothing. The cloud review on the GitHub App fetches each pull request into a temporary folder on Grapim’s server, sends it to Anthropic for the review, and deletes it when the review ends.'],
   ['What does a cloud review use up?', 'Each plan includes a monthly review credit. A typical pull request uses about $0.18 of it, so Free covers about 50 a month. When it runs out, the check says so and reviews wait for the next month or a bigger plan.'],
+  ['Is it free for open source?', 'Yes. Install the GitHub App on a public repository and every pull request is reviewed free, about 50 a month per repository, with no account to create. Pull requests opened by bots are skipped.'],
   ['Is anything charged today?', 'No. Grapim is in early access and has no checkout. These are the prices we intend to charge once billing opens, and we will tell every team before that happens.'],
   ['Can we try Governance now?', 'Yes. Design partners get Governance as a pilot at no charge, set by us for your team. Talk to us and say which repos you want to start with.'],
   ['What counts as a seat?', 'A member of your team in the Grapim hub. Agents are not seats, and neither are the machines that sync runs.'],
@@ -452,6 +453,7 @@ const CHANGES = [
   {
     date: '2026-11-15',
     items: [
+      { title: 'Free for open source', body: 'Install the GitHub App on a public repository and every pull request gets a cloud review, free, with no account to create. Teams with cloud review on no longer spend credit on their public repositories. Pull requests opened by bots are skipped.', link: ['/docs/review#free-for-open-source', 'How free reviews work'] },
       { title: 'Cloud review on the GitHub App', body: 'Turn on Cloud review in Settings, GitHub and Grapim reviews every pull request on its own model account, with nothing to set up in CI. A review takes about a minute and posts comments and a Grapim Review (cloud) check. Each plan includes a monthly review credit.', link: ['/docs/review#cloud-review', 'How cloud review works'] },
       { title: 'Sharper reviews', body: 'Each finding now carries a confidence. Sure ones are posted on the line, doubtful ones are listed once in the summary under Worth a look. A repository without Grapim notes gets every changed line reviewed.', link: ['/docs/review#limits-and-costs', 'What gets reviewed'] },
        ],

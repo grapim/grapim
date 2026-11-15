@@ -24,6 +24,16 @@ Each review fetches the pull request's base branch, its head and the Grapim note
 
 Each plan includes a monthly review credit (Free: about 50 pull requests). Settings, GitHub shows how much is used. When it runs out, the check says so and nothing is sent to the model until the next month.
 
+### Free for open source
+
+Public repositories are reviewed free. [Install the GitHub App](https://github.com/apps/grapim) on a public repository and open a pull request: there is no account to create and nothing to turn on. A team that has cloud review on gets its public repositories reviewed without using its credit.
+
+- Only repositories that GitHub reports as public. A private repository needs a team with cloud review on.
+- Pull requests opened by bots, such as dependency updates, are skipped.
+- Each repository can use about 50 free reviews a month, out of a shared monthly pool. When either runs out, the check says so and reviews start again next month.
+- Grapim only comments on repositories where someone installed it. Uninstall the App and it stops.
+- The summary comment ends with one line saying the review is free for public repositories.
+
 ## Run it in your own CI
 
 The rest of this page sets up the review as a GitHub Action.
@@ -203,7 +213,7 @@ If no review appears, open the job's log in the **Actions** tab. Each problem is
 | `maxComments` | `15` | The most severe findings are kept. |
 | `maxFiles` | `100` | Riskiest files first; the rest are listed as not reviewed. |
 | `failOn` | `blocker` | `blocker` fails the job when the review finds a blocker. `never` only comments. |
-| `passes` | `1` | How many times each change is reviewed, 1 to 3. A second pass can find a problem the first missed; a problem both raise is posted once. Expect a few more comments, about a third more cost and twice the time. |
+| `passes` | `1` | How many times each change is reviewed, 1 to 3. With 2 or more, a high-confidence finding is posted from any pass and a medium-confidence one only when two passes raised it; the rest are listed under "Worth a look". About a third more cost and twice the time. |
 
 The review always reads this file from the pull request's **base** branch, never from the pull request itself. A pull request cannot loosen its own review, for example with `"ignore": ["**"]` or `"failOn": "never"`. A change to the file takes effect once it is merged.
 
