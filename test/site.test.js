@@ -171,7 +171,9 @@ test('support: signed out it leads to sign-in and then the form; signed in strai
   assert.ok(out.includes('href="/hub/auth/github?next=%2Fhub%2Fsupport"'));
   const inn = await (await get('/docs/support', { Cookie: signedInCookie() })).text();
   assert.ok(inn.includes('href="/hub/support"'));
-  assert.ok(!/@[a-z0-9-]+\.[a-z]{2,}/i.test(out.replace(/https?:\/\/\S+/g, '')), 'no email address is invented');
+  // support@grapim.com is real (Cloudflare Email Routing to the founders, set up 2026-11-15); no other address may appear.
+  assert.ok(out.includes('href="mailto:support@grapim.com"'));
+  assert.ok(!/@[a-z0-9-]+\.[a-z]{2,}/i.test(out.replace(/https?:\/\/\S+/g, '').replaceAll('support@grapim.com', '')), 'no email address is invented');
 });
 
 test('docs: the CLI reference is generated from the CLI help text', async () => {

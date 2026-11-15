@@ -105,7 +105,7 @@ export function siteFooter() {
     <nav class="foot-cols" aria-label="Footer">
       <div><h2>Product</h2><a href="/#how">How it works</a><a href="/docs/concepts">Supported agents</a><a href="/docs/security">Security</a><a href="/pricing">Pricing</a><a href="/changelog">Changelog</a></div>
       <div><h2>Docs</h2><a href="/docs/review">Grapim Review</a><a href="/docs">Quickstart</a><a href="/docs/github">GitHub App and PR check</a><a href="/docs/cli">CLI reference</a><a href="/docs/security">Security and privacy</a></div>
-      <div><h2>Help</h2><a href="/docs/support">Support</a><a href="/docs/faq">FAQ</a><a href="/hub">Sign in</a></div>
+      <div><h2>Help</h2><a href="/docs/support">Support</a><a href="/docs/faq">FAQ</a><a href="mailto:support@grapim.com">support@grapim.com</a></div>
     </nav>
   </div>
 </footer>`;

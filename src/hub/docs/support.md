@@ -3,7 +3,7 @@ title: Support
 nav: Support
 description: How to get help, report a problem, or ask for something.
 ---
-Write to the people who build Grapim from **Help and feedback** in the hub. We read every message and reply to the email on your GitHub profile, usually within a day.
+Write to the people who build Grapim from **Help and feedback** in the hub, or email [support@grapim.com](mailto:support@grapim.com). We read every message and reply, usually within a day.
 
 {{support-cta}}
 
