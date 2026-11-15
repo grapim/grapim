@@ -44,11 +44,26 @@ CREATE TABLE IF NOT EXISTS h_inventory (
 CREATE INDEX IF NOT EXISTS h_inventory_team ON h_inventory(team_id, kind);
 `;
 
+// An item's identity: the agent name for agent rows, a JSON array for the
+// rest. Never join with "\u0000": node:sqlite on Node 22 (the hub's Docker
+// image) stores such text whole but reads it back cut at the NUL, so the
+// snapshot could not find, and so never deleted, the rows it replaced.
+const modelItem = (agent, name) => JSON.stringify([agent, name]);
+const mcpItem = (s) => JSON.stringify([s.agent, s.scope, s.name, s.transport, s.command ?? '', s.package ?? '', s.host ?? '']);
+
 // The table is made on first use, so the hub's schema file stays untouched.
 const ready = new WeakSet();
 function ensure(db) {
   if (ready.has(db)) return;
   db.exec(SCHEMA);
+  // Rows from before the JSON keys were joined with NUL. Re-key them from
+  // their columns in place, so they keep their first_seen. The blob cast is
+  // needed because SQLite's text functions also stop at a NUL.
+  const legacy = db.prepare("SELECT rowid AS id, kind, agent, name, scope, transport, command, package, host FROM h_inventory WHERE kind <> 'agent' AND instr(CAST(item AS BLOB), x'00') > 0").all();
+  if (legacy.length) {
+    const rekey = db.prepare('UPDATE OR IGNORE h_inventory SET item = ? WHERE rowid = ?');
+    for (const r of legacy) rekey.run(r.kind === 'model' ? modelItem(r.agent, r.name) : mcpItem(r), r.id);
+  }
   ready.add(db);
 }
 
@@ -114,8 +129,6 @@ export function parseInventory(raw) {
 
 // ---- Storage ----
 
-const mcpItem = (s) => [s.agent, s.scope, s.name, s.transport, s.command ?? '', s.package ?? '', s.host ?? ''].join('\u0000');
-
 // Replaces the snapshot of (team, repo, machine). Runs inside the ingest
 // transaction. Returns the number of items stored.
 export function storeInventory(db, teamId, repoId, machine, userId, inv, now) {
@@ -123,13 +136,14 @@ export function storeInventory(db, teamId, repoId, machine, userId, inv, now) {
   const rows = [];
   for (const a of inv.agents) {
     rows.push({ kind: 'agent', item: a.agent, agent: a.agent, version: a.version });
-    for (const m of a.models) rows.push({ kind: 'model', item: `${a.agent}\u0000${m}`, agent: a.agent, name: m });
+    for (const m of a.models) rows.push({ kind: 'model', item: modelItem(a.agent, m), agent: a.agent, name: m });
   }
   for (const s of inv.mcp) rows.push({ kind: 'mcp', item: mcpItem(s), ...s });
-  const keep = new Set(rows.map((r) => `${r.kind}\u0001${r.item}`));
-  const del = db.prepare('DELETE FROM h_inventory WHERE team_id = ? AND repo_id = ? AND machine = ? AND kind = ? AND item = ?');
-  for (const old of db.prepare('SELECT kind, item FROM h_inventory WHERE team_id = ? AND repo_id = ? AND machine = ?').all(teamId, repoId, machine)) {
-    if (!keep.has(`${old.kind}\u0001${old.item}`)) del.run(teamId, repoId, machine, old.kind, old.item);
+  const keep = new Set(rows.map((r) => JSON.stringify([r.kind, r.item])));
+  // By rowid, so a row goes even if its item would not read back exactly.
+  const del = db.prepare('DELETE FROM h_inventory WHERE rowid = ?');
+  for (const old of db.prepare('SELECT rowid AS id, kind, item FROM h_inventory WHERE team_id = ? AND repo_id = ? AND machine = ?').all(teamId, repoId, machine)) {
+    if (!keep.has(JSON.stringify([old.kind, old.item]))) del.run(old.id);
   }
   const put = db.prepare(
     `INSERT INTO h_inventory (team_id, repo_id, machine, user_id, kind, item, agent, name, version, transport, command, package, host, scope, first_seen, last_seen)

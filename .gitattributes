@@ -1,2 +1,5 @@
 *.sh text eol=lf
 Dockerfile text eol=lf
+# The CLI runs through its #! line: a CRLF there ("node\r") breaks it on
+# macOS and Linux, so the published bin stays LF even from a Windows checkout.
+bin/*.js text eol=lf

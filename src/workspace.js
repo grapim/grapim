@@ -57,10 +57,35 @@ export function resolveWorkspace(startPath) {
   };
 }
 
+// The real path of `p`, or of its nearest existing parent joined with the rest
+// (a file being created does not exist yet).
+function realPath(p) {
+  let dir = p;
+  const rest = [];
+  for (;;) {
+    try {
+      return path.join(fs.realpathSync.native(dir), ...rest.reverse());
+    } catch {}
+    const up = path.dirname(dir);
+    if (up === dir) return p;
+    rest.push(path.basename(dir));
+    dir = up;
+  }
+}
+
+const outside = (rel) => !rel || rel.startsWith('..') || path.isAbsolute(rel);
+
 // Returns { key, display } for a file inside the workspace, or null if it is outside.
+//
+// ws.root comes from git, which resolves symlinks and Windows 8.3 short names,
+// while an agent or a shell may name the same file through /var (a symlink to
+// /private/var on macOS) or C:\Users\RUNNER~1. When the plain comparison says
+// "outside", compare the real paths before believing it.
 export function fileKey(ws, filePath) {
-  const rel = path.relative(ws.root, path.resolve(ws.root, filePath));
-  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
+  const abs = path.resolve(ws.root, filePath);
+  let rel = path.relative(ws.root, abs);
+  if (outside(rel)) rel = path.relative(realPath(path.resolve(ws.root)), realPath(abs));
+  if (outside(rel)) return null;
   const display = rel.split(path.sep).join('/');
   const key = process.platform === 'win32' || process.platform === 'darwin' ? display.toLowerCase() : display;
   return { key, display };
