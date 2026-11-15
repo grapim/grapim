@@ -1,0 +1,20 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "grafana__107534",
+ "url": "https://github.com/grafana/grafana/pull/107534",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The applyTemplateVariables method is called with request.filters as the third parameter, but this parameter is not used in the corresponding test setup.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "G1 is about a test-setup mismatch: applyTemplateVariables gets request.filters as its third argument, but the test setup doesn't use that parameter. C1 is about template interpolation being repeated and the CPU cost that adds. These are different issues, so C1 doesn't match."
+  }
+ ],
+ "candidates": [
+  "Shard splitting repeats template variable interpolation multiple times: once in runShardSplitQuery(), again in runSplitQuery(), and again during execution via DataSourceWithBackend.query(), causing unnecessary CPU overhead and potentially exacerbating ad-hoc filter duplication issues"
+ ]
+}

@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "head_sha": "ce2dcc537b4b1f98a335e88cfe8e0b804483252a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:16:55.473Z",
+ "seconds": 39.086,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/RecoveryAuthnCodesFormAuthenticator.java",
+   "line": 80,
+   "end_line": 80,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Used-up federated recovery codes are removed through the local store API, which does nothing for them.",
+   "body": "`getCredential` can now return a credential from user storage. If all of its codes are used, the code still calls `removeStoredCredentialById(recoveryCodeCredentialModel.getId())`, which only deletes from the local database. The federated model may have no id at all: the test provider builds it with `createFromValues` and no id. The user-storage copy is never removed, so the user keeps a credential with no codes left and is not sent to the setup required action that normally follows. Fix: when the credential is federated, remove it through the user storage path, for example `disableCredentialType` or `updateCredential`."
+  },
+  {
+   "path": "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java",
+   "line": 326,
+   "end_line": 340,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Federated recovery codes are never used up and any code is accepted.",
+   "body": "`isValid` returns true if the input matches any stored code. It never removes the matched code. The local `RecoveryAuthnCodesCredentialProvider` consumes each code on use, but nothing does that for a federated credential. `RecoveryAuthnCodesUtils.getCredential` then rebuilds the model from all stored codes, so the login page always asks for the first code while any of the 12 is accepted, and a code can be used again forever. This is the reference provider for the new path, so the test cannot catch the broken one-time-use rule. Fix: check only the requested next code, then remove it and persist the remaining list (for example through `updateCredential`), or have the authenticator update the federated credential after a successful login."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 24263,
+  "cacheRead": 3262,
+  "output": 3149,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 22,
+   "reviewedHunks": 21,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 27527,
+   "outputTokens": 3149,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java",
+    "line": 230,
+    "end_line": 252,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "getCredentials dereferences getMyUser without the null check the other methods have.",
+    "body": "`getMyUser(user)` returns null when the username is not in the map. `isConfiguredFor` and `getDisableableCredentialTypesStream` guard against that, but `getCredentials` reads `myUser.recoveryCodes` straight away and throws a NullPointerException. Return `Stream.empty()` when `myUser` is null."
+   }
+  ]
+ },
+ "cost_usd": 0.1849554
+}

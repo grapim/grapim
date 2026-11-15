@@ -1,0 +1,64 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "convex__agent__98",
+ "url": "https://github.com/convex/agent/pull/98",
+ "head_sha": "6b530179d6f474840664d705a7c6da1f245ee112",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:10:49.082Z",
+ "seconds": 10.515,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 132,
+   "end_line": 132,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Tool result uses `output`, but the vToolResultPart validator requires `result`.",
+   "body": "`vToolResultPart` in `src/validators.ts` declares `result: v.any()` and has no `output` field. Saving a tool message with `output` will either fail validation or drop the human's response. Update the validator and serialization to the v5 `output` shape, or keep `result` here."
+  },
+  {
+   "path": "example/convex/files/generateImage.ts",
+   "line": 68,
+   "end_line": 68,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "File part uses `mediaType` but the vFilePart validator still requires `mimeType`.",
+   "body": "`src/validators.ts` still defines `vFilePart` with a required `mimeType: v.string()` and no `mediaType` field. Saving this message through `saveMessage` will therefore fail Convex argument validation. `vImagePart` and the tool-result image have the same mismatch for the autoSave example. Either update the validators to accept `mediaType`, or map `mediaType` to `mimeType` before saving."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 41017,
+  "cacheWrite": 0,
+  "cacheRead": 2096,
+  "output": 396,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 21,
+   "hunks": 37,
+   "reviewedHunks": 37,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 43113,
+   "outputTokens": 396,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.1724072
+}

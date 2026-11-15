@@ -1,0 +1,38 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__80168",
+ "url": "https://github.com/getsentry/sentry/pull/80168",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "MetricAlertDetectorHandler inherits from StatefulDetectorHandler but only contains pass, failing to implement its required abstract methods: counter_names (property), get_dedupe_value(), get_group_key_values(), and build_occurrence_and_event_data(). This will cause a TypeError at runtime when the class is instantiated.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 says the same thing: MetricAlertDetectorHandler is abstract and only has pass, so creating it raises a TypeError."
+  },
+  {
+   "comment": "Docstring says this returns a list of DetectorEvaluationResult, but the method now returns a dict keyed by DetectorGroupKey. Consider updating the docstring to match the new return type.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions that the docstring no longer matches the return type."
+  },
+  {
+   "comment": "Wrong value `6` passed for `group_2` occurrence — the data packet specifies `\"group_2\": 10`. Should be `10` to accurately reflect the test scenario, which will ensure the test produces the correct occurrence data.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the wrong test value of 6 where the data packet says 10."
+  }
+ ],
+ "candidates": [
+  "src/sentry/incidents/grouptype.py:11 - MetricAlertDetectorHandler is now abstract, so building it raises TypeError.. `StatefulDetectorHandler` has abstract methods (`get_dedupe_value`, `get_group_key_values`, `counter_names` and the new `build_occurrence_and_event_data`), and this subclass only has `pass`. Before this change the handler's `evaluate` returned `[]`. Now, when `Detector.detector_handler` creates the handler for a `metric_alert_fire` detector, Python raises `TypeError: Can't instantiate abstract class`. That exception aborts `process_detectors` for every detector in the batch. I couldn't see whether `MetricAlertFire.detector_handler` points at this class, but the comment above it suggests it does. Either keep a working stub that returns `{}` until the stateful version is written, or implement the abstract methods."
+ ]
+}

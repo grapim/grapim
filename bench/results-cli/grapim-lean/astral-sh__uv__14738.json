@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "astral-sh__uv__14738",
+ "url": "https://github.com/astral-sh/uv/pull/14738",
+ "head_sha": "bfcd9754884dde39031bdfa47bd236731ccb9577",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:11:53.842Z",
+ "seconds": 22.876,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "crates/uv/src/commands/project/version.rs",
+   "line": 342,
+   "end_line": 351,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Rewrapping `MissingPyprojectToml` as a string error breaks the caller's `uv self version` fallback.",
+   "body": "Before this change, `.await?` turned the `WorkspaceError` into an `anyhow::Error` that still held the original type. Now `MissingPyprojectToml` becomes a plain `anyhow!` string, so `err.downcast_ref::<WorkspaceError>()` can no longer find it. The test names `version_get_fallback_missing_strict` and `version_get_fallback_missing_strict_preview` suggest the caller uses that downcast to decide whether plain `uv version` falls back to printing uv's own version with a warning. If it does, a bare `uv version` outside a project now exits with an error instead of falling back. I could not see the caller, which is why confidence is medium. The same problem is in the copy at lines 362-371. Fix: keep the typed error here and add the hint only where the caller actually reports the error (the strict/`--project`/`--preview` path), or wrap it with `.context(...)` so `downcast_ref` still finds it."
+  },
+  {
+   "path": "crates/uv/tests/it/version.rs",
+   "line": 1713,
+   "end_line": 1713,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "New test expects plain `uv version` to fail, which contradicts the non-strict fallback.",
+   "body": "`version_get_missing_with_hint` expects a bare `uv version` with no `pyproject.toml` to exit with code 2. The neighbouring `*_strict` / `*_strict_preview` tests suggest that only strict mode (`--project`/`--preview`) should fail, and that the normal mode falls back to `uv self version`. If so, this test either fails against the intended behaviour or locks in the fallback regression caused by the downcast change in `find_target`. The issue only asked for a hint, not for removing the fallback. Fix: restore the fallback and drop this test, or make it assert the fallback output."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 4904,
+  "cacheRead": 3262,
+  "output": 1925,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 8168,
+   "outputTokens": 1925,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14730",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0636804
+}

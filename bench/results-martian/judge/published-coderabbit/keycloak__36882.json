@@ -1,0 +1,28 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "keycloak__36882",
+ "url": "https://github.com/keycloak/keycloak/pull/36882",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect method call for exit codes. The picocli.exit() method calls System.exit() directly, which is problematic:",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C1 is about a possible NPE from Profile, not about picocli.exit() calling System.exit()."
+  },
+  {
+   "comment": "Need to add changelog/release notes documenting the exit code change and migration guidance",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate brings up changelog or release notes."
+  }
+ ],
+ "candidates": [
+  "Line 46 calls Profile.isFeatureEnabled(...) which will throw NullPointerException if Profile.getInstance() is null. The CLI bootstrap sequence does not guarantee Profile is initialized before run() is invoked. Need to add Environment.getCurrentOrCreateFeatureProfile() before the feature check, or make Profile.isFeatureEnabled() null-safe."
+ ]
+}

@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "astral-sh__uv__14738",
+ "url": "https://github.com/astral-sh/uv/pull/14738",
+ "head_sha": "bfcd9754884dde39031bdfa47bd236731ccb9577",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:08:53.301Z",
+ "seconds": 15.593,
+ "status": "ok",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 4311,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 1412,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 7428,
+   "outputTokens": 1412,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14730",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "crates/uv/src/commands/project/version.rs",
+    "line": 343,
+    "end_line": 350,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Replacing the typed `WorkspaceError` with a plain string error breaks callers that downcast it",
+    "body": "`find_target` used to return `WorkspaceError::MissingPyprojectToml` wrapped in `anyhow::Error`, so callers could recognise it with `err.downcast_ref::<WorkspaceError>()`. The new code builds a fresh `anyhow!(\"...\")` message from it, which drops the type. Any caller that downcasts this error stops matching, and its special handling is silently skipped. The non-strict `uv version` fallback to `uv self version` in the command dispatcher is the likely case.\n\nI could not see whether such a downcast still exists; the `*_fallback_missing_strict*` test names suggest it once did. If it does, keep the type: attach the hint as context on the original error, or add the hint where the error is reported. Then `downcast_ref::<WorkspaceError>()` still succeeds."
+   }
+  ]
+ },
+ "cost_usd": 0.0461074
+}

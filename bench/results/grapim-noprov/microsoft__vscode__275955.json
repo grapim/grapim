@@ -1,0 +1,55 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "microsoft__vscode__275955",
+ "url": "https://github.com/microsoft/vscode/pull/275955",
+ "head_sha": "78d21e258e812314b44c11760e91d0e599a259f9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:08:57.136Z",
+ "seconds": 4.791,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 221,
+   "end_line": 221,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Skipping aria-activedescendant update while Ctrl is held leaves it stale.",
+   "body": "If list focus changes while Ctrl/Cmd is held (e.g. Ctrl+Up/Down, or Cmd-based navigation on macOS), the update is dropped. Nothing re-syncs it when the key is released, so screen readers report the wrong active item. Re-sync `aria-activedescendant` when the modifier is released, or limit the suppression to the bare Ctrl keypress."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 9870,
+  "cacheWrite": 0,
+  "cacheRead": 2096,
+  "output": 232,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 6,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 11966,
+   "outputTokens": 232,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.044539199999999994
+}

@@ -1,0 +1,31 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "grafana__90939",
+ "url": "https://github.com/grafana/grafana/pull/90939",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The GetWebAssets function implements an incomplete double-checked locking pattern for caching web assets. The function first checks if the cache is populated using a read lock (RLock), and if the cache is empty, it acquires a write lock to populate it. However, it fails to re-check whether the cache was populated by another goroutine while waiting to acquire the write lock.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same missing re-check after the write lock is acquired."
+  },
+  {
+   "comment": "In addition to the missing double-check, the function has a critical flaw in its error handling: it unconditionally assigns the fetch result to the cache (line 69: entryPointAssetsCache = result) regardless of whether the fetch succeeded or failed. When an error occurs during asset fetching, result is nil, and this nil value overwrites any previously valid cache entry.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate says that a nil result is written to the cache on error. C1 mentions cache overwrites, but those come from the race, not from error handling."
+  }
+ ],
+ "candidates": [
+  "After reading the cache under RLock, the code releases it and acquires the write lock without re-checking the cache, causing redundant expensive work and cache overwrites if another goroutine populates the cache in-between",
+  "GetWebAssets holds the write lock while performing disk/network I/O (reading assets-manifest.json / CDN), blocking all concurrent callers on hot request paths and potentially causing request pileups/timeouts on cold start and serializing dev-mode requests"
+ ]
+}

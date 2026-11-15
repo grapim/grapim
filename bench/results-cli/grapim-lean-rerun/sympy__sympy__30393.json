@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sympy__sympy__30393",
+ "url": "https://github.com/sympy/sympy/pull/30393",
+ "head_sha": "6a273d9be1e485d68af0d875e78750b53452abf4",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:29:57.089Z",
+ "seconds": 28.413,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 3762,
+  "cacheRead": 3262,
+  "output": 2454,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 1,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 7026,
+   "outputTokens": 2454,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 1,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "sympy/functions/special/error_functions.py",
+    "line": 2948,
+    "end_line": 2953,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The quadrature's error estimate is thrown away, so a less accurate result still claims full precision.",
+    "body": "`mpmath.quad` is called without `error=True`, and the result goes straight to `Expr._from_mpmath(result, prec)`. The returned Float therefore claims all `prec` bits even when tanh-sinh did not converge. The old `Integral` path checked mpmath's error estimate and set the result's accuracy from it.\n\n**When it could matter:** arguments where convergence is hard, such as a very large `|a|` combined with a large `h`, or complex `a`. In those cases this could silently return wrong low-order digits. `Add`'s cancellation handling would then accept a wrong small difference instead of retrying.\n\n**What I couldn't check:** I did not test whether `quad` actually falls short for any realistic arguments.\n\n**Fix:** call `mpmath.quad(..., error=True)`. If the error estimate is above about `2**-prec` times the result, raise the working precision or the quadrature degree and try again, or return `None`."
+   }
+  ]
+ },
+ "cost_usd": 0.0685504
+}

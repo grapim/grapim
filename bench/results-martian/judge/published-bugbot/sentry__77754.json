@@ -1,0 +1,47 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "sentry__77754",
+ "url": "https://github.com/getsentry/sentry/pull/77754",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The AssignmentSource dataclass uses queued: datetime = timezone.now() as a default field value, which evaluates timezone.now() once at class definition time and shares that single datetime instance across all objects.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the timezone.now() default being evaluated once at class definition time."
+  },
+  {
+   "comment": "The method name has a typo: test_from_dict_inalid_data should be test_from_dict_invalid_data.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the typo in the method name."
+  },
+  {
+   "comment": "Method name says 'empty_array' but tests empty dict - consider renaming to 'test_from_dict_empty_dict' for clarity.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the test name not matching what it tests (empty array vs. empty dict)."
+  },
+  {
+   "comment": "to_dict() returns a datetime for queued; if this dict is passed in task kwargs (e.g., via apply_async), JSON serialization may fail depending on the serializer, which can cause enqueue errors.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates raises the problem of serializing the datetime returned by to_dict()."
+  }
+ ],
+ "candidates": [
+  "The `queued` field default `timezone.now()` is evaluated once when the class is defined, not when each instance is created. All `AssignmentSource` instances created via `from_integration()` will share the same timestamp from when the module was first imported. Should use `field(default_factory=timezone.now)` instead.",
+  "The `assignment_source` parameter was added to the abstract `sync_status_outbound` method but is never used anywhere. The `sync_status_outbound` task calls `should_sync(\"outbound_status\")` without any `sync_source` and calls `sync_status_outbound()` without passing `assignment_source`. This is dead code that adds confusion about whether status sync cycle prevention was intended to be implemented."
+ ]
+}

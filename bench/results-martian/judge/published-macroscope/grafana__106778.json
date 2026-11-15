@@ -1,0 +1,31 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the key prop is missing on GrafanaRuleListItem."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "Neither candidate covers the silence drawer depending on a ruler rule. C2 is about whether permanent deletion is supported for recording rules, which is a different issue."
+  }
+ ],
+ "candidates": [
+  "The `grafana` case in the `.map()` render (lines 156-163) omits the `key` prop on `GrafanaRuleListItem`, while the `datasource` and default cases both include `key={key}`. This causes React to use index-based keys, leading to reconciliation issues when rules are added, removed, or reordered—potentially preserving stale state in the wrong components.",
+  "The `DeletePermanently` action at line 328 uses `isAlertingRule` (which only matches alerting rules) instead of checking for any Grafana-managed rule. This causes the action to be incorrectly marked as unsupported for Grafana recording rules, even though they should also be permanently deletable. Should use `prometheusRuleType.grafana.rule(rule)` to include both alerting and recording rules."
+ ]
+}

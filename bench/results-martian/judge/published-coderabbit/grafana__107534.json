@@ -1,0 +1,20 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "grafana__107534",
+ "url": "https://github.com/grafana/grafana/pull/107534",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The applyTemplateVariables method is called with request.filters as the third parameter, but this parameter is not used in the corresponding test setup.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "G1 is about the test setup not covering the third argument, request.filters, passed to applyTemplateVariables. C1 is about the expected number of calls (5 vs 1), which is a different problem."
+  }
+ ],
+ "candidates": [
+  "Call-count expectation in test at line 112 expects 5 calls to datasource.applyTemplateVariables, but runShardSplitQuery only calls applyTemplateVariables once per initial target (this test has one target), so the expectation should be changed to 1"
+ ]
+}

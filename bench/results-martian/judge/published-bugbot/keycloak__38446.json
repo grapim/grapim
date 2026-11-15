@@ -1,0 +1,30 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Unsafe raw List deserialization without type safety. Calling Optional.get() directly on the Optional returned by RecoveryAuthnCodesUtils.getCredential(user) without checking isPresent() can lead to a NoSuchElementException if the Optional is empty.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "G1 is about Optional.get() without isPresent on getCredential; C1 concerns myUser null, a different issue. No other candidate relates."
+  },
+  {
+   "comment": "After creating the RecoveryAuthnCodesCredentialModel, consider setting its id from the stored credential (e.g., myUser.recoveryCodes.getId()); otherwise getId() will be null and downstream removal by id (e.g., removeStoredCredentialById in the authenticator flow) may not work.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.92,
+   "reasoning": "No candidate mentions missing credential id on the created model."
+  }
+ ],
+ "candidates": [
+  "The new getCredentials method accesses myUser.recoveryCodes and myUser.otp without first checking if myUser is null, while getMyUser(user) can return null when the user doesn't exist in storage",
+  "The recoveryCodeCredentialProvider is fetched unconditionally at the start of the method but is only used in the else branch when userStorageCreated is false, causing unnecessary provider lookup when credentials are successfully created in user storage",
+  "The enterRecoveryCodes helper method is copied verbatim from RecoveryAuthnCodesAuthenticatorTest.java, creating code duplication that increases maintenance burden and risks inconsistent bug fixes"
+ ]
+}

@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "head_sha": "bb75657fc8f13923c1d7983f422290908a1e7310",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:50:45.080Z",
+ "seconds": 41.374,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 501,
+   "end_line": 505,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Accessing `metadata[\"sender\"][\"login\"]` directly crashes when the integration has no sender",
+   "body": "The new check reads `integration.metadata[\"sender\"][\"login\"]` without a fallback. As far as the code shown goes, only integrations created by the installation webhook store `sender`. An integration created another way, such as an older one or one built through `build_integration`, would raise `KeyError` here. That happens when a user re-installs after the OrganizationIntegration was removed but the Integration row stayed, and the user gets a 500 instead of the error page. I could not see `build_integration`'s metadata, so I could not confirm which paths store `sender`. Fix: use `integration.metadata.get(\"sender\", {}).get(\"login\")` and show `error()` when it is missing."
+  },
+  {
+   "path": "tests/sentry/integrations/github/test_integration.py",
+   "line": 388,
+   "end_line": 396,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "`test_installation_not_found` no longer tests the 404 path",
+   "body": "The assertion on \"The GitHub installation could not be found.\" was removed. The new request sends `state=ddd023...`, which does not match the pipeline signature, so the response now comes from the state-mismatch branch in OAuthLoginView. The test passes whether or not a 404 installation is handled, so the 404 path is no longer covered. Fix: run the full flow (init, OAuth callback with the correct state, then `installation_id`) and assert the 'installation could not be found' message again."
+  },
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 423,
+   "end_line": 436,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Network and API failures in the token exchange and user lookup cause a 500",
+   "body": "`safe_urlopen` is called outside the `try`, and `get_user_info` is not wrapped either. A connection error or timeout during the token exchange, or an API error from `/user` (a revoked token or a GitHub outage), raises an exception out of the view. The user gets a 500 instead of the 'Invalid installation request' page, even though the PR says that page is shown when the access token cannot be obtained. Fix: put `safe_urlopen` and `get_user_info` inside `try` blocks and return `error(request, self.active_organization)` when they fail."
+  },
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 407,
+   "end_line": 409,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "OAuth authorize URL query parameters are not URL-encoded",
+   "body": "The authorize URL is built with an f-string, so `redirect_uri` (a full absolute URL) and the other values go into the query unescaped. A redirect URI that contains `?`, `&` or `#`, for example from a custom URL prefix, would break the query. Fix: build the query with `urlencode({\"client_id\": ..., \"state\": ..., \"redirect_uri\": ...})`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 14804,
+  "cacheRead": 3262,
+  "output": 2885,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 18068,
+   "outputTokens": 2885,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.13238039999999998
+}

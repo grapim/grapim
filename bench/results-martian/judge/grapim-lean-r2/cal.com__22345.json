@@ -1,0 +1,29 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "cal.com__22345",
+ "url": "https://github.com/calcom/cal.com/pull/22345",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In getBaseConditions(), the else if (filterConditions) and final else branches are unreachable. This is because getAuthorizationConditions() always returns a non-null Prisma.Sql object, making authConditions always truthy, which means only the first two if/else if conditions are ever evaluated.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate points out the unreachable branches in getBaseConditions."
+  },
+  {
+   "comment": "Fetching userIdsFromOrg only when teamsFromOrg.length > 0 can exclude org-level members for orgs without child teams; consider deriving from teamIds (which includes orgId) or removing the guard so org-only orgs still include member user bookings.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the guard on userIdsFromOrg that leaves out org members when the org has no child teams."
+  }
+ ],
+ "candidates": [
+  "packages/lib/server/service/__tests__/insightsBooking.integration-test.ts:429 - The \"Caching\" tests were deleted instead of updated.. This hunk deletes the whole `describe(\"Caching\")` block, which covered `getAuthorizationConditions` and `getFilterConditions`. Those tests still apply after the change: the service still caches results in `cachedAuthConditions` and `cachedFilterConditions`. Only their expected values needed to become `Prisma.sql` values. Now nothing catches a broken cache, such as a `null` filter result being rebuilt on every call or the auth query running on every call. The request only asked to move the expectations to the new format. Fix: put both tests back and change their expectations to `Prisma.sql`, as the other tests now do.",
+  "packages/lib/server/service/insightsBooking.ts:29 - The new public options type no longer catches a team scope without `teamId` at compile time.. The constructor now takes `InsightsBookingServicePublicOptions`, which allows `scope: \"team\"` with no `teamId` and accepts any mix of fields. The old type was the discriminated union inferred from zod. With the new type, a caller that leaves out `teamId` compiles cleanly. At runtime zod validation then fails, so `options` becomes null and every query silently returns no rows (`1=0`). Fix: keep `InsightsBookingServiceOptions` as the constructor's parameter type."
+ ]
+}

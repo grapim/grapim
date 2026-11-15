@@ -1,0 +1,33 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "keycloak__37038",
+ "url": "https://github.com/keycloak/keycloak/pull/37038",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In GroupPermissionsV2.canManage(), the permission fallback checks for both VIEW and MANAGE scopes (hasPermission(null, AdminPermissionsSchema.VIEW, AdminPermissionsSchema.MANAGE)), but canManage() should only grant access for MANAGE scope, not VIEW. This means users with only VIEW permission on groups can pass the canManage() check, granting them write access they should not have. The canView() method correctly checks both VIEW and MANAGE, but canManage() should only check MANAGE.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: canManage() checks VIEW as well as MANAGE, so a user with only VIEW gets manage access."
+  },
+  {
+   "comment": "In getGroupIdsWithViewPermission, hasPermission is called with groupResource.getId() and the same groupResource.getId() is added to granted, but hasPermission resolves resources by name (treating the argument as a group id) and the GroupPermissionEvaluator contract says this method returns group IDs that are later used as UserModel.GROUPS and in getUsersCount group filters. This mismatch means per-group VIEW_MEMBERS/MANAGE_MEMBERS permissions may not yield the expected group IDs for filtering and counts, and evaluation may effectively only look at the type-level 'all-groups' resource; consider revisiting whether this should operate on the underlying group ids (resource names) instead so it aligns with the JPA queries and the interface contract.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same ID mismatch: the code passes the resource ID where it needs the group ID (the resource name), both in hasPermission and in the returned set."
+  }
+ ],
+ "candidates": [
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/GroupPermissionsV2.java:65 - Having `view` permission on groups also passes `canManage()`.. `canManage()` returns `hasPermission(null, VIEW, MANAGE)`. An admin who was given only the `view` scope on all groups therefore passes `canManage()` and `requireManage()`. That lets them do group-wide management, such as creating top-level groups through `GroupsResource`. This is privilege escalation from view to manage. Check only `AdminPermissionsSchema.MANAGE` here, as `canManage(GroupModel)` already does.",
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/GroupPermissionsV2.java:121 - Group-ID filtering uses the authz resource's ID where it needs the group ID (the resource name).. In V2 the group resource is named after the group ID (`resolveGroup` returns `group.getId()`), and the store generates the resource's own ID. This loop passes `groupResource.getId()` to `hasPermission`, which looks the resource up with `findByName`. That lookup misses, so the check falls back to the all-groups resource and the per-group `view-members`/`manage-members` permission is never evaluated. The loop then adds `groupResource.getId()` to the set, but callers put that set into `UserModel.GROUPS` and pass it to the user-count filters, which expect group IDs. As a result, user search and user counts filtered by group return wrong results. The all-groups type resource has the same type and can also end up in the set. Use `groupResource.getName()` for both the lookup and the returned ID, and skip the type resource. I could not check the `ResourceStore.create` signature to confirm how the ID is generated."
+ ]
+}

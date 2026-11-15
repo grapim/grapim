@@ -1,0 +1,72 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The BrowserReportingCollectorEndpoint returns HttpResponse objects but the endpoint inherits from Endpoint which expects rest_framework.response.Response objects.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the HttpResponse vs Response issue."
+  },
+  {
+   "comment": "In BaseDetectorTypeValidator.update(), the validator incorrectly updates instance.type using validated_data.get('detector_type') instead of validated_data.get('type').",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions detector_type vs type."
+  },
+  {
+   "comment": "Using zip(error_ids, events.values()) assumes the get_multi result preserves the input order; dict value order is not guaranteed to match error_ids, so event data can be paired with the wrong ID (missing nodes also shift alignment).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.95,
+   "reasoning": "C5 describes the zip/order issue."
+  },
+  {
+   "comment": "Hardcoded empty data passed to TableWidgetVisualization causes it to always render an empty table instead of displaying actual results when the feature flag is enabled.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the hardcoded empty data passed to the table widget."
+  },
+  {
+   "comment": "Validation logic incorrectly uses .get('timestamp'), which treats a timestamp of 0 as absent. It should directly check 'timestamp' in self.initial_data to ensure proper field presence detection, preventing both 'age=0' and 'timestamp' from passing mutual-exclusion validation.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the timestamp 0 validation."
+  },
+  {
+   "comment": "Analytics events are recorded before the feature flag check, resulting in analytics being logged for all requests, including those that return 404 due to the feature being disabled. This can lead to misleading analytics data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions analytics being recorded before the flag check."
+  }
+ ],
+ "candidates": [
+  "static/app/views/dashboards/widgetCard/chart.tsx:164 - With the feature flag on, table widgets render an empty table and ignore the query results.. When `use-table-widget-visualization` is enabled, `TableWidgetVisualization` gets hard-coded `columns={[]}` and empty `data`/`meta`. Every table widget then shows no rows or columns, and `result.data`/`result.meta` are never used. Map `result.data`, `result.meta` and the widget fields into the `tableData`/`columns` props, or keep the flag off until that is done.",
+  "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx:65 - Hidden attributes are only filtered out when a search term is entered.. `HIDDEN_ATTRIBUTES` is applied only inside the `filter` that runs after the `if (!searchQuery.trim()) return sorted;` early return. With an empty search box, which is the default, `is_segment`, `project_id` and `received` are still shown. They disappear only once the user types something. Apply the hidden-attribute filter before the early return, e.g. `const sorted = sortAttributes(attributes).filter(a => !HIDDEN_ATTRIBUTES.includes(a.name));`.",
+  "src/sentry/migrations/0920_convert_org_saved_searches_to_views_revised.py:13 - Migrations 0917 and 0920 now do nothing and point to a 0921 migration that this PR does not add.. The change turns both `convert_org_saved_searches_to_views` functions (0917 and 0920) into a bare `return`, and the comments point to `0921_convert_org_saved_searches_to_views_rerevised.py`. That file is not in the CHANGES list, and this PR also deletes the 0917 migration test. If 0921 is not already in the tree, any environment that hasn't applied these migrations yet will mark them as applied without converting organization-visibility SavedSearches into GroupSearchViews. Users then silently lose their org saved searches as views. I couldn't see whether 0921 exists. Make sure 0921 lands with or before this change, or keep the corrected logic (with the `owner_id__isnull=False` filter) in 0920.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:100 - Every paginated page gets all of the replay's errors.. The same full `error_events` list goes to `analyze_recording_segments` for every page of segments. `gen_request_data` emits any errors left over after the page's events, so each page sends Seer every error of the replay, including errors from other pages' time ranges. Errors appear in each page's summary even when they did not happen in that window. Filter the errors to each page's segment time range, or only append trailing errors on the last page.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:118 - Zipping error_ids with events.values() can pair an ID with the wrong event.. `nodestore.backend.get_multi` returns a dict keyed by node ID. If a backend leaves missing nodes out of the dict, or returns keys in a different order, the positional `zip(error_ids, events.values())` pairs error IDs with the wrong data and silently drops the last ones. I could not check which behaviour each backend has. Look each event up by its node ID instead: `for eid, nid in zip(error_ids, node_ids) if (data := events.get(nid))`.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:153 - Error timestamps in seconds are compared with replay event timestamps in milliseconds.. Event timestamps in nodestore are float seconds, but rrweb replay events use epoch milliseconds. `error['timestamp'] < event['timestamp']` is therefore true for every error at the first replay event, so all errors are sent to Seer in a bundle before any breadcrumb. That defeats the chronological interleaving this code is meant to do. Convert the error timestamps to milliseconds, or the replay timestamps to seconds, before comparing.",
+  "src/sentry/tasks/auth/check_auth.py:76 - This auth task deadline change and the saved-search migration rewrites aren't part of the replays bulk-delete request.. The PR is titled \"Replays Self-Serve Bulk Delete System\". This hunk changes the taskworker processing deadline for `check_auth_identities` to 60s, and the two migration hunks turn existing data migrations into no-ops. Nothing in the request covers either change. Both affect shared infrastructure: the auth control task's timeout behaviour, and whether existing data gets migrated. They look like leftovers from unrelated branches. Split them into their own reviewed PRs, or explain them in the description.",
+  "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx:39 - The query cache key leaves out the organization, so different orgs can share cached attribute keys.. The old `useApiQuery` key contained the URL `/organizations/${slug}/trace-items/attributes/`. The new key is `['use-trace-item-attribute-keys', queryOptions]`, and `queryOptions` holds only the item type, attribute type, project IDs and datetime. The `queryFn` still calls the current organization's endpoint.\n\nTrigger: the user is on the default \"all projects\" selection, so `selection.projects` is `[]` and the key is the same in every org. If the user switches org in the same session, react-query can serve the first org's attribute list from cache for the second org. At best this shows wrong data until a refetch.\n\nI could not check the app's default `staleTime`; it decides how long the wrong data stays on screen.\n\nFix: add `organization.slug` to the query key.",
+  "static/app/views/performance/newTraceDetails/traceTabsAndVitals.tsx:27 - Second placeholder group lost its gap and centring.. The old `FlexBox` had `align-items: center` and `gap: space(1)`. The second group is now a bare `<Flex>`, so the three 100px placeholders sit flush against each other and are no longer vertically centred. Use `<Flex align=\"center\" gap={space(1)}>` as the first group does."
+ ]
+}

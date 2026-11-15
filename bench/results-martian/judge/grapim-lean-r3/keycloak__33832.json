@@ -1,0 +1,51 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returns wrong provider (default keystore instead of BouncyCastle)",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mention returning the default keystore provider instead of BouncyCastle."
+  },
+  {
+   "comment": "Dead code exists where ASN1Encoder instances are created and written to, but their results are immediately discarded. The actual encoding is performed by new ASN1Encoder instances created in the subsequent return statement, rendering the earlier operations useless.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 points out the same unused ASN1Encoder instances whose results are thrown away."
+  },
+  {
+   "comment": "When length starts at -1 from indefinite-length encoding, the arithmetic 'length = length - bytes.length' will behave unexpectedly, potentially leading to incorrect processing of encoded data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mention the -1 length from indefinite-length encoding."
+  },
+  {
+   "comment": "Abstract order() method on CryptoProvider may break backward compatibility with existing implementations",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 raises the same backward-compatibility problem with the new abstract order() method."
+  }
+ ],
+ "candidates": [
+  "common/src/main/java/org/keycloak/common/crypto/CryptoIntegration.java:57 - Ties at order 200 now resolve silently, so FIPS and non-FIPS providers can be mixed.. Before this change, finding more than one provider threw an error, which stopped a FIPS deployment from running with the non-FIPS provider. Now `DefaultCryptoProvider`, `WildFlyElytronProvider` and `FIPS1402Provider` all return 200. The stable sort keeps them in ServiceLoader (classpath) order, and the first one wins with only a debug log. If both `keycloak-crypto-default` and `keycloak-crypto-fips1402` end up on the classpath (for example through a packaging mistake), a FIPS deployment can quietly run on plain BouncyCastle. Fix: keep throwing when the top two providers have the same order, so only a lower-priority fallback such as the authz-client provider is skipped silently.",
+  "common/src/main/java/org/keycloak/common/crypto/CryptoProvider.java:44 - New abstract `order()` breaks every existing CryptoProvider implementation outside this change.. `CryptoProvider` is a public SPI in keycloak-common. Adding a method with no body means any custom or downstream implementation, including the copy in the keycloak-client repository this is meant to sync with and any test providers not shown here, stops compiling. Already-compiled ones throw `AbstractMethodError` when `detectProvider` sorts them. Make it `default int order() { return 0; }` (or some other neutral value) so existing implementations keep working.",
+  "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java:114 - Two unused ASN1Encoder instances are built and thrown away.. `ASN1Encoder.create().write(rBigInteger)` and `ASN1Encoder.create().write(sBigInteger)` build encoders whose results are never used. The encoders actually used are built again on lines 119-120. Delete these two lines.",
+  "authz/client/src/test/java/org/keycloak/authorization/client/test/ECDSAAlgorithmTest.java:42 - Every ES test signs with the default P-256 key, so ES384 and ES512 are never tested with their real curves.. `KeyPairGenerator.getInstance(\"EC\").genKeyPair()` uses the JDK default curve (P-256) for all three tests. For ES512, r and s are then only about 32 bytes, padded out to 66. The real P-521 case, where the integers are 66 bytes and the DER sequence needs a long-form length (more than 127 bytes), never reaches the new ASN1Encoder/ASN1Decoder code. Generate a key for each algorithm with `initialize(new ECGenParameterSpec(\"secp256r1\"/\"secp384r1\"/\"secp521r1\"))`."
+ ]
+}

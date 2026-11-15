@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "head_sha": "bb75657fc8f13923c1d7983f422290908a1e7310",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:28:37.836Z",
+ "seconds": 31.355,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "tests/sentry/integrations/github/test_integration.py",
+   "line": 388,
+   "end_line": 396,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "test_installation_not_found no longer tests the installation-not-found path.",
+   "body": "The test used to assert \"The GitHub installation could not be found.\" Now it sends a `state` (`ddd023...`) that does not match the pipeline signature and asserts the generic \"Invalid installation request.\" That error comes from the state-mismatch check in OAuthLoginView, so the request never reaches `build_integration` or the stubbed 404, and the 404 handling has no test. Fix: send the correct state, stub the OAuth token and `/user` endpoints, and keep asserting the not-found message. Test the state mismatch in a separate test."
+  },
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 501,
+   "end_line": 505,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`integration.metadata[\"sender\"][\"login\"]` raises KeyError when the metadata has no sender.",
+   "body": "This lookup assumes every active Integration has `metadata[\"sender\"]`. That key is set by the installation webhook. Integrations created through `build_integration`, or before that webhook handling existed, may not have it. One such case is an Integration that is still active after every OrganizationIntegration was removed: re-installing it would raise a KeyError and return a 500 instead of a clean error page. I could not see the code that fills in the metadata to confirm it is missing. Fix: use `integration.metadata.get(\"sender\", {}).get(\"login\")` and show `error(...)` when it is missing."
+  },
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 423,
+   "end_line": 429,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Token exchange network errors are not caught and become a 500.",
+   "body": "`safe_urlopen` runs outside the `try`. If the call to GitHub's access_token endpoint fails (timeout, connection error, blocked by safe_urlopen), the exception escapes and the user gets a 500 instead of the installation-failed dialog. The dialog's postMessage also never reaches the opener window. Fix: move the `safe_urlopen` call inside the `try` and return `error(...)` on failure."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 14831,
+  "cacheRead": 3262,
+  "output": 2874,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 18095,
+   "outputTokens": 2874,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1322954
+}

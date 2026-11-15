@@ -1,0 +1,51 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "microsoft__TypeScript__65022",
+ "url": "https://github.com/microsoft/TypeScript/pull/65022",
+ "head_sha": "ad98c177d3b79373edbb817fb790b12cdde3693f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:11:54.237Z",
+ "seconds": 9.723,
+ "status": "ok",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 6397,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 697,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 9514,
+   "outputTokens": 697,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #65020",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.040151400000000004
+}

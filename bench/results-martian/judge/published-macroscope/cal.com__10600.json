@@ -1,0 +1,53 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The exported function TwoFactor handles backup codes and is in BackupCode.tsx. Inconsistent naming.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate addresses naming."
+  },
+  {
+   "comment": "Error message mentions 'backup code login' but this is a disable endpoint, not login",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate addresses error message text."
+  },
+  {
+   "comment": "Backup code validation is case-sensitive due to the use of indexOf(). This causes validation to fail if a user enters uppercase hex characters, as backup codes should be case-insensitive for a better user experience.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C2 is about a type crash, not case sensitivity."
+  },
+  {
+   "comment": "Because backupCodes are decrypted and mutated in memory before being written back, two concurrent login requests using the same backupCode could both pass this check and update, so a single backup code may effectively be accepted more than once if used concurrently, weakening the intended one-time-use semantics.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the race condition."
+  },
+  {
+   "comment": "Object URL for backup codes is not revoked on component unmount, leading to a potential memory leak. This can cause increased memory usage over time, especially if the component is mounted and unmounted frequently.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the object URL leak."
+  }
+ ],
+ "candidates": [
+  "When credentials.totpCode is provided, password verification at line 121 is skipped because the condition 'user.password && !credentials.totpCode' evaluates to false. An attacker can provide a valid backupCode at line 131 to authenticate without knowing the user's password - password verification should be required before accepting any 2FA factor",
+  "When req.body.backupCode is a truthy non-string value (e.g., { backupCode: 123 }), the code calls .replaceAll(\"-\", \"\") on it at line 61, which throws TypeError and crashes the request because the check on line 48 only tests truthiness, not that the value is a string"
+ ]
+}

@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "head_sha": "79d11c4890cc4792e3dc3535af59e4e5f7a2739d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:19:43.320Z",
+ "seconds": 54.999,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "common/src/main/java/org/keycloak/common/crypto/CryptoIntegration.java",
+   "line": 57,
+   "end_line": 70,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "Removing the multiple-provider check lets the provider be chosen silently by classpath order when providers tie.",
+   "body": "The old code failed fast when more than one `CryptoProvider` was on the classpath. Now the providers are sorted by `order()` and the first one wins. `DefaultCryptoProvider`, `WildFlyElytronProvider` and `FIPS1402Provider` all return 200, and the sort is stable, so when two of them are present the winner is whichever `ServiceLoader` finds first. The only trace is a debug log.\n\nTrigger: a FIPS deployment that also has `keycloak-crypto-default` on its classpath by mistake used to refuse to start. Now it can quietly run with the non-FIPS BouncyCastle provider.\n\nFix: keep throwing when the top two providers have the same `order()`, so ties stay an error. Only the lower-priority authz-client provider should be skipped quietly."
+  },
+  {
+   "path": "common/src/main/java/org/keycloak/common/crypto/CryptoProvider.java",
+   "line": 44,
+   "end_line": 44,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Adding the abstract `order()` method to a public SPI breaks existing implementations.",
+   "body": "`CryptoProvider` is a ServiceLoader SPI in `common`. Adding `int order()` with no body means any implementation that is not updated in this PR no longer compiles. That includes custom or third-party providers, and any test providers in other modules, which I could not check from here. An already-compiled implementation fails at runtime with `AbstractMethodError` when `detectProvider` sorts the list.\n\nFix: make it `default int order() { return 0; }` (or a similar baseline) and let the bundled providers override it."
+  },
+  {
+   "path": "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java",
+   "line": 114,
+   "end_line": 115,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Two encoder calls build values that are never used.",
+   "body": "`ASN1Encoder.create().write(rBigInteger)` and `ASN1Encoder.create().write(sBigInteger)` build encoders and throw them away. The real encoding happens again inside `writeDerSeq` below. These two lines look like leftovers and should be removed."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20826,
+  "cacheRead": 3262,
+  "output": 4283,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 24090,
+   "outputTokens": 4283,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1904504
+}

@@ -1,0 +1,38 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "sentry__80168",
+ "url": "https://github.com/getsentry/sentry/pull/80168",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "MetricAlertDetectorHandler inherits from StatefulDetectorHandler but only contains pass, failing to implement its required abstract methods: counter_names (property), get_dedupe_value(), get_group_key_values(), and build_occurrence_and_event_data(). This will cause a TypeError at runtime when the class is instantiated.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points to the same problem: the class has none of the required abstract methods, so instantiating it raises a TypeError."
+  },
+  {
+   "comment": "Docstring says this returns a list of DetectorEvaluationResult, but the method now returns a dict keyed by DetectorGroupKey. Consider updating the docstring to match the new return type.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the docstring describing the wrong return type."
+  },
+  {
+   "comment": "Wrong value `6` passed for `group_2` occurrence — the data packet specifies `\"group_2\": 10`. Should be `10` to accurately reflect the test scenario, which will ensure the test produces the correct occurrence data.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the wrong test value for group_2."
+  }
+ ],
+ "candidates": [
+  "MetricAlertDetectorHandler subclasses StatefulDetectorHandler but implements none of its abstract methods (including build_occurrence_and_event_data), making it non-instantiable and causing a TypeError when Detector.detector_handler tries to instantiate it for detectors using the metric_alert_fire type"
+ ]
+}

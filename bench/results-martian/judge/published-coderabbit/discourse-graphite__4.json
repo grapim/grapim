@@ -1,0 +1,111 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The PollFeed job calls open(SiteSetting.feed_polling_url) without validating the URL, allowing an attacker who controls the feed_polling_url site setting to make the server fetch arbitrary internal or external URLs.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same SSRF issue: open() is called on the URL from site settings."
+  },
+  {
+   "comment": "The current origin validation using indexOf is insufficient and can be bypassed. An attacker could use a malicious domain like evil-discourseUrl.com to pass this check.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 describes the same weak substring (indexOf) check on the origin, which can be bypassed."
+  },
+  {
+   "comment": "postMessage targetOrigin should be the origin (scheme+host+port), not the full referrer URL; using the full URL will cause the message to be dropped and prevent resizing.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate says that postMessage's targetOrigin is set to the full referrer URL instead of the origin."
+  },
+  {
+   "comment": "The code sets X-Frame-Options: ALLOWALL which completely disables clickjacking protection. The referer validation can be bypassed (referer headers are easily spoofed), and the fallback to empty string for nil referer masks validation failures.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions X-Frame-Options ALLOWALL or the referer validation being bypassable."
+  },
+  {
+   "comment": "The TopicEmbed.import method is susceptible to a NoMethodError if the contents parameter is nil when attempting to append a string, and an XSS vulnerability due to unescaped url interpolation in the generated HTML.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    10,
+    6
+   ],
+   "confidence": 0.85,
+   "reasoning": "C10 covers the NoMethodError when contents is nil, and C6 covers the unescaped URL interpolated into the HTML."
+  },
+  {
+   "comment": "The ERB block closes with end if, which is invalid Ruby/ERB and will raise at render; it should just be end to close the if block.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 flags the same invalid 'end if' in the ERB template."
+  },
+  {
+   "comment": "Calling `i.content.scrub` assumes that `i.content` is always populated. However, many RSS feeds do not provide a `content` field, leading to a potential nil pointer exception when `i.content` is nil. A fallback to `description` should be implemented to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.9,
+   "reasoning": "C5 flags the same nil-content crash when calling .scrub."
+  },
+  {
+   "comment": "An unescaped request header (request.referer) is interpolated into JavaScript without proper escaping, which can lead to XSS vulnerabilities if the referer contains malicious content. This issue can allow attackers to execute arbitrary scripts in the context of the application.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "No candidate points out the unescaped referer being interpolated into JavaScript."
+  }
+ ],
+ "candidates": [
+  "SSRF vulnerability: unsafe use of open() with URL from site settings allows fetching internal services, file:// URLs, or cloud metadata endpoints",
+  "postMessage origin validation uses substring matching on discourseUrl which can be spoofed if URL contains origin in path/query",
+  "XSS vulnerability: raw_html cook_method bypasses sanitizer, allowing untrusted HTML to become stored XSS",
+  "Syntax error: end if is invalid ERB syntax in embed/best.html.erb",
+  "Potential NoMethodError if feed item content is nil when calling .scrub",
+  "Embed URL not escaped before interpolating into raw HTML anchor tag, allowing HTML/JS injection",
+  "Missing guard against missing #discourse-comments container - appendChild will throw if the container doesn't exist",
+  "postMessage height value should be parsed and validated before use to prevent invalid values",
+  "Unused feed_key method should be removed or connected to intended functionality",
+  "Nil contents will raise on << operator when appending to contents",
+  "content_sha1 updated unconditionally even if PostRevisor#revise! returns false, causing state desync",
+  "import_remote missing timeout protection - open(url).read can hang indefinitely",
+  "import_remote missing URL scheme validation before fetching",
+  "Destructive force: true in create_table migration will drop existing topic_embeds table and data",
+  "Destructive force: true in create_table migration will drop existing top_topics table and data",
+  "Non-atomic Redis setnx + expire pattern can leave key without TTL permanently blocking retrieval",
+  "Missing blank guard for SiteSetting.embed_by_username before calling downcase",
+  "cook_method option not validated before persisting, risking invalid enum values",
+  "Adding column with default + null: false in single migration step can cause long-running locks on large tables",
+  "Deprecated RSpec matcher be_true should be be true (with space)",
+  "Assertions in after block is anti-pattern - if test body fails, after block still executes causing confusing errors",
+  "Missing error handling for network and parsing failures in poll_feed method",
+  "raw and cooked both set to p[:cooked] in disqus importer - raw should contain source text not HTML",
+  "Date.parse loses time information - should use DateTime.parse or Time.parse to preserve full timestamp",
+  "Consider using image_tag for safer avatar rendering instead of direct URL interpolation"
+ ]
+}

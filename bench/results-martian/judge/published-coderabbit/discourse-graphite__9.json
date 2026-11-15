@@ -1,0 +1,31 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "discourse-graphite__9",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The @loaded_locales instance variable in translate_accelerator.rb is lazily initialized and accessed by multiple concurrent threads without synchronization.",
+   "severity": "Low",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention thread safety or the @loaded_locales race condition."
+  },
+  {
+   "comment": "Consider normalizing the input locale (e.g., to a symbol) when checking/loading here to avoid double-loading if the same locale is passed as a String vs Symbol (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 is about to_sym being called on a nil value, not about normalizing String vs Symbol locales to prevent double-loading."
+  }
+ ],
+ "candidates": [
+  "SiteSetting.default_locale.to_sym is called without nil-safety guard, which will raise NoMethodError if default_locale is nil - should use safe navigation operator (SiteSetting.default_locale&.to_sym)",
+  "Use direct include instead of send(:include, ...) for I18n::Backend::Pluralization - Ruby 2.1+ makes include public on Module/Class",
+  "Use direct include instead of send(:include, ...) for I18n::Backend::Fallbacks - Ruby 2.1+ makes include public on Module/Class",
+  "protect_from_forgery should be configured with 'with: :exception' to properly handle Cross-Site Request Forgery"
+ ]
+}

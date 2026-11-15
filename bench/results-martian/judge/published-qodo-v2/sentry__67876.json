@@ -1,0 +1,44 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Null reference if github_authenticated_user state is missing",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate points out a missing github_authenticated_user pipeline state value. C2 is about integration metadata, and C3 is about API exception handling."
+  },
+  {
+   "comment": "OAuth state uses pipeline.signature (static) instead of a per-request random value",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies the same issue: the code uses the static pipeline.signature as the OAuth state instead of a per-request random value."
+  },
+  {
+   "comment": "The code attempts to access integration.metadata[sender][login] without checking for the existence of the sender key. This causes a KeyError for integrations where the sender metadata was not set during creation",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 identifies the same issue: a missing sender key in integration.metadata causes a KeyError."
+  }
+ ],
+ "candidates": [
+  "OAuthLoginView uses pipeline.signature as the OAuth state value which is deterministic (md5 of pipeline view FQNs) rather than a per-session random nonce, weakening CSRF protection and allowing state replay across sessions",
+  "GitHubInstallation assumes integration.metadata['sender']['login'] exists; if metadata.sender is missing or malformed (legacy data, partial state, or manual DB changes), this will raise KeyError/TypeError and 500 the flow instead of showing the failure dialog",
+  "OAuthLoginView does not reliably handle exceptions from the GitHub /user call (which raises on non-2xx) and does not catch failures around the token exchange request, leading to 500s instead of the intended failure UI",
+  "The OAuth authorize redirect URL is built via string interpolation rather than urlencode, which can create invalid URLs if values contain reserved characters and omits standard OAuth params like response_type=code",
+  "GitHubInstallation queries Integration.objects.get(external_id=...) without filtering by provider, but Integrations are only unique on (provider, external_id), which can raise MultipleObjectsReturned or pick the wrong integration if IDs collide across providers"
+ ]
+}

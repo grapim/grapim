@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "tldraw__tldraw__11465",
+ "url": "https://github.com/tldraw/tldraw/pull/11465",
+ "head_sha": "db9e4a4a5d9c4b9cde9b88aace71b21f8dd4f43c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:11:23.674Z",
+ "seconds": 62.335,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "apps/dotcom/client/src/tla/components/TlaEditor/comment-byline.module.css",
+   "line": 12,
+   "end_line": 16,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The time's full-date tooltip and the Edited icon can't be reached by mouse.",
+   "body": "`TlaCommentByline` puts the full-date tooltip (`formatFullDateTime`) and the \"Edited\" pencil inside the `.time` span. This rule hides `.time` whenever the card it sits in is hovered and has actions. To point at the time you first have to hover the card, so the time disappears before its tooltip can open. A mouse user can never see the exact date, and the edited marker vanishes at the moment they look at the comment. That covers every card with actions, which is the normal signed-in thread view. The old byline's time tooltip worked on hover.\n\nFix: keep the time reachable. Hide only the part under the actions, or move the full date and edited state into a tooltip on an element that stays visible, such as the author name or the row."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18480,
+  "cacheRead": 3262,
+  "output": 5777,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 15,
+   "reviewedHunks": 15,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21744,
+   "outputTokens": 5777,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/commenting/src/canvas/thread-view.tsx",
+    "line": 430,
+    "end_line": 430,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`focus({ focusVisible: false })` may be ignored in some browsers, so the actions can stay up after an edit.",
+    "body": "The new CSS in `comments.css` shows a card's actions, and the dotcom CSS hides its time, while the card matches `:has(:focus-visible)`. This line counts on the `focusVisible: false` option so that handing focus back to the ⋯ button doesn't trigger that. Firefox supports the option, but other engines may ignore it (I could not check which browsers support it). Chromium then applies its own rule: script focus after a keyboard action counts as focus-visible. So a user who saves or cancels an edit with the keyboard (Enter or Escape in the composer) still gets the actions left up, and the time hidden, after the pointer has moved away. That is the case the comment in `comments.css` says must not happen.\n\nIf every browser you support has to behave this way, don't rely on the option alone. For example, blur when the pointer leaves, or keep an explicit 'returned focus' flag that the CSS ignores."
+   }
+  ]
+ },
+ "cost_usd": 0.2086004
+}

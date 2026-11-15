@@ -1,0 +1,34 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out that debug information is being logged at Error level, which is the same issue as G1."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out that the cleanup ticker was changed from 10 minutes to 1 minute and that this adds DB load and contention, which is the same issue as G2."
+  }
+ ],
+ "candidates": [
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:534 - Leftover debug logging at Error level dumps every batch's ID list. Every batch in all three cleanup loops calls `r.log.Error` twice. These calls log the full `ids` slice, which can hold up to `AnnotationCleanupJobBatchSize` entries (the test uses 32767), plus `cond` and an `err` that is always nil at that point. Each run also does a final empty batch, so a normal successful run still writes Error-level lines. With the job now running every minute, error logs fill with false errors and very large lines, and alerting on error logs fires for nothing. The same problem is at lines 554–557 and 576–579. These look like debugging leftovers: remove them, or use `Debug` and log only counts.",
+  "pkg/services/cleanup/cleanup.go:77 - Cleanup interval for all jobs cut from 10 minutes to 1 minute, which the request does not ask for. The PR is about splitting the annotation delete statements to avoid MySQL deadlocks. This line makes the whole `CleanUpService` tick ten times as often, and that service runs every cleanup job, not only annotations: tmp files, snapshots, expired sessions, versions and so on. That adds load on the database and filesystem for every installation, and running annotation cleanup more often means more chances to collide with inserts. That is the contention the PR is trying to reduce. This looks like a local testing change; revert to `time.Minute * 10` unless it is meant to ship and is justified.",
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:609 - Building the inline ID list with repeated Sprintf takes quadratic time. On SQLite with a batch size above 999, `values = fmt.Sprintf(\"%s, %d\", values, v)` copies the whole string again for every ID. For a 32767-ID batch that is gigabytes of copying per batch. Use a `strings.Builder` (or `strconv.AppendInt` into a byte slice) to build the list in linear time."
+ ]
+}

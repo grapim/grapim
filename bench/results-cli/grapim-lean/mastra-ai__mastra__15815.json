@@ -1,0 +1,132 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "mastra-ai__mastra__15815",
+ "url": "https://github.com/mastra-ai/mastra/pull/15815",
+ "head_sha": "012c8603ed0837f26723a2b6b18674167f2ae530",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:15:33.861Z",
+ "seconds": 33.754,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "observability/mastra/src/exporters/cloud.ts",
+   "line": 20,
+   "end_line": 27,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The signal-filter infrastructure the PR says it removed is still added.",
+   "body": "The PR description says the signal filter infrastructure was removed and deferred to a follow-up. This hunk still adds a public `signalFilters` API for spans, logs, metrics, scores and feedback, plus the resolution logic. Only the default `MODEL_CHUNK` drop was asked for. Remove the public option and keep a fixed `MODEL_CHUNK` check in `_exportTracingEvent`."
+  },
+  {
+   "path": "observability/mastra/src/instances/base.ts",
+   "line": 641,
+   "end_line": 645,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The `metrics.autoExtract` control is added although the PR says it was removed.",
+   "body": "The description lists the metrics auto-extract controls as removed from this PR. This change still adds `metrics.autoExtract` to the config types, the schema and the instance config, plus an early-return path in `emitSpanEnded`. That is new public configuration outside the two requested defaults."
+  },
+  {
+   "path": "packages/core/src/processors/index.ts",
+   "line": 325,
+   "end_line": 333,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Processor observability controls are still in, despite being described as removed.",
+   "body": "The description says the processor observability work was removed and deferred to a generalized design. This change still adds the public `Processor.observability` option (`false` / `'errors-only'`), the `processorObservability` / `processorOutcome` span attributes, span suppression in `runner.ts` and both `workflow.ts` files, and the cloud `errors-only` filtering. The changeset advertises it too. This is a new public API and it changes TripWire span semantics, which the request does not cover. Remove it or update the request."
+  },
+  {
+   "path": "packages/core/src/processors/runner.ts",
+   "line": 62,
+   "end_line": 66,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "TripWire aborts no longer mark processor spans as errors for any processor.",
+   "body": "Before this change, every legacy processor path called `processorSpan.error({ error, endSpan: true, ... })` on a TripWire, so blocked requests showed as ERROR in traces. The comment saying so was deleted too. `endTripWireProcessorSpan` now calls plain `span.end()`, so every processor that aborts ends with a success status, not only `errors-only` ones. The only remaining signal is the new `processorOutcome` attribute. Dashboards and error filters keyed on span error status will stop catching guardrail or PII blocks. Fix: keep `span.error({ error, endSpan: true, attributes })` and add `processorOutcome: 'tripwire'` to the attributes, or limit the change to `errors-only` processors."
+  },
+  {
+   "path": "observability/mastra/src/exporters/cloud.ts",
+   "line": 56,
+   "end_line": 63,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Dropping successful errors-only processor spans leaves their child spans orphaned in cloud.",
+   "body": "`errors-only` exists so that processor-internal work (for example, internal agent or model calls) nests under the processor span. The cloud filter drops that parent span on success but still exports every child span, and those children carry `parentSpanId` pointing at a span that never reaches cloud. The cloud trace tree then shows orphaned or re-rooted spans. Either drop descendants as well, or re-parent them before export. I could not see how the cloud UI handles a missing parent."
+  },
+  {
+   "path": ".changeset/observability-volume-controls.md",
+   "line": 8,
+   "end_line": 8,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The changeset omits the log-level default change and describes removed processor work.",
+   "body": "The release note leaves out the user-visible change of the default observability log level from `debug` to `warn`. Users will lose info and debug logs on upgrade with no notice. It also advertises processor span controls that the PR says were removed. Mention the new `warn` default, and drop the processor line if that work is removed."
+  },
+  {
+   "path": "packages/core/src/workflows/workflow.ts",
+   "line": 711,
+   "end_line": 713,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The workflow TripWire span end no longer records the tripwire output.",
+   "body": "Before, the span ended with `output: { tripwire: error.message }`. `endTripWireProcessorSpan` now passes only `attributes`, so the processor span's output is empty after an abort, and consumers that read `output.tripwire` lose it. Keep the `output` field next to the new attributes. The same issue is in `workflows/evented/workflow.ts`."
+  },
+  {
+   "path": "packages/playground/src/pages/traces/index.tsx",
+   "line": 38,
+   "end_line": 41,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The playground import reordering is still in the diff.",
+   "body": "The description says the playground import churn was removed, but both playground pages still reorder imports. Revert these hunks to keep the PR to what it describes."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 50355,
+  "cacheRead": 3262,
+  "output": 3054,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 58,
+   "reviewedHunks": 58,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 53619,
+   "outputTokens": 3054,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.3135154
+}

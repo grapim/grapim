@@ -1,0 +1,61 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "home-assistant__core__150950",
+ "url": "https://github.com/home-assistant/core/pull/150950",
+ "head_sha": "f04fe301f84bcf46687442f8ac8c558343b25753",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:04:41.288Z",
+ "seconds": 127.342,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "homeassistant/components/logbook/__init__.py",
+   "line": 118,
+   "end_line": 118,
+   "severity": null,
+   "category": null,
+   "title": "Breaks Panel Translation",
+   "body": "For built-in panels, `sidebar_title` is a translation key, not display text. The frontend looks up `panel.<sidebar_title>` and falls back to the raw string if the key is missing. Other built-in panels follow this pattern, e.g. `\"history\"` and `\"map\"`.\n\nChanging the key from `\"logbook\"` to `\"Activity\"` means the existing `panel.logbook` translations are no longer used. Non-English users will see the hard-coded English \"Activity\" in the sidebar.\n\nTo rename the label, keep the `\"logbook\"` key and update the frontend translation string instead."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 3529,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 701,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 1,
+    "relevant_tests": "No\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "homeassistant/components/logbook/__init__.py\n",
+      "issue_header": "Breaks Panel Translation\n",
+      "issue_content": "For built-in panels, `sidebar_title` is a translation key, not display text. The frontend looks up `panel.<sidebar_title>` and falls back to the raw string if the key is missing. Other built-in panels follow this pattern, e.g. `\"history\"` and `\"map\"`.\n\nChanging the key from `\"logbook\"` to `\"Activity\"` means the existing `panel.logbook` translations are no longer used. Non-English users will see the hard-coded English \"Activity\" in the sidebar.\n\nTo rename the label, keep the `\"logbook\"` key and update the frontend translation string instead.\n",
+      "start_line": 118,
+      "end_line": 118
+     }
+    ],
+    "security_concerns": "No\n"
+   },
+   "usage": {
+    "prompt_tokens": 3529,
+    "completion_tokens": 701,
+    "total_tokens": 4230
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "\u001b[32m2026-11-15 02:04:25.910\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:04:25.911\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:04:28.509\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 1 🔵⚪⚪⚪⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>No relevant tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>No security concerns identified</strong></td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Breaks Panel Translation</strong><br>For built-in panels, `sidebar_title` is a translation key, not display text. The frontend looks up `panel.<sidebar_title>` and falls back to the raw string if the key is missing. Other built-in panels follow this pattern, e.g. `\"history\"` and `\"map\"`.\n\nChanging the key from `\"logbook\"` to `\"Activity\"` means the existing `panel.logbook` translations are no longer used. Non-English users will see the hard-coded English \"Activity\" in the sidebar.\n\nTo rename the label, keep the `\"logbook\"` key and update the frontend translation string instead.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.028136
+}

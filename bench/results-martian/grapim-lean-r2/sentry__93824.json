@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__93824",
+ "url": "https://github.com/getsentry/sentry/pull/93824",
+ "head_sha": "3162ad68a5c87666788b27a44eb31235025091a9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:21:40.303Z",
+ "seconds": 41.165,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/spans/consumers/process/flusher.py",
+   "line": 253,
+   "end_line": 257,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Unhealthy flusher processes are no longer killed before being replaced.",
+   "body": "The old code called `self.process.kill()` with no type check. The new code only calls it when `isinstance(process, multiprocessing.Process)` is true. Processes come from `multiprocessing.get_context(\"spawn\").Process`, which builds a `SpawnProcess`. `SpawnProcess` subclasses `BaseProcess`, not `multiprocessing.Process` (that name is `multiprocessing.context.Process`), so the check is always false and nothing is killed.\n\nWhen a process is detected as hung, a new process is started for the same shards while the old one stays alive. If the old one recovers, both flush the same shards at the same time, which can produce duplicate or conflicting segment output, and each restart leaves another live process behind.\n\nFix: check against `multiprocessing.process.BaseProcess`, or call `process.kill()` whenever the object is not a `threading.Thread`."
+  },
+  {
+   "path": "src/sentry/spans/consumers/process/flusher.py",
+   "line": 199,
+   "end_line": 199,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The wait_produce timer uses tag key `shards`, while the other new flusher metrics use `shard`.",
+   "body": "`spans.buffer.flusher.produce` and `spans.buffer.segment_size_bytes` are tagged `shard`, but `spans.buffer.flusher.wait_produce` is tagged `shards`. Dashboards that filter or group by `shard` will miss this timer. Use `tags={\"shard\": shard_tag}` here."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 13594,
+  "cacheRead": 3262,
+  "output": 2937,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 10,
+   "reviewedHunks": 10,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16858,
+   "outputTokens": 2937,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 6,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1273704
+}

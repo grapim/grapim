@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "sympy__sympy__30393",
+ "url": "https://github.com/sympy/sympy/pull/30393",
+ "head_sha": "6a273d9be1e485d68af0d875e78750b53452abf4",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:29:56.854Z",
+ "seconds": 29.578,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "sympy/functions/special/error_functions.py",
+   "line": 2948,
+   "end_line": 2953,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The new quadrature never checks its error estimate, so an inaccurate result is reported at full precision.",
+   "body": "The old path went through `Integral.evalf`. That code (`evalf_integral`) reads the quadrature error estimate and keeps raising the working precision until the result reaches the requested accuracy. The new code makes one `mpmath.quad` call at `prec + 10`, ignores the error estimate and wraps the result in a Float that claims all `prec` bits are correct.\n\nThe quadrature is hard when the integrand is strongly oscillatory or sharply concentrated:\n- complex `h` where `h**2` has a large imaginary part, e.g. `owens_t(5+5*I, 3)`, which gives `exp(-25*I*(1+t**2))`;\n- very large `|a|`, where almost all the mass sits in a tiny fraction of `[0, a]`;\n- large `|h|`.\n\nIn these cases tanh-sinh can return a wrong value without any warning. `Add`'s cancellation retries and `N(..., n)` then trust that wrong value, because the Float says it is exact to `prec` bits.\n\nFix: call `mpmath.quad(..., error=True)` and compare the error with the result. If it is too large, raise the working precision or add more subdivision points (for example splitting at `min(1, |a|)`) and evaluate again, as `evalf_integral` did. Return `None` if the error cannot be brought within the requested accuracy.\n\nI could not run these inputs to measure how large the error actually gets."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 3742,
+  "cacheRead": 3262,
+  "output": 2531,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 1,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 7006,
+   "outputTokens": 2531,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 1,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0699904
+}

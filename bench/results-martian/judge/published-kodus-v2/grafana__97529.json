@@ -1,0 +1,30 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "grafana__97529",
+ "url": "https://github.com/grafana/grafana/pull/97529",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A race condition in BuildIndex allows multiple goroutines to concurrently build the same expensive index for the same key. This is caused by moving the b.cacheMu lock from protecting the entire function to only protecting the final cache assignment. ",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same race: because cacheMu was narrowed, concurrent BuildIndex calls for the same key can both build the index."
+  },
+  {
+   "comment": "Calling s.search.TotalDocs() here may race with concurrent index creation: TotalDocs iterates b.cache without synchronization, and the event watcher goroutine started just above could trigger BuildIndex writes concurrently, potentially causing a concurrent map read/write panic.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 doesn't mention TotalDocs iterating the cache without synchronization, or the possible concurrent map read/write panic."
+  }
+ ],
+ "candidates": [
+  "Race condition introduced by narrowing the cacheMu lock scope in BuildIndex - concurrent calls for the same NamespacedResource key can both pass the unlocked build phase, both call bleve.New on the same filesystem directory, and the second call either fails (directory already contains an index) or silently overwrites the first's cache entry, leaking the first bleve.Index handle and risking file-level corruption on disk-backed indexes"
+ ]
+}

@@ -1,0 +1,179 @@
+{
+ "tool": "claude-action",
+ "pr_id": "microsoft__PowerToys__47857",
+ "url": "https://github.com/microsoft/PowerToys/pull/47857",
+ "head_sha": "ea580dbd3714a5081a04a796ba4cef679f102840",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:39:00.297Z",
+ "seconds": 176.965,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 136,
+   "end_line": 136,
+   "severity": null,
+   "category": null,
+   "title": "Security / robustness:** This hand-written UNC parsing goes wrong on device-prefixed paths:",
+   "body": "**Security / robustness:** This hand-written UNC parsing goes wrong on device-prefixed paths:\n\n- `\\\\?\\C:\\docs` → `trimmed = \"?\\C:\\docs\"` → base becomes `\\\\?\\C:`, which is the **whole C: drive**.\n- `\\\\?\\UNC\\server\\share\\dir` → base becomes `\\\\?\\UNC`, so every server and share counts as \"contained\". `GetRelativePath(@\"\\\\?\\UNC\", @\"\\\\?\\UNC\\evil\\share\\x.png\")` returns `evil\\share\\x.png`. A crafted markdown file could then make the preview pane open SMB connections to an arbitrary host, which can leak the user's NTLM credentials.\n\nThe shell normally passes ordinary paths, so this is defence in depth. It's still cheap to fix: `Path.GetPathRoot` already returns `\\\\server\\share` for UNC paths. Restrict the widening to real UNC paths and fall back to the markdown directory otherwise:\n\n```csharp\n_allowedBasePath = _markdownDirectory;\nif (_markdownDirectory.StartsWith(@\"\\\\\", StringComparison.Ordinal) &&\n    !_markdownDirectory.StartsWith(@\"\\\\?\\\", StringComparison.Ordinal) &&\n    !_markdownDirectory.StartsWith(@\"\\\\.\\\", StringComparison.Ordinal))\n{\n    _allowedBasePath = Path.GetPathRoot(_markdownDirectory) ?? _markdownDirectory;\n}\n```\n\nAlso consider moving this into `FilePreviewCommon` (e.g. `HTMLParsingExtension.GetAllowedBasePath(string)`) so it can be unit-tested next to `TryGetLocalImageVirtualUrl`. Right now nothing tests it.\n\n**Design question:** For UNC files the allowed root is the whole share. For local and mapped-drive files (`Z:\\...`) it's only the document's folder and its subfolders. Two consequences:\n\n1. A markdown file anywhere on a share can embed any readable file on that share, a much wider scope than the local case.\n2. The common `docs/page.md` → `../assets/img.png` layout works on `\\\\server\\share` but is blocked on `C:\\` or `Z:\\`.\n\nWas the difference intentional? If so, it's worth a sentence in the settings description, not just the ADML."
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 211,
+   "end_line": 211,
+   "severity": null,
+   "category": null,
+   "title": "Performance:** `WebResourceRequested` runs on the UI thread. For every image this does `File.Exists` plus `File.ReadAllBytes`, both synchronous. On a UNC share that means at least two network round-tr",
+   "body": "**Performance:** `WebResourceRequested` runs on the UI thread. For every image this does `File.Exists` plus `File.ReadAllBytes`, both synchronous. On a UNC share that means at least two network round-trips per image, during which Explorer's preview pane is frozen. Large images (e.g. a 50 MB screenshot) are also copied fully into a managed byte array and then into a `MemoryStream`.\n\nSuggestions:\n- Take a deferral (`e.GetDeferral()`) and do the I/O off the UI thread. Set `e.Response` and complete the deferral when done.\n- Skip the copy: open a `FileStream` (`FileMode.Open, FileAccess.Read, FileShare.Read`) and pass it to `CreateWebResourceResponse`, which accepts any `Stream`.\n- Drop `File.Exists`. Catching `FileNotFoundException` / `DirectoryNotFoundException` (both `IOException`s, so the existing catch already handles them) saves a round-trip and avoids the TOCTOU pattern.\n- Consider a size cap so a huge file on a share can't be fully pulled into memory.\n\nMinor: any file inside the base path is served, not only images; a non-image extension gets `application/octet-stream`. Scripts are disabled and every other request is blocked, so this can't be exfiltrated. Still, rejecting extensions that aren't in `GetImageContentType` (return 404) would be cheap hardening and would avoid reading e.g. `secrets.txt` over the network for nothing."
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 368,
+   "end_line": 368,
+   "severity": null,
+   "category": null,
+   "title": "Docs:** The new method was inserted between `ImagesBlockedCallBack`'s doc comment and its declaration. As a result:",
+   "body": "**Docs:** The new method was inserted between `ImagesBlockedCallBack`'s doc comment and its declaration. As a result:\n- `GetImageContentType` has two `<summary>` elements, and the first one (\"Callback when image is blocked by extension.\") is wrong.\n- `ImagesBlockedCallBack` (line 386) no longer has a doc comment.\n\nMove the \"Callback when image is blocked by extension.\" summary back above `ImagesBlockedCallBack`."
+  },
+  {
+   "path": "src/common/FilePreviewCommon/HTMLParsingExtension.cs",
+   "line": 116,
+   "end_line": 116,
+   "severity": null,
+   "category": null,
+   "title": "Correctness:** `relativePath` is inserted into the URL without escaping, but `TryResolveVirtualUrl` runs `Uri.UnescapeDataString` on the request path. The two directions don't match for some file name",
+   "body": "**Correctness:** `relativePath` is inserted into the URL without escaping, but `TryResolveVirtualUrl` runs `Uri.UnescapeDataString` on the request path. The two directions don't match for some file names:\n\n- `a#1.png` → `https://localmdimages/a#1.png`. The browser treats `#1.png` as a fragment and requests `a`, which returns 404.\n- `img?.png` has the same problem, with `?` starting a query string.\n- `a%41.png` (a literal `%` on disk) → the request is decoded to `aA.png`, the wrong file.\n- Raw-HTML `<img src=\"my%20pic.png\">`: the file is looked up as `my%20pic.png` but served as `my pic.png`. The result depends on which path produced the URL.\n\nEscape each segment so the encoding round-trips:\n\n```suggestion\n                virtualUrl = \"https://localmdimages/\" + string.Join('/', relativePath.Split('\\\\', '/').Select(Uri.EscapeDataString));\n```\n\n(needs `using System.Linq;`). Please add test rows for `#`, `%` and a space in the file name."
+  },
+  {
+   "path": "src/common/FilePreviewCommon/HTMLParsingExtension.cs",
+   "line": 114,
+   "end_line": 114,
+   "severity": null,
+   "category": null,
+   "title": "Maintainability:** This containment check is copied verbatim at lines 170–176. These few lines are the security boundary of the feature, so they should live in one place: a `private static bool IsCont",
+   "body": "**Maintainability:** This containment check is copied verbatim at lines 170–176. These few lines are the security boundary of the feature, so they should live in one place: a `private static bool IsContained(string basePath, string fullPath)` helper. Then a future fix (for example, case handling or `\\\\?\\` prefixes) only has to be made once."
+  },
+  {
+   "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+   "line": 79,
+   "end_line": 79,
+   "severity": null,
+   "category": null,
+   "title": "Edge cases in the raw-HTML rewrite:** The regex only matches double-quoted `src=\"...\"`. These forms pass through untouched:",
+   "body": "**Edge cases in the raw-HTML rewrite:** The regex only matches double-quoted `src=\"...\"`. These forms pass through untouched:\n\n- `<img src='images/a.png'>` (single quotes)\n- `<img src=images/a.png>` (unquoted)\n- `srcset=\"...\"` and `<picture><source srcset>`\n\nNone of this is a security hole, because the `WebResourceRequested` filter still answers 403 for everything except `localmdimages`. Thanks for keeping that second layer. But the behaviour is inconsistent:\n1. Valid local images written with single quotes, which are common in READMEs, silently fail to render.\n2. Remote images in those forms are blocked without calling `imagesBlockedCallBack`, so the info bar never appears.\n\nConsider `src\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`, or a small HTML tokenizer. At minimum, invoke the callback when an `<img` tag doesn't match.\n\nAlso, a pre-compiled `static readonly Regex` (or `[GeneratedRegex]`) avoids re-parsing the pattern on every preview.\n\n**Tests:** `MarkdownHelper.MarkdownHtml` with `allowLocalImages: true` has no coverage. The commit that added the `\\s` before `src` (avoiding `data-src` matches) would be a good regression test. Cases to cover:\n- `data-src` is left alone.\n- An HTML `<img>` with traversal is blocked and the callback fires.\n- A pre-rewritten `https://localmdimages/` URL passes through.\n- Single-quoted `src`."
+  },
+  {
+   "path": "src/common/FilePreviewCommon/HTMLParsingExtension.cs",
+   "line": 81,
+   "end_line": 81,
+   "severity": null,
+   "category": null,
+   "title": "This is a good scheme check: it rejects alternate data streams (`a.png:stream`), drive-relative paths (`C:foo.png`) and every URI scheme. Rooted inputs such as `\\\\host\\share\\x` and `//host/x` are then",
+   "body": "This is a good scheme check: it rejects alternate data streams (`a.png:stream`), drive-relative paths (`C:foo.png`) and every URI scheme. Rooted inputs such as `\\\\host\\share\\x` and `//host/x` are then caught by `IsPathRooted(relativePath)`, so no UNC path outside the base is ever touched.\n\nPlease lock that in with explicit test rows, since it's the property that prevents NTLM leaks:\n- `//evil/share/a.png`\n- `\\\\?\\C:\\docs\\a.png`\n- `\\\\.\\pipe\\x`\n- `a.png:stream`\n- `C:a.png`\n\nThe current `TryGetLocalImageVirtualUrlBlocksUnsafeUrls` data set only has `\\\\server\\share2\\...`."
+  }
+ ],
+ "usage": {
+  "requests": 26,
+  "input": 28,
+  "cacheWrite": 48030,
+  "cacheRead": 418535,
+  "output": 11845,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "result": {
+   "duration_api_ms": 119198,
+   "stop_reason": "end_turn",
+   "session_id": "67064fdf-f251-4736-8bf4-888536c19a98",
+   "total_cost_usd": 0.704959,
+   "usage": {
+    "input_tokens": 28,
+    "cache_creation_input_tokens": 48030,
+    "cache_read_input_tokens": 418535,
+    "output_tokens": 11845,
+    "output_tokens_details": {
+     "thinking_tokens": 4072
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 48030,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "modelUsage": {
+    "claude-opus-5-5": {
+     "inputTokens": 28,
+     "outputTokens": 11845,
+     "cacheReadInputTokens": 418535,
+     "cacheCreationInputTokens": 48030,
+     "webSearchRequests": 0,
+     "costUSD": 0.704959,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 4072,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   },
+   "permission_denials": [],
+   "terminal_reason": "completed",
+   "fast_mode_state": "off",
+   "fast_mode_disabled_reason": "sdk_opt_in_required",
+   "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+     "background": 0,
+     "foreground": 0,
+     "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+     "parent": 0,
+     "user": 0,
+     "system": 0
+    },
+    "refused": {
+     "depth_limit": 0,
+     "concurrency_limit": 0,
+     "budget": 0
+    },
+    "by_type": {}
+   },
+   "safety_stops": 0,
+   "is_error": false,
+   "num_turns": 26,
+   "subtype": "success",
+   "api_error_status": null,
+   "result": "I posted 7 inline comments on PR #47857, which adds local and network (UNC) image support to the Markdown preview handler. Bash was broken here (a temp-folder permission error), so I couldn't get a git diff or build and test anything. I reviewed by reading the changed files at the PR head, and the comments are attached to line numbers in those files.\n\n**Summary for the PR**\n\nThe security design is sound. Two independent layers protect the feature:\n1. Image paths are checked to stay inside an allowed folder when the HTML is generated.\n2. Every image request is checked again when served, and all other requests are refused.\n\nScripts stay disabled, remote URLs are always blocked, and there's a Group Policy plus settings toggle. Moving the path checks into `FilePreviewCommon` as testable static methods was a good call, and the traversal tests, including percent-encoded `..` and `C:` cases, are solid.\n\n**Issues to fix before merging**\n1. **Security, defence in depth:** the hand-written UNC share-root parsing (`MarkdownPreviewHandlerControl.cs:126-136`) goes wrong on paths starting with `\\\\?\\`:\n   - `\\\\?\\C:\\docs` makes the whole C: drive the allowed folder.\n   - `\\\\?\\UNC\\server\\share` allows every server, which could leak the user's Windows (NTLM) credentials.\n\n   The fix is `Path.GetPathRoot` on real UNC paths only, moved somewhere it can be unit-tested.\n2. **Design inconsistency:** for UNC files the allowed folder is the whole share, but for local and mapped-drive files it's only the document's folder. So `../assets/img.png` works on `\\\\server\\share` but not on `C:\\` or `Z:\\`, and a share gets a much wider scope. I asked whether that's intended.\n3. **Performance:** images are served with synchronous `File.Exists` and `File.ReadAllBytes` on the UI thread. On a UNC share that's two network round-trips per image while Explorer's preview pane freezes. Suggested: a deferral, streaming the file instead of copying it, no `File.Exists`, and an optional size cap and image-only extension list.\n4. **Correctness:** the generated image URLs aren't percent-escaped, but the server side decodes them. File names containing `#`, `?` or `%` fail to load or load the wrong file.\n\n**Smaller items**\n- The raw-HTML `<img>` rewrite only handles double-quoted `src`. Single-quoted or unquoted images silently don't render, and blocked ones don't show the info bar. Not a security hole, since everything else is still refused.\n- The folder-containment check is duplicated; it's the security boundary and should be one helper.\n- The doc comments for `GetImageContentType` and `ImagesBlockedCallBack` got mixed up.\n\n**Testing gaps**\n- No tests for `MarkdownHelper.MarkdownHtml` with local images on, including the `data-src` regression fixed in the latest commit.\n- No tests for the share-root calculation.\n- No blocked-input rows for `//host/...`, `\\\\?\\...`, `\\\\.\\pipe`, alternate data streams (`a.png:stream`) or `C:a.png`.\n\n**Docs**\nThe Group Policy description explains the UNC share-root scope, but the Settings UI should say it too.",
+   "ttft_ms": 1716,
+   "type": "result",
+   "duration_ms": 173533,
+   "uuid": "f5716caa-51cb-4018-a9cc-8ee3fb436d15",
+   "ttft_stream_ms": 1363,
+   "time_to_request_ms": 601,
+   "first_content_frame_ms": 1364,
+   "queued_turn_count": 0,
+   "result_index": 0
+  },
+  "summaries": [],
+  "proxyRequests": null
+ },
+ "cost_usd": 0.560869
+}

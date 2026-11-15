@@ -1,0 +1,51 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "keycloak__37634",
+ "url": "https://github.com/keycloak/keycloak/pull/37634",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In AccessTokenContext constructor, the fourth Objects.requireNonNull validates grantType twice instead of validating rawTokenId, allowing null rawTokenId values to pass validation.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same bug: grantType is checked twice and rawTokenId is never checked."
+  },
+  {
+   "comment": "In isAccessTokenId, the substring for the grant shortcut and the equality check look inverted: the grant shortcut occupies indices 4–5 (substring(4,6)), and a match should return true (combined with UUID check), not false.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 flags the inverted equality check in isAccessTokenId. It doesn't call out the substring index error, but it describes the same faulty logic."
+  },
+  {
+   "comment": "Javadoc mentions \"usually like 3-letters shortcut\" but some implementations use 2-letter shortcuts (\"ac\", \"cc\", \"rt\", \"te\", \"pc\", \"ci\", \"ro\"). Consider updating documentation to reflect actual usage pattern.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the Javadoc saying 3-letter shortcuts when the code uses 2-letter ones."
+  },
+  {
+   "comment": " Catching generic RuntimeException is too broad. The implementation throws IllegalArgumentException specifically - catch that instead for more precise testing.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions catching a generic RuntimeException in the tests."
+  }
+ ],
+ "candidates": [
+  "The constructor in AccessTokenContext validates `grantType` twice but never checks `rawTokenId`. Line 73 calls `Objects.requireNonNull(grantType, \"Null rawTokenId not allowed\")` instead of `Objects.requireNonNull(rawTokenId, \"Null rawTokenId not allowed\")`, allowing `rawTokenId == null` to slip through.",
+  "`isAccessTokenId` returns `false` when the grant shortcut matches, causing `expectCodeToToken` to reject valid access-token IDs. The negation in `items[0].substring(3, 5).equals(expectedGrantShortcut)` is inverted — it should return `true` when the shortcuts match, not `false`.",
+  "Adding the abstract method `getShortcut()` to `OAuth2GrantTypeFactory` breaks binary compatibility with existing grant type implementations. When `DefaultTokenContextEncoderProviderFactory.getGrantTypeByShortcut()` calls `factory.getShortcut()` on a provider compiled against the previous interface, the JVM throws `AbstractMethodError` at runtime. Should add a default method to preserve backward compatibility.",
+  "The lazy refresh path in `getShortcutByGrantType()` unconditionally overwrites `grantsByShortcuts`/`grantsToShortcuts` when a new grant factory is discovered, bypassing the duplicate-shortcut validation from `postInit()`. If a grant provider deploys post-startup with a shortcut already in use, the old mapping is silently replaced, causing tokens previously issued with that shortcut to decode to the wrong grant type."
+ ]
+}

@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "head_sha": "3214b188de808fdb0fff335556b686f1b0a63218",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:20:54.817Z",
+ "seconds": 33.055,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java",
+   "line": 161,
+   "end_line": 161,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Passkey condition is inverted: passkeys are now only offered once a user is already set.",
+   "body": "`isConditionalPasskeysEnabled` returns true only when `user != null`. The old code filled the WebAuthn form only when no user was selected (`context.getUser() == null`). Both `authenticate` (line 115) and `challenge` (line 137) now skip `fillContextForm` on a normal first login, where no user is set yet. On that path the conditional-UI passkey form and the `webauth` element no longer render, and a failed password attempt also drops them because it clears the user. That breaks the tests in this PR that expect the form on a fresh login page. In the other direction, any re-authenticating user gets passkey UI even if they have no passkey credential. The condition should be `currentUser == null || currentUser.credentialManager().isConfiguredFor(webauthnAuth.getCredentialType())`."
+  },
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernameForm.java",
+   "line": 47,
+   "end_line": 47,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Calls a no-argument `isConditionalPasskeysEnabled()` that is not defined in the code shown.",
+   "body": "The only definition added is `isConditionalPasskeysEnabled(UserModel user)` in `UsernamePasswordForm`. Unless a no-argument overload exists in code I can't see, this line will not compile. Even if one exists, it ignores the current user, so the username form is never skipped during re-authentication once passkeys are on, even for users who have no passkey. Pass `context.getUser()` so it uses the same per-user check as `UsernamePasswordForm`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 22957,
+  "cacheRead": 3262,
+  "output": 2261,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 26221,
+   "outputTokens": 2261,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.16066539999999999
+}

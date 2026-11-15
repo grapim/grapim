@@ -1,0 +1,42 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "BlockedEmail.should_block_email? method has side effects during a read operation - it updates statistics even when just checking if an email should be blocked. This could cause race conditions in concurrent environments and makes the method name misleading.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    3
+   ],
+   "confidence": 0.6,
+   "reasoning": "G1 flags side effects in the check method causing race conditions; C3 identifies the race condition in the stats update inside should_block?. C1 discusses the same side effect but a different consequence (rollback), so not counted."
+  },
+  {
+   "comment": "The regex pattern @(#{domains}) in email_in_restriction_setting? method only matches domain suffixes, not full domains with proper boundary anchoring. An attacker can register evil.example.com to bypass a whitelist entry for example.com.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate addresses the domain regex anchoring/subdomain bypass."
+  },
+  {
+   "comment": "The case-sensitive email lookup in `BlockedEmail.should_block?` creates a bypass risk, allowing 'User@Example.com' to bypass a block on 'user@example.com'. This can lead to unauthorized access to blocked users.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 explicitly identifies the case-sensitive lookup bypass."
+  }
+ ],
+ "candidates": [
+  "app/models/blocked_email.rb:11 - Match statistics are rolled back whenever the block actually happens.. `should_block?` runs inside `User#valid?`, and ActiveRecord runs that inside the transaction that `user.save` opens. When the email is blocked, validation fails, `save` returns false and the transaction is rolled back. That rollback also undoes the `match_count`/`last_match_at` update made here. So for `:block` records, the counters never change during real signups. They only move for `:do_nothing` records or when `should_block?` is called on its own, as the spec does. Record the match outside the user's transaction (for example in a separate connection or job, or after the failed save in the controller), or move the check out of the model validation. I couldn't see whether `UsersController#create` uses `user.save`, but that is the usual path.",
+  "app/models/blocked_email.rb:12 - Blocklist lookup is case-sensitive, so changing letter case gets past the block.. `BlockedEmail.where(email: email)` is an exact, case-sensitive match. If `bad@spammers.org` is blocked, signing up as `Bad@Spammers.org` is not matched, so the block is trivially bypassed. Nothing shown here downcases the email before validation. Normalize both sides: store the email lowercased and look it up with `where(email: email.downcase)` (or `lower(email)`). Ideally make the unique index case-insensitive as well.",
+  "app/models/blocked_email.rb:14 - Non-atomic read-modify-write on match_count loses increments under concurrency.. The count is loaded, incremented in Ruby and saved back. Two signups that check the same email at once both read N and write N+1, so a match is lost. Do the increment in the database instead, e.g. `BlockedEmail.where(id: record.id).update_all(['match_count = match_count + 1, last_match_at = ?', Time.zone.now])`."
+ ]
+}

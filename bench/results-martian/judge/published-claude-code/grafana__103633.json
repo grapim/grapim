@@ -1,0 +1,39 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The Check operation exhibits asymmetric cache trust logic: cached permission grants are trusted and returned immediately, but cached denials from the same permission cache are ignored, leading to a fresh database lookup. This allows stale cached grants to provide access to revoked resources, posing a security risk. ",
+   "severity": "High",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "Neither candidate covers trusting cached grants while ignoring cached denials."
+  },
+  {
+   "comment": "The test comment says the cached permissions 'allow access', but the map stores false for dashboards:uid:dash1, so checkPermission will still treat this scope as not allowed.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "Neither candidate mentions the misleading test comment about the false map value."
+  },
+  {
+   "comment": "The cache key construction in `userPermDenialCacheKey` uses simple string concatenation with underscores, which can lead to ambiguous keys and collision risks when any component contains underscores or is empty. This could result in incorrect denial cache hits, affecting user permissions.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [
+    1
+   ],
+   "confidence": 0.5,
+   "reasoning": "C1 points to a collision in the userPermDenialCacheKey construction: the key leaves out identity type, so different identities can produce the same denial cache entry. The golden comment names a different cause (underscore concatenation with ambiguous or empty parts), but the underlying problem is the same: key collisions cause wrong denial hits. Because the causes differ, this is only a borderline match."
+  }
+ ],
+ "candidates": [
+  "The denial cache key (userPermDenialCacheKey) does not include the identity type, causing anonymous:0 and render:0 to both produce UserUID '0' and generate identical cache keys, which leads to cross-identity cache poisoning where an anonymous user denial can block the render service from accessing the same dashboard",
+  "The denial cache key uses raw checkReq.UserUID instead of the resolved userIdentifiers.UID (as getCachedIdentityPermissions does), which reduces cache effectiveness when users are identified by numeric ID vs string UID across requests"
+ ]
+}

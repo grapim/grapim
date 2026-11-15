@@ -1,0 +1,152 @@
+{
+ "tool": "claude-action",
+ "pr_id": "cli__cli__15009",
+ "url": "https://github.com/cli/cli/pull/15009",
+ "head_sha": "e8022e837d4d422370059c3ea954d13e11ebeeaf",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:16:30.348Z",
+ "seconds": 71.745,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 401,
+   "end_line": 401,
+   "severity": null,
+   "category": null,
+   "title": "Redundant output for `refresh_expired` entries.** For `authEntryStateRefreshExpired`, `entry.Error` is a synthetic message built in `buildEntry` (`\"refresh token for %s was rejected; the stored creden",
+   "body": "**Redundant output for `refresh_expired` entries.** For `authEntryStateRefreshExpired`, `entry.Error` is a synthetic message built in `buildEntry` (`\"refresh token for %s was rejected; the stored credential was removed\"`) that just repeats what `String()` already rendered. The updated test at `status_test.go:487-491` shows the result:\n\n```\n  X Refresh token for github.com account monalisa was rejected\n  ...\n  - The stored expiring credential was removed because its refresh token is no longer valid.\n  ...\n  - Error: refresh token for github.com was rejected; the stored credential was removed\n```\n\nThe diagnostic is only useful when it carries an underlying error (HTTP/GraphQL/network). I'd suggest skipping it for states where the message is synthetic, e.g. `entry.State != authEntryStateRefreshExpired`. Better still, keep the raw cause in a separate unexported field so the JSON `error` field and the terminal diagnostic stay independent."
+  },
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 403,
+   "end_line": 403,
+   "severity": null,
+   "category": null,
+   "title": "Rendering lives outside `authEntry.String()`.** Every other line of an entry is built in `String(cs)`, which also handles the bold styling. This line is appended in the caller, unstyled, so the entry ",
+   "body": "**Rendering lives outside `authEntry.String()`.** Every other line of an entry is built in `String(cs)`, which also handles the bold styling. This line is appended in the caller, unstyled, so the entry layout is now split across two places. Consider moving it into `String()` behind a parameter or field (e.g. `showError bool`). That keeps formatting in one place and lets `String()` be unit-tested for this case directly.\n\nSmaller points:\n- The output goes to `stream`, but the TTY check is on stderr. That's correct only because a non-empty `Error` always implies `finalErr != nil`, so `stream == stderr`. If someone later sets `Error` on a successful entry (e.g. a warning), this check silently becomes wrong. Checking the stream you're writing to, or adding a comment about the invariant, would make it sturdier.\n- What's the reason for hiding the cause when stderr isn't a TTY? Scripts and CI logs (`gh auth status 2>err.log`) are where a 401 vs 403 vs 503 vs DNS failure is hardest to diagnose, and this is human-readable stderr, not machine output. If the gate is there to protect existing scripted output, please say so in a comment or the PR description; otherwise consider printing it unconditionally."
+  },
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 402,
+   "end_line": 402,
+   "severity": null,
+   "category": null,
+   "title": "Security/robustness: server-controlled text written raw to a terminal.** `entry.Error` can include content from the remote host. That includes GraphQL error `message`s (`GraphQL: ...`), network error ",
+   "body": "**Security/robustness: server-controlled text written raw to a terminal.** `entry.Error` can include content from the remote host. That includes GraphQL error `message`s (`GraphQL: ...`), network error strings, and, for some error types, response bodies. `HTTPError` bodies are `%q`-quoted, but GraphQL messages aren't, so a malicious or compromised GHES host could inject ANSI/OSC escape sequences into the user's terminal. Because this path is gated on a TTY, it only ever reaches an interactive terminal, which is exactly where escape sequences take effect.\n\nI'd suggest stripping control characters before printing (see the existing sanitization helpers in the codebase, e.g. `text.RemoveExcessiveWhitespace` or the `asciisanitizer` used for API content). Also, GraphQL errors with several entries join into a multi-line string, which would break the `  - ` indentation. Normalizing newlines would fix both."
+  },
+  {
+   "path": "pkg/cmd/auth/status/status_test.go",
+   "line": 1117,
+   "end_line": 1117,
+   "severity": null,
+   "category": null,
+   "title": "This expectation shows a UX problem the PR now makes visible. For a 503, a DNS failure, or a rate limit, the output says:",
+   "body": "This expectation shows a UX problem the PR now makes visible. For a 503, a DNS failure, or a rate limit, the output says:\n\n```\n  - The token in GH_TOKEN is invalid.\n  - Error: non-200 OK status code:  body: \"Service Unavailable\"\n```\n\nThe two lines contradict each other: the token isn't known to be invalid. Now that the real cause is printed, consider only showing \"is invalid\" for 401, or rewording it to something like \"could not be validated\" for other failures. Separately, `non-200 OK status code:  body:` (double space, no status) comes from `api.HTTPError` with an empty message from the GraphQL path. It isn't very readable as a user-facing diagnostic; including `StatusCode` would help.\n\nTest coverage gaps worth filling:\n- **Timeout state** (`authEntryStateTimeout`) on a TTY. It also sets `Error` and isn't exercised here.\n- **The `GetScopes` path** for hosts.yml tokens (non-env). This matrix only covers `GH_TOKEN` → `UserCurrent` GraphQL.\n- **Multiple accounts on a host**, where only one fails. This checks the diagnostic appears under the right entry and before the blank separator line.\n- **A GraphQL response with two errors**, which checks the multi-line formatting."
+  }
+ ],
+ "usage": {
+  "requests": 15,
+  "input": 20,
+  "cacheWrite": 33829,
+  "cacheRead": 281217,
+  "output": 5651,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "result": {
+   "duration_api_ms": 59848,
+   "stop_reason": "end_turn",
+   "session_id": "d74923b8-13af-4bef-b01a-97ce3ac15377",
+   "total_cost_usd": 0.4399754,
+   "usage": {
+    "input_tokens": 20,
+    "cache_creation_input_tokens": 33829,
+    "cache_read_input_tokens": 281217,
+    "output_tokens": 5651,
+    "output_tokens_details": {
+     "thinking_tokens": 1278
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 33829,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "modelUsage": {
+    "claude-opus-5-5": {
+     "inputTokens": 20,
+     "outputTokens": 5651,
+     "cacheReadInputTokens": 281217,
+     "cacheCreationInputTokens": 33829,
+     "webSearchRequests": 0,
+     "costUSD": 0.4399754,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 1278,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   },
+   "permission_denials": [],
+   "terminal_reason": "completed",
+   "fast_mode_state": "off",
+   "fast_mode_disabled_reason": "sdk_opt_in_required",
+   "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+     "background": 0,
+     "foreground": 0,
+     "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+     "parent": 0,
+     "user": 0,
+     "system": 0
+    },
+    "refused": {
+     "depth_limit": 0,
+     "concurrency_limit": 0,
+     "budget": 0
+    },
+    "by_type": {}
+   },
+   "safety_stops": 0,
+   "is_error": false,
+   "num_turns": 15,
+   "subtype": "success",
+   "api_error_status": null,
+   "result": "I've posted 4 inline comments on PR #15009. This change makes `gh auth status` print an extra `- Error: <cause>` line under each failed account, but only when stderr is a terminal. Bash wouldn't run here, so I couldn't view the diff, run the tests, or post a top-level PR comment. I reviewed `status.go` and `status_test.go` with the file tools, and the general comments are below for you to post.\n\n## Overall\nIt's a good diagnostic improvement. Until now, users saw \"The token is invalid\" whether the real cause was a 401, a rate limit, a 503 or a DNS failure. The JSON output and its `error` field don't change. The test matrix that runs each error type with stderr and stdout as terminal or not is a nice touch. No performance concerns: it's one extra write per failed entry.\n\n## Inline comments\n1. **Repeated message for a rejected refresh token** (`status.go:401`): when a refresh token was rejected, the error text is made up by gh rather than coming from the server. So the new line just says again what the output already says, and the updated test at `status_test.go:491` locks that in. Skip the line in that case, or keep the raw error in a separate private field.\n2. **Server text printed raw to the terminal** (`status.go:402`, security): GraphQL error messages and network errors are printed as-is, and the line only ever appears on a terminal. A malicious or compromised GitHub Enterprise Server host could inject terminal escape sequences. Errors with more than one line would also break the indentation. Strip control characters and flatten newlines before printing.\n3. **Where and when the line is printed** (`status.go:400-403`):\n   - It's added outside `authEntry.String()`, where every other line of an entry is built, and it isn't styled like them.\n   - It writes to `stream` but checks whether stderr is a terminal. That only works because an entry with an error always sends output to stderr.\n   - Hiding the line when stderr isn't a terminal is questionable: scripts and CI logs are where users most need the cause. If it's there for backward compatibility, say so.\n4. **Contradictory output and test gaps** (`status_test.go:1109-1117`):\n   - For a 503 or a network failure, the output says \"The token in GH_TOKEN is invalid\" and then shows an error that proves otherwise. The wording should depend on the actual error.\n   - The message `non-200 OK status code:  body:` has a double space and no status code, so it's a poor thing to show users.\n   - Missing tests:\n     - the timeout state\n     - the token-from-`hosts.yml` path (only `GH_TOKEN` is tested)\n     - a host with several accounts where only one fails\n     - a GraphQL response with more than one error\n\n## Documentation\nThe command's help text (`status.go:221-223`) says failures go to stderr. Consider adding that the underlying error is shown when stderr is a terminal. The README doesn't need changes.",
+   "ttft_ms": 2373,
+   "type": "result",
+   "duration_ms": 69247,
+   "uuid": "5f1bdfea-b161-46ac-9d0f-76f25271f22c",
+   "ttft_stream_ms": 1928,
+   "time_to_request_ms": 658,
+   "first_content_frame_ms": 1931,
+   "queued_turn_count": 0,
+   "result_index": 0
+  },
+  "summaries": [],
+  "proxyRequests": null
+ },
+ "cost_usd": 0.3384884
+}

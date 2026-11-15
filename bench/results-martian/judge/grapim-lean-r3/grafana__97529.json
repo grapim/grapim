@@ -1,0 +1,34 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "grafana__97529",
+ "url": "https://github.com/grafana/grafana/pull/97529",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A race condition in BuildIndex allows multiple goroutines to concurrently build the same expensive index for the same key. This is caused by moving the b.cacheMu lock from protecting the entire function to only protecting the final cache assignment. ",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    3
+   ],
+   "confidence": 0.85,
+   "reasoning": "C3 says that, once the lock is narrowed, nothing in BuildIndex stops two callers from building the same key at the same time. This is the duplicate-build race."
+  },
+  {
+   "comment": "Calling s.search.TotalDocs() here may race with concurrent index creation: TotalDocs iterates b.cache without synchronization, and the event watcher goroutine started just above could trigger BuildIndex writes concurrently, potentially causing a concurrent map read/write panic.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 says TotalDocs, called from search.init, loops over b.cache without a lock while the event goroutine's BuildIndex writes to it. This matches the concurrent map read/write issue."
+  }
+ ],
+ "candidates": [
+  "pkg/server/module_server_test.go:35 - The storage-server integration test is now skipped on Postgres instead of fixed.. Before this change the test ran against Postgres in CI. Now it is skipped with a TODO, while the PR says it 'enhanced PostgreSQL integration test compatibility'. With sqlite also skipped, MySQL is the only database that still runs the startup path this PR changes. That path now does the Init and index build inside `NewResourceServer`, which is very likely why the test fails on Postgres. The failure may be a real startup regression, such as a timeout or a blocked constructor, rather than a CI quirk. Find out why it fails before turning the test off.",
+  "pkg/storage/unified/resource/server.go:258 - Removing per-request Init checks means a stopped server keeps serving requests.. `Stop` still sets `s.initErr = fmt.Errorf(\"service is stopping\")` to turn away new work. Before this change every handler (Create, Update, Delete, Read, List, Watch, Search, History, Origin, IsHealthy, PutBlob, GetBlob) called `s.Init(ctx)`, which returned that error. That check is gone, so after `Stop` the server keeps accepting writes and new watches against a backend that has been cancelled, and `IsHealthy` keeps reporting SERVING. Keep a cheap per-request check that doesn't initialise anything, for example `if s.initErr != nil { return nil, s.initErr }`. A stopping flag or atomic would be better, because `initErr` is read and written without synchronisation.",
+  "pkg/storage/unified/search/bleve.go:137 - Narrower locking leaves cache readers such as TotalDocs racing with concurrent BuildIndex writes.. The lock now covers only the map assignment. `TotalDocs` still loops over `b.cache` without taking `cacheMu`, and this PR now calls it from `search.init`. By then the event goroutine is already running, and `handleEvent` can reach `getOrCreateIndex` → `BuildIndex` for a new namespace and write to the map. A map write during an unlocked iteration is a fatal runtime error ('concurrent map iteration and map write'), not a recoverable panic. Also, nothing in `BuildIndex` itself stops two callers building the same key: two file-based builds would call `bleve.New` on the same directory, and the second one fails. Fix: take a read lock in `TotalDocs` and every other cache reader, and make sure each key is only built once, either in `getOrCreateIndex` or with a per-key lock."
+ ]
+}

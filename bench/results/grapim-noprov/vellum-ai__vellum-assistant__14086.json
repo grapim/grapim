@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "vellum-ai__vellum-assistant__14086",
+ "url": "https://github.com/vellum-ai/vellum-assistant/pull/14086",
+ "head_sha": "990547566409d0983ca6e619b628339c9dd46131",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:12:45.858Z",
+ "seconds": 7.45,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "playwright/agent/fixtures.ts",
+   "line": 522,
+   "end_line": 522,
+   "severity": "blocker",
+   "category": "correctness",
+   "title": "defaultsDomain() called without required workerIndex argument.",
+   "body": "`defaultsDomain(workerIndex: number)` requires an argument; calling it with none fails TypeScript compilation, and at runtime yields `com.vellum.vellum-assistant-wundefined`, so the API key is written to the wrong domain. Pass the worker index (e.g. `defaultsDomain(0)` or thread `workerIndex` through). The same applies to line 576."
+  },
+  {
+   "path": "clients/shared/Utilities/LockfilePaths.swift",
+   "line": 7,
+   "end_line": 7,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "BASE_DATA_DIR override for lockfile location removed.",
+   "body": "The lockfile path no longer honors BASE_DATA_DIR, so per-instance/isolated data dirs (used by tests and multi-instance setups) now read the home-dir lockfile instead. If intentional, ensure all writers (CLI) also use the home dir; otherwise restore the override."
+  },
+  {
+   "path": "playwright/agent/fixtures.ts",
+   "line": 589,
+   "end_line": 589,
+   "severity": "warning",
+   "category": "secret",
+   "title": "Lockfile contents dumped to CI logs.",
+   "body": "Printing the first 500 chars of the lockfile to stderr can leak credentials or tokens stored in assistant entries into CI logs. Log only the assistant count/ids instead."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 41900,
+  "cacheWrite": 0,
+  "cacheRead": 4192,
+  "output": 780,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 46092,
+   "outputTokens": 780,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 6,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.1840384
+}

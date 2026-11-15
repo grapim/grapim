@@ -1,0 +1,34 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 flags Error-level logging used for debug/info messages, the same issue as G1."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 flags the ticker change from 10 minutes to 1 minute and the extra database load, the same issue as G2."
+  }
+ ],
+ "candidates": [
+  "Multiple r.log.Error() calls are used for routine cleanup progress logging with messages like 'Annotations to clean by time' and 'cleaned annotations by time'. These are informational/debug messages, not errors. Using Error level will pollute error logs, potentially trigger monitoring alerts, and log potentially large amounts of data. The err parameter logged at lines 534, 554, and 576 is always nil at that point since errors are returned early above.",
+  "The cleanup job ticker was changed from time.Minute * 10 to time.Minute * 1. This change isn't mentioned in the PR description which focuses solely on fixing MySQL deadlocks. Running cleanup 10x more frequently increases database load significantly and creates a mismatch with the 9-minute timeout defined on line 89, potentially causing overlapping cleanup operations.",
+  "The deleteByIDs function builds the ID list string using repeated fmt.Sprintf('%s, %d', values, v) concatenation in a loop, which is O(n²) complexity due to creating a new string allocation on each iteration. For batch sizes up to 32767, this creates tens of thousands of intermediate strings. The same file already uses bytes.Buffer for SQL building elsewhere, which would be O(n) and more consistent with existing patterns."
+ ]
+}

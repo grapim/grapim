@@ -1,0 +1,50 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "sentry-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The OptimizedCursorPaginator in organization_auditlogs.py attempts to use negative slice offsets on Django querysets, but Django querysets do not support negative slicing and will raise an AssertionError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: negative slicing on a Django queryset."
+  },
+  {
+   "comment": "When requests are authenticated with API keys or org auth tokens (which have user_id=None), organization_context.member is None. Line 71 attempts to access organization_context.member.has_global_access without checking if member is None, causing an AttributeError crash when optimized_pagination=true is used, even though the request passed all permission checks with valid org:write scope.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the AttributeError when member is None."
+  },
+  {
+   "comment": "get_item_key assumes a numeric key, but the paginator is used with order_by=-datetime in the audit logs endpoint; calling math.floor/ceil on a datetime will raise a TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out the same problem: math.floor/ceil called on a datetime."
+  },
+  {
+   "comment": "Importing non-existent OptimizedCursorPaginator",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mention the import of a class that doesn't exist."
+  }
+ ],
+ "candidates": [
+  "Django QuerySets do not support negative indexing - when enable_advanced_features is true and cursor.offset is negative, line 882 passes the negative offset directly to queryset[start_offset:stop], which raises AssertionError. Any superuser hitting the audit logs endpoint with optimized_pagination=true and a crafted cursor containing a negative offset will get a 500 error. The fix should clamp start_offset to 0 or reject negative offsets with a BadPaginationError.",
+  "OptimizedCursorPaginator.get_item_key calls math.floor()/math.ceil() directly on datetime objects (line 839), which raises TypeError since datetime does not implement __floor__. The method should convert datetime to float timestamp first like DateTimePaginator does.",
+  "OptimizedCursorPaginator.value_from_cursor returns the raw cursor value (an integer timestamp) instead of converting it back to a datetime, so build_queryset will compare an integer against a DateTimeField on page 2+, causing type mismatch errors. It should convert back using datetime.fromtimestamp() like DateTimePaginator does."
+ ]
+}

@@ -1,0 +1,92 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The PollFeed job calls open(SiteSetting.feed_polling_url) without validating the URL, allowing an attacker who controls the feed_polling_url site setting to make the server fetch arbitrary internal or external URLs.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    6
+   ],
+   "confidence": 0.7,
+   "reasoning": "C6 flags the same unvalidated open(SiteSetting.feed_polling_url) call (command execution via Kernel#open) and recommends validating that the scheme is http(s)."
+  },
+  {
+   "comment": "The current origin validation using indexOf is insufficient and can be bypassed. An attacker could use a malicious domain like evil-discourseUrl.com to pass this check.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate discusses the indexOf origin check."
+  },
+  {
+   "comment": "postMessage targetOrigin should be the origin (scheme+host+port), not the full referrer URL; using the full URL will cause the message to be dropped and prevent resizing.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the postMessage targetOrigin."
+  },
+  {
+   "comment": "The code sets X-Frame-Options: ALLOWALL which completely disables clickjacking protection. The referer validation can be bypassed (referer headers are easily spoofed), and the fallback to empty string for nil referer masks validation failures.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate covers X-Frame-Options ALLOWALL. C4 mentions a forged Referer, but only in the context of throttling."
+  },
+  {
+   "comment": "The TopicEmbed.import method is susceptible to a NoMethodError if the contents parameter is nil when attempting to append a string, and an XSS vulnerability due to unescaped url interpolation in the generated HTML.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.75,
+   "reasoning": "C2 covers the XSS from the unescaped url interpolation in TopicEmbed.import. It does not cover the nil contents NoMethodError."
+  },
+  {
+   "comment": "The ERB block closes with end if, which is invalid Ruby/ERB and will raise at render; it should just be end to close the if block.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the invalid 'end if' in the ERB."
+  },
+  {
+   "comment": "Calling `i.content.scrub` assumes that `i.content` is always populated. However, many RSS feeds do not provide a `content` field, leading to a potential nil pointer exception when `i.content` is nil. A fallback to `description` should be implemented to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    7
+   ],
+   "confidence": 0.95,
+   "reasoning": "C7 identifies the nil i.content.scrub crash and suggests falling back to description."
+  },
+  {
+   "comment": "An unescaped request header (request.referer) is interpolated into JavaScript without proper escaping, which can lead to XSS vulnerabilities if the referer contains malicious content. This issue can allow attackers to execute arbitrary scripts in the context of the application.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate covers the referer being interpolated into JavaScript without escaping."
+  }
+ ],
+ "candidates": [
+  "app/models/post.rb:133 - raw_html posts skip all sanitisation, so imported HTML is stored and served as cooked (stored XSS).. When `cook_method` is `raw_html`, `cook` returns `raw` as it is. That raw HTML comes from external RSS/Atom feeds (`CGI.unescapeHTML` of item content) and from pages fetched by Readability. It is never sanitised and is shown on the main forum and with `raw post.cooked` in the embed view. A `<script>` or `onerror=` in a feed item, or on a page the embeddable host serves, runs in the forum's origin. The flag also stays on the post after it is edited, so anyone who can edit that post can inject HTML. Run the HTML through a whitelist sanitiser (for example `Sanitize` with a relaxed config) before returning it.",
+  "app/models/topic_embed.rb:13 - The feed URL is put into the href attribute without escaping.. `url` comes from the feed item's link/id and is placed straight into `<a href='#{url}'>#{url}</a>`. The only check is that it matches `^https?://`, so a link such as `http://x/' onmouseover='alert(1)` breaks out of the attribute. Because raw_html posts are not sanitised, this becomes stored XSS. Escape it with `ERB::Util.html_escape(url)` for both the attribute and the text.",
+  "app/models/topic_embed.rb:64 - Protocol-relative URLs are rewritten into broken same-host paths.. `//cdn.example.com/img.png` starts with `/`, so it is rewritten to `http://host/cdn.example.com/img.png` because `sub(/^\\/+/, '')` strips both slashes. Every protocol-relative image or link in imported content breaks. Leave `//` URLs alone, or prefix them with the scheme only.",
+  "lib/topic_retriever.rb:21 - The per-URL throttle lets anonymous clients create unlimited topics.. The only throttle is keyed on the exact `embed_url`, and the only checks are a Referer header (which the client controls) and the host. An anonymous client can send `embed/best?embed_url=http://<host>/x?n=1`, `?n=2`, … with a forged Referer. Each request queues a job that fetches the remote page and creates a new topic as `embed_by_username`. That spams topics and makes the server fetch remote pages on demand. Add a global or per-IP rate limit, and/or normalise URLs (drop query strings and fragments) before throttling and importing.",
+  "Gemfile:210 - New gems are added without updating Gemfile.lock.. Only `Gemfile_rails4.lock` is changed. `Gemfile.lock` does not list `ruby-readability` or `simple-rss`, so `bundle install --deployment` / frozen installs fail for the default Gemfile. Regenerate `Gemfile.lock`.",
+  "app/jobs/scheduled/poll_feed.rb:29 - Kernel#open on a URL from a setting allows command execution.. `open(SiteSetting.feed_polling_url)` uses `Kernel#open`. A value starting with `|` runs a shell command, so anyone who can change site settings gets a shell on the server. The handle is also never closed. Use `open-uri` explicitly (`URI.parse(url).open` after checking the scheme is http(s)) or an HTTP client. The same applies to `open(url)` in `TopicEmbed.import_remote`, which the Disqus importer now calls with links taken from the import file.",
+  "app/jobs/scheduled/poll_feed.rb:35 - Items without content (or Ruby versions older than 2.1) crash the poll.. Plain RSS 2.0 items usually carry `description`, not `content`, so `i.content` is nil and `.scrub` raises NoMethodError. `String#scrub` also does not exist before Ruby 2.1. The whole job then aborts, and with `retry: false` nothing is imported. Fall back to `i.description`, and skip items with no content.",
+  "app/models/topic_embed.rb:32 - The update path crashes when the embedded post was deleted.. If the post linked to a TopicEmbed has been deleted (hard-deleted or not found by the default scope), `embed.post` is nil. `PostRevisor.new(nil).revise!` then raises NoMethodError. Each feed poll aborts at that item, so later items are never imported. Guard against a nil post: skip the item, or recreate the topic.",
+  "db/migrate/20131223171005_create_top_topics.rb:3 - An existing migration is edited to force-drop the top_topics table.. Adding `force: true` to an existing migration does nothing on databases that already ran it. Where it does run, it silently drops and recreates `top_topics`, along with any data in it. This has nothing to do with the embedding feature. Revert it.",
+  "lib/tasks/disqus.thor:148 - The Disqus importer loses created_at and category, and fails on any unreachable link.. The change drops the `--category` option and the `created_at` that each thread used to get. Imported topics now land in the default category with the current timestamp. It also does a live HTTP fetch of every thread link: one dead or erroring URL raises and aborts the whole import, which used to need no network. None of this was asked for. Keep `created_at` and category, and rescue fetch errors for each thread.",
+  "app/jobs/scheduled/poll_feed.rb:20 - feed_key is computed but never used.. `feed_key` looks meant for skipping feeds that have not changed (If-Modified-Since), but nothing reads it. As a result, every hourly poll re-parses and re-hashes every item. Either use it or remove it."
+ ]
+}

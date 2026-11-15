@@ -1,0 +1,77 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "mastra-ai__mastra__14950",
+ "url": "https://github.com/mastra-ai/mastra/pull/14950",
+ "head_sha": "eb2932e43ebe6a63d28867cff02c19ef770642fd",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:10:33.505Z",
+ "seconds": 22.432,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "workspaces/e2b/src/sandbox/mounts/s3.ts",
+   "line": 84,
+   "end_line": 91,
+   "severity": null,
+   "category": null,
+   "title": "Late Validation",
+   "body": "The comment says credentials are validated \"before any network calls\", but the check runs only after `sandbox.commands.run('id -u && id -g')`, which is a remote sandbox call. Any setup earlier in `mountS3` that is not shown in this diff (for example, s3fs installation or checks) also runs first.\n\nAs a result, a config with a partial credential pair still makes sandbox round-trips before failing. That partly defeats the stated goal of failing fast. The check depends only on `config`, so it can move to the top of the function before any `sandbox.commands.run` calls."
+  },
+  {
+   "path": "workspaces/blaxel/src/sandbox/mounts/s3.ts",
+   "line": 117,
+   "end_line": 124,
+   "severity": null,
+   "category": null,
+   "title": "Late Validation",
+   "body": "This has the same problem as the e2b version. The partial-credentials check is placed after the `id -u && id -g` sandbox command (and after any earlier setup in this function), even though the comment says it runs \"before any network calls\".\n\nSince the check depends only on `config`, moving it to the start of `mountS3` would make misconfigured mounts fail immediately, as intended."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 6244,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 1056,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 2,
+    "relevant_tests": "Yes\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "workspaces/e2b/src/sandbox/mounts/s3.ts\n",
+      "issue_header": "Late Validation\n",
+      "issue_content": "The comment says credentials are validated \"before any network calls\", but the check runs only after `sandbox.commands.run('id -u && id -g')`, which is a remote sandbox call. Any setup earlier in `mountS3` that is not shown in this diff (for example, s3fs installation or checks) also runs first.\n\nAs a result, a config with a partial credential pair still makes sandbox round-trips before failing. That partly defeats the stated goal of failing fast. The check depends only on `config`, so it can move to the top of the function before any `sandbox.commands.run` calls.\n",
+      "start_line": 84,
+      "end_line": 91
+     },
+     {
+      "relevant_file": "workspaces/blaxel/src/sandbox/mounts/s3.ts\n",
+      "issue_header": "Late Validation\n",
+      "issue_content": "This has the same problem as the e2b version. The partial-credentials check is placed after the `id -u && id -g` sandbox command (and after any earlier setup in this function), even though the comment says it runs \"before any network calls\".\n\nSince the check depends only on `config`, moving it to the start of `mountS3` would make misconfigured mounts fail immediately, as intended.\n",
+      "start_line": 117,
+      "end_line": 124
+     }
+    ],
+    "security_concerns": "No\n"
+   },
+   "usage": {
+    "prompt_tokens": 6244,
+    "completion_tokens": 1056,
+    "total_tokens": 7300
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "\u001b[32m2026-11-15 02:10:20.184\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:10:20.184\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:10:20.514\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 2 🔵🔵⚪⚪⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>PR contains tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>No security concerns identified</strong></td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Late Validation</strong><br>The comment says credentials are validated \"before any network calls\", but the check runs only after `sandbox.commands.run('id -u && id -g')`, which is a remote sandbox call. Any setup earlier in `mountS3` that is not shown in this diff (for example, s3fs installation or checks) also runs first.\n\nAs a result, a config with a partial credential pair still makes sandbox round-trips before failing. That partly defeats the stated goal of failing fast. The check depends only on `config`, so it can move to the top of the function before any `sandbox.commands.run` calls.\n\n<strong>Late Validation</strong><br>This has the same problem as the e2b version. The partial-credentials check is placed after the `id -u && id -g` sandbox command (and after any earlier setup in this function), even though the comment says it runs \"before any network calls\".\n\nSince the check depends only on `config`, moving it to the start of `mountS3` would make misconfigured mounts fail immediately, as intended.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.046096
+}

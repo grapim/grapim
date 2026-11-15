@@ -1,0 +1,104 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "head_sha": "6ad6fe3899f630ccf922ce7ac681147dc7987435",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:27:21.486Z",
+ "seconds": 35.382,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "sentry-repo",
+   "line": 1,
+   "end_line": 1,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "A gitlink to a nested `sentry-repo` checkout was committed by mistake.",
+   "body": "This adds a submodule entry (`Subproject commit a5d2909…`) with no matching `.gitmodules` entry. It looks like a local clone was staged by accident. Clones and CI checkouts will get a broken or empty submodule path, and nothing in the upsampling request calls for it. Remove the gitlink from the change."
+  },
+  {
+   "path": "src/sentry/api/helpers/error_upsampling.py",
+   "line": 135,
+   "end_line": 140,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The error-query check is a plain substring match, so negated or OR'd queries also count as error queries.",
+   "body": "`\"event.type:error\" in query` is also true for `!event.type:error`, for `event.type:error OR event.type:transaction`, and for the string inside a quoted message search. On the discover dataset, those queries return transactions and other non-error events, yet `count()` is still rewritten to `sum(sample_weight)`. Those rows have no or null sample weight, so the counts come out wrong (undercounted or zero). Parse the query with the event search parser and only upsample when there is a single positive `event.type:error` filter."
+  },
+  {
+   "path": "src/sentry/search/events/datasets/discover.py",
+   "line": 1046,
+   "end_line": 1050,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`upsampled_count` adds nothing for events that have no `sample_weight`.",
+   "body": "`toInt64(sum(sample_weight))` assumes every event in an allowlisted project has a non-null sample_weight. Events sent without `contexts.error_sampling` (older SDKs, or events stored before the project was allowlisted) add nothing to the sum. They should each count as 1, so `count()` silently drops below the real event count. I could not check whether the storage layer fills in a default weight. Use `sum(ifNull(sample_weight, 1))` or a similar fallback."
+  },
+  {
+   "path": "src/sentry/api/helpers/error_upsampling.py",
+   "line": 27,
+   "end_line": 38,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "performance",
+   "title": "Caching the allowlist result adds a cache round-trip in front of a lookup that is already cached, and the invalidation helper is never called.",
+   "body": "`options.get` is already served from memory, so putting `cache.get`/`cache.set` in front of it adds a remote cache round-trip to every events-stats request. It also keeps returning an outdated eligibility for up to 60s after the allowlist changes, and `invalidate_upsampling_cache` is never wired to anything. Call `_are_all_projects_error_upsampled` directly instead."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 16532,
+  "cacheRead": 3262,
+  "output": 2752,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 19796,
+   "outputTokens": 2752,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/sentry/search/events/datasets/discover.py",
+    "line": 1041,
+    "end_line": 1052,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`upsampled_count()` is exposed as a public function on every dataset that uses the discover function list.",
+    "body": "The function is not marked `private=True`, so any user can request `upsampled_count()` directly. That includes transaction or other non-error queries where the `sample_weight` column may not exist, which would cause a Snuba error (500) or a meaningless result. Set `private=True` so the function can only be reached through the internal transform."
+   }
+  ]
+ },
+ "cost_usd": 0.1383604
+}

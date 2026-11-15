@@ -1,0 +1,71 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The addGuests.handler.ts blacklist check uses blacklistedGuestEmails.includes(guest) after lowercasing the blacklist but not the input guest emails, allowing attackers to bypass BLACKLISTED_GUEST_EMAILS restrictions by submitting emails with uppercase characters.",
+   "severity": "High",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same case-sensitivity bypass of the blacklist."
+  },
+  {
+   "comment": "The logic for checking team admin/owner permissions is incorrect. This condition uses AND (&&) which requires both isTeamAdmin AND isTeamOwner to be true, but it should use OR (||) since a user needs to be either an admin OR an owner to have permission.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out the same && vs || bug in the admin/owner check."
+  },
+  {
+   "comment": "The sendAddGuestsEmails function in email-manager.ts passes the full calendarEvent.attendees array when determining which attendees receive AttendeeScheduledEmail vs AttendeeAddGuestsEmail, but checks if newGuests.includes(attendee.email) where newGuests is the input guests array.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.8,
+   "reasoning": "Both say the email logic uses the raw input guests array when deciding which attendee email to send, so existing attendees get the wrong email."
+  },
+  {
+   "comment": "uniqueGuests filters out existing attendees and blacklisted emails but does not deduplicate duplicates within the input; createMany can insert duplicate attendee rows if the client submits repeated emails.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions duplicate emails within the input itself."
+  },
+  {
+   "comment": "Starting with an array containing an empty string may cause validation issues. Consider starting with an empty array [] and handling the empty state in the MultiEmail component instead.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions starting the state with an empty-string array. C4 is about the state not resetting when the dialog closes, which is a different issue."
+  },
+  {
+   "comment": "The `sendAddGuestsEmails` function does not check the `disableStandardEmails` flags in the `EventType` metadata, which may result in sending emails to hosts/attendees even when standard emails are disabled for the event type.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the disableStandardEmails flags."
+  }
+ ],
+ "candidates": [
+  "The `blacklistedGuestEmails` array is lowercased but the `guest` email being checked is not lowercased before comparison, allowing users to bypass the email blacklist by using different casing",
+  "The `isTeamAdminOrOwner` variable uses `&&` (AND) but the name and intent indicate `||` (OR). The `isTeamAdmin` function already returns truthy for both ADMIN and OWNER roles, so using `&&` with `isTeamOwner` means team admins who aren't owners are incorrectly denied permission to add guests",
+  "The `sendAddGuestsEmails` function receives `guests` (the original input) instead of `uniqueGuests` (the filtered list of actually added guests), causing existing attendees to receive `AttendeeScheduledEmail` instead of `AttendeeAddGuestsEmail` when a user tries to add an already-existing attendee's email",
+  "The `AddGuestsDialog` component passes `setIsOpenDialog` directly to `onOpenChange`, so internal state (`multiEmailValue` and `isInvalidEmail`) is not reset when dialog is closed via X button or clicking outside, showing stale data when reopened",
+  "The new `MultiEmail` component in `packages/ui/form/MultiEmail.tsx` duplicates existing functionality from `packages/features/form-builder/Components.tsx` instead of extracting the existing one, creating maintenance burden",
+  "The `ZAddGuestsInputSchema` is defined inside the component function body, causing it to be recreated on every render instead of being defined outside the component or in a shared location"
+ ]
+}

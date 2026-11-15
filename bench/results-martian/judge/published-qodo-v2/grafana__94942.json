@@ -1,0 +1,33 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The enableSqlExpressions function has flawed logic that always returns false, effectively disabling SQL expressions unconditionally:",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: enableSqlExpressions always returns false."
+  },
+  {
+   "comment": "The DB methods NewInMemoryDB().RunCommands, DB.QueryFramesInto, and DB.TablesList in pkg/expr/sql/db.go return hardcoded 'not implemented' errors after removing the go-duck dependency.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 is about the stub DB methods returning 'not implemented' errors."
+  }
+ ],
+ "candidates": [
+  "enableSqlExpressions() currently returns false in all cases and negates the feature flag, making FlagSqlExpressions ineffective - this is either a functional regression or maintainability hazard",
+  "SQL disablement via stub DB returns generic 'not implemented' errors, causing confusing user-facing errors and misleading 'invalid sql query' logs that include raw SQL, creating log spam and poor UX for existing dashboards with SQL expressions"
+ ]
+}

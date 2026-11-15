@@ -1,0 +1,101 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "elastic__kibana__255866",
+ "url": "https://github.com/elastic/kibana/pull/255866",
+ "head_sha": "a6802508b578eef72844226f3145fd58515a742d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:08:59.432Z",
+ "seconds": 48.941,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 145,
+   "end_line": 150,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Raw encrypted values in `_source` are returned untouched when the `_id` column is absent.",
+   "body": "`decryptSourceColumn` returns the response unchanged when `_source` is present but `_id` is not. That happens with `metadata: ['_source']`, or with `metadata: ['_id','_source']` plus `| DROP _id`.\n\n`stripEncryptedColumns` only nulls columns named exactly `<type>.<attr>`, so it never touches `_source`. The full encrypted attribute ciphertext is therefore handed back to the caller. This contradicts the docs, which say encrypted attributes in `_source` are decrypted or stripped. The unit test at line 410 even locks this behaviour in.\n\nFix: when `_source` is present but decryption cannot run, strip the encrypted attributes from each row's `_source[type]` using `getEncryptedAttributes`."
+  },
+  {
+   "path": "tasks/prd.json",
+   "line": 1,
+   "end_line": 186,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Agent scratch files (PRD and progress log) are committed to the repository root.",
+   "body": "`tasks/prd.json` and `tasks/progress.txt` are working notes from an autonomous agent loop (\"Ralph Progress Log\", branch name, per-story `passes` flags). They are not part of the feature and add an unrelated top-level `tasks/` directory to Kibana.\n\nRemove both files from the PR."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 51,
+   "end_line": 56,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "The pipeline is not required to start with `|`, so callers can extend the generated FROM clause.",
+   "body": "The only check on `pipeline` is a regex that rejects a leading `FROM|ROW|SHOW|METRICS`. The result is then concatenated as `` `${fromClause} ${pipeline}` ``.\n\nA pipeline such as `, logs-*,.security* | KEEP ...` or ` METADATA _index | ...` passes the check. It becomes `FROM .kibana_x , logs-* | ...`, which queries extra indices with the `kibana_system` user's privileges. That defeats the point of auto-generating FROM from `type`.\n\nThe injected `filter` still applies. However, any foreign document carrying matching `type`/`namespaces` fields would be returned, and this turns on index contents you cannot control.\n\nFix: require `pipeline.trimStart()` to be empty or to start with `|`, and reject everything else."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 173,
+   "end_line": 181,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`_source` decryption uses the raw ES `_id` and drops `namespace`, so AAD never matches and secrets are always stripped.",
+   "body": "The ES `_id` metadata column holds the raw document id, which is `[namespace:]type:id` (for example `index-pattern:abc`), not the saved object id. That raw value is passed as `id` to `decryptOrStripResponseAttributes`.\n\nFor single-namespace types, `source.namespace` is also ignored; only `namespaces` is copied.\n\nAAD is built from type, id and namespace, so decryption fails for real documents and always falls back to stripping. The advertised decrypt path therefore never works; the unit tests mock the extension and hide this.\n\nFix: convert the raw id with the serializer (`rawToSavedObject` or `serializer.rawToSavedObject({_id, _source})`) to get the proper `id`, `namespace` and `namespaces` before decrypting."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 232,
+   "end_line": 242,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Encrypted-column nulling matches exact column names only, so a rename or EVAL bypasses it.",
+   "body": "Encrypted columns are identified only when the output column name equals `${typeName}.${attrName}`. A pipeline like `| EVAL s = connector.secrets | KEEP s`, `| RENAME connector.secrets AS s`, or `| STATS v = VALUES(connector.secrets)` returns the stored ciphertext under a different name, and nothing nulls it.\n\nThe tutorial and JSDoc promise these values are \"always replaced with null\". Whether the encrypted attribute is mapped (and so visible to ES|QL) depends on each type's mappings, which I cannot see here.\n\nFix: reject pipelines that reference encrypted attribute fields at all, or document this as best-effort only. Do not rely on the output column name."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 50323,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 4608,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 25,
+   "hunks": 30,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 53440,
+   "outputTokens": 4608,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 25,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.29407540000000004
+}

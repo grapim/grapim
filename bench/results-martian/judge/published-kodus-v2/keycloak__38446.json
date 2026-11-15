@@ -1,0 +1,31 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Unsafe raw List deserialization without type safety. Calling Optional.get() directly on the Optional returned by RecoveryAuthnCodesUtils.getCredential(user) without checking isPresent() can lead to a NoSuchElementException if the Optional is empty.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 flags the Optional.get() call made without an isPresent() check on RecoveryAuthnCodesUtils.getCredential. That is the same problem G1 describes."
+  },
+  {
+   "comment": "After creating the RecoveryAuthnCodesCredentialModel, consider setting its id from the stored credential (e.g., myUser.recoveryCodes.getId()); otherwise getId() will be null and downstream removal by id (e.g., removeStoredCredentialById in the authenticator flow) may not work.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "Neither candidate says the credential model's id is never set from the stored credential, which leaves getId() null and breaks removal by id."
+  }
+ ],
+ "candidates": [
+  "Unsafe Optional.get() call without isPresent() guard in RecoveryAuthnCodeInputLoginBean.java line 19 will throw NoSuchElementException if no credential exists, while the same utility call in RecoveryAuthnCodesFormAuthenticator.java properly guards with isPresent() check",
+  "Dual-path credential creation creates security inconsistency: createRecoveryCodesCredential sends raw (unhashed) recovery codes to user storage via UserCredentialModel.challengeResponse, while the local credential provider fallback stores hashed codes. This means federated storage recovery codes are not hashed at rest while local storage hashes them."
+ ]
+}

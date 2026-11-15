@@ -1,0 +1,77 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "immich-app__immich__32240",
+ "url": "https://github.com/immich-app/immich/pull/32240",
+ "head_sha": "4e89904e255e00310d7661f6d45212a5a6e56d85",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:19:04.086Z",
+ "seconds": 42.405,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "server/test/medium/specs/workflow/workflow-core-plugin.spec.ts",
+   "line": 112,
+   "end_line": 112,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`Kysely` and `DB` are used in a type annotation, but this PR adds no imports for them.",
+   "body": "The new `let db: Kysely<DB>;` needs `Kysely` (from `kysely`) and `DB` (the generated schema type) in scope. The CHANGES counts (+36 −1) leave no room for new import lines, and before this change the file only needed `const db = await getKyselyDB()`, which has no annotation. If neither name was already imported, `tsc` / the type-check CI step fails, even though vitest still runs because esbuild strips types. I could not see the file's import block to confirm. Fix: add the imports, or drop the annotation with `let db: Awaited<ReturnType<typeof getKyselyDB>>;`.",
+   "raised": 2
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 8,
+  "cacheWrite": 10168,
+  "cacheRead": 23216,
+  "output": 3851,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 33392,
+   "outputTokens": 3851,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 4,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #32083",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "server/test/medium/specs/workflow/workflow-core-plugin.spec.ts",
+    "line": 776,
+    "end_line": 782,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Updating step orders one row at a time can hit a uniqueness constraint on (workflowId, order).",
+    "body": "The helper probably gives the steps orders 0 and 1 in insertion order (favourite = 0, filter = 1). The loop then rewrites them one row at a time, in whatever order the unordered select returns them. If the filter is updated to 0 while the favourite still holds 0, and `workflow_step` has a unique index on `(workflowId, order)`, the test fails with a constraint violation, and only sometimes. I could not see the schema to check for that index. Fix: update both rows in one statement with a CASE, or move one row to a temporary value first.",
+    "raised": 2
+   }
+  ]
+ },
+ "cost_usd": 0.13253520000000002
+}

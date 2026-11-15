@@ -1,0 +1,29 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The magic number 50 for max_wait is used repeatedly throughout the tests. Consider extracting this as a named constant to improve maintainability.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "Neither candidate mentions the magic number 50 or extracting it into a constant."
+  },
+  {
+   "comment": "The test test_thread_queue_parallel_error_handling has a docstring that doesn't match the test implementation.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 points to a race in a stats assertion, not to a docstring that doesn't match test_thread_queue_parallel_error_handling. C2 is about reusing the queue pool after shutdown."
+  }
+ ],
+ "candidates": [
+  "The assertion `assert stats[\"total_items\"] > 0` at line 200 is race-prone: worker threads may process all 10 items before `get_stats()` is called, causing the assertion to fail",
+  "The `create_thread_queue_parallel_worker` method reuses the same `self.queue_pool` instance across multiple calls to `create_with_partitions`. When Arroyo rebalances partitions, the previous strategy's `close()` already called `self.queue_pool.shutdown()`, so subsequent calls pass the shutdown pool to new `SimpleQueueProcessingStrategy` instances, causing `put()` operations to raise exceptions and break message processing"
+ ]
+}

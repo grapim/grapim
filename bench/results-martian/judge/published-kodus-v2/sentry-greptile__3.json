@@ -1,0 +1,43 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In _set_sample_rate_from_error_sampling(), the check `if client_sample_rate:` treats 0.0 as falsy, so a sample_rate of 0.0 is silently skipped and never set on normalized_data.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the 0.0 sample rate falsy check."
+  },
+  {
+   "comment": "Using Python’s built-in hash() to build cache keys is non-deterministic across processes (hash randomization), so keys won’t match across workers and invalidate_upsampling_cache may fail to delete them. Use a deterministic serialization of project_ids for the cache key.",
+   "severity": "Low",
+   "category": "data",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same non-deterministic hash() cache key issue."
+  },
+  {
+   "comment": "The upsampling eligibility check passes the outer dataset instead of the actual dataset used by scoped_dataset. In paths where the query ultimately runs against discover (e.g., dashboard split) while the original dataset is metrics, upsampling may be skipped even when all projects are allowlisted.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 describes passing the outer dataset instead of scoped_dataset."
+  }
+ ],
+ "candidates": [
+  "Non-deterministic cache key due to hash() on tuples - Python 3 randomizes hash() for tuples via PYTHONHASHSEED, causing cache misses across processes and invalidate_upsampling_cache to fail to delete correct keys",
+  "Dataset mismatch in upsampling eligibility check - is_errors_query_for_error_upsampled_projects receives the outer-scope dataset instead of the scoped_dataset parameter passed to _get_event_stats, causing incorrect upsampling decisions for split-dataset queries",
+  "Missing upsampled_count SnQLFunction definition for the errors dataset - the function is only registered in discover.py but _should_apply_sample_weight_transform returns True for errors dataset, causing unknown function errors",
+  "Missing private=True on upsampled_count SnQLFunction exposes it as a public function callable by any user, bypassing the allowlist gate and potentially executing sum(sample_weight) on projects where sample_weight may not exist"
+ ]
+}

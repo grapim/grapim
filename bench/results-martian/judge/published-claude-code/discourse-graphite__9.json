@@ -1,0 +1,34 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "discourse-graphite__9",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The @loaded_locales instance variable in translate_accelerator.rb is lazily initialized and accessed by multiple concurrent threads without synchronization.",
+   "severity": "Low",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.6,
+   "reasoning": "C1 raises possible race conditions in translate_accelerator.rb's locale loading via the new ensure_loaded! entry point. That broadly matches the unsynchronized concurrent access to @loaded_locales, though C1 is vaguer than G1."
+  },
+  {
+   "comment": "Consider normalizing the input locale (e.g., to a symbol) when checking/loading here to avoid double-loading if the same locale is passed as a String vs Symbol (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "C1 mentions double-loading only in general terms. No candidate points to the String vs Symbol locale mismatch or suggests normalizing the locale."
+  }
+ ],
+ "candidates": [
+  "The translate_accelerator.rb freedom patch has its own locale loading logic, and the new ensure_loaded! method adds another entry point that should be verified for race conditions or double-loading issues",
+  "FallbackLocaleList class inherits from Hash but only implements [] and ensure_loaded!, meaning other Hash methods could return unexpected results if called by the i18n framework internally",
+  "ensure_loaded! call happens on every request, which has performance implications",
+  "Use of send(:include) to monkey-patch backend classes is fragile across gem upgrades",
+  "No test files are included in the diff for the new i18n fallback system"
+ ]
+}

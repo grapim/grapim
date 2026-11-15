@@ -1,0 +1,92 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "oven-sh__bun__25462",
+ "url": "https://github.com/oven-sh/bun/pull/25462",
+ "head_sha": "7cdf07e36e3785afa797f5ef753f478dbfb3ea31",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:06:59.097Z",
+ "seconds": 38.947,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/ast/P.zig",
+   "line": 2681,
+   "end_line": 2687,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Other bun:bundle import forms leave unbound identifiers that throw at runtime",
+   "body": "The whole import statement is replaced with `S.Empty`, and only the `feature` item gets a declared symbol.\n\n- For any other named specifier, the local binding is never declared. Its references become unbound globals and throw `ReferenceError`, even though the warning says the value \"will be undefined\".\n- `import * as b from \"bun:bundle\"` and `import d from \"bun:bundle\"` are dropped silently, with no diagnostic. A later `b.feature(\"X\")` then fails at runtime.\n\nFix: report namespace, default and unknown specifiers as errors, or declare them so they really evaluate to `undefined`."
+  },
+  {
+   "path": "src/bundler/bundle_v2.zig",
+   "line": 1840,
+   "end_line": 1840,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "BundleOptions ends up pointing at a set it does not own, which deinit then frees",
+   "body": "`transpiler.options.bundler_feature_flags = &config.features` stores a pointer to a field inside the JS build config. The new `BundleOptions.deinit` frees any pointer that is not the static empty set: it calls `deinit()` and then `allocator.destroy()`.\n\nIf this transpiler is ever deinitialised, that pointer was never allocated with `allocator.create`, so `destroy` is an invalid free. `config.deinit()` also frees `self.features`, which makes it a double free. The pointer also becomes dangling if the config is torn down before the transpiler. I could not see whether this transpiler's `deinit` runs on the Bun.build path.\n\nFix: track ownership explicitly, for example with an `owns_bundler_feature_flags` bool, or clone the set into transpiler-owned memory."
+  },
+  {
+   "path": "src/runtime.zig",
+   "line": 216,
+   "end_line": 216,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Feature flags are not part of the runtime transpiler cache key",
+   "body": "`bundler_feature_flags` changes the transpiled output: `feature(\"X\")` becomes `true` or `false`. It is not added to `hash_fields_for_runtime_transpiler` and is not mixed into the cache hash in any other visible way.\n\nWith the runtime transpiler cache on, a file transpiled by `bun run index.ts` is stored with `false` baked in. A later `bun run --feature=X index.ts` (or `bun test --feature=X`) can load that cached output and still see `false`, and the reverse also happens. This only affects files large enough to be cached, so the result depends on file size.\n\nFix: fold the sorted flag set into the cache hash, or skip the cache when any flag is set or the file imports `bun:bundle`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 31995,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 3564,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 35,
+   "reviewedHunks": 35,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 35112,
+   "outputTokens": 3564,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/cli/build_command.zig",
+    "line": 85,
+    "end_line": 85,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "other",
+    "title": "Feature-flag set is allocated twice; the first copy leaks",
+    "body": "`BundleOptions.fromApi` already builds `bundler_feature_flags` from `ctx.args.feature_flags`, assuming the transpiler is initialised from `ctx.args`. This line then builds a second set and overwrites the pointer, so the first allocation is never freed. Drop the reassignment here, or only assign when the field is still the empty set."
+   }
+  ]
+ },
+ "cost_usd": 0.1998834
+}

@@ -1,0 +1,34 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 flags the debug info logged at Error level, which is the same issue as G1."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 flags the cleanup ticker change from 10 minutes to 1 minute, which is the same issue as G2."
+  }
+ ],
+ "candidates": [
+  "Six r.log.Error() calls (lines 534, 537, 554, 557, 576, 579) log routine cleanup operational info at ERROR level - these are debug statements that were not removed before submission",
+  "The cleanup ticker interval was changed from 10 minutes to 1 minute (time.Minute * 1), causing all 8 cleanup jobs to run 10x more frequently - this appears to be a debugging/testing change accidentally included",
+  "deleteByIDs at line 608 checks r.cfg.AnnotationCleanupJobBatchSize > sqliteParameterLimit but should check len(ids) > sqliteParameterLimit instead - when batchSize is configured above 999, the last partial batch with fewer than 999 IDs will unnecessarily use string-interpolation instead of safer parameterized queries"
+ ]
+}

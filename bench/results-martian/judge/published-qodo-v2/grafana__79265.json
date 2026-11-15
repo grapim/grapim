@@ -1,0 +1,62 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same race: COUNT followed by INSERT with no transaction, so concurrent requests can exceed the limit."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2,
+    4
+   ],
+   "confidence": 0.6,
+   "reasoning": "C2 points out that anonymous auth fails with a 401 when the device limit is reached. C4 points out that TagDevice now runs synchronously inside Authenticate, so tagging is no longer non-blocking. Each covers part of the golden concern."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    3
+   ],
+   "confidence": 0.8,
+   "reasoning": "C3 flags the same code: updateDevice treats RowsAffected()==0 as 'limit reached', which is wrong. It gives a different reason for the zero count, but it is the same misinterpretation."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the inconsistent time window calculation."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the cache being populated before CreateOrUpdateDevice runs, which lets later requests bypass the limit."
+  }
+ ],
+ "candidates": [
+  "Device limit enforcement uses COUNT then a separate INSERT/UPDATE without transactional protection, allowing concurrent requests to observe count < limit and insert, exceeding the configured device limit",
+  "When the device limit is reached, anonymous authentication returns a raw sentinel error (not errutil), which is handled by the middleware as a generic 401/redirect, making the user/admin experience unclear and hard to distinguish from other auth failures",
+  "updateDevice treats RowsAffected()==0 as 'device limit reached', but some DBs can return 0 even when a row matched but no effective change occurred (e.g., timestamp precision truncation), which can incorrectly deny an existing device when the limit is reached",
+  "Anonymous.Authenticate now calls TagDevice synchronously using the request context, and TagDevice can execute DB work (COUNT + INSERT/UPDATE) on cache misses, coupling request authentication latency/reliability to the anon_device DB path without an explicit timeout bound"
+ ]
+}

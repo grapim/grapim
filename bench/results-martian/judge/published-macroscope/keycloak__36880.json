@@ -1,0 +1,61 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "keycloak__36880",
+ "url": "https://github.com/keycloak/keycloak/pull/36880",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Inconsistent feature flag bug causing orphaned permissions. The AdminPermissions event listener, responsible for cleaning up permissions upon role, client, or group removal, is incorrectly guarded by the ADMIN_FINE_GRAINED_AUTHZ (V1) feature flag. This is inconsistent with other methods in the class that use ADMIN_FINE_GRAINED_AUTHZ_V2. Consequently, if ADMIN_FINE_GRAINED_AUTHZ_V2 is enabled but V1 is not, the permission cleanup logic will not execute, leading to orphaned permission data. Cleanup should occur regardless of which fine-grained authorization version is enabled.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the V1 vs V2 feature-flag guard on the cleanup event listener."
+  },
+  {
+   "comment": "In hasPermission(ClientModel client, String scope), the resource lookup uses findByName(server, client.getId(), server.getId()), but AdminPermissionsSchema.getOrCreateResource creates per-client resources with the owner set to resourceServer.getClientId(), so this lookup will never find those resources and will always fall back to the 'all-clients' resource, effectively ignoring client-specific permissions.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same owner mismatch (getId vs getClientId), which causes per-client permissions to be ignored."
+  },
+  {
+   "comment": "In getClientsWithPermission(String scope), iterating resourceStore.findByType(server, AdminPermissionsSchema.CLIENTS_RESOURCE_TYPE) and returning resource.getName() will only ever consider the type-level 'Clients' resource (per-client resources have no type) and return its name, while AvailableRoleMappingResource#getRoleIdsWithPermissions expects actual client IDs to pass to realm.getClientById, which can lead to incorrect behavior or a null client and subsequent failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.75,
+   "reasoning": "C2 points out that findByType misses per-client resources because they have no type, which is the core of G3."
+  },
+  {
+   "comment": "In ClientPermissionsV2.hasPermission, the method getResourceTypeResource could return null, leading to a NullPointerException in findByResource. Defensive null checks are needed to prevent this issue.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions a possible null from getResourceTypeResource leading to an NPE."
+  },
+  {
+   "comment": "Remove unused getEvaluationContext private method in ClientPermissionsV2 - it is defined but never called",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the unused getEvaluationContext method."
+  }
+ ],
+ "candidates": [
+  "hasPermission(ClientModel, String) looks up client resources using resourceServer.getId() as the owner filter, but client resources are created with resourceServer.getClientId() as the owner, so per-client permissions are silently ignored and only global 'all clients' permissions take effect",
+  "getClientsWithPermission iterates resources by type 'Clients', but client-instance resources created via AdminPermissionsSchema.getOrCreateResource are stored with no explicit type (defaults to null), causing the method to miss all per-client resources and return an incomplete set",
+  "canManage(ClientModel client) only checks the legacy MANAGE_CLIENTS role or a resource-specific permission for that client, but does not check the realm-wide fine-grained manage permission on the Clients resource type, causing admins with only the global V2 manage permission to be incorrectly denied",
+  "canView() returns false for admins who have only the all-clients manage permission, breaking realm-wide client visibility since the manage scope should subsume view but the implementation only checks canViewClientDefault() and the view scope",
+  "When getOrCreateResource creates a client resource, it sets name to client.getId() but never calls setDisplayName, and getResourceName only special-cases Users, causing client permission listings to show null instead of a human-readable name",
+  "hasGrantedPermission() only evaluates the passed resource, so getClientsWithPermission() misses permissions granted through the shared 'all clients' resource, returning an empty set even when canView(client)/canManage(client) would succeed for those clients"
+ ]
+}

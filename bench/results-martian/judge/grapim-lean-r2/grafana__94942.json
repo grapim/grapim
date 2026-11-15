@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The enableSqlExpressions function has flawed logic that always returns false, effectively disabling SQL expressions unconditionally:",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out the same problem: enableSqlExpressions returns false no matter what the flag says."
+  },
+  {
+   "comment": "The DB methods NewInMemoryDB().RunCommands, DB.QueryFramesInto, and DB.TablesList in pkg/expr/sql/db.go return hardcoded 'not implemented' errors after removing the go-duck dependency.",
+   "severity": "High",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the DB methods in db.go that return hardcoded 'not implemented' errors."
+  }
+ ],
+ "candidates": [
+  "pkg/expr/reader.go:194 - enableSqlExpressions checks the feature flag but always returns false anyway.. `enableSqlExpressions` reads `FlagSqlExpressions`, but both branches return `false`, so the flag has no effect. That disabling is what this PR is for. The problem is that the code reads as if the flag still turns SQL expressions on, which could mislead whoever edits it next. It also calls `h.features` for nothing, and that would panic if a reader were ever built with nil features. Fix: return `false` directly, with a comment pointing to CVE-2024-9264, or drop the helper and reject `QueryTypeSQL` outright."
+ ]
+}

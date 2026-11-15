@@ -1,0 +1,72 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The BrowserReportingCollectorEndpoint returns HttpResponse objects but the endpoint inherits from Endpoint which expects rest_framework.response.Response objects.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the HttpResponse vs Response issue."
+  },
+  {
+   "comment": "In BaseDetectorTypeValidator.update(), the validator incorrectly updates instance.type using validated_data.get('detector_type') instead of validated_data.get('type').",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C7 is about checking the owner, not the detector_type key."
+  },
+  {
+   "comment": "Using zip(error_ids, events.values()) assumes the get_multi result preserves the input order; dict value order is not guaranteed to match error_ids, so event data can be paired with the wrong ID (missing nodes also shift alignment).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.95,
+   "reasoning": "C5 raises the same zip ordering issue."
+  },
+  {
+   "comment": "Hardcoded empty data passed to TableWidgetVisualization causes it to always render an empty table instead of displaying actual results when the feature flag is enabled.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 raises the same hardcoded empty table issue."
+  },
+  {
+   "comment": "Validation logic incorrectly uses .get('timestamp'), which treats a timestamp of 0 as absent. It should directly check 'timestamp' in self.initial_data to ensure proper field presence detection, preventing both 'age=0' and 'timestamp' from passing mutual-exclusion validation.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the timestamp-of-0 validation issue."
+  },
+  {
+   "comment": "Analytics events are recorded before the feature flag check, resulting in analytics being logged for all requests, including those that return 404 due to the feature being disabled. This can lead to misleading analytics data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions analytics being recorded before the feature flag check."
+  }
+ ],
+ "candidates": [
+  "static/app/views/dashboards/widgetCard/chart.tsx:164 - With the feature flag on, table widgets always render empty.. When the org has `use-table-widget-visualization`, the code renders `TableWidgetVisualization` with `columns={[]}` and empty `data`/`meta`, and ignores `result.data`, `result.meta`, `fields` and `loading`. Every table widget for those orgs shows no data. Pass the real query results and columns, or keep the flag-gated branch out until it is wired up.",
+  "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx:65 - Hidden attributes are filtered out only while a search query is set.. `HIDDEN_ATTRIBUTES` is applied only inside the `filter` that runs after the early `if (!searchQuery.trim()) return sorted;`. With an empty search box, which is the default view, `is_segment`, `project_id` and `received` still appear. They disappear only once the user types a query. Apply the hidden-attribute filter before the early return, for example `const sorted = sortAttributes(attributes).filter(a => !HIDDEN_ATTRIBUTES.includes(a.name));`.",
+  "src/sentry/migrations/0917_convert_org_saved_searches_to_views.py:14 - Saved-search migrations turned into no-ops, pointing to a 0921 migration this PR does not add.. 0917 and 0920 no longer convert org-visibility SavedSearch rows into GroupSearchView. The comment points to `0921_convert_org_saved_searches_to_views_rerevised.py`, but the CHANGES list has no 0921 file. This PR also deletes `tests/sentry/migrations/test_0917_convert_org_saved_searches_to_views.py`. I can't see the rest of the repository. If 0921 is not already there, org saved searches are never converted on any install that has not run 0917/0920 yet. The request is about replay bulk delete and does not mention this change. Check that 0921 exists and does the conversion correctly (filtering `owner_id__isnull=False`), or move this change to its own PR together with that migration.",
+  "src/sentry/migrations/0920_convert_org_saved_searches_to_views_revised.py:13 - Comment says the revised migration was never run, but this one already had the null-owner fix.. 0920 already filtered `owner_id__isnull=False` and is now emptied with the same comment, \"had an error and was never run\". If 0920 already ran on some deployments (self-hosted or other regions), that comment is wrong. On installs that have not run it yet, the data conversion silently disappears unless 0921 exists and does it. 0921 is not in this PR. Confirm that 0921 exists and is idempotent with any earlier 0920 run, since it uses `update_or_create` keyed on org, user and name.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:118 - Zipping error_ids with get_multi values can pair IDs with the wrong events.. `nodestore.backend.get_multi` returns a dict keyed by node id. Backends may leave out keys that were not found, and dict order is not guaranteed to match the request order. `zip(error_ids, events.values())` then pairs an error id with another event's data, or shifts every id after a missing one, so wrong titles and timestamps are attached to error ids. Look up each event by its node id instead: `for eid, nid in zip(error_ids, node_ids): data = events.get(nid)`.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:153 - Error timestamps in seconds are compared with replay event timestamps in milliseconds.. `fetch_error_details` takes `timestamp` from the nodestore event data, which is in epoch seconds. Replay recording events (rrweb frames) carry `timestamp` in epoch milliseconds. Because of this, `error_events[idx][\"timestamp\"] < event.get(\"timestamp\", 0)` is true for almost every error, so all errors are output before the first breadcrumb. The chronological merge, which is the point of this change, never happens, and the LLM gets errors out of order. Convert one side so both use the same unit, for example multiply the error timestamp by 1000 before the comparison.",
+  "src/sentry/workflow_engine/endpoints/validators/base/detector.py:37 - The detector owner is not checked against the detector's organization.. `ActorField` only parses `user:<id>`/`team:<id>` into an Actor. It does not check that the user or team belongs to the request's organization. Neither `create` nor `update` checks this either, so a client can set any user or team id, including ones from other organizations, as the detector owner. Other Sentry serializers that accept `owner` check membership. Add a `validate_owner` that confirms the team is in `self.context[\"organization\"]` and the user is a member of it. I could not see `ActorField` in this diff to confirm it does no such check.",
+  "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx:50 - The attribute-keys query no longer turns off retries or window-focus refetching.. The old `useApiQuery` call set `retry: false`, `refetchOnWindowFocus: false` and `staleTime: 0`. The new `useQuery` sets none of them, so it falls back to the query client's defaults. If the request fails, it is retried before the error appears. Every time the window regains focus it can refetch, and because `isLoading` now maps to `isFetching`, consumers flip back into a loading state on each of those background refetches. Put back `retry: false, refetchOnWindowFocus: false, staleTime: 0` to keep the old behaviour. I couldn't see the query client's default settings to confirm how many retries happen.",
+  "static/app/views/performance/newTraceDetails/traceTabsAndVitals.tsx:27 - Second placeholder group loses its gap and vertical alignment.. The removed `FlexBox` set `align-items: center` and `gap: space(1)` on both placeholder groups. The new second `<Flex>` (line 27) has neither prop, so the three 100px placeholders now sit flush against each other. The loaded container on line 93 also no longer gets `align` or `gap`. To keep the old layout, add `align=\"center\" gap={space(1)}` to these `Flex` elements."
+ ]
+}

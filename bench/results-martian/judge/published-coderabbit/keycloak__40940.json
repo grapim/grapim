@@ -1,0 +1,30 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "keycloak__40940",
+ "url": "https://github.com/keycloak/keycloak/pull/40940",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returning null from getSubGroupsCount() violates the GroupModel contract (Javadoc says it never returns null) and may lead to NPEs in callers that expect a non-null count.",
+   "severity": "Critical",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention getSubGroupsCount returning null."
+  },
+  {
+   "comment": "The reader thread isn’t waited for; flipping deletedAll to true and asserting immediately can race and miss exceptions added just after the flag change, making this test flaky.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out the same problem: the reader thread is never joined before the assertion, so the test has a race and can be flaky."
+  }
+ ],
+ "candidates": [
+  "Missing thread join causes potential test flakiness - the reader thread is never joined before asserting on caughtExceptions, creating a race condition where the reader thread might still be mid-iteration catching an exception and adding it to caughtExceptions after the assertion completes, which could cause intermittent test failures or false passes"
+ ]
+}

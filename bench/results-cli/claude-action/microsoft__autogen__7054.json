@@ -1,0 +1,161 @@
+{
+ "tool": "claude-action",
+ "pr_id": "microsoft__autogen__7054",
+ "url": "https://github.com/microsoft/autogen/pull/7054",
+ "head_sha": "1921f6253f1e64c324be890d96fc9aa9a21d1d8b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T07:02:33.657Z",
+ "seconds": 79.575,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "python/packages/autogen-ext/src/autogen_ext/models/openai/config/__init__.py",
+   "line": 103,
+   "end_line": 103,
+   "severity": null,
+   "category": null,
+   "title": "`\"minimal\"` is missing, and GPT-5 supports it.** GPT-5 models accept `reasoning_effort=\"minimal\"`, and the PR is about GPT-5 support. With this Literal, Pydantic rejects `\"minimal\"` when the client is",
+   "body": "**`\"minimal\"` is missing, and GPT-5 supports it.** GPT-5 models accept `reasoning_effort=\"minimal\"`, and the PR is about GPT-5 support. With this Literal, Pydantic rejects `\"minimal\"` when the client is loaded from a config through `load_component`, so declarative/serialized configs can't use GPT-5's lowest-latency mode. It also creates an inconsistency: `OpenAIChatCompletionClient(reasoning_effort=\"minimal\")` works at runtime (only a type checker complains), but the same config fails after `dump_component()` → `load_component()`.\n\nSuggest adding it here and in the `CreateArguments` TypedDict (line 53):\n```suggestion\n    reasoning_effort: Literal[\"minimal\", \"low\", \"medium\", \"high\"] | None = None\n```\nNote: `openai>=1.93` (the current pin) types `ReasoningEffort` without `\"minimal\"`; it was added in the SDK around 1.99. Either bump the lower bound or keep our own Literal as the source of truth. Also add `\"minimal\"` to the valid values in `test_reasoning_effort_validation`."
+  },
+  {
+   "path": "python/packages/autogen-ext/src/autogen_ext/models/openai/config/__init__.py",
+   "line": 53,
+   "end_line": 53,
+   "severity": null,
+   "category": null,
+   "title": "Keep this in sync with the Pydantic model on line 103. If `\"minimal\"` is added there, add it here too. A shared alias would stop the two definitions drifting apart, e.g. `ReasoningEffort = Literal[\"mi",
+   "body": "Keep this in sync with the Pydantic model on line 103. If `\"minimal\"` is added there, add it here too. A shared alias would stop the two definitions drifting apart, e.g. `ReasoningEffort = Literal[\"minimal\", \"low\", \"medium\", \"high\"]`, used in both places."
+  },
+  {
+   "path": "python/packages/autogen-ext/src/autogen_ext/models/openai/_openai_client.py",
+   "line": 1252,
+   "end_line": 1252,
+   "severity": null,
+   "category": null,
+   "title": "Docs:** `reasoning_effort` isn't listed in the `OpenAIChatCompletionClient` args docstring, and it's also missing from the `AzureOpenAIChatCompletionClient` docstring near line 1593. Since this PR exp",
+   "body": "**Docs:** `reasoning_effort` isn't listed in the `OpenAIChatCompletionClient` args docstring, and it's also missing from the `AzureOpenAIChatCompletionClient` docstring near line 1593. Since this PR exposes the parameter as typed config, please document it in both places, for example:\n```\nreasoning_effort (optional, Literal[\"minimal\", \"low\", \"medium\", \"high\"]): Controls how much reasoning effort\n    reasoning models (o1/o3/o4-mini/GPT-5) spend. Not supported by non-reasoning models. When not set, defaults to server behavior.\n```"
+  },
+  {
+   "path": "python/packages/autogen-ext/tests/models/test_openai_model_client.py",
+   "line": 3356,
+   "end_line": 3356,
+   "severity": null,
+   "category": null,
+   "title": "This test locks in a behavior that's likely to cause problems. An explicit `reasoning_effort=None` stays in `_create_args`, and `create()` forwards it to `chat.completions.create(**create_args)`. The ",
+   "body": "This test locks in a behavior that's likely to cause problems. An explicit `reasoning_effort=None` stays in `_create_args`, and `create()` forwards it to `chat.completions.create(**create_args)`. The OpenAI SDK serializes `None` as JSON `null`, not as \"omitted\" (`NOT_GIVEN`). Some OpenAI-compatible endpoints (and non-reasoning models on some providers) reject `\"reasoning_effort\": null`.\n\nOther params already behave this way, so this isn't new to this PR. Still, it's worth either:\n- dropping `None`-valued keys when building `create_args`, or\n- not asserting this as intended behavior in a test, so a later fix isn't blocked.\n\nAt minimum, the comment should say *why* `None` is kept."
+  },
+  {
+   "path": "python/packages/autogen-ext/tests/models/test_openai_model_client.py",
+   "line": 3380,
+   "end_line": 3380,
+   "severity": null,
+   "category": null,
+   "title": "Nit: only `load_component(config)` should be inside `pytest.raises`. Build the config and do the imports beforehand, so a `ValidationError` from somewhere else can't make the test pass. `ChatCompletio",
+   "body": "Nit: only `load_component(config)` should be inside `pytest.raises`. Build the config and do the imports beforehand, so a `ValidationError` from somewhere else can't make the test pass. `ChatCompletionClient` is also imported again here; the earlier test imports it too, so moving it to the module-level imports would be cleaner.\n\nAlso consider:\n- Checking the error message (`match=\"reasoning_effort\"`) so the test confirms the failure comes from this field.\n- Adding a test that calls `create()` with a mocked `chat.completions.create` and asserts `reasoning_effort` reaches the request kwargs. That covers the actual end-to-end behavior, including `extra_create_args={\"reasoning_effort\": ...}` overriding the constructor value.\n- The loop at L3341 passes a `str` into a `Literal`-typed kwarg, which strict pyright/mypy may flag. Annotating the list as `List[Literal[\"low\", \"medium\", \"high\"]]` avoids that."
+  }
+ ],
+ "usage": {
+  "requests": 16,
+  "input": 18,
+  "cacheWrite": 18171,
+  "cacheRead": 191834,
+  "output": 5505,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "result": {
+   "duration_api_ms": 61967,
+   "stop_reason": "end_turn",
+   "session_id": "2c413940-03cf-48af-a452-3830a60e8246",
+   "total_cost_usd": 0.2939068,
+   "usage": {
+    "input_tokens": 18,
+    "cache_creation_input_tokens": 18171,
+    "cache_read_input_tokens": 191834,
+    "output_tokens": 5505,
+    "output_tokens_details": {
+     "thinking_tokens": 932
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 18171,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "modelUsage": {
+    "claude-opus-5-5": {
+     "inputTokens": 18,
+     "outputTokens": 5505,
+     "cacheReadInputTokens": 191834,
+     "cacheCreationInputTokens": 18171,
+     "webSearchRequests": 0,
+     "costUSD": 0.2939068,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 932,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   },
+   "permission_denials": [],
+   "terminal_reason": "completed",
+   "fast_mode_state": "off",
+   "fast_mode_disabled_reason": "sdk_opt_in_required",
+   "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+     "background": 0,
+     "foreground": 0,
+     "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+     "parent": 0,
+     "user": 0,
+     "system": 0
+    },
+    "refused": {
+     "depth_limit": 0,
+     "concurrency_limit": 0,
+     "budget": 0
+    },
+    "by_type": {}
+   },
+   "safety_stops": 0,
+   "is_error": false,
+   "num_turns": 16,
+   "subtype": "success",
+   "api_error_status": null,
+   "result": "I reviewed PR #7054 and posted 5 inline comments. The PR is small and mostly correct; the main problem is that it doesn't accept `\"minimal\"`, a `reasoning_effort` value that GPT-5 supports. Bash failed in this environment, so I couldn't run `git diff` or the tests. I worked out the change by searching for `reasoning_effort` and reading the matching files.\n\n**What the PR does:** it adds `reasoning_effort` to the `CreateArguments` TypedDict and the `CreateArgumentsConfigModel` Pydantic model in `config/__init__.py`, plus two tests. The client already forwarded `reasoning_effort` at runtime, because its allowed-argument list comes from the OpenAI SDK. So the real change is typing, plus support when a client is loaded from a saved config (`load_component`) or saved to one (`dump_component`).\n\n**Inline comments:**\n1. **`\"minimal\"` is missing (main issue)** — `config/__init__.py:103` and `:53`. GPT-5 supports `reasoning_effort=\"minimal\"`, but the new type only allows `\"low\" | \"medium\" | \"high\"`. Passing `\"minimal\"` to the constructor works at runtime, but loading the same config with `load_component` raises a validation error. I suggested adding the value and defining the allowed values once so the two type definitions can't drift apart. The `openai>=1.93` pin predates the SDK adding `\"minimal\"`, so either raise the pin or keep our own list.\n2. **Docs** — `_openai_client.py:1252` and around line 1593. Neither the OpenAI nor the Azure client docstring mentions `reasoning_effort`. That line isn't part of the PR's changes, so GitHub may not attach this comment where intended.\n3. **Explicit `None`** — test at lines 3349–3356. The test treats keeping `reasoning_effort=None` as intended. That `None` is sent to the API as `null`, which some OpenAI-compatible endpoints reject. Other parameters already behave this way, but the test makes it harder to fix later.\n4. **Test quality** — lines 3365–3380:\n   - The `pytest.raises` block wraps more than the one call that should fail.\n   - `ChatCompletionClient` is imported again inside the test.\n   - The error message isn't checked.\n   - No test confirms that `create()` actually sends `reasoning_effort` in the request, or that `extra_create_args` overrides it.\n   - The loop passes a plain `str` where the parameter expects one of the fixed values, which a strict type checker may flag.\n\n**Security and performance:** nothing to flag. The change is configuration only, and Pydantic checks the value when a config is loaded.\n\nThe tests do cover passing the value to the constructor, loading and saving configs, and rejecting an invalid value, all for both the OpenAI and Azure clients.",
+   "ttft_ms": 3496,
+   "type": "result",
+   "duration_ms": 74281,
+   "uuid": "c703f550-1375-4566-b92c-c3500a152960",
+   "ttft_stream_ms": 2528,
+   "time_to_request_ms": 628,
+   "first_content_frame_ms": 2529,
+   "queued_turn_count": 0,
+   "result_index": 0
+  },
+  "summaries": [],
+  "proxyRequests": null
+ },
+ "cost_usd": 0.2393938
+}

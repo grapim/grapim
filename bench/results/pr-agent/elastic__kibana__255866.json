@@ -1,0 +1,102 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "elastic__kibana__255866",
+ "url": "https://github.com/elastic/kibana/pull/255866",
+ "head_sha": "a6802508b578eef72844226f3145fd58515a742d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:05:35.269Z",
+ "seconds": 113.517,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 141,
+   "end_line": 254,
+   "severity": null,
+   "category": null,
+   "title": "Encryption Bypass",
+   "body": "Encrypted values are only nulled when the output column name is exactly `<type>.<attr>`. Several pipelines return raw ciphertext anyway:\n- **Aliasing:** `| RENAME \\`type.secret\\` AS x` or `| EVAL x = \\`type.secret\\``.\n- **Sub-fields:** columns such as `type.secret.keyword`.\n- **`_source` without `_id`:** `metadata: ['_source']` skips `decryptSourceColumn`, and `stripEncryptedColumns` never inspects `_source`. The unit test \"should not attempt _source decryption when _id column is missing\" confirms the raw blob is returned.\n\nThe documented guarantee (\"standalone encrypted scalar columns are always replaced with null\") does not hold. A safer approach is to strip encrypted attributes from any `_source` value that is not decrypted. Also consider rejecting or post-checking pipelines that reference encrypted fields."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 153,
+   "end_line": 181,
+   "severity": null,
+   "category": null,
+   "title": "Wrong AAD Descriptor",
+   "body": "The `SavedObject` passed to `decryptOrStripResponseAttributes` is built from raw ES data. Two fields are likely wrong:\n- **`id`:** the ES `_id` is the raw document ID (`type:id` or `namespace:type:id`), not the saved object ID.\n- **`namespace`:** it is never set. Single-namespace types store it in `source.namespace` and include it in AAD.\n\nAs a result, AAD reconstruction will likely mismatch for real documents. Decryption would then silently fall back to stripping, so the \"decrypted like find/search\" path would effectively never work. The unit tests mock the extension and don't catch this.\n\nSuggested fix: convert the raw doc via the serializer (`rawToSavedObject` / `isRawSavedObject`) to get the real id and namespace before decrypting."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 36,
+   "end_line": 114,
+   "severity": null,
+   "category": null,
+   "title": "Weak Pipeline Validation",
+   "body": "The pipeline is concatenated directly after the generated `FROM` clause. Validation only rejects a leading `FROM|ROW|SHOW|METRICS`, so a pipeline that does not start with `|` can still extend the source command.\n\nFor example, `, other-index | LIMIT 10` or `METADATA _source | ...` yields `FROM .kibana , other-index ...`. The type/namespace `filter` likely limits the returned rows, but this still breaks the \"index resolution is controlled by type\" invariant. It also lets callers smuggle extra metadata past the `metadata` option.\n\nSuggested fix: require the trimmed pipeline to start with `|`. The other source commands (e.g. `TS`) are also not covered by the regex."
+  },
+  {
+   "path": null,
+   "line": null,
+   "end_line": null,
+   "severity": null,
+   "category": "security",
+   "title": "Security concerns",
+   "body": "Sensitive information exposure / privilege escalation:\n- **Encrypted data leakage:** encrypted saved object attributes can be returned as raw ciphertext. This happens by aliasing columns (`RENAME`/`EVAL`) or by requesting `metadata: ['_source']` without `_id`, because stripping relies on exact column-name matching.\n- **Elevated privileges:** the pipeline runs under the internal (`kibana_system`) ES user. The pipeline is free-form and only weakly validated: it can be appended to the `FROM` clause without a leading `|`, and commands like `ENRICH`/`LOOKUP JOIN` are allowed. Any consumer that lets user input reach the pipeline string could read data beyond the requested saved object types.\n- **Uncertain:** whether the injected `filter` also constrains `LOOKUP JOIN` targets needs verification."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 39375,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 2716,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 4,
+    "relevant_tests": "Yes\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts\n",
+      "issue_header": "Encryption Bypass\n",
+      "issue_content": "Encrypted values are only nulled when the output column name is exactly `<type>.<attr>`. Several pipelines return raw ciphertext anyway:\n- **Aliasing:** `| RENAME \\`type.secret\\` AS x` or `| EVAL x = \\`type.secret\\``.\n- **Sub-fields:** columns such as `type.secret.keyword`.\n- **`_source` without `_id`:** `metadata: ['_source']` skips `decryptSourceColumn`, and `stripEncryptedColumns` never inspects `_source`. The unit test \"should not attempt _source decryption when _id column is missing\" confirms the raw blob is returned.\n\nThe documented guarantee (\"standalone encrypted scalar columns are always replaced with null\") does not hold. A safer approach is to strip encrypted attributes from any `_source` value that is not decrypted. Also consider rejecting or post-checking pipelines that reference encrypted fields.\n",
+      "start_line": 141,
+      "end_line": 254
+     },
+     {
+      "relevant_file": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts\n",
+      "issue_header": "Wrong AAD Descriptor\n",
+      "issue_content": "The `SavedObject` passed to `decryptOrStripResponseAttributes` is built from raw ES data. Two fields are likely wrong:\n- **`id`:** the ES `_id` is the raw document ID (`type:id` or `namespace:type:id`), not the saved object ID.\n- **`namespace`:** it is never set. Single-namespace types store it in `source.namespace` and include it in AAD.\n\nAs a result, AAD reconstruction will likely mismatch for real documents. Decryption would then silently fall back to stripping, so the \"decrypted like find/search\" path would effectively never work. The unit tests mock the extension and don't catch this.\n\nSuggested fix: convert the raw doc via the serializer (`rawToSavedObject` / `isRawSavedObject`) to get the real id and namespace before decrypting.\n",
+      "start_line": 153,
+      "end_line": 181
+     },
+     {
+      "relevant_file": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts\n",
+      "issue_header": "Weak Pipeline Validation\n",
+      "issue_content": "The pipeline is concatenated directly after the generated `FROM` clause. Validation only rejects a leading `FROM|ROW|SHOW|METRICS`, so a pipeline that does not start with `|` can still extend the source command.\n\nFor example, `, other-index | LIMIT 10` or `METADATA _source | ...` yields `FROM .kibana , other-index ...`. The type/namespace `filter` likely limits the returned rows, but this still breaks the \"index resolution is controlled by type\" invariant. It also lets callers smuggle extra metadata past the `metadata` option.\n\nSuggested fix: require the trimmed pipeline to start with `|`. The other source commands (e.g. `TS`) are also not covered by the regex.\n",
+      "start_line": 36,
+      "end_line": 114
+     }
+    ],
+    "security_concerns": "Sensitive information exposure / privilege escalation:\n- **Encrypted data leakage:** encrypted saved object attributes can be returned as raw ciphertext. This happens by aliasing columns (`RENAME`/`EVAL`) or by requesting `metadata: ['_source']` without `_id`, because stripping relies on exact column-name matching.\n- **Elevated privileges:** the pipeline runs under the internal (`kibana_system`) ES user. The pipeline is free-form and only weakly validated: it can be appended to the `FROM` clause without a leading `|`, and commands like `ENRICH`/`LOOKUP JOIN` are allowed. Any consumer that lets user input reach the pipeline string could read data beyond the requested saved object types.\n- **Uncertain:** whether the injected `filter` also constrains `LOOKUP JOIN` targets needs verification.\n"
+   },
+   "usage": {
+    "prompt_tokens": 39375,
+    "completion_tokens": 2716,
+    "total_tokens": 42091
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:05:03.958\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 4 🔵🔵🔵🔵⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>PR contains tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>Security concerns</strong><br><br>\n\n<strong>Sensitive information exposure / privilege escalation:\n- **Encrypted data leakage:** encrypted saved object attributes can be returned as raw ciphertext. This happens by aliasing columns (`RENAME`/`EVAL`) or by requesting `metadata:</strong><br> ['_source']` without `_id`, because stripping relies on exact column-name matching.\n- **Elevated privileges:** the pipeline runs under the internal (`kibana_system`) ES user. The pipeline is free-form and only weakly validated: it can be appended to the `FROM` clause without a leading `|`, and commands like `ENRICH`/`LOOKUP JOIN` are allowed. Any consumer that lets user input reach the pipeline string could read data beyond the requested saved object types.\n- **Uncertain:** whether the injected `filter` also constrains `LOOKUP JOIN` targets needs verification.</td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Encryption Bypass</strong><br>Encrypted values are only nulled when the output column name is exactly `<type>.<attr>`. Several pipelines return raw ciphertext anyway:\n- **Aliasing:** `| RENAME \\`type.secret\\` AS x` or `| EVAL x = \\`type.secret\\``.\n- **Sub-fields:** columns such as `type.secret.keyword`.\n- **`_source` without `_id`:** `metadata: ['_source']` skips `decryptSourceColumn`, and `stripEncryptedColumns` never inspects `_source`. The unit test \"should not attempt _source decryption when _id column is missing\" confirms the raw blob is returned.\n\nThe documented guarantee (\"standalone encrypted scalar columns are always replaced with null\") does not hold. A safer approach is to strip encrypted attributes from any `_source` value that is not decrypted. Also consider rejecting or post-checking pipelines that reference encrypted fields.\n\n<strong>Wrong AAD Descriptor</strong><br>The `SavedObject` passed to `decryptOrStripResponseAttributes` is built from raw ES data. Two fields are likely wrong:\n- **`id`:** the ES `_id` is the raw document ID (`type:id` or `namespace:type:id`), not the saved object ID.\n- **`namespace`:** it is never set. Single-namespace types store it in `source.namespace` and include it in AAD.\n\nAs a result, AAD reconstruction will likely mismatch for real documents. Decryption would then silently fall back to stripping, so the \"decrypted like find/search\" path would effectively never work. The unit tests mock the extension and don't catch this.\n\nSuggested fix: convert the raw doc via the serializer (`rawToSavedObject` / `isRawSavedObject`) to get the real id and namespace before decrypting.\n\n<strong>Weak Pipeline Validation</strong><br>The pipeline is concatenated directly after the generated `FROM` clause. Validation only rejects a leading `FROM|ROW|SHOW|METRICS`, so a pipeline that does not start with `|` can still extend the source command.\n\nFor example, `, other-index | LIMIT 10` or `METADATA _source | ...` yields `FROM .kibana , other-index ...`. The type/namespace `filter` likely limits the returned rows, but this still breaks the \"index resolution is controlled by type\" invariant. It also lets callers smuggle extra metadata past the `metadata` option.\n\nSuggested fix: require the trimmed pipeline to start with `|`. The other source commands (e.g. `TS`) are also not covered by the regex.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.21182
+}

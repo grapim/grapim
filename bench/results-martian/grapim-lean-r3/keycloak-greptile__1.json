@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "head_sha": "3214b188de808fdb0fff335556b686f1b0a63218",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:20:59.850Z",
+ "seconds": 38.567,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java",
+   "line": 160,
+   "end_line": 162,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The new check now requires a known user, so passkeys disappear from the normal first login form.",
+   "body": "`isConditionalPasskeysEnabled` returns true only when `user != null`. Before this change, `authenticate()` and `challenge()` called `fillContextForm` exactly when the user was not yet known (`context.getUser() == null`). Now, on a fresh login with passkeys enabled, the webauthn form, its challenge and the conditional UI are never set up, so users cannot sign in with a discoverable passkey from the username/password page. Passkeys only show up during re-authentication. The existing tests that expect `//form[@id='webauth']` and the `username webauthn` autocomplete on the first login page should fail. Fix: allow the case where no user is known yet, e.g. `user == null || user.credentialManager().isConfiguredFor(webauthnAuth.getCredentialType())`."
+  },
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernameForm.java",
+   "line": 47,
+   "end_line": 47,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`UsernameForm` calls a no-argument `isConditionalPasskeysEnabled()`, which does not match the method added in this change.",
+   "body": "The only overload added in this change is `isConditionalPasskeysEnabled(UserModel)`. If no no-argument version exists elsewhere, this line does not compile. If one does exist, it ignores the user. Then, for every flow where the user is already set and the realm has passkeys enabled, the form step is never skipped, even for users who have no passkey: for example after the organization or identity-provider authenticators, or a plain prompt=login. Before this change those cases skipped straight to `success()`. Fix: call `isConditionalPasskeysEnabled(context.getUser())` and have that check confirm the user actually has a passkey credential."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 23020,
+  "cacheRead": 3262,
+  "output": 2679,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 26284,
+   "outputTokens": 2679,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/WebAuthnConditionalUIAuthenticator.java",
+    "line": 64,
+    "end_line": 67,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "security",
+    "title": "During re-authentication the passkey prompt is no longer tied to the user being re-authenticated.",
+    "body": "`shouldShowWebAuthnAuthenticators` always returns false, so during re-authentication, when the user is already known, the passkey prompt is built with no allowed-credentials list and `IS_USER_IDENTIFIED=false`. The browser can then offer any discoverable passkey, including another account's on a shared device, and the user ends up determined by that passkey's user handle. Whether a mismatch with the user already set is rejected depends on code in `WebAuthnAuthenticator.action` and `AuthenticationManager` that is not shown here. Please confirm that a different user signing in during prompt=login is rejected; if it is not, add an explicit check that the user ID matches."
+   }
+  ]
+ },
+ "cost_usd": 0.1693404
+}

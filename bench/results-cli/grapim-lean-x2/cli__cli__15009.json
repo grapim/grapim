@@ -1,0 +1,99 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "cli__cli__15009",
+ "url": "https://github.com/cli/cli/pull/15009",
+ "head_sha": "e8022e837d4d422370059c3ea954d13e11ebeeaf",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:54:27.072Z",
+ "seconds": 57.119,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 401,
+   "end_line": 402,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Rate-limit and server failures are still reported as an invalid token with re-auth advice.",
+   "body": "Linked issue #14053 asks to tell a 401 apart from other failures (rate limit, 5xx, network): only a 401 should say \"invalid\" and suggest `gh auth refresh`, and the others should say something like \"Could not verify token: …\". This change only adds an `Error:` line under the existing output. The updated tests confirm this: a 503 (hunk 6) and a 403 rate limit (hunk 11) still print \"The token in … is invalid.\" and \"To re-authenticate, run: gh auth refresh\", which the issue calls harmful. Classify the error by status code in `buildEntry`/`authEntry.String` and drop the re-auth hint for errors that are not a 401.",
+   "raised": 2
+  },
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 401,
+   "end_line": 401,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "The diagnostic is hidden whenever stderr is not a TTY, which includes CI and agent runs.",
+   "body": "The issue's scenario is an agent or CI loop that uses up the rate limit. In those runs stderr is usually piped or captured, so `IsStderrTTY()` is false. Those logs still show only \"token is invalid\" and no cause, so the misleading message stays exactly where the issue says it hurts. The new test checks that the error is left out for non-TTY stderr. Consider printing the error line no matter whether stderr is a TTY, since it is human-readable stderr and not the machine-readable output.",
+   "raised": 1
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 6,
+  "cacheWrite": 13833,
+  "cacheRead": 33424,
+  "output": 4897,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 47263,
+   "outputTokens": 4897,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14053",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "pkg/cmd/auth/status/status.go",
+    "line": 402,
+    "end_line": 402,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "security",
+    "title": "Server-controlled error text is written raw to the terminal.",
+    "body": "`entry.Error` can include the HTTP response body. The new tests show `non-200 OK status code:  body: \"…\"`. This line prints that text straight to a TTY. A malicious or misconfigured GHE host or proxy could return a body with ANSI/OSC escape sequences, which would change the terminal, or a large multi-line HTML page that floods the output. I could not see whether the body is already quoted or escaped upstream (`%q`-style quoting would neutralise escapes). If it is not, sanitize or truncate the text before printing, for example with the repo's ASCII sanitizer or `%q`.",
+    "raised": 1
+   },
+   {
+    "path": "pkg/cmd/auth/status/status_test.go",
+    "line": 1077,
+    "end_line": 1098,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The new test stubs a GraphQL query, but other tests in this file show token validation using REST `GET /`.",
+    "body": "Other tests in this file stub validation as REST `GET \"\"` and expect errors like `Get \"https://api.github.com/\"` (timeout case) and `HTTP 401 (https://api.github.com/)`. The \"token from env\" case also stubs REST `GET \"\"`. `Test_statusRun_errorDiagnostic` registers only `httpmock.GraphQL(query UserCurrent)`. It expects `Post \".../graphql\"` and `non-200 OK status code` messages, and it uses the same GH_TOKEN setup. If validation goes through REST, the request will not match the stub: the recorded error will be the httpmock \"no registered stubs\" error, `reg.Verify` will fail, and the expected `Error:` strings will not match. I could not see `buildEntry` to confirm which request it makes. Please stub the request status actually sends, and make the expected messages match the real REST error format.",
+    "raised": 1
+   }
+  ]
+ },
+ "cost_usd": 0.1738138
+}

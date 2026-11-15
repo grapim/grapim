@@ -1,0 +1,45 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "latitude-dev__latitude-llm__2697",
+ "url": "https://github.com/latitude-dev/latitude-llm/pull/2697",
+ "head_sha": "8422f8d10a178795d0666b04be81662857e22c94",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:12:05.567Z",
+ "seconds": 5.452,
+ "status": "ok",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 18870,
+  "cacheWrite": 0,
+  "cacheRead": 2096,
+  "output": 10,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 6,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 20966,
+   "outputTokens": 10,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.07609919999999999
+}

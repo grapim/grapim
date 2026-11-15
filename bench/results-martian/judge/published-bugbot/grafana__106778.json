@@ -1,0 +1,33 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "Both point out that the GrafanaRuleListItem in the list is missing its key prop."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.96,
+   "reasoning": "Both describe the same bug: the silence menu item sets showSilenceDrawer, but the drawer never renders because the ruler rule is missing."
+  }
+ ],
+ "candidates": [
+  "The GrafanaRuleListItem component rendered inside the rules.map() callback is missing the key prop. The key variable is destructured from ruleWithOrigin on line 152 and is correctly used in the datasource and default cases, but not in the grafana case. This causes React reconciliation issues and can lead to incorrect component state when the list updates.",
+  "When GrafanaRuleListItem renders RuleActionsButtons with only promRule (no rule), the silence menu item can appear based on useGrafanaPromRuleAbilities returning [true, true]. However, the SilenceGrafanaRuleDrawer only renders when rulerRuleType.grafana.alertingRule(rule) is true. Since rule is undefined, clicking the silence menu item sets showSilenceDrawer to true but the drawer never renders, resulting in a non-functional button."
+ ]
+}

@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "immich-app__immich__32240",
+ "url": "https://github.com/immich-app/immich/pull/32240",
+ "head_sha": "4e89904e255e00310d7661f6d45212a5a6e56d85",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:11:59.514Z",
+ "seconds": 13.107,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "server/test/medium/specs/workflow/workflow-core-plugin.spec.ts",
+   "line": 112,
+   "end_line": 112,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`Kysely` and `DB` are used as types but no import was added for them.",
+   "body": "The new `let db: Kysely<DB>;` names the `Kysely` and `DB` types. The CHANGES block counts exactly 36 added lines in this file, and all of them are in the two hunks shown, so no import was added. Before this change, `db` was a `const` whose type was inferred from `getKyselyDB()`, so the file had no reason to import these types already (I could not see the file's import list to confirm).\n\nIf they are not imported, `tsc`/`npm run check` fails with \"Cannot find name 'Kysely'/'DB'\". Vitest may still run, because it strips types without checking them.\n\nFix: add `import { Kysely } from 'kysely';` and `import { DB } from 'src/schema';` (or the project's DB type path). Alternatively, type the variable as `Awaited<ReturnType<typeof getKyselyDB>>`."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 8907,
+  "cacheWrite": 0,
+  "cacheRead": 6234,
+  "output": 1422,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 15141,
+   "outputTokens": 1422,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #32083",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0653148
+}

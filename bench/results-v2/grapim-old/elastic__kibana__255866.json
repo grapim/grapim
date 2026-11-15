@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "elastic__kibana__255866",
+ "url": "https://github.com/elastic/kibana/pull/255866",
+ "head_sha": "a6802508b578eef72844226f3145fd58515a742d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:03:38.414Z",
+ "seconds": 47.943,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 148,
+   "end_line": 150,
+   "severity": "warning",
+   "category": "security",
+   "title": "_source without _id is returned with encrypted attributes intact",
+   "body": "When the response has a `_source` column but no `_id` column (e.g. `metadata: ['_source']`, or `| DROP _id`), decryption is skipped and the row is returned unchanged. `stripEncryptedColumns` does not touch `_source` either, so encrypted ciphertext leaks. In that case, strip the encrypted attributes from `_source` instead of returning it as is."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 233,
+   "end_line": 242,
+   "severity": "warning",
+   "category": "security",
+   "title": "Encrypted-column stripping relies on exact column names and can be bypassed",
+   "body": "Values are only nulled when a column is named exactly `<type>.<encryptedAttr>`. The caller controls the pipeline, so `| EVAL x = connector.secrets`, `| RENAME connector.secrets AS s`, or a `STATS`/`CONCAT` over the field returns the raw ciphertext under another name. Filter the encrypted fields out on the ES side before the user pipeline runs, for example with a `DROP` right after FROM, instead of post-processing column names."
+  },
+  {
+   "path": "tasks/prd.json",
+   "line": 1,
+   "end_line": 186,
+   "severity": "warning",
+   "category": "scope",
+   "title": "Agent planning artifacts committed to the repository.",
+   "body": "`tasks/prd.json` and `tasks/progress.txt` are working files from the agent loop: a PRD checklist and a progress log. They are not product code, will go stale, and add noise to the Kibana repo root. Remove both files from the PR, or add them to `.gitignore`."
+  }
+ ],
+ "usage": {
+  "requests": 3,
+  "input": 105114,
+  "cacheWrite": 0,
+  "cacheRead": 6288,
+  "output": 1000,
+  "models": {
+   "claude-opus-5-5": 3
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 25,
+   "hunks": 31,
+   "reviewedHunks": 31,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 111402,
+   "outputTokens": 1000,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 25,
+   "reviewedAiHunks": 0,
+   "requests": 3,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.4417136
+}

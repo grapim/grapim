@@ -1,0 +1,22 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The include_website_name method is missing the required ? suffix. Rails serializers expect include_ methods to end with ? for conditional attribute inclusion, a convention followed by other methods in this serializer. Without it, the website_name attribute may not be conditionally included as intended. Additionally, the '.' << website_host string concatenation should be replaced with '.' + website_host or '.#{website_host}' to avoid mutating string literals, which can lead to issues.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out the same missing '?' suffix on include_website_name. It does not mention the string mutation part, but the main issue is the same."
+  }
+ ],
+ "candidates": [
+  "include_website_name is missing the trailing question mark (?) required by ActiveModelSerializers, so the predicate won't be invoked and website_name will serialize even when user fields are restricted (e.g., TL0/anonymous users viewing other profiles), leaking private data"
+ ]
+}

@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "head_sha": "54486a059cd2032042189bb565646ba4e0f6bd61",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:43:01.131Z",
+ "seconds": 31.821,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/features/auth/lib/next-auth-options.ts",
+   "line": 139,
+   "end_line": 156,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Backup code is checked and consumed in a non-atomic read-modify-write, so one code can be used more than once.",
+   "body": "`authorize` decrypts the `backupCodes` it read at the top of the request, nulls the matching entry, then writes the whole re-encrypted array back without checking whether it changed in between. If two logins send the same backup code at the same time, both read the old array, both find the code, both succeed, and the last write wins. So a single-use code works twice. A login with code A that runs alongside one with code B can also overwrite B's write and bring an already-used code back. Make the consume step conditional: for example, update with `where: { id: user.id, backupCodes: <the ciphertext that was read> }` and fail the login if no row was updated, or do it inside a transaction with a row lock."
+  },
+  {
+   "path": "packages/ui/components/form/inputs/Input.tsx",
+   "line": 49,
+   "end_line": 49,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The shared PasswordField toggle is removed from keyboard focus in every form in the app.",
+   "body": "`tabIndex={-1}` on the show/hide password button means keyboard users can no longer reach it in any form that uses PasswordField, across the whole app. This is an accessibility regression in a shared UI component, and the backup-codes request does not cover it. Remove it, or limit it to the 2FA modals if tab order there was the concern."
+  },
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 135,
+   "end_line": 135,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Closing the dialog on the backup-codes step never calls onEnable, so the settings page still shows 2FA as off.",
+   "body": "`onEnable()` is no longer called when the enable request succeeds. It now runs only from the new Close button. The Cancel button is hidden on this step, but the Dialog can still be closed through `onOpenChange` (Escape, a click outside, the X). In that case `onEnable` never runs and `resetState` is never called. 2FA is already on in the server, but the parent's switch and state still show it as off, and reopening the modal starts at the backup-codes step. Fix: call `onEnable()` (or handle the close) when the dialog closes on this step, or block outside and Escape closing until the user presses Close."
+  },
+  {
+   "path": "apps/web/playwright/login.2fa.e2e.ts",
+   "line": 50,
+   "end_line": 50,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "The first 2FA test gets a FIXME instead of a fix, and it never handles the new backup-codes screen.",
+   "body": "After `fillOtp`, the modal now shows backup codes and waits for the user to press Close. This test never closes it. Its check `expect(locator.isChecked()).toBeTruthy()` passes on any Promise, as the new FIXME admits, so it no longer verifies that 2FA was enabled. The PR says it fixes the setup test for the new screen, but this test was left passing without checking anything. Fix: click `backup-codes-close` and assert `[data-testid=two-factor-switch][data-state=\"checked\"]` is visible, or use `await expect(locator).toBeChecked()`."
+  },
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 278,
+   "end_line": 279,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The copy button shows a success toast even when the clipboard write fails.",
+   "body": "`navigator.clipboard.writeText` returns a promise. It can reject, for example when the page lacks permission or is not a secure context. The toast is shown without waiting for that promise, so the user is told the codes were copied when they may not have been, and the rejection goes unhandled. Await the promise and show an error toast if it fails."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 28479,
+  "cacheRead": 6524,
+  "output": 5125,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 34,
+   "reviewedHunks": 34,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 35007,
+   "outputTokens": 5125,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 16,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.24621579999999998
+}

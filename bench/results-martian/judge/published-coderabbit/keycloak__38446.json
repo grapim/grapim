@@ -1,0 +1,35 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Unsafe raw List deserialization without type safety. Calling Optional.get() directly on the Optional returned by RecoveryAuthnCodesUtils.getCredential(user) without checking isPresent() can lead to a NoSuchElementException if the Optional is empty.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 points out that .get() is called on the Optional from getCredential(user) without a presence check, which is the same issue as G1."
+  },
+  {
+   "comment": "After creating the RecoveryAuthnCodesCredentialModel, consider setting its id from the stored credential (e.g., myUser.recoveryCodes.getId()); otherwise getId() will be null and downstream removal by id (e.g., removeStoredCredentialById in the authenticator flow) may not work.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 says rebuilding the model with createFromValues drops the stored id, which breaks deleting the credential. That is the same as G2's missing setId concern."
+  }
+ ],
+ "candidates": [
+  "Lines 19 and 21 call .get() on Optionals that may be empty (RecoveryAuthnCodesUtils.getCredential(user) and getNextRecoveryAuthnCode()), which will throw NoSuchElementException if either is empty during login form rendering",
+  "Lines 197-200 only store raw codes and Lines 237-242 rebuild a new RecoveryAuthnCodesCredentialModel with createFromValues() which drops the id generated on Line 195 and renumbers codes from 1..n, causing issues with deleting exhausted federated credentials and prompting for wrong code numbers",
+  "Line 125 returns on the user-storage path without removing any existing local recovery-code credentials, leaving stale DB entries in the database after a successful user-storage write",
+  "Line 340 only checks whether the submitted code exists but never updates the stored list, allowing the same recovery code to be replayed indefinitely and preventing the federated path from reaching exhausted-credential cleanup"
+ ]
+}

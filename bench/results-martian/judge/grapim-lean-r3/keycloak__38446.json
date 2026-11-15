@@ -1,0 +1,32 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Unsafe raw List deserialization without type safety. Calling Optional.get() directly on the Optional returned by RecoveryAuthnCodesUtils.getCredential(user) without checking isPresent() can lead to a NoSuchElementException if the Optional is empty.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate covers calling Optional.get() without checking isPresent(). C3 is about a null myUser in getCredentials, which is a different issue."
+  },
+  {
+   "comment": "After creating the RecoveryAuthnCodesCredentialModel, consider setting its id from the stored credential (e.g., myUser.recoveryCodes.getId()); otherwise getId() will be null and downstream removal by id (e.g., removeStoredCredentialById in the authenticator flow) may not work.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.75,
+   "reasoning": "C2 says createFromValues sets no id, so the credential id is null and removeStoredCredentialById in the authenticator does not work. This is the same problem G2 describes."
+  }
+ ],
+ "candidates": [
+  "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java:340 - The test storage accepts any stored code and never marks it used, so the login test cannot catch a wrong-code bug.. `isValid` returns true when the input matches any of the 12 stored codes. It ignores which code number the login page asked for, and it never marks the code as consumed. So `testRecoveryKeysSetupAndLogin` still passes if the wrong code is entered, and a code can be reused without the test noticing. Check the input only against the code the page requested (the next unused one), mark it used after a match, and add an assertion that a reused code is rejected.",
+  "services/src/main/java/org/keycloak/authentication/authenticators/browser/RecoveryAuthnCodesFormAuthenticator.java:80 - A used-up recovery code set from federated storage is removed from local storage instead of federated storage.. `getCredential` can now return a credential from user storage. When that set has all codes used, the code below calls `removeStoredCredentialById`, which only works on the local Keycloak DB. The federated credential stays where it is, and the test provider gives it a null id because `createFromValues` sets none. After the required action runs again, the old used-up set is still returned first, ahead of any new local credential. Remove the federated credential through the user storage path (for example `disableCredentialType` or `updateCredential`), or only call `removeStoredCredentialById` for credentials that came from local storage.",
+  "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java:232 - `getCredentials` throws an NPE when the user is not in the in-memory map.. `getMyUser` returns null for a username that is not in `users`, and `myUser.recoveryCodes` is then dereferenced without a check. The other methods in this class (`isConfiguredFor`, `isValid`, `getDisableableCredentialTypesStream`) all guard against null first. Return `Stream.empty()` when `myUser == null`."
+ ]
+}

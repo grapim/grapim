@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "MetaMask__metamask-extension__45572",
+ "url": "https://github.com/MetaMask/metamask-extension/pull/45572",
+ "head_sha": "82506447a26905a039c029b27f4fc0eb81edfe23",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:19:13.840Z",
+ "seconds": 15.849,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 9505,
+  "cacheRead": 3262,
+  "output": 1191,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 8,
+   "reviewedHunks": 8,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 12769,
+   "outputTokens": 1191,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "ui/pages/confirmations/hooks/alerts/useSelectedAccountAlerts.ts",
+    "line": 45,
+    "end_line": 47,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`getMoneyAccountTransactionType` may get an undefined confirmation or a signature request.",
+    "body": "This hook runs for every confirmation, including signature requests. The code just above reads `(currentConfirmation as TransactionMeta)?.txParams` with optional chaining, which suggests `currentConfirmation` can be undefined. The new call casts it to `TransactionMeta` and passes it to `getMoneyAccountTransactionType` with no guard. If that helper reads `.type` or `.nestedTransactions` without optional chaining, the alert hook throws while the confirmation is loading. I can't see the helper's code. Guard the call, for example `currentConfirmation ? getMoneyAccountTransactionType(currentConfirmation as TransactionMeta) : undefined`, or confirm the helper accepts undefined."
+   }
+  ]
+ },
+ "cost_usd": 0.0720054
+}

@@ -1,0 +1,92 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The PollFeed job calls open(SiteSetting.feed_polling_url) without validating the URL, allowing an attacker who controls the feed_polling_url site setting to make the server fetch arbitrary internal or external URLs.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    7
+   ],
+   "confidence": 0.75,
+   "reasoning": "C7 points to the unvalidated open(SiteSetting.feed_polling_url) call and recommends only accepting http(s) URLs. It describes the risk as command injection rather than SSRF, but it is the same unvalidated-URL problem on the same line."
+  },
+  {
+   "comment": "The current origin validation using indexOf is insufficient and can be bypassed. An attacker could use a malicious domain like evil-discourseUrl.com to pass this check.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the indexOf origin check that can be bypassed."
+  },
+  {
+   "comment": "postMessage targetOrigin should be the origin (scheme+host+port), not the full referrer URL; using the full URL will cause the message to be dropped and prevent resizing.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the postMessage targetOrigin being the full referrer URL instead of the origin."
+  },
+  {
+   "comment": "The code sets X-Frame-Options: ALLOWALL which completely disables clickjacking protection. The referer validation can be bypassed (referer headers are easily spoofed), and the fallback to empty string for nil referer masks validation failures.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.7,
+   "reasoning": "C1 notes that the referer is spoofable, but it is about topic flooding. No candidate addresses ALLOWALL or clickjacking."
+  },
+  {
+   "comment": "The TopicEmbed.import method is susceptible to a NoMethodError if the contents parameter is nil when attempting to append a string, and an XSS vulnerability due to unescaped url interpolation in the generated HTML.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.7,
+   "reasoning": "C2 identifies the unescaped url interpolation in the href in TopicEmbed.import (XSS)."
+  },
+  {
+   "comment": "The ERB block closes with end if, which is invalid Ruby/ERB and will raise at render; it should just be end to close the if block.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    9
+   ],
+   "confidence": 0.9,
+   "reasoning": "C9 flags the 'end if' in the ERB template."
+  },
+  {
+   "comment": "Calling `i.content.scrub` assumes that `i.content` is always populated. However, many RSS feeds do not provide a `content` field, leading to a potential nil pointer exception when `i.content` is nil. A fallback to `description` should be implemented to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.95,
+   "reasoning": "C5 covers i.content being nil, nil.scrub crashing, and falling back to description."
+  },
+  {
+   "comment": "An unescaped request header (request.referer) is interpolated into JavaScript without proper escaping, which can lead to XSS vulnerabilities if the referer contains malicious content. This issue can allow attackers to execute arbitrary scripts in the context of the application.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate covers the referer being interpolated into JavaScript without escaping."
+  }
+ ],
+ "candidates": [
+  "app/controllers/embed_controller.rb:15 - Anonymous visitors can make the forum fetch pages and create a topic for any URL on the embeddable host.. Any request with a matching (spoofable) Referer and an unknown `embed_url` enqueues `retrieve_topic`. The throttle is keyed on the exact URL string, so changing a query string (`?a=1`, `?a=2`, ...) skips it. Each such request fetches the page and creates a new topic as `embed_by_username`, so anyone can flood the forum with topics and outbound requests. Fix: normalise the URL (drop the query and fragment), add a per-IP rate limit, and/or only create topics for URLs listed in the configured feed.",
+  "app/models/topic_embed.rb:11 - Remote and feed HTML is stored as raw_html and served unsanitised on the forum origin.. Feed content (after `CGI.unescapeHTML`) and fetched page content are saved with `cook_method: raw_html`. `Post#cook` then returns `raw` unchanged, and `best.html.erb` renders it with `raw post.cooked`. Any `<script>`, event handler or `javascript:` link in a feed item or on a page of the embeddable host is therefore served from the Discourse origin, which is stored XSS.\n\nThe `url` check makes this worse. `/^https?:\\/\\//` only anchors to the start of a line, so a value like `\"javascript:alert(1)\\nhttp://x\"` passes. The URL is also put into `href='#{url}'` without escaping, so a `'` in it breaks out of the attribute.\n\nFix: run the imported HTML through a whitelist sanitiser before storing it, use `\\A` in the regex, and escape `url` (`ERB::Util.h`). I could not check whether PostsController lets clients pass `cook_method`. If it does, any user can post raw HTML.",
+  "app/models/topic_embed.rb:64 - Protocol-relative URLs are rewritten into broken same-host paths.. `href.start_with?('/')` also matches protocol-relative URLs such as `//cdn.example.com/img.png`. `sub(/^\\/+/, '')` then strips both slashes, giving `http://host/cdn.example.com/img.png`, so images and links to other hosts break. Fix: leave values starting with `//` alone, or resolve them with `URI.join(url, href)`.",
+  "lib/tasks/disqus.thor:148 - The Disqus import loses its `--category` option and the original thread dates, and now fetches every thread over HTTP.. The change removes the `--category` option and the `created_at`/`category` that were passed to PostCreator. Imported topics now land in the default category and are dated now instead of the thread's original date. `import_remote` also downloads every thread link, so one unreachable or 404 page raises and aborts the whole import. Nothing in the request asks for this. Fix: keep the category and the creation date, and rescue fetch errors (falling back to the old permalink body).",
+  "app/jobs/scheduled/poll_feed.rb:35 - Feed items without a `content` element crash the whole poll.. Many RSS 2.0 items only have `<description>` and no `content`/`content:encoded`. For those, SimpleRSS returns `nil` for `i.content`, and `nil.scrub` raises NoMethodError. The poll aborts on the first such item, no item is imported, and the job has retry disabled. The same exception also reaches `TopicRetriever#perform_retrieve`, which calls this job inline. Fix: fall back to `i.description`, skip items with no content, and rescue errors per item.",
+  "db/migrate/20131223171005_create_top_topics.rb:3 - An unrelated, already-shipped migration is changed to `force: true`.. Adding `force: true` to `create_top_topics` makes it silently drop and recreate an existing `top_topics` table, along with its data, whenever it runs (for example a rerun or a schema rebuild). This is not part of the embedding feature. Fix: revert the change.",
+  "app/jobs/scheduled/poll_feed.rb:29 - `Kernel#open` on a configurable URL can run shell commands.. `open(SiteSetting.feed_polling_url)` uses `Kernel#open`. A setting value that starts with `|` runs a shell command, so anyone who can change site settings gets command execution on the server. `import_remote` uses `open(url)` the same way, and the Disqus task passes it links taken from the XML file. Fix: use `URI.parse(url).open` / `OpenURI.open_uri` and only accept http(s) URLs.",
+  "app/models/topic_embed.rb:32 - The update path crashes when the embed's post no longer exists.. If the post behind an embed has been deleted, `embed.post` is nil. When the content changes, `PostRevisor.new(nil).revise!` then raises NoMethodError, which breaks every later feed poll at that item. Fix: guard against `post.nil?` and either recreate the post or remove the stale embed.",
+  "app/views/embed/best.html.erb:6 - `<%- end if %>` turns the next template output into the condition of the block.. In the compiled ERB, `end if` applies a postfix `if` whose condition is the following buffer append. That append therefore runs before the if/else body, which only renders correctly by accident. Fix: use `<%- end %>`."
+ ]
+}

@@ -1,0 +1,79 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "Tyrrrz__LightBulb__474",
+ "url": "https://github.com/Tyrrrz/LightBulb/pull/474",
+ "head_sha": "354d65d206d90e5681bfa27d1f20eb6788efb465",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:28:48.465Z",
+ "seconds": 33.456,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "LightBulb/App.axaml.cs",
+   "line": 143,
+   "end_line": 144,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Tray \"Settings\" calls the command without checking CanExecute, so a second settings dialog can open while one is already open.",
+   "body": "The window now stays alive, so a settings dialog left open when the window was hidden is still open (the #467 scenario). `ShowSettingsCommand.Execute(null)` on a CommunityToolkit command does not check `CanExecute`, which is what greys out the in-window button. Clicking tray → Settings in that state starts another settings dialog. Depending on DialogManager, that dialog either queues and pops up after the user closes the first one, or throws because the DialogHost is already open. Only call the command when it can run: `if (_mainViewModel.ShowSettingsCommand.CanExecute(null)) _mainViewModel.ShowSettingsCommand.Execute(null);`. Showing the window is enough on its own, since the open dialog is then visible."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 8960,
+  "cacheRead": 3262,
+  "output": 3018,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 10,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 12224,
+   "outputTokens": 3018,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #467",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [
+   {
+    "path": "LightBulb/ViewModels/MainViewModel.cs",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "LightBulb/Views/MainView.axaml.cs",
+    "line": 22,
+    "end_line": 27,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`--start-hidden` hiding depends on `Loaded` firing only once; if it fires again, the window can never be shown.",
+    "body": "`Window_OnLoaded` hides the window whenever `StartOptions.Current.IsInitiallyHidden` is set, and that flag never changes. If Avalonia raises `Loaded` again when a hidden window is re-shown (re-attached), every tray click, hotkey or tray Show would hide the window right away. I could not confirm how this Avalonia version raises `Loaded` for a top-level after Hide/Show, and the PR says this path was not tested. Use a one-shot flag (for example `_hasHandledStartHidden`), or detach the handler after it first runs, so the start-hidden logic runs only once. Separately, the window is now shown by the lifetime and then hidden in `Loaded`, so it may briefly flash on screen at startup."
+   }
+  ]
+ },
+ "cost_usd": 0.1058204
+}

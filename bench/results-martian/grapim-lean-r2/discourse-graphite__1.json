@@ -1,0 +1,94 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "head_sha": "ffbaf8c54269df2ce510de91245760fddce09896",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:37:44.133Z",
+ "seconds": 37.899,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/assets/javascripts/discourse/lib/utilities.js",
+   "line": 182,
+   "end_line": 182,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The client size check is hard-coded to 10 MB for every upload type and ignores the site settings.",
+   "body": "`max_' + type + '_size_kb` used to apply per type. Now every upload, including attachments, is checked against a fixed 10 MB. If an admin set `max_attachment_size_kb` or `max_image_size_kb` above 10 MB, files the site allows are now blocked in the browser. Attachments between their configured limit and 10 MB now upload fully, only for the server to reject them. The request is about downsizing images, so changing the attachment limit is out of scope. Fix: keep the setting for non-image types, and for images use something like `Math.max(setting, 10240)`."
+  },
+  {
+   "path": "app/controllers/uploads_controller.rb",
+   "line": 64,
+   "end_line": 70,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "performance",
+   "title": "Up to five full ImageMagick + ImageOptim passes run synchronously in the request, even after a failure.",
+   "body": "Every image over `max_image_size_kb` (now accepted up to 10 MB) gets up to five resize-and-optimize passes inside the web request. The loop ignores `downsize`'s return value. If `convert` fails (corrupt image, unsupported format, missing binary), the file never changes and the same expensive command runs five times before the upload is rejected anyway. This holds a worker for a long time and lets any user tie up CPU by uploading large or bogus images. Fix: `break unless OptimizedImage.downsize(...)`, and consider capping input dimensions or doing the work in the background."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/lib/utilities.js",
+   "line": 246,
+   "end_line": 246,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The 413 error message always reports 10 MB, whatever limit the web server or file type actually has.",
+   "body": "A 413 comes from the web server, whose body limit (e.g. nginx `client_max_body_size`) is configured separately. For attachments the relevant limit is also different. Hard-coding 10 MB can show users a limit that is wrong for their site. Pick the limit from the upload type, or share one constant with the client-side check."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 4604,
+  "cacheRead": 3262,
+  "output": 3500,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 7868,
+   "outputTokens": 3500,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "app/controllers/uploads_controller.rb",
+    "line": 67,
+    "end_line": 67,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The animated-GIF check looks at the tempfile path, so large animated GIFs can lose their animation.",
+    "body": "`optimize` picks the animated instructions only when `from =~ /\\.GIF$/i`. Here `from` is `tempfile.path`, not the original filename. Tempfiles from `FileHelper.download` (API URL uploads) are named `discourse-upload-#{type}...` with no extension, and some multipart tempfiles may also lack one. In those cases a large animated GIF goes through the non-animated path, which typically keeps only the first frame, even when `allow_animated_thumbnails` is on. I could not check whether `downsize_instructions` takes only the first frame. Fix: decide whether the file is animated from `filename`, not from the tempfile path."
+   }
+  ]
+ },
+ "cost_usd": 0.0936804
+}

@@ -1,0 +1,41 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In _set_sample_rate_from_error_sampling(), the check `if client_sample_rate:` treats 0.0 as falsy, so a sample_rate of 0.0 is silently skipped and never set on normalized_data.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the 0.0 falsy check."
+  },
+  {
+   "comment": "Using Python’s built-in hash() to build cache keys is non-deterministic across processes (hash randomization), so keys won’t match across workers and invalidate_upsampling_cache may fail to delete them. Use a deterministic serialization of project_ids for the cache key.",
+   "severity": "Low",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions hash() cache key non-determinism."
+  },
+  {
+   "comment": "The upsampling eligibility check passes the outer dataset instead of the actual dataset used by scoped_dataset. In paths where the query ultimately runs against discover (e.g., dashboard split) while the original dataset is metrics, upsampling may be skipped even when all projects are allowlisted.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 identifies outer dataset vs scoped_dataset used in eligibility check."
+  }
+ ],
+ "candidates": [
+  "src/sentry/search/events/datasets/discover.py:1046 - upsampled_count() counts events with no sample_weight as zero.. `sum(sample_weight)` skips NULL values. In an allowlisted project, any error event sent without `contexts.error_sampling.client_sample_rate` (older SDKs, events from before the project was allowlisted, or clients that don't sample) adds 0 instead of 1. Once a project is allowlisted, counts for these events drop or go to zero. The comment assumes every event has a weight, but nothing in the shown code makes that true. Use `sum(ifNull(sample_weight, 1))` so these events still count once.",
+  "sentry-repo:1 - A stray submodule gitlink `sentry-repo` was added.. The PR adds a gitlink to commit a5d2909 at path `sentry-repo`. The upsampling feature does not need it, and there is no matching .gitmodules entry, so it looks like a nested checkout committed by accident. It breaks or confuses clones and CI that run submodule commands. Remove it.",
+  "src/sentry/api/helpers/error_upsampling.py:135 - The substring check treats negated or compound event.type filters as error queries.. `\"event.type:error\" in query` also matches `!event.type:error`. It also matches `event.type:error OR event.type:transaction` and similar queries. For those queries the discover count() is rewritten to `sum(sample_weight)`, so transactions and other non-error events add 0 or get the wrong weight, and the counts come out wrong. Parse the query, or at least require a non-negated, standalone `event.type:error` term with no other event.type terms.",
+  "src/sentry/api/endpoints/organization_events_stats.py:220 - The eligibility check uses the outer `dataset` instead of the `scoped_dataset` actually queried.. `_get_event_stats` receives `scoped_dataset`, which can differ from the request-level `dataset`, for example when a dashboard widget's discover query is split into errors or transactions. The upsampling decision is made on the outer `dataset`, so it can rewrite columns for a dataset that has no `sample_weight` or `upsampled_count`, or skip a scoped errors query that should be upsampled. Pass `scoped_dataset` to `is_errors_query_for_error_upsampled_projects`."
+ ]
+}

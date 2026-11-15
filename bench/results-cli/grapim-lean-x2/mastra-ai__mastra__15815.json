@@ -1,0 +1,130 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "mastra-ai__mastra__15815",
+ "url": "https://github.com/mastra-ai/mastra/pull/15815",
+ "head_sha": "012c8603ed0837f26723a2b6b18674167f2ae530",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:13:25.699Z",
+ "seconds": 60.044,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/core/src/processors/runner.ts",
+   "line": 62,
+   "end_line": 66,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "TripWire aborts no longer mark processor spans as errors.",
+   "body": "In the old code, every legacy runner path ended a TripWire abort with `processorSpan?.error({ error, endSpan: true, ... })`. The removed comment gave the reason: the blocked processor should show as ERROR in traces. `endTripWireProcessorSpan` now calls `span.end(...)` with attributes only. As a result, a processor that aborts (for example a PII guardrail) appears as a successful span with no `errorInfo` in Studio, the default exporter and every third-party exporter, not just the cloud one. Error-status dashboards and alerts on tripwires stop firing. The PR description does not ask for this. Fix: keep the `error({ error, endSpan: true, attributes })` call and add `processorOutcome` to its attributes.",
+   "raised": 2
+  },
+  {
+   "path": "observability/mastra/src/exporters/cloud.ts",
+   "line": 56,
+   "end_line": 63,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Dropping successful errors-only processor spans leaves their child spans orphaned in cloud traces.",
+   "body": "Errors-only processors still create a PROCESSOR_RUN span on purpose, so that work inside the processor (such as internal agent or model calls) nests under it. The default cloud filter drops that parent span when it succeeds. Its children do not carry the attribute, so they are still uploaded, with a `parentSpanId` pointing at a span cloud never receives. The trace tree then shows broken or detached nodes. Fix this by also dropping the descendants, or by re-parenting them to the dropped span's parent before upload. I could not check whether the cloud backend tolerates missing parents.",
+   "raised": 2
+  },
+  {
+   "path": "observability/mastra/src/exporters/cloud.ts",
+   "line": 20,
+   "end_line": 27,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Signal filter infrastructure is added to CloudExporter despite the PR saying it was removed.",
+   "body": "The description lists \"signal filter infrastructure\" as removed. The diff still adds a public `signalFilters` option with per-signal predicates for spans, logs, metrics, scores and feedback. Dropping MODEL_CHUNK spans only needs a hard-coded type check. This new public API is outside the requested scope and would be hard to take back after release.",
+   "raised": 1
+  },
+  {
+   "path": "observability/mastra/src/instances/base.ts",
+   "line": 80,
+   "end_line": 82,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Metrics auto-extract controls and cloud signal filters are still added, though the description says they were removed.",
+   "body": "The description says the signal filter infrastructure and the metrics auto-extract controls were dropped from this PR. The diff still adds `metrics.autoExtract` to the config, the zod schema and the core types, plus a short-circuit in `emitSpanEnded`. It also adds a public `signalFilters` option for all five signal types on `CloudExporterConfig`. These are new public config surfaces the stated request does not cover. Remove them or describe them in the PR.",
+   "raised": 1
+  },
+  {
+   "path": "observability/mastra/src/instances/base.ts",
+   "line": 641,
+   "end_line": 645,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The `metrics.autoExtract` control is added despite the PR saying it was removed.",
+   "body": "The description says \"metrics auto-extract controls\" were removed from this PR. The diff still adds `metrics.autoExtract` to the config types and schema, plus a branch in `emitSpanEnded` that skips auto-extracted metrics. This is unrequested behaviour and public config surface. Remove it or split it into its own PR.",
+   "raised": 1
+  },
+  {
+   "path": "packages/core/src/processors/index.ts",
+   "line": 325,
+   "end_line": 333,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Processor observability controls are included even though the PR says they were removed.",
+   "body": "The description says the PR was narrowed to two changes: drop MODEL_CHUNK spans and default logs to `warn`. It also says \"Removed the processor observability work\", and processor-level filtering is deferred to a follow-up. The diff still adds `Processor.observability`, the `processorObservability`/`processorOutcome` attributes, and runner/workflow changes to span creation and tripwire handling. These change shared core processor behaviour the request does not cover. The changeset (line 8) also announces this feature. Remove these changes or update the scope.",
+   "raised": 1
+  },
+  {
+   "path": "packages/core/src/processors/runner.ts",
+   "line": 39,
+   "end_line": 49,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Processor observability controls are still shipped, though the description says they were removed.",
+   "body": "The PR description says it was narrowed to two changes: dropping MODEL_CHUNK spans in CloudExporter and defaulting logs to `warn`. It says the processor observability work was removed and deferred to a follow-up. The diff still adds `Processor.observability` (`false` / `'errors-only'`), the `processorObservability` / `processorOutcome` span attributes and the tripwire span rewrite. These are spread across the runner, both workflow.ts files and the core types, and the changeset (line 8) still advertises them. This adds new public API and changes how processor spans behave outside the stated scope. Either remove it as the description says, or update the description and review it as its own feature.",
+   "raised": 1
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 50484,
+  "cacheRead": 57008,
+  "output": 5207,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 58,
+   "reviewedHunks": 58,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 107496,
+   "outputTokens": 5207,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.36797759999999996
+}

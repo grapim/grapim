@@ -1,0 +1,34 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "cal.com__8330",
+ "url": "https://github.com/calcom/cal.com/pull/8330",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect end time calculation using slotStartTime instead of slotEndTime",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out that end is computed from slotStartTime when it should use slotEndTime."
+  },
+  {
+   "comment": "Using === for dayjs object comparison will always return false as it compares object references, not values. Use .isSame() method instead: dayjs(date.start).add(utcOffset, 'minutes').isSame(dayjs(date.end).add(utcOffset, minutes))",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out that === on dayjs objects compares references and says .isSame() should be used."
+  }
+ ],
+ "candidates": [
+  "Both start and end variables are computed from slotStartTime instead of using slotEndTime for end, so the working hours check validates the slot start time twice and never checks if slotEndTime exceeds workingHour.endTime, allowing slots that extend past working hours to incorrectly pass validation",
+  "Line 114 compares two dayjs objects with === which compares object references rather than time values, causing the zero-length date override check to always return false so slots are never rejected when a date override has identical start and end times - should use .isSame() instead",
+  "When a date override's time crosses midnight after timezone conversion, the code computes startTime/endTime as time-of-day only (0-1439 minutes) ignoring the day change, which places slots on the wrong day unlike getWorkingHours which explicitly handles day overflow"
+ ]
+}

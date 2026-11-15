@@ -1,0 +1,140 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__10",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/10",
+ "head_sha": "d1c69189f3c90ecf56013a8da904da9bff9a8e19",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:32:26.641Z",
+ "seconds": 53.298,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "db/migrate/20150818190757_create_embeddable_hosts.rb",
+   "line": 9,
+   "end_line": 11,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Migration crashes when the embed_category setting has no matching row.",
+   "body": "`execute(...)[0]['id']` assumes the query returns a row. Settings left at their default are not stored in `site_settings`, and the setting may also name a category that was renamed or deleted. In those cases the result is empty and `PG::Result#[0]` raises IndexError, so the migration aborts on most installs. It never reaches the `category_id == 0` fallback. Check `ntuples > 0` before reading the row. Line 15 makes the same assumption about `uncategorized_category_id`."
+  },
+  {
+   "path": "db/migrate/20150818190757_create_embeddable_hosts.rb",
+   "line": 22,
+   "end_line": 26,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Migrated hosts are not normalized, so existing embeds stop working.",
+   "body": "The old setting accepted entries like `http://discourse.org` or `https://example.com/1234`, and the old specs used exactly those. The migration inserts each line as-is through raw SQL, which skips the model's `before_validation` stripping. It also keeps any `\\r` or surrounding whitespace. `EmbeddableHost.record_for_host` compares `lower(host)` against the bare `uri.host`, so these rows never match. After the upgrade, embedding and topic retrieval fail with 'invalid referer host' for those sites. Strip the scheme, path and whitespace, lowercase each entry, and skip blank lines before inserting."
+  },
+  {
+   "path": "app/models/embeddable_host.rb",
+   "line": 5,
+   "end_line": 8,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`before_validation` crashes when the host is nil.",
+   "body": "`self.host.sub!` raises NoMethodError when `host` is nil. This happens when the admin endpoint receives a request without `embeddable_host[host]`, or with any `EmbeddableHost.new` that has no host. The result is a 500 error instead of a validation error. Guard the callback with `return if host.blank?`. Adding `validates :host, presence: true` would also make the error explicit."
+  },
+  {
+   "path": "db/migrate/20150818190757_create_embeddable_hosts.rb",
+   "line": 25,
+   "end_line": 25,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Host values are put into SQL without quoting.",
+   "body": "Each host from the setting is placed inside `'#{h}'`. A value containing a single quote breaks the migration, and a crafted value runs arbitrary SQL. Escape the value with `ActiveRecord::Base.connection.quote(h)` or use bound parameters."
+  },
+  {
+   "path": "db/migrate/20150818190757_create_embeddable_hosts.rb",
+   "line": 31,
+   "end_line": 31,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "destructive_migration",
+   "title": "The settings are deleted inside a `change` migration, so a rollback loses the host list.",
+   "body": "`change` reverses `create_table` by dropping the table, but the `DELETE FROM site_settings` cannot be undone. Rolling back drops `embeddable_hosts` and the original settings are already gone, so the allowed-host configuration is lost. Use separate `up`/`down` methods, with a `down` that restores the settings from the table, or keep the settings rows."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/models/store.js.es6",
+   "line": 192,
+   "end_line": 192,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Every `*_ids` key is now replaced, even when the referenced records were not side-loaded.",
+   "body": "The `_id` branch only replaces the key when lookup succeeds. The new `_ids` branch always deletes `obj[k]` and writes an array that may be full of `undefined`. Any existing REST model with an array-of-ids field (for example `group_ids` or `user_ids`) that is not side-loaded loses its ids. If the value is `null`, `obj[k].map` throws and hydration fails. Only replace the key when every id resolves, and guard against null or non-array values. `hydrated || []` does nothing, because `map` always returns an array."
+  },
+  {
+   "path": "app/controllers/admin/embeddable_hosts_controller.rb",
+   "line": 10,
+   "end_line": 16,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "An unknown id causes a NoMethodError and a 500 response.",
+   "body": "`update` and `destroy` use `where(...).first` and then call methods on a possibly nil result. A stale or invalid id raises NoMethodError and returns a 500 response. Use `EmbeddableHost.find(params[:id])` so the request returns 404 instead."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 24740,
+  "cacheRead": 3262,
+  "output": 4069,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 36,
+   "hunks": 40,
+   "reviewedHunks": 36,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 28004,
+   "outputTokens": 4069,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 32,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "app/models/site_setting.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/locales/server.en.yml",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/site_settings.yml",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "spec/models/site_setting_spec.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2057404
+}

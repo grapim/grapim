@@ -1,0 +1,38 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "logic: Potential nil pointer exception - if no TopicUser record exists, tu will be nil and calling methods on it will crash",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 explicitly says TopicUser.find_by can return nil."
+  },
+  {
+   "comment": "Typo in property name: 'stopNotificiationsText' should be 'stopNotificationsText' (missing 'n' in 'Notifications')",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    2
+   ],
+   "confidence": 0.98,
+   "reasoning": "Same typo."
+  }
+ ],
+ "candidates": [
+  "TopicUser.find_by can return nil and the current toggle logic can re-subscribe users or flip state due to email link prefetching - should make unsubscribe idempotent by always setting to muted and creating the record if needed",
+  "Typo in stopNotificiationsText property name - should be stopNotificationsText",
+  "Missing trailing comma in multiline filter list - the array passed to skip_before_filter should include a trailing comma after :unsubscribe to match project style and fix lint warning",
+  "Duplicate respond instructions in email template - Line 6 duplicates the respond instructions that already appear at Line 19 when context_posts are present",
+  "Header class has leading dot preventing CSS targeting - Line 10 includes '.previous-discussion' instead of 'previous-discussion' in the class attribute",
+  "State-changing unsubscribe action uses GET request - topics#unsubscribe mutates notification state but is mapped to GET, should use POST/PUT or require a signed token",
+  "Test for List-Unsubscribe header only checks presence but should assert the value uses the provided unsubscribe_url"
+ ]
+}

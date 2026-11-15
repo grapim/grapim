@@ -1,0 +1,13 @@
+{
+ "tool": "claude-action",
+ "pr_id": "microsoft__TypeScript__65022",
+ "url": "https://github.com/microsoft/TypeScript/pull/65022",
+ "head_sha": "ad98c177d3b79373edbb817fb790b12cdde3693f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T07:36:23.864Z",
+ "seconds": 138.846,
+ "status": "error",
+ "note": "Error: git worktree add --detach: Preparing worktree (detached HEAD ad98c17)\nfatal: unable to access 'https://github.com/microsoft/TypeScript.git/': Could not resolve host: github.com\nfatal: could not fetch be8e70810f821fb7f9a121e09d8b781b20d4c92a from promisor remote\n    at git (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:38:11)\n    at worktree (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:119:3)\n    at Object.claudeAction [as claude-action] (file:///C:/Users/OS/Desktop/commons/bench/lib/adapters.mjs:275:16)\n    at file:///C:/Users/OS/Desktop/commons/bench/run.mjs:186:33\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:69:30\n    at async Promise.all (index 0)\n    at async pool (file:///C:/Users/OS/Desktop/commons/bench/run.mjs:68:3)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:162:1",
+ "cost_usd": 0
+}

@@ -1,0 +1,46 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__77754",
+ "url": "https://github.com/getsentry/sentry/pull/77754",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The AssignmentSource dataclass uses queued: datetime = timezone.now() as a default field value, which evaluates timezone.now() once at class definition time and shares that single datetime instance across all objects.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same issue: the timezone.now() default is evaluated once, when the class is defined."
+  },
+  {
+   "comment": "The method name has a typo: test_from_dict_inalid_data should be test_from_dict_invalid_data.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the typo in the test method name."
+  },
+  {
+   "comment": "Method name says 'empty_array' but tests empty dict - consider renaming to 'test_from_dict_empty_dict' for clarity.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the test name saying 'empty_array' when it tests an empty dict."
+  },
+  {
+   "comment": "to_dict() returns a datetime for queued; if this dict is passed in task kwargs (e.g., via apply_async), JSON serialization may fail depending on the serializer, which can cause enqueue errors.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates raise the risk of JSON serialization failing on the datetime that to_dict() returns."
+  }
+ ],
+ "candidates": [
+  "src/sentry/integrations/services/assignment_source.py:18 - `queued` default is evaluated once at import time, so every instance gets the same timestamp.. `queued: datetime = timezone.now()` runs once, when the class is defined. Every `AssignmentSource` built without an explicit `queued` (including every one from `from_integration`) then carries the worker's import time, not the time it was queued. Anything that reads `queued` to order events or detect staleness gets a wrong value. Fix: `queued: datetime = field(default_factory=timezone.now)`."
+ ]
+}

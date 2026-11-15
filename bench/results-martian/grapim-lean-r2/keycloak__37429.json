@@ -1,0 +1,128 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "head_sha": "02f48f776f43734d1ac8914d3ad6a7115acdcb33",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:15:34.996Z",
+ "seconds": 47.982,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "themes/src/main/resources-community/theme/base/account/messages/messages_lt.properties",
+   "line": 101,
+   "end_line": 101,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Lithuanian totpStep1 replaced with Italian text.",
+   "body": "The Lithuanian account message is now `Installa una delle seguenti applicazioni sul tuo cellulare:`, which is Italian. Lithuanian users will see an Italian sentence in the TOTP setup. Use a Lithuanian translation, for example `Įdiekite vieną iš šių programėlių savo mobiliajame telefone:`."
+  },
+  {
+   "path": "themes/src/main/resources-community/theme/base/login/messages/messages_lt.properties",
+   "line": 71,
+   "end_line": 71,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Lithuanian loginTotpStep1 replaced with Italian text.",
+   "body": "`loginTotpStep1` in the Lithuanian login bundle is now the Italian sentence `Installa una delle seguenti applicazioni sul tuo cellulare:`. Lithuanian users will see Italian on the OTP setup page. Replace it with a Lithuanian translation."
+  },
+  {
+   "path": "js/apps/account-ui/maven-resources/theme/keycloak.v3/account/messages/messages_en.properties",
+   "line": 188,
+   "end_line": 188,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The account UI bundle now uses MessageFormat placeholders instead of i18next `{{n}}` interpolation.",
+   "body": "The JS apps format messages with i18next, which expects the `{{0}}` placeholders this line used before. With `{0}` and `{2,choice,...}`, the account console may show the raw placeholders and the choice pattern instead of the values whenever this validation error appears. I could not see how the account UI formats this key; that is the one fact that could prevent the problem. Unless that code uses Java-style MessageFormat, keep `{{0}}`/`{{1}}`/`{{2}}` and use i18next plurals rather than a ChoiceFormat."
+  },
+  {
+   "path": "js/apps/admin-ui/maven-resources/theme/keycloak.v2/admin/messages/messages_en.properties",
+   "line": 3138,
+   "end_line": 3138,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The admin UI bundle now uses MessageFormat placeholders instead of i18next `{{n}}` interpolation.",
+   "body": "This file uses i18next `{{name}}` interpolation elsewhere (for example `{{error}}` and `{{fieldName}}`). Changing this key to `{0}` and `{2,choice,0#values|1#value|1<values}` means i18next will likely show the placeholders and the choice syntax literally instead of the attribute name and limits. Keep `{{0}}`-style placeholders here, and use i18next pluralization if plural forms are needed."
+  },
+  {
+   "path": "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java",
+   "line": 74,
+   "end_line": 80,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Guessing the English file name crashes the verifier when no matching `_en` file exists.",
+   "body": "The English file path is built by replacing `_[a-zA-Z-_]*\\.properties` with `_en.properties`. A bundle whose base name contains an underscore and has no locale, such as the old fixture `duplicate_keys.properties` (which had to be renamed), maps to a file that does not exist (`duplicate_en.properties`). The same happens for any theme with no English counterpart at the derived path. In those cases the code throws an unchecked `RuntimeException` that aborts the whole Maven run, and it is not reported as a `MojoExecutionException` or as a message. Handle a missing English bundle gracefully, for example by treating the English text as empty or adding a message, and throw `MojoExecutionException` for read errors."
+  },
+  {
+   "path": "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java",
+   "line": 157,
+   "end_line": 157,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "The anchor mismatch message leaves out the key and the file.",
+   "body": "`Didn't find anchor tag ... in original string` does not say which key or file failed, even though the `Illegal HTML` message does. When this fails across dozens of bundles, nobody can tell where the problem is. Add the key and file name, as the other message does."
+  },
+  {
+   "path": "themes/src/main/resources-community/theme/base/account/messages/messages_zh_CN.properties",
+   "line": 112,
+   "end_line": 112,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Traditional Chinese text in the Simplified Chinese bundle.",
+   "body": "The new `totpStep1=在您的手機上安裝以下應用程式之一：` uses Traditional characters (手機, 應用程式), but this is the zh_CN bundle. Use Simplified Chinese, for example `在您的手机上安装以下应用程序之一：`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 66937,
+  "cacheRead": 3262,
+  "output": 4131,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 48,
+   "hunks": 52,
+   "reviewedHunks": 52,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 70201,
+   "outputTokens": 4131,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 47,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "misc/theme-verifier/src/test/resources/duplicateKeys_en.properties",
+    "reason": "no content change"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.41796540000000004
+}

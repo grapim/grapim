@@ -1,0 +1,32 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "logic: Potential nil pointer exception - if no TopicUser record exists, tu will be nil and calling methods on it will crash",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out that the code crashes when the TopicUser row doesn't exist after find_by, which is the same nil issue."
+  },
+  {
+   "comment": "Typo in property name: 'stopNotificiationsText' should be 'stopNotificationsText' (missing 'n' in 'Notifications')",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the typo in the property name."
+  }
+ ],
+ "candidates": [
+  "The unsubscribe action uses TopicUser.find_by + direct mutation + save!, which can cause a 500 error if the row doesn't exist and bypasses TopicUser.change which performs upsert, sets reason/timestamps, and publishes MessageBus updates, leading to crashes and inconsistent notification state/UI",
+  "The unsubscribe endpoint mutates notification state via GET request, which is not CSRF-protected and can be triggered cross-site (e.g., via an img tag) for any logged-in user, allowing silent mute/unmute of topics without user intent",
+  "The unsubscribe Ember route tries to hide notification reason text by setting details.notificationReasonText to null, but notificationReasonText is a computed property that always returns a translated string based on notification_level/notifications_reason_id, so the reason text will still appear"
+ ]
+}

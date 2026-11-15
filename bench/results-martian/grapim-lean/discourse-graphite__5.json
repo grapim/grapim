@@ -1,0 +1,74 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__5",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/5",
+ "head_sha": "5b229316ee4c661836ed1161139692a3e8527444",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:36:12.020Z",
+ "seconds": 28.799,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/assets/stylesheets/common/base/topic-post.scss",
+   "line": 264,
+   "end_line": 265,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Making `.small-action` a flex container stops `float: right` on its button from working.",
+   "body": "Once `.small-action` is `display: flex`, `float` has no effect on its children. The `button { float: right; }` rule (and `float: left` on `.topic-avatar`) is ignored. The button now sits in DOM order right after `.small-action-desc` instead of at the right edge, or on the left if it comes first in the template. `.small-action-desc` also has no `flex-grow`, so nothing pushes the button to the right. Fix: add `margin-left: auto` to the button (or `flex: 1` to `.small-action-desc`), and set `order` if the button comes first in the markup."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 5023,
+  "cacheRead": 3262,
+  "output": 1808,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 8287,
+   "outputTokens": 1808,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "app/assets/stylesheets/common/base/topic.scss",
+    "line": 30,
+    "end_line": 32,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "A long topic title in the flex header can overflow and push the panel out of view.",
+    "body": "`.extra-info-wrapper` is now a flex item in `.contents` with the default `min-width: auto`, so it cannot shrink below the width of its content. When the docked header shows a long topic title, the wrapper takes its full text width. That can push `.panel` (`margin-left: auto`, `order: 3`) off-screen or onto a new line, and any `text-overflow: ellipsis` on the title stops truncating. I couldn't see the rest of this element's styles to confirm. Fix: add `min-width: 0` (and `flex: 1 1 auto` or `overflow: hidden`) to `.extra-info-wrapper`."
+   }
+  ]
+ },
+ "cost_usd": 0.0619354
+}

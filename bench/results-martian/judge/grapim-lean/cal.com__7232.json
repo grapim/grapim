@@ -1,0 +1,44 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Asynchronous functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called without await inside forEach loops. This occurs during booking rescheduling/cancellation, and workflow/workflow step deletion/updates. Consequently, scheduled workflow reminders may not be reliably cancelled, potentially leaving them active.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    3,
+    5,
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C3 and C5 point out that the reminder delete helpers are called in forEach without being awaited, so cancellation may not happen. C2 also says the async calls in the reschedule path are not awaited and suggests awaiting them."
+  },
+  {
+   "comment": "When immediateDelete is true, the deleteScheduledEmailReminder function cancels the SendGrid email but fails to delete the corresponding WorkflowReminder record from the database. This creates orphaned database entries and is inconsistent with the immediateDelete: false path, which marks the record as cancelled. The SendGrid DELETE API call is also omitted in this path.",
+   "severity": "High",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "C2 objects to using immediateDelete at all and to the SendGrid cap, but it does not say the WorkflowReminder DB record is left undeleted on the immediate path."
+  },
+  {
+   "comment": "The 'cancelled' field is nullable, which can lead to existing records having null values instead of a default of false. This can cause incorrect behavior in the application when checking the cancellation status of reminders.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate raises the nullable 'cancelled' column or the lack of a default value."
+  }
+ ],
+ "candidates": [
+  "packages/features/ee/workflows/api/scheduleEmailReminders.ts:53 - One failed SendGrid cancel stops the whole batch, and the rows already cancelled are never deleted.. The whole loop sits inside one try. If `client.request` throws for any reminder (bad or expired batch_id, rate limit, or SendGrid's 400 for a batch that already has a status), every reminder after it is skipped. The `prisma.workflowReminder.delete` calls queued so far are lazy PrismaPromises that only run at `Promise.all`, so they never run either. On the next cron run the same rows are picked up again, and re-POSTing `cancel` for a batch already cancelled fails again. The run is stuck until those reminders' scheduledDate passes, so the cancelled emails are sent anyway, which is the bug this PR sets out to fix. Fix: give each reminder its own try/catch and await its delete right after the cancel succeeds. Also delete the row (or mark it handled) when SendGrid says the batch is already cancelled.",
+  "packages/features/bookings/lib/handleNewBooking.ts:964 - Reschedule still cancels emails right away through the 100-pending-cancellation SendGrid API.. Here `deleteScheduledEmailReminder` is called with `immediateDelete = true`, which POSTs `status: cancel` to `/v3/user/scheduled_sends` straight away instead of setting `cancelled` and leaving the cancel to the cron job. The PR says this immediate path is what fails once 100 cancellations are pending, and that rescheduled bookings should be fixed too. On this path, after the cap is reached, the cancel fails silently: the error is only logged, the row is not marked cancelled, and the old reminder is still sent. Also, the surrounding try/catch catches nothing, because the async calls are not awaited. Fix: drop `immediateDelete` here so the reminder is marked `cancelled` and the cron job cancels it, and await the calls (e.g. `Promise.all`).",
+  "packages/features/bookings/lib/handleCancelBooking.ts:484 - Reminder cancellation is no longer awaited before the response is returned.. Before this change, the DB deletes of the reminders were part of the awaited `prismaPromises`. Now the work happens inside `deleteScheduledEmailReminder`/`deleteScheduledSMSReminder`, which are called in `forEach` and never awaited. In a serverless deployment the function can be frozen after the response is sent, so `cancelled: true` may never be written. The cron job then never cancels the email, and the reminder for the cancelled booking is still sent. Fix: collect the returned promises and await them, e.g. by adding them to `prismaPromises`. The same unawaited pattern is used in bookings.tsx (reschedule) and in workflows.tsx when activeOn or steps change.",
+  "packages/features/ee/workflows/components/WorkflowStepContainer.tsx:390 - Unrelated rework of the SMS verification UI in a reminder-cancellation fix.. This hunk restructures the phone-number and verification block and changes when its wrapper renders: it is no longer shown when only `isSenderIdNeeded` is true. The request is about cancelling workflow reminders for cancelled or rescheduled bookings and does not cover UI changes. It looks like a leftover of another branch or a revert of newer UI code. Fix: drop this hunk from the PR or move it to its own change.",
+  "packages/trpc/server/routers/viewer/bookings.tsx:487 - Reminder cancellations on request-reschedule are fire-and-forget; the awaited deletes were removed.. Before, `await Promise.all(remindersToDelete)` made sure the reminder rows were handled before the code went on. Now the async delete and cancel helpers are called without being awaited. If the lambda finishes first, or the update fails without being noticed, the `cancelled` flag is never set and the reminder for the old booking is still sent. Fix: await `Promise.all` over the helper calls."
+ ]
+}

@@ -1,0 +1,50 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "keycloak__37634",
+ "url": "https://github.com/keycloak/keycloak/pull/37634",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In AccessTokenContext constructor, the fourth Objects.requireNonNull validates grantType twice instead of validating rawTokenId, allowing null rawTokenId values to pass validation.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same bug: grantType is null-checked twice and rawTokenId is never checked."
+  },
+  {
+   "comment": "In isAccessTokenId, the substring for the grant shortcut and the equality check look inverted: the grant shortcut occupies indices 4–5 (substring(4,6)), and a match should return true (combined with UUID check), not false.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 identifies the inverted equality check in isAccessTokenId. It does not mention the wrong substring indices, but it points to the same faulty logic."
+  },
+  {
+   "comment": "Javadoc mentions \"usually like 3-letters shortcut\" but some implementations use 2-letter shortcuts (\"ac\", \"cc\", \"rt\", \"te\", \"pc\", \"ci\", \"ro\"). Consider updating documentation to reflect actual usage pattern.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the Javadoc saying shortcuts are usually 3 letters when the implementations use 2."
+  },
+  {
+   "comment": " Catching generic RuntimeException is too broad. The implementation throws IllegalArgumentException specifically - catch that instead for more precise testing.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the test catching a generic RuntimeException instead of IllegalArgumentException."
+  }
+ ],
+ "candidates": [
+  "The constructor's null check on line 73 validates grantType twice instead of validating rawTokenId - Objects.requireNonNull(grantType, ...) is called instead of Objects.requireNonNull(rawTokenId, ...), allowing null rawTokenId to be stored and cause encoded token ID to end with :null",
+  "The isAccessTokenId matcher has inverted condition logic - 'if (...equals...) return false' causes the matcher to return false when grant type equals expected value, which is backwards; needs !equals to return false when they don't match",
+  "Unused import org.keycloak.protocol.oidc.grants.TokenExchangeGrantTypeFactory was added to StandardTokenExchangeProvider but is never used in the file"
+ ]
+}

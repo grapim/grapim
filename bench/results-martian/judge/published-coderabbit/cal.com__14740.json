@@ -1,0 +1,79 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The addGuests.handler.ts blacklist check uses blacklistedGuestEmails.includes(guest) after lowercasing the blacklist but not the input guest emails, allowing attackers to bypass BLACKLISTED_GUEST_EMAILS restrictions by submitting emails with uppercase characters.",
+   "severity": "High",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 points out that the guest email checks are case-sensitive, which lets blacklisted emails get through with different casing."
+  },
+  {
+   "comment": "The logic for checking team admin/owner permissions is incorrect. This condition uses AND (&&) which requires both isTeamAdmin AND isTeamOwner to be true, but it should use OR (||) since a user needs to be either an admin OR an owner to have permission.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 flags the same && vs || problem in the admin/owner permission check."
+  },
+  {
+   "comment": "The sendAddGuestsEmails function in email-manager.ts passes the full calendarEvent.attendees array when determining which attendees receive AttendeeScheduledEmail vs AttendeeAddGuestsEmail, but checks if newGuests.includes(attendee.email) where newGuests is the input guests array.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.65,
+   "reasoning": "C3 says the emails use the unfiltered guests input instead of uniqueGuests. That is the same problem as the newGuests.includes check running against the raw input array."
+  },
+  {
+   "comment": "uniqueGuests filters out existing attendees and blacklisted emails but does not deduplicate duplicates within the input; createMany can insert duplicate attendee rows if the client submits repeated emails.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.9,
+   "reasoning": "C4 says duplicate emails within the input list are not removed."
+  },
+  {
+   "comment": "Starting with an array containing an empty string may cause validation issues. Consider starting with an empty array [] and handling the empty state in the MultiEmail component instead.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate raises the problem of starting the list with an empty-string entry."
+  },
+  {
+   "comment": "The `sendAddGuestsEmails` function does not check the `disableStandardEmails` flags in the `EventType` metadata, which may result in sending emails to hosts/attendees even when standard emails are disabled for the event type.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.95,
+   "reasoning": "C5 points out that the disableStandardEmails flags are ignored."
+  }
+ ],
+ "candidates": [
+  "Guest email comparisons are case-sensitive, allowing blacklisted/existing guests to slip through with different casing",
+  "Authorization check uses && requiring both admin AND owner roles, which blocks legitimate admins or owners who only have one role - should use || instead",
+  "Notifications use the unfiltered guests input instead of the filtered uniqueGuests list",
+  "Duplicate guest emails are not removed from the input list",
+  "sendAddGuestsEmails ignores disableStandardEmails flags and forwards calendarEvent unchanged, which can send emails when they're disabled",
+  "Invalid email banner remains visible even after user edits the email input to valid values - banner only clears when clicking Cancel or attempting to add again",
+  "sendAddGuestsEmails can leak hidden notes to attendees by not respecting hideCalendarNotes setting",
+  "Reassigning function parameter 'value' in MultiEmail component is a code smell",
+  "Using array index as key in MultiEmail can cause issues when items are removed from the middle of the list",
+  "Empty fragment <></> in MultiEmail can be simplified by restructuring the conditional"
+ ]
+}

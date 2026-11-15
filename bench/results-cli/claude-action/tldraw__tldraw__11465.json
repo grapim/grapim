@@ -1,0 +1,172 @@
+{
+ "tool": "claude-action",
+ "pr_id": "tldraw__tldraw__11465",
+ "url": "https://github.com/tldraw/tldraw/pull/11465",
+ "head_sha": "db9e4a4a5d9c4b9cde9b88aace71b21f8dd4f43c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:31:55.421Z",
+ "seconds": 187.459,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "apps/dotcom/client/src/tla/components/TlaEditor/agent-logos.tsx",
+   "line": 19,
+   "end_line": 19,
+   "severity": null,
+   "category": null,
+   "title": "Security / docs:** This comment (and the matching one on `getMcpAgentClient`) says the logo comes from the OAuth client and can't be spoofed. That's only true for comments written through the MCP path",
+   "body": "**Security / docs:** This comment (and the matching one on `getMcpAgentClient`) says the logo comes from the OAuth client and can't be spoofed. That's only true for comments written through the MCP path. As `mcpCommentWrite.ts:99-101` notes, the comment authorizers don't check `meta`. So any signed-in user can write a comment from their own client with `meta.mcpAgent = { id: 'mcp-agent:x', name: 'Claude', client: 'claude' }` and get the Claude mark and \"Claude / alice\" byline.\n\nThe owner name still shows, so the damage is limited to looks. But the badge now reads like a verified mark, which it isn't. Either:\n- strip or validate `meta.mcpAgent` in the comment create/update authorizers (only the MCP write path may set it), or\n- soften the wording here so nobody later relies on it as a trust signal."
+  },
+  {
+   "path": "apps/dotcom/client/src/tla/components/TlaEditor/TlaAgentCommentSurfaces.tsx",
+   "line": 34,
+   "end_line": 34,
+   "severity": null,
+   "category": null,
+   "title": "Correctness (edge case):** The agent is read from the earliest *live* comment, but the owner shown next to it is `thread.createdBy` (row `author` / `resolveAuthor(thread.createdBy)`). If the opening c",
+   "body": "**Correctness (edge case):** The agent is read from the earliest *live* comment, but the owner shown next to it is `thread.createdBy` (row `author` / `resolveAuthor(thread.createdBy)`). If the opening comment is deleted, the earliest live comment becomes a reply. If someone else's agent wrote that reply, the row and pin say \"Claude / <thread creator>\", which credits the wrong person. Two options:\n- check that `first.authorId === thread.createdBy` before badging, or\n- keep the agent on the thread (e.g. `thread.meta`) when it's created.\n\nMinor: `getCommentsByThread` already returns comments oldest-first (see `comments-sidebar.tsx:103`), so `comments[0]` would be enough here instead of the `reduce`."
+  },
+  {
+   "path": "apps/dotcom/client/src/tla/components/TlaEditor/TlaAgentCommentSurfaces.tsx",
+   "line": 55,
+   "end_line": 55,
+   "severity": null,
+   "category": null,
+   "title": "Robustness:** `JSON.stringify` doesn't produce a valid CSS string escape. `\"` and `\\` happen to escape the same way in both. But JSON writes control characters and some code points as `\\n` or `\\u00XX`",
+   "body": "**Robustness:** `JSON.stringify` doesn't produce a valid CSS string escape. `\"` and `\\` happen to escape the same way in both. But JSON writes control characters and some code points as `\\n` or `\\u00XX`, and CSS reads those as a literal `n` or `u00XX`. A display name with odd characters would then show garbled text after the agent name. Escaping for CSS would be safer: `\"${name.replace(/[\"\\\\]/g, '\\\\$&').replace(/\\n/g, '\\\\a ')}\"`.\n\n**Accessibility:** Text from `::after` content isn't reliably read out by screen readers, and it can't be selected. In the byline, the \"/ owner\" part has a tooltip and is real text. In the sidebar row it is only CSS. If a small `Byline` slot on `CommentListItem` is an option, that would avoid the CSS workaround."
+  },
+  {
+   "path": "apps/dotcom/client/src/tla/components/TlaEditor/TlaAgentCommentSurfaces.tsx",
+   "line": 80,
+   "end_line": 80,
+   "severity": null,
+   "category": null,
+   "title": "Behaviour change for non-agent pins:** `PinContent` now replaces the default for *every* pin. Before, a pin used `avatarRenderer(options.components, thread.createdBy)` and fell back to `UNKNOWN_COMMEN",
+   "body": "**Behaviour change for non-agent pins:** `PinContent` now replaces the default for *every* pin. Before, a pin used `avatarRenderer(options.components, thread.createdBy)` and fell back to `UNKNOWN_COMMENT_AUTHOR`. Now it is always `<Avatar>` with a separate \"Someone\" string. Nothing changes on screen today, because dotcom doesn't configure an `Avatar` slot. But if one is added later, it will quietly stop applying to pins while it still applies in the sidebar and threads.\n\nConsider exporting `UNKNOWN_COMMENT_AUTHOR` and `avatarRenderer` from `@tldraw/commenting` (or passing the default content into the slot), so that `if (!agent)` renders exactly what the toolkit would. The same applies to the duplicated `unknownAuthor` / `ownerSuffix` messages: `ownerSuffix` repeats the `\"/ {name}\"` message from `TlaCommentByline`."
+  },
+  {
+   "path": "apps/dotcom/client/src/tla/components/TlaEditor/agent-logos.tsx",
+   "line": 32,
+   "end_line": 32,
+   "severity": null,
+   "category": null,
+   "title": "A11y nit:** The generic-face SVG in `AgentAvatar` has `aria-hidden=\"true\"`, but this one doesn't. As a result, screen readers may announce an unlabeled graphic inside the byline. Add `aria-hidden=\"tru",
+   "body": "**A11y nit:** The generic-face SVG in `AgentAvatar` has `aria-hidden=\"true\"`, but this one doesn't. As a result, screen readers may announce an unlabeled graphic inside the byline. Add `aria-hidden=\"true\"` here to match, or give it `role=\"img\"` and an `aria-label` with the app name if the logo should be announced.\n\n```suggestion\n\t\t<svg className={className} viewBox=\"0 0 24 24\" style={{ color: logo.color }} aria-hidden=\"true\">\n```"
+  },
+  {
+   "path": "apps/dotcom/client/src/tla/components/TlaEditor/comment-byline.module.css",
+   "line": 16,
+   "end_line": 16,
+   "severity": null,
+   "category": null,
+   "title": "Maintainability:** These `:has()` selectors depend on the toolkit's internal structure: `.tlui-cmt-card__actions > *` and Radix's `[data-state='open']`. The negated version below must also stay exactl",
+   "body": "**Maintainability:** These `:has()` selectors depend on the toolkit's internal structure: `.tlui-cmt-card__actions > *` and Radix's `[data-state='open']`. The negated version below must also stay exactly in sync with this one, or the time and the padding will disagree. That works for now, but a toolkit refactor or a Radix upgrade would break it without any warning.\n\nA `data-actions-visible` attribute (or similar) on `.tlui-cmt-card`, set by `@tldraw/commenting`, would give one public hook for both rules. Then neither rule would need `!important`."
+  }
+ ],
+ "usage": {
+  "requests": 38,
+  "input": 60,
+  "cacheWrite": 68607,
+  "cacheRead": 1119807,
+  "output": 13044,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "result": {
+   "duration_api_ms": 135186,
+   "stop_reason": "end_turn",
+   "session_id": "d9c69b2c-c3c0-4737-ac36-e49a021e939c",
+   "total_cost_usd": 0.9910673999999998,
+   "usage": {
+    "input_tokens": 54,
+    "cache_creation_input_tokens": 54317,
+    "cache_read_input_tokens": 1092911,
+    "output_tokens": 11997,
+    "output_tokens_details": {
+     "thinking_tokens": 2765
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 54317,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "modelUsage": {
+    "claude-opus-5-5": {
+     "inputTokens": 60,
+     "outputTokens": 13044,
+     "cacheReadInputTokens": 1119807,
+     "cacheCreationInputTokens": 68607,
+     "webSearchRequests": 0,
+     "costUSD": 0.9910673999999998,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 2919,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   },
+   "permission_denials": [],
+   "terminal_reason": "completed",
+   "fast_mode_state": "off",
+   "fast_mode_disabled_reason": "sdk_opt_in_required",
+   "subagent_stats": {
+    "spawned": 1,
+    "requested": {
+     "background": 0,
+     "foreground": 1,
+     "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 1,
+    "spawned_by_subagents": 0,
+    "completed": 1,
+    "failed": 0,
+    "killed": {
+     "parent": 0,
+     "user": 0,
+     "system": 0
+    },
+    "refused": {
+     "depth_limit": 0,
+     "concurrency_limit": 0,
+     "budget": 0
+    },
+    "by_type": {
+     "general-purpose": 1
+    }
+   },
+   "safety_stops": 0,
+   "is_error": false,
+   "num_turns": 38,
+   "subtype": "success",
+   "api_error_status": null,
+   "result": "I reviewed PR #11465 and posted 6 inline comments. Bash couldn't run in this environment (it fails because it can't create its temp folder), so I had no `git diff` to work from. I reviewed the files changed in the latest commits by reading them directly, so a file outside that set could have been missed.\n\n## Summary\n\nThe PR shows which agent posted a comment through the MCP server. The byline reads \"Claude / max\", the owner's avatar gets a small agent logo, and both sidebar rows and pins use this. The logo comes from the agent's OAuth client, not from the name the agent gives itself. The PR is well built: all three places share one `AgentAvatar`, `getMcpAgentFromCommentMeta` checks what it reads from `meta`, unknown agent apps are rejected, and lookalike hosts are tested on the server.\n\n## Findings, most important first\n\n1. **Anyone can fake the agent badge (security).** The comment authorizers don't check `meta`, so any signed-in user can add `meta.mcpAgent = {…, client: 'claude'}` to their own comment and get the Claude logo and byline. `mcpCommentWrite.ts` admits it's only a label, but the comments in `agent-logos.tsx` say the logo can't be spoofed. Either validate or strip `mcpAgent` in the authorizers so only the MCP write path can set it, or tone down that comment.\n\n2. **The wrong owner can be credited (correctness).** `getThreadAgent` reads the agent from the earliest comment still in the thread, but the owner it shows is whoever created the thread. If the opening comment is deleted and the next one is another user's agent reply, the row says \"Claude / <thread creator>\".\n\n3. **Pins for ordinary threads change too.** `TlaPinContent` now replaces the default content on every pin, which skips the toolkit's avatar renderer and its unknown-author fallback. Nothing looks different today, but an avatar override added later would stop applying to pins.\n\n4. **The \"/ owner\" text in sidebar rows is fragile.** It's drawn by CSS from a value built with `JSON.stringify`, and JSON escaping isn't valid CSS escaping, so names with unusual characters can show garbled. Text drawn this way also isn't reliably read by screen readers and can't be selected.\n\n5. **The CSS depends on toolkit internals.** The selectors that hide the time rely on the toolkit's inner class names and Radix's `data-state`, and the hiding and padding rules must be edited together. A single attribute exposed by `@tldraw/commenting` would be safer and would remove the need for `!important`.\n\n6. **Accessibility nit.** The logo SVG has no `aria-hidden`, while the generic-face SVG does. I left a one-line suggestion.\n\n## Other notes\n\n- **Tests:** the meta parsing (`commentMentions.test.ts`) and the server-side OAuth client mapping (`mcpServer.test.ts`) are well covered. The new client components (`TlaThreadRow`, `TlaPinContent`, `AgentAvatar`) have no tests. It's worth adding at least a test for the deleted-first-comment case and for the badge with no known logo.\n- **Performance:** no concerns. `useThreadComments` reads from a shared cached list, so one subscription per row is cheap. `getThreadAgent`'s `reduce` could just take `comments[0]`, since comments are already oldest-first.\n- **Docs:** the code comments are thorough. If the new thread-row and pin overrides are meant to be public, `apps/docs/content/sdk-features/commenting.mdx` lists `PinContent` but I didn't check whether it covers `ThreadRow`.",
+   "ttft_ms": 2145,
+   "type": "result",
+   "duration_ms": 183920,
+   "uuid": "5d4ba8cb-6306-4deb-afb8-04d8e400db72",
+   "ttft_stream_ms": 1671,
+   "time_to_request_ms": 832,
+   "first_content_frame_ms": 1676,
+   "queued_turn_count": 0,
+   "result_index": 0
+  },
+  "summaries": [],
+  "proxyRequests": null
+ },
+ "cost_usd": 0.8281164
+}

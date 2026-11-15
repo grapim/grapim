@@ -1,0 +1,13 @@
+{
+ "tool": "claude-action",
+ "pr_id": "grafana__grafana__129096",
+ "url": "https://github.com/grafana/grafana/pull/129096",
+ "head_sha": "a61abddf0637163b35c78609dbed893b2a8c2bac",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:19:04.726Z",
+ "seconds": 135.177,
+ "status": "error",
+ "note": "Error: git worktree add --detach: Preparing worktree (detached HEAD a61abddf)\nUpdating files:   1% (330/22599)\rUpdating files:   2% (452/22599)\rUpdating files:   3% (678/22599)\rUpdating files:   3% (771/22599)\rUpdating files:   4% (904/22599)\rUpdating files:   5% (1130/22599)\rUpdating files:   5% (1209/22599)\rUpdating files:   6% (1356/22599)\rUpdating files:   7% (1582/22599)\rUpdating files:   7% (1654/22599)\rUpdating files:   8% \n    at git (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:38:11)\n    at worktree (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:119:3)\n    at Object.claudeAction [as claude-action] (file:///C:/Users/OS/Desktop/commons/bench/lib/adapters.mjs:275:16)\n    at file:///C:/Users/OS/Desktop/commons/bench/run.mjs:186:33\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:69:30\n    at async Promise.all (index 0)\n    at async pool (file:///C:/Users/OS/Desktop/commons/bench/run.mjs:68:3)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:162:1",
+ "cost_usd": 0
+}

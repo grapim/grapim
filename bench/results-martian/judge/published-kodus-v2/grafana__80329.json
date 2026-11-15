@@ -1,0 +1,34 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same misuse of the Error log level for debug information."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 identifies the same change of the ticker from 10 minutes to 1 minute and the added database load it causes."
+  }
+ ],
+ "candidates": [
+  "Debug r.log.Error calls left in production cleanup path - CleanAnnotations and CleanOrphanedAnnotationTags log IDs, conditions, and counts at ERROR level which will flood error-monitoring systems with non-error informational messages on every cleanup cycle",
+  "Cleanup ticker interval reduced from 10 minutes to 1 minute without documented justification, combined with new multi-round-trip batched cleanup strategy this 10x increase in invocation frequency significantly amplifies database load in production",
+  "Logging raw ID slices (which could be very large, e.g. 32767 entries) at any level is a performance concern"
+ ]
+}

@@ -1,0 +1,37 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Consider adding try-catch around the await to handle import failures gracefully",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    1
+   ],
+   "confidence": 0.5,
+   "reasoning": "C1 points out that a failed dynamic import leaves a rejected promise that nothing handles. That is close to G1's concern about handling import failures gracefully, but C1's main point is eager loading, so the match is only partial."
+  },
+  {
+   "comment": "The code uses forEach with async callbacks, which causes asynchronous operations (e.g., calendar/video event deletions, payment refunds) to run concurrently without being awaited. This 'fire-and-forget' behavior leads to unhandled promise rejections, race conditions, and incomplete cleanup, as surrounding try-catch blocks cannot properly handle errors from these unawaited promises. Replace forEach with for...of loops or Promise.all() with map() to ensure proper sequential execution and error handling.",
+   "severity": "Critical",
+   "category": "concurrency",
+   "matches": [
+    2,
+    3,
+    4
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2, C3 and C4 each flag forEach with async callbacks. They note that the deletions are never awaited, that errors escape the try/catch as unhandled rejections, and they suggest Promise.all with map. This is the same issue as G2."
+  }
+ ],
+ "candidates": [
+  "packages/app-store/index.ts:3 - `import()` calls in the object literal run eagerly, so app loading is not deferred.. Each `import(\"./x\")` runs as soon as `index.ts` is evaluated. Any module that imports `appStore` still starts loading all 28 app packages right away, so the PR does not defer loading as its description claims. There is also a new failure mode: if one app module fails to load, its promise rejects while nothing is awaiting it. Node reports that as an unhandled rejection, which can crash the process on Node ≥15. Under the old static imports the same failure was a plain load error. To get real lazy loading, store thunks instead (`applecalendar: () => import(\"./applecalendar\")`) and call them at the lookup sites (`await appStore[name]?.()`).",
+  "packages/app-store/vital/lib/reschedule.ts:125 - `forEach(async …)` drops the deletions, so the try/catch no longer catches their errors and nothing waits for them.. Before this change, `getCalendar` ran synchronously, so any error it threw (for example from the `CalendarService` constructor) was caught by the surrounding try/catch. Now the callback is async: the error becomes a rejected promise that `forEach` throws away, which Node reports as an unhandled rejection. Also, `deleteEvent` now starts only after an `await`, so the handler can finish and send its response before the old calendar events are deleted. On serverless runtimes that can freeze work after the response, those deletions may never run. Fix: `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => { ... }))` inside the try.",
+  "packages/app-store/wipemycalother/lib/reschedule.ts:125 - `forEach(async …)` drops the deletions, so the try/catch no longer catches their errors and nothing waits for them.. This is the same problem as in `vital/lib/reschedule.ts`. Errors from `getCalendar` used to be thrown synchronously and caught by the try/catch; now they become unhandled rejections. The deletions also start only after an `await`, so the reschedule can finish before they run. Fix: replace the `forEach` with `await Promise.all(bookingRefsFiltered.map(async ...))`.",
+  "packages/trpc/server/routers/viewer/bookings.tsx:553 - `forEach(async …)` means nothing waits for the calendar and video deletions during reschedule.. The async callback's promise is thrown away. Calendar deletion now starts only after `await getCalendar(...)`, so the tRPC mutation can return before the old events are deleted (or even before the deletion starts). Any error from `getCalendar` or `deleteEvent` becomes an unhandled rejection. Use `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => ...))`."
+ ]
+}

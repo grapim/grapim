@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "MetaMask__metamask-mobile__31075",
+ "url": "https://github.com/MetaMask/metamask-mobile/pull/31075",
+ "head_sha": "ef18288a8c8935af936a6f50993936771e772b23",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:21:29.240Z",
+ "seconds": 52.799,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/components/UI/Ramp/Views/NativeFlow/components/PhoneField/PhoneField.tsx",
+   "line": 60,
+   "end_line": 66,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A shared dialing code can pick another country even when the user's region matches.",
+   "body": "The default phone country checks `findCountryByPhonePrefix` before `fallbackCountry`. Several countries share a dialing code: +1 (US, Canada, Puerto Rico), +7 (Russia, Kazakhstan), +44 (UK, Jersey, Guernsey) and others. For a shared code, `findCountryByPhonePrefix` returns the first country in the list with that code.\n\nExample: a US user comes back to Basic Info with `previousFormData.mobileNumber = '+1555…'`. If Canada comes before the United States in `countries` (as it would in an alphabetical list), the field shows the Canadian flag and the selector marks Canada as selected, even though the number matches the user's own region. The saved number does not change, but the user sees the wrong country and template. I couldn't see the real order of the `useRampsCountries` list, so this depends on that data.\n\nFix: use `fallbackCountry` first whenever its prefix digits match the start of `initialNumber`, and only call `findCountryByPhonePrefix` when they don't. For example: `fallbackPrefix && digits.startsWith(fallbackPrefix) ? fallbackCountry : findCountryByPhonePrefix(...) ?? fallbackCountry`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 40119,
+  "cacheRead": 3262,
+  "output": 4860,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 31,
+   "hunks": 39,
+   "reviewedHunks": 39,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 43383,
+   "outputTokens": 4860,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 31,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.29845540000000004
+}

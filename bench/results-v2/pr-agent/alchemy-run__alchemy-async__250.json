@@ -1,0 +1,93 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "alchemy-run__alchemy-async__250",
+ "url": "https://github.com/alchemy-run/alchemy-async/pull/250",
+ "head_sha": "768c3f7bf1df594ef6ffaf218a8aa5047717f15e",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:12:04.483Z",
+ "seconds": 30.208,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "alchemy/src/cloudflare/worker-metadata.ts",
+   "line": 389,
+   "end_line": 395,
+   "severity": null,
+   "category": null,
+   "title": "Wrong binding semantics",
+   "body": "A Cloudflare `secrets_store` binding points at one secret, and the Worker reads it with `env.X.get()` (no arguments). This code sets `secret_name` to the binding name, so `bindings: { SECRETS: store }` binds a secret literally named `SECRETS`. That secret usually doesn't exist in the store.\n\nIt also contradicts the `SecretsStoreBinding.get(secretName)` type and the documented `env.SECRETS.get(\"API_KEY\")` usage, which treat the binding as a whole-store accessor. Worker code following the docs will fail at runtime. Either bind one secret per entry in `secrets`, or let the user specify which secret to bind."
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 196,
+   "end_line": 208,
+   "severity": null,
+   "category": null,
+   "title": "Update re-creates secrets",
+   "body": "In the update phase, `insertSecrets` POSTs every secret in `props.secrets` to the create endpoint, including secrets that already exist in the store. The only cleanup beforehand is deleting removed names.\n\nThis affects any update where a secret is unchanged or only its value changes. Creating an already-existing secret name will likely be rejected, so the update throws, and changed values are never applied.\n\nThe same applies to the adopt path when the adopted store already holds some of the secrets. Existing secrets should be updated (PATCH), or deleted and then re-created."
+  },
+  {
+   "path": "alchemy/src/test/vitest.ts",
+   "line": 186,
+   "end_line": 199,
+   "severity": null,
+   "category": null,
+   "title": "Scope name regression",
+   "body": "This PR removes the `describe` block name from the test scope name, so scopes are now named only by `testName`. Two tests with the same name in different `describe` blocks of one file will now share a scope. Their resources and state will collide, and one test's destroy can delete the other's resources.\n\nThis change looks unrelated to the Secrets Store feature and silently changes behavior for all existing tests."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 13793,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 1516,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 3,
+    "relevant_tests": "Yes\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "alchemy/src/cloudflare/worker-metadata.ts\n",
+      "issue_header": "Wrong binding semantics\n",
+      "issue_content": "A Cloudflare `secrets_store` binding points at one secret, and the Worker reads it with `env.X.get()` (no arguments). This code sets `secret_name` to the binding name, so `bindings: { SECRETS: store }` binds a secret literally named `SECRETS`. That secret usually doesn't exist in the store.\n\nIt also contradicts the `SecretsStoreBinding.get(secretName)` type and the documented `env.SECRETS.get(\"API_KEY\")` usage, which treat the binding as a whole-store accessor. Worker code following the docs will fail at runtime. Either bind one secret per entry in `secrets`, or let the user specify which secret to bind.\n",
+      "start_line": 389,
+      "end_line": 395
+     },
+     {
+      "relevant_file": "alchemy/src/cloudflare/secrets-store.ts\n",
+      "issue_header": "Update re-creates secrets\n",
+      "issue_content": "In the update phase, `insertSecrets` POSTs every secret in `props.secrets` to the create endpoint, including secrets that already exist in the store. The only cleanup beforehand is deleting removed names.\n\nThis affects any update where a secret is unchanged or only its value changes. Creating an already-existing secret name will likely be rejected, so the update throws, and changed values are never applied.\n\nThe same applies to the adopt path when the adopted store already holds some of the secrets. Existing secrets should be updated (PATCH), or deleted and then re-created.\n",
+      "start_line": 196,
+      "end_line": 208
+     },
+     {
+      "relevant_file": "alchemy/src/test/vitest.ts\n",
+      "issue_header": "Scope name regression\n",
+      "issue_content": "This PR removes the `describe` block name from the test scope name, so scopes are now named only by `testName`. Two tests with the same name in different `describe` blocks of one file will now share a scope. Their resources and state will collide, and one test's destroy can delete the other's resources.\n\nThis change looks unrelated to the Secrets Store feature and silently changes behavior for all existing tests.\n",
+      "start_line": 186,
+      "end_line": 199
+     }
+    ],
+    "security_concerns": "No\n"
+   },
+   "usage": {
+    "prompt_tokens": 13793,
+    "completion_tokens": 1516,
+    "total_tokens": 15309
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "\u001b[32m2026-11-15 02:11:45.213\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:11:45.213\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:11:45.564\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 3 🔵🔵🔵⚪⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>PR contains tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>No security concerns identified</strong></td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Wrong binding semantics</strong><br>A Cloudflare `secrets_store` binding points at one secret, and the Worker reads it with `env.X.get()` (no arguments). This code sets `secret_name` to the binding name, so `bindings: { SECRETS: store }` binds a secret literally named `SECRETS`. That secret usually doesn't exist in the store.\n\nIt also contradicts the `SecretsStoreBinding.get(secretName)` type and the documented `env.SECRETS.get(\"API_KEY\")` usage, which treat the binding as a whole-store accessor. Worker code following the docs will fail at runtime. Either bind one secret per entry in `secrets`, or let the user specify which secret to bind.\n\n<strong>Update re-creates secrets</strong><br>In the update phase, `insertSecrets` POSTs every secret in `props.secrets` to the create endpoint, including secrets that already exist in the store. The only cleanup beforehand is deleting removed names.\n\nThis affects any update where a secret is unchanged or only its value changes. Creating an already-existing secret name will likely be rejected, so the update throws, and changed values are never applied.\n\nThe same applies to the adopt path when the adopted store already holds some of the secrets. Existing secrets should be updated (PATCH), or deleted and then re-created.\n\n<strong>Scope name regression</strong><br>This PR removes the `describe` block name from the test scope name, so scopes are now named only by `testName`. Two tests with the same name in different `describe` blocks of one file will now share a scope. Their resources and state will collide, and one test's destroy can delete the other's resources.\n\nThis change looks unrelated to the Secrets Store feature and silently changes behavior for all existing tests.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.085492
+}

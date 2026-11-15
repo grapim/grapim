@@ -1,0 +1,31 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block).",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "G1 is about a non-atomic read-modify-write race (it should use increment: 1). C2 is about the else branch and the catch block both incrementing retryCount, so one pass can add 2. It never mentions concurrency or atomic increments, so it is a different issue."
+  },
+  {
+   "comment": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes exactly the same problem: the OR branch on retryCount has no SMS method filter, so the query also deletes non-SMS reminders."
+  }
+ ],
+ "candidates": [
+  "The deleteMany query in scheduleSMSReminders.ts uses an OR clause where the second branch (retryCount > 1) lacks a method: WorkflowMethods.SMS filter, causing every SMS cron invocation to delete all WorkflowReminder records with retryCount > 1 including EMAIL and WHATSAPP reminders, not just SMS ones",
+  "Duplicate retryCount increment: identical prisma.workflowReminder.update calls exist in both the else branch (when scheduledSMS.sid is falsy) and the catch block, potentially advancing retryCount by 2 in a single pass if the else-branch update throws, causing premature deletion since the cleanup query deletes rows with retryCount > 1"
+ ]
+}

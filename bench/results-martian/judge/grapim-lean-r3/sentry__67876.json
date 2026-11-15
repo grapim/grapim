@@ -1,0 +1,40 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Null reference if github_authenticated_user state is missing",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate deals with a missing github_authenticated_user state causing a null reference."
+  },
+  {
+   "comment": "OAuth state uses pipeline.signature (static) instead of a per-request random value",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "C1 brings up the state/signature mismatch check, but only to say the test coverage is wrong. It doesn't say that using a static signature is a security weakness."
+  },
+  {
+   "comment": "The code attempts to access integration.metadata[sender][login] without checking for the existence of the sender key. This causes a KeyError for integrations where the sender metadata was not set during creation",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 is exactly the KeyError on metadata['sender']['login']."
+  }
+ ],
+ "candidates": [
+  "tests/sentry/integrations/github/test_integration.py:388 - test_installation_not_found no longer tests the installation-not-found path.. The test used to assert \"The GitHub installation could not be found.\" Now it sends a `state` (`ddd023...`) that does not match the pipeline signature and asserts the generic \"Invalid installation request.\" That error comes from the state-mismatch check in OAuthLoginView, so the request never reaches `build_integration` or the stubbed 404, and the 404 handling has no test. Fix: send the correct state, stub the OAuth token and `/user` endpoints, and keep asserting the not-found message. Test the state mismatch in a separate test.",
+  "src/sentry/integrations/github/integration.py:501 - `integration.metadata[\"sender\"][\"login\"]` raises KeyError when the metadata has no sender.. This lookup assumes every active Integration has `metadata[\"sender\"]`. That key is set by the installation webhook. Integrations created through `build_integration`, or before that webhook handling existed, may not have it. One such case is an Integration that is still active after every OrganizationIntegration was removed: re-installing it would raise a KeyError and return a 500 instead of a clean error page. I could not see the code that fills in the metadata to confirm it is missing. Fix: use `integration.metadata.get(\"sender\", {}).get(\"login\")` and show `error(...)` when it is missing.",
+  "src/sentry/integrations/github/integration.py:423 - Token exchange network errors are not caught and become a 500.. `safe_urlopen` runs outside the `try`. If the call to GitHub's access_token endpoint fails (timeout, connection error, blocked by safe_urlopen), the exception escapes and the user gets a 500 instead of the installation-failed dialog. The dialog's postMessage also never reaches the opener window. Fix: move the `safe_urlopen` call inside the `try` and return `error(...)` on failure."
+ ]
+}

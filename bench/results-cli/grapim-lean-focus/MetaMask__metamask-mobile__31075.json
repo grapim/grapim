@@ -1,0 +1,72 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "MetaMask__metamask-mobile__31075",
+ "url": "https://github.com/MetaMask/metamask-mobile/pull/31075",
+ "head_sha": "ef18288a8c8935af936a6f50993936771e772b23",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:36:51.121Z",
+ "seconds": 27.012,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/components/UI/Ramp/Views/NativeFlow/components/PhoneField/PhoneField.tsx",
+   "line": 60,
+   "end_line": 66,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Shared dialing codes resolve to the first country in the list, even when the user's region matches.",
+   "body": "`defaultPhoneCountry` uses `findCountryByPhonePrefix(countries, initialNumber)` before it looks at `fallbackCountry`. Several countries share a dialing code: +1 (US, CA, Caribbean), +7 (RU, KZ) and +44 (GB, JE, GG, IM). When two countries match the same prefix equally, the helper returns whichever comes first in `countries`.\n\n**Trigger:** a Canadian user (region CA) returns to Basic Info with a saved `+1…` number. The field then shows the US flag, the US placeholder and the US template instead of Canada's, even though the region already matched the number. I could not check how `phoneCountry.ts` breaks ties because that file is not in the reviewed hunks.\n\n**Fix:** if `fallbackCountry`'s prefix matches `initialNumber`, use `fallbackCountry`. Only search `countries` when it does not match."
+  },
+  {
+   "path": "app/components/UI/Ramp/Views/NativeFlow/components/PhoneField/phoneCountry.ts",
+   "line": 42,
+   "end_line": 51,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Countries that share a dialing code resolve to whichever comes first in the list, not the user's own country.",
+   "body": "Several countries share one dialing prefix: `+1` (US, Canada and others) and `+7` (Russia, Kazakhstan). When the stored `mobileNumber` starts with a shared code, `findCountryByPhonePrefix` returns the first of those countries in the stable sort, which is just their order in the list. For example, a US user with a saved `+1…` number gets Canada (or another `+1` country listed earlier), and a Russian user gets Kazakhstan. The flag, the phone template and the country they later re-prefix from are then wrong, even though the user's region matches the number. I couldn't see how `PhoneField` calls this or how the country data is ordered. Fix: pass the user's region as a preferred country and return it when its prefix matches the number, and only fall back to the first longest-prefix match when it doesn't."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 44618,
+  "cacheRead": 6524,
+  "output": 3387,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 31,
+   "hunks": 39,
+   "reviewedHunks": 39,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 51146,
+   "outputTokens": 3387,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 31,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2921508
+}

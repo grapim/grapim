@@ -1,0 +1,102 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "microsoft__PowerToys__47857",
+ "url": "https://github.com/microsoft/PowerToys/pull/47857",
+ "head_sha": "ea580dbd3714a5081a04a796ba4cef679f102840",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:02:11.953Z",
+ "seconds": 77.194,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+   "line": 59,
+   "end_line": 79,
+   "severity": null,
+   "category": null,
+   "title": "Incomplete src rewrite",
+   "body": "The raw-HTML rewrite regex only matches double-quoted `src=\"...\"` attributes. Single-quoted (`<img src='images/a.png'>`) or unquoted (`<img src=images/a.png>`) sources are never rewritten. As a result:\n- Valid local images resolve relative to the temp HTML file and get a 403, so they don't render even with the setting on.\n- Blocked remote images in these forms never call `imagesBlockedCallBack`, so no info bar appears.\nRaw HTML passes through Markdig verbatim, so these forms are common in real documents. Consider handling all three quoting styles, or parsing the attribute properly."
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 192,
+   "end_line": 211,
+   "severity": null,
+   "category": null,
+   "title": "Blocking UI I/O",
+   "body": "`File.Exists` and `File.ReadAllBytes` run synchronously inside the `WebResourceRequested` handler, which executes on the UI thread. This handler is the path used for UNC shares, so a slow or unreachable share, or several large images, will freeze the preview pane and Explorer's host until each read completes. Consider using `e.GetDeferral()` and reading the file asynchronously, or returning a `FileStream` instead of buffering the whole file."
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 126,
+   "end_line": 136,
+   "severity": null,
+   "category": null,
+   "title": "Base path widening",
+   "body": "The share-root calculation treats any directory starting with `\\\\` as `\\\\server\\share`, which breaks for extended-length or device paths:\n- `\\\\?\\C:\\docs` yields `\\\\?\\C:`, which allows the whole drive.\n- `\\\\?\\UNC\\server\\share\\...` yields `\\\\?\\UNC`, which allows every server.\nEither case would let a document load images far outside its folder or share. It is uncertain whether Explorer ever passes such paths to the preview handler, but explicitly detecting the `\\\\?\\` and `\\\\.\\` prefixes (or falling back to the document directory) would avoid this."
+  },
+  {
+   "path": null,
+   "line": null,
+   "end_line": null,
+   "severity": null,
+   "category": "security",
+   "title": "Security concerns",
+   "body": "Path containment weakening (uncertain): the UNC share-root detection in `MarkdownPreviewHandlerControl` does not account for `\\\\?\\` or `\\\\.\\` prefixed paths. If such a path is supplied, the allowed base path becomes an entire drive (`\\\\?\\C:`) or all UNC servers (`\\\\?\\UNC`). Images from outside the intended folder or share would then be readable and rendered in the preview. Remote exfiltration is still prevented by the 403 block and disabled scripts."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 25050,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 5302,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 4,
+    "relevant_tests": "Yes\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "src/common/FilePreviewCommon/MarkdownHelper.cs\n",
+      "issue_header": "Incomplete src rewrite\n",
+      "issue_content": "The raw-HTML rewrite regex only matches double-quoted `src=\"...\"` attributes. Single-quoted (`<img src='images/a.png'>`) or unquoted (`<img src=images/a.png>`) sources are never rewritten. As a result:\n- Valid local images resolve relative to the temp HTML file and get a 403, so they don't render even with the setting on.\n- Blocked remote images in these forms never call `imagesBlockedCallBack`, so no info bar appears.\nRaw HTML passes through Markdig verbatim, so these forms are common in real documents. Consider handling all three quoting styles, or parsing the attribute properly.\n",
+      "start_line": 59,
+      "end_line": 79
+     },
+     {
+      "relevant_file": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs\n",
+      "issue_header": "Blocking UI I/O\n",
+      "issue_content": "`File.Exists` and `File.ReadAllBytes` run synchronously inside the `WebResourceRequested` handler, which executes on the UI thread. This handler is the path used for UNC shares, so a slow or unreachable share, or several large images, will freeze the preview pane and Explorer's host until each read completes. Consider using `e.GetDeferral()` and reading the file asynchronously, or returning a `FileStream` instead of buffering the whole file.\n",
+      "start_line": 192,
+      "end_line": 211
+     },
+     {
+      "relevant_file": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs\n",
+      "issue_header": "Base path widening\n",
+      "issue_content": "The share-root calculation treats any directory starting with `\\\\` as `\\\\server\\share`, which breaks for extended-length or device paths:\n- `\\\\?\\C:\\docs` yields `\\\\?\\C:`, which allows the whole drive.\n- `\\\\?\\UNC\\server\\share\\...` yields `\\\\?\\UNC`, which allows every server.\nEither case would let a document load images far outside its folder or share. It is uncertain whether Explorer ever passes such paths to the preview handler, but explicitly detecting the `\\\\?\\` and `\\\\.\\` prefixes (or falling back to the document directory) would avoid this.\n",
+      "start_line": 126,
+      "end_line": 136
+     }
+    ],
+    "security_concerns": "Path containment weakening (uncertain): the UNC share-root detection in `MarkdownPreviewHandlerControl` does not account for `\\\\?\\` or `\\\\.\\` prefixed paths. If such a path is supplied, the allowed base path becomes an entire drive (`\\\\?\\C:`) or all UNC servers (`\\\\?\\UNC`). Images from outside the intended folder or share would then be readable and rendered in the preview. Remote exfiltration is still prevented by the 403 block and disabled scripts.\n"
+   },
+   "usage": {
+    "prompt_tokens": 25050,
+    "completion_tokens": 5302,
+    "total_tokens": 30352
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "\u001b[32m2026-11-15 02:01:13.339\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:01:13.339\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:01:13.957\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 4 🔵🔵🔵🔵⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>PR contains tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>Security concerns</strong><br><br>\n\n<strong>Path containment weakening (uncertain):</strong><br> the UNC share-root detection in `MarkdownPreviewHandlerControl` does not account for `\\\\?\\` or `\\\\.\\` prefixed paths. If such a path is supplied, the allowed base path becomes an entire drive (`\\\\?\\C:`) or all UNC servers (`\\\\?\\UNC`). Images from outside the intended folder or share would then be readable and rendered in the preview. Remote exfiltration is still prevented by the 403 block and disabled scripts.</td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Incomplete src rewrite</strong><br>The raw-HTML rewrite regex only matches double-quoted `src=\"...\"` attributes. Single-quoted (`<img src='images/a.png'>`) or unquoted (`<img src=images/a.png>`) sources are never rewritten. As a result:\n- Valid local images resolve relative to the temp HTML file and get a 403, so they don't render even with the setting on.\n- Blocked remote images in these forms never call `imagesBlockedCallBack`, so no info bar appears.\nRaw HTML passes through Markdig verbatim, so these forms are common in real documents. Consider handling all three quoting styles, or parsing the attribute properly.\n\n<strong>Blocking UI I/O</strong><br>`File.Exists` and `File.ReadAllBytes` run synchronously inside the `WebResourceRequested` handler, which executes on the UI thread. This handler is the path used for UNC shares, so a slow or unreachable share, or several large images, will freeze the preview pane and Explorer's host until each read completes. Consider using `e.GetDeferral()` and reading the file asynchronously, or returning a `FileStream` instead of buffering the whole file.\n\n<strong>Base path widening</strong><br>The share-root calculation treats any directory starting with `\\\\` as `\\\\server\\share`, which breaks for extended-length or device paths:\n- `\\\\?\\C:\\docs` yields `\\\\?\\C:`, which allows the whole drive.\n- `\\\\?\\UNC\\server\\share\\...` yields `\\\\?\\UNC`, which allows every server.\nEither case would let a document load images far outside its folder or share. It is uncertain whether Explorer ever passes such paths to the preview handler, but explicitly detecting the `\\\\?\\` and `\\\\.\\` prefixes (or falling back to the document directory) would avoid this.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.20624
+}

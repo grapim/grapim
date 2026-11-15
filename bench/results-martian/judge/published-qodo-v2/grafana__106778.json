@@ -1,0 +1,29 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions a missing React key."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "C1 concerns Delete/Pause menu items being hidden without a ruler rule. G2 concerns the Silence drawer not rendering, so 'Silence notifications' has no effect. The pattern is similar but the issue is different. C2 is unrelated."
+  }
+ ],
+ "candidates": [
+  "Delete/Pause menu items are hidden in ruler-free list view because they are conditionally rendered only when a Ruler rule object is present, even though canPause/canDelete permissions are computed correctly via promRule",
+  "Recording rules lose Export/Pause/Restore/DeletePermanently actions because GrafanaPromRule abilities incorrectly gate these actions on being an alerting rule, even though ModifyExport supports any Grafana-managed rule and Pause only needs uid + paused state"
+ ]
+}

@@ -1,0 +1,93 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "microsoft__TypeScript__63038",
+ "url": "https://github.com/microsoft/TypeScript/pull/63038",
+ "head_sha": "4e968bbc21ac7efa07a8a499e6317ab880a88170",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:07:58.366Z",
+ "seconds": 40.842,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/compiler/checker.ts",
+   "line": 3825,
+   "end_line": 3830,
+   "severity": null,
+   "category": null,
+   "title": "Wrong ESM detection",
+   "body": "`referencedModuleKind >= ModuleKind.ES2015` also matches `Node16` (100), `NodeNext` (199) and `Preserve` (200). Under those modes, a file's real format depends on its own `impliedNodeFormat` (package.json `type`, `.cts`/`.mts`), not on the project setting.\n\nExample: a referenced project with `module: nodenext` that emits CommonJS. Its declarations are treated as ESM and lose the synthetic default, so consumers get false TS1192 errors.\n\nSeparately, `?? ModuleKind.CommonJS` ignores how the module kind defaults from `target`. With `target: es2015+` and no `module`, the emit is ES2015, but this code treats it as CommonJS. Use `getEmitModuleKind(referencedOptions)` and the file's implied node format instead."
+  },
+  {
+   "path": "src/compiler/checker.ts",
+   "line": 3821,
+   "end_line": 3824,
+   "severity": null,
+   "category": null,
+   "title": "Wrong option consulted",
+   "body": "`allowSyntheticDefaultImports` is a type-checking setting for the importing project. It says nothing about the referenced project's emitted JS.\n\nExample: a referenced CommonJS library without `esModuleInterop` has this flag false. Any consumer that does enable synthetic defaults now gets \"has no default export\" when it default-imports that library. Previously this was allowed, and at runtime the import works via the consumer's interop.\n\nThis check should be removed. The importing program's own `allowSyntheticDefaultImports`, which is already checked earlier in this function, is the right gate."
+  },
+  {
+   "path": "tests/baselines/reference/tsc/projectReferences/default-import-interop-uses-referenced-project-settings.js",
+   "line": 89,
+   "end_line": 90,
+   "severity": null,
+   "category": null,
+   "title": "Baseline regression",
+   "body": "This existing test, `default-import-interop-uses-referenced-project-settings`, now gains two new TS1192 errors for default imports from `lib/dist/a`.\n\nThe test name suggests these imports were meant to be allowed based on the referenced project's settings. The new errors look like a behavioral regression caused by the checks above, not an intended baseline update. Please verify the referenced project's options in this test and confirm whether these errors are expected."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 5027,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 2359,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 3,
+    "relevant_tests": "Yes\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "src/compiler/checker.ts\n",
+      "issue_header": "Wrong ESM detection\n",
+      "issue_content": "`referencedModuleKind >= ModuleKind.ES2015` also matches `Node16` (100), `NodeNext` (199) and `Preserve` (200). Under those modes, a file's real format depends on its own `impliedNodeFormat` (package.json `type`, `.cts`/`.mts`), not on the project setting.\n\nExample: a referenced project with `module: nodenext` that emits CommonJS. Its declarations are treated as ESM and lose the synthetic default, so consumers get false TS1192 errors.\n\nSeparately, `?? ModuleKind.CommonJS` ignores how the module kind defaults from `target`. With `target: es2015+` and no `module`, the emit is ES2015, but this code treats it as CommonJS. Use `getEmitModuleKind(referencedOptions)` and the file's implied node format instead.\n",
+      "start_line": 3825,
+      "end_line": 3830
+     },
+     {
+      "relevant_file": "src/compiler/checker.ts\n",
+      "issue_header": "Wrong option consulted\n",
+      "issue_content": "`allowSyntheticDefaultImports` is a type-checking setting for the importing project. It says nothing about the referenced project's emitted JS.\n\nExample: a referenced CommonJS library without `esModuleInterop` has this flag false. Any consumer that does enable synthetic defaults now gets \"has no default export\" when it default-imports that library. Previously this was allowed, and at runtime the import works via the consumer's interop.\n\nThis check should be removed. The importing program's own `allowSyntheticDefaultImports`, which is already checked earlier in this function, is the right gate.\n",
+      "start_line": 3821,
+      "end_line": 3824
+     },
+     {
+      "relevant_file": "tests/baselines/reference/tsc/projectReferences/default-import-interop-uses-referenced-project-settings.js\n",
+      "issue_header": "Baseline regression\n",
+      "issue_content": "This existing test, `default-import-interop-uses-referenced-project-settings`, now gains two new TS1192 errors for default imports from `lib/dist/a`.\n\nThe test name suggests these imports were meant to be allowed based on the referenced project's settings. The new errors look like a behavioral regression caused by the checks above, not an intended baseline update. Please verify the referenced project's options in this test and confirm whether these errors are expected.\n",
+      "start_line": 89,
+      "end_line": 90
+     }
+    ],
+    "security_concerns": "No\n"
+   },
+   "usage": {
+    "prompt_tokens": 5027,
+    "completion_tokens": 2359,
+    "total_tokens": 7386
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "\u001b[32m2026-11-15 02:07:32.862\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:07:32.862\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:07:33.403\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 3 🔵🔵🔵⚪⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>PR contains tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>No security concerns identified</strong></td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Wrong ESM detection</strong><br>`referencedModuleKind >= ModuleKind.ES2015` also matches `Node16` (100), `NodeNext` (199) and `Preserve` (200). Under those modes, a file's real format depends on its own `impliedNodeFormat` (package.json `type`, `.cts`/`.mts`), not on the project setting.\n\nExample: a referenced project with `module: nodenext` that emits CommonJS. Its declarations are treated as ESM and lose the synthetic default, so consumers get false TS1192 errors.\n\nSeparately, `?? ModuleKind.CommonJS` ignores how the module kind defaults from `target`. With `target: es2015+` and no `module`, the emit is ES2015, but this code treats it as CommonJS. Use `getEmitModuleKind(referencedOptions)` and the file's implied node format instead.\n\n<strong>Wrong option consulted</strong><br>`allowSyntheticDefaultImports` is a type-checking setting for the importing project. It says nothing about the referenced project's emitted JS.\n\nExample: a referenced CommonJS library without `esModuleInterop` has this flag false. Any consumer that does enable synthetic defaults now gets \"has no default export\" when it default-imports that library. Previously this was allowed, and at runtime the import works via the consumer's interop.\n\nThis check should be removed. The importing program's own `allowSyntheticDefaultImports`, which is already checked earlier in this function, is the right gate.\n\n<strong>Baseline regression</strong><br>This existing test, `default-import-interop-uses-referenced-project-settings`, now gains two new TS1192 errors for default imports from `lib/dist/a`.\n\nThe test name suggests these imports were meant to be allowed based on the referenced project's settings. The new errors look like a behavioral regression caused by the checks above, not an intended baseline update. Please verify the referenced project's options in this test and confirm whether these errors are expected.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.067288
+}

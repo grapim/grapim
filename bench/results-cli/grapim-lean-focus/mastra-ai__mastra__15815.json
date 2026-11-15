@@ -1,0 +1,183 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "mastra-ai__mastra__15815",
+ "url": "https://github.com/mastra-ai/mastra/pull/15815",
+ "head_sha": "012c8603ed0837f26723a2b6b18674167f2ae530",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:37:17.315Z",
+ "seconds": 23.796,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "observability/mastra/src/exporters/cloud.ts",
+   "line": 20,
+   "end_line": 27,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Public `signalFilters` API added to CloudExporter, though the description says it was deferred.",
+   "body": "The description says the \"signal filter infrastructure\" was removed and deferred to a follow-up design. This hunk still adds a public `signalFilters` option for spans, logs, metrics, scores and feedback, and wires it into every `on*Event` handler. Shipping a public config shape that the authors plan to redesign creates an API they will have to keep compatible. Only the default MODEL_CHUNK drop in `_exportTracingEvent` was asked for."
+  },
+  {
+   "path": "observability/mastra/src/exporters/cloud.ts",
+   "line": 56,
+   "end_line": 63,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Default cloud filter also drops successful `errors-only` PROCESSOR_RUN spans, which the request does not cover.",
+   "body": "The request covers only dropping MODEL_CHUNK spans by default. This filter also drops PROCESSOR_RUN spans whose `processorObservability` attribute is `errors-only`, unless they failed or tripped a tripwire. That is part of the \"processor observability work\" the description says was removed and deferred. It changes which spans the cloud receives. Remove it along with the processor `observability` option, or update the PR scope to include it."
+  },
+  {
+   "path": "observability/mastra/src/instances/base.ts",
+   "line": 80,
+   "end_line": 82,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Auto-extract metrics controls are still here, though the description says they were removed.",
+   "body": "The PR description says it was cut down to two changes: CloudExporter dropping MODEL_CHUNK spans and logs defaulting to `warn`. It says the \"metrics auto-extract controls\" were removed. They are still in the diff: a new `metrics.autoExtract` config and schema in config.ts and core.ts, and a new early-return path in `emitSpanEnded` (lines 641-645) that skips `emitAutoExtractedMetrics`. This adds new public config and changes the span-ended path, and the request does not cover it. Remove it, or update the description to say it is part of this PR."
+  },
+  {
+   "path": "packages/core/src/processors/index.ts",
+   "line": 325,
+   "end_line": 333,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "New `Processor.observability` option added to the shared core interface, outside the stated scope.",
+   "body": "The description says the processor observability work was removed. This hunk still adds `observability?: boolean | 'errors-only'` to the public `Processor` interface. It also adds the matching `processorObservability`/`processorOutcome` attributes in tracing.ts, and there are unreviewed changes in runner.ts and the workflow files (+145/-168 and more). This changes shared core processor and workflow code that other features use, and the request does not cover it. Move it to the planned follow-up PR."
+  },
+  {
+   "path": "packages/core/src/processors/runner.ts",
+   "line": 62,
+   "end_line": 66,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Legacy processor spans no longer record a TripWire abort as an error.",
+   "body": "Before this change, every legacy runner path (input, input step, output, output step, output stream, request error) closed the span with `processorSpan.error({ error, endSpan: true, ... })`. The removed comment says this was done so the abort shows as ERROR in traces. `endTripWireProcessorSpan` now calls `span.end(...)` instead, so a processor that calls `abort()` produces a span that looks successful. That breaks trace views and any alerting that relies on error status for guardrail blocks. The request (MODEL_CHUNK filtering and the log level default) does not ask for this. Fix: keep `span.error({ error, endSpan: true, attributes: getTripWireSpanAttributes(error) })` here."
+  },
+  {
+   "path": "packages/core/src/workflows/processor-step.test.ts",
+   "line": 234,
+   "end_line": 362,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Tests for the processor observability feature the PR says it removed.",
+   "body": "These tests cover `observability: false` and `'errors-only'` processor spans and the new TripWire span attributes. The PR description says the processor observability work was removed from this PR, so these tests and the code they test are outside the stated scope. Remove them along with the workflow.ts changes, or update the scope."
+  },
+  {
+   "path": "packages/core/src/workflows/workflow.ts",
+   "line": 697,
+   "end_line": 713,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Processor observability controls are added even though the PR says this work was removed.",
+   "body": "The description limits this PR to two changes: CloudExporter drops `MODEL_CHUNK` spans by default, and logs default to `warn`. It says the processor observability work was taken out and deferred to a follow-up. This hunk still adds it: `processor.observability === false` turns off `PROCESSOR_RUN` spans, `'errors-only'` adds a `processorObservability` attribute, and TripWire spans get new `processorOutcome`/`tripwireAbort` attributes. The same edit appears in `evented/workflow.ts` and `runner.ts`. This changes span output for every workflow processor. Either drop these hunks or update the PR scope to cover them."
+  },
+  {
+   "path": "packages/core/src/processors/runner.ts",
+   "line": 39,
+   "end_line": 49,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Adds per-processor observability controls that the PR says it removed.",
+   "body": "The PR description says the change is narrowed to two things: CloudExporter drops `MODEL_CHUNK` spans, and logs default to `warn`. It states that \"the processor observability work ... [was] removed from this PR\" and deferred to a follow-up. These hunks still add `processor.observability` handling (`false` skips the processor span, `'errors-only'` adds an attribute) and a new `processorOutcome: 'tripwire'` attribute across every legacy runner path. They also add the same logic to the workflow step in `workflows/evented/workflow.ts` (and, going by the CHANGES block, `workflows/workflow.ts`). This looks like a leftover of the abandoned attempt and changes shared core behaviour. Either drop these hunks or update the request to cover them."
+  },
+  {
+   "path": "packages/core/src/workflows/evented/workflow.ts",
+   "line": 734,
+   "end_line": 750,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Workflow processor steps gain an observability opt-out and new tripwire attributes outside the stated scope.",
+   "body": "This hunk adds `shouldCreateProcessorSpan` and `errors-only` attributes, and changes how TripWire spans end: they now get `processorOutcome` and `tripwireAbort` attributes instead of `output: { tripwire }`. That changes how workflow processor spans are created and what they contain. The PR description says processor-level observability changes were removed and deferred to a follow-up, so this edit to shared core workflow code is not covered by the request. It also drops the old `output.tripwire` field that consumers may read. Remove this hunk or update the request to include it."
+  },
+  {
+   "path": "packages/core/src/workflows/workflow.ts",
+   "line": 1049,
+   "end_line": 1049,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "TripWire processor spans no longer record `output.tripwire`.",
+   "body": "Before this change, a span that ended on a TripWire had `output: { tripwire: error.message }`. Now it ends with only attributes and no output. A trace viewer, scorer or exporter that reads the span output to show why a processor blocked the run will now find nothing. Abort `metadata` also goes into span attributes, and from there it is exported to cloud or third-party backends; the test shows that metadata can describe PII. Keep the old `output` alongside the new attributes, or confirm that no consumer reads `output.tripwire`. The same change is at line 1255."
+  },
+  {
+   "path": ".changeset/observability-volume-controls.md",
+   "line": 8,
+   "end_line": 8,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Changeset announces processor span controls instead of the warn log-level default.",
+   "body": "The changeset describes processor `PROCESSOR_RUN`/errors-only controls, which the description says were removed from this PR. It does not mention that the default observability log level changed from `debug` to `warn`, a user-visible behaviour change that users should see in the release notes. Update the changeset to match the intended scope."
+  },
+  {
+   "path": "packages/playground/src/pages/traces/index.tsx",
+   "line": 38,
+   "end_line": 41,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Playground import reordering the PR says it removed.",
+   "body": "The description says the playground import churn was removed from this PR, but both traces pages (`traces/index.tsx` and `traces/trace/index.tsx`) still reorder their imports. These edits have nothing to do with the observability defaults. Revert them."
+  }
+ ],
+ "usage": {
+  "requests": 3,
+  "input": 6,
+  "cacheWrite": 56681,
+  "cacheRead": 9786,
+  "output": 5157,
+  "models": {
+   "claude-opus-5-5": 3
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 58,
+   "reviewedHunks": 58,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 66473,
+   "outputTokens": 5157,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 3,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/core/src/processors/runner.ts",
+    "line": 47,
+    "end_line": 47,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`errors-only` mode only adds an attribute; full spans are still created.",
+    "body": "When `processor.observability === 'errors-only'`, the full span is still created with all its input and output. The only difference is a `processorObservability` attribute. If no exporter or processor reads this attribute (none is visible in these hunks), the option is accepted but has no effect, and successful runs are still exported. Either implement the filtering or leave the option out until it is."
+   }
+  ]
+ },
+ "cost_usd": 0.3885262
+}

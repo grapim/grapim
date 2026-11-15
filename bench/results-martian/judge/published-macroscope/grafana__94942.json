@@ -1,0 +1,30 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The enableSqlExpressions function has flawed logic that always returns false, effectively disabling SQL expressions unconditionally:",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: enableSqlExpressions always returns false."
+  },
+  {
+   "comment": "The DB methods NewInMemoryDB().RunCommands, DB.QueryFramesInto, and DB.TablesList in pkg/expr/sql/db.go return hardcoded 'not implemented' errors after removing the go-duck dependency.",
+   "severity": "High",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.93,
+   "reasoning": "No candidate mentions the DB methods that return hardcoded 'not implemented' errors."
+  }
+ ],
+ "candidates": [
+  "enableSqlExpressions function always returns false regardless of whether FlagSqlExpressions is enabled - when the flag is enabled, the negation makes enabled false so it returns false at line 199; when the flag is disabled, enabled is true but the if block at line 197 also returns false, causing SQL expressions to always be rejected with 'sqlExpressions is not implemented' even when the feature flag is enabled"
+ ]
+}

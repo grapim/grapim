@@ -1,0 +1,13 @@
+{
+ "tool": "claude-action",
+ "pr_id": "MetaMask__metamask-extension__45572",
+ "url": "https://github.com/MetaMask/metamask-extension/pull/45572",
+ "head_sha": "82506447a26905a039c029b27f4fc0eb81edfe23",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T07:36:59.647Z",
+ "seconds": 22.064,
+ "status": "error",
+ "note": "Error: git worktree add --detach: Preparing worktree (detached HEAD 8250644)\nfatal: unable to access 'https://github.com/MetaMask/metamask-extension.git/': Could not resolve host: github.com\nfatal: could not fetch 3f09dc4a6088202d744c907dc759403b80f0253a from promisor remote\n    at git (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:38:11)\n    at worktree (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:119:3)\n    at Object.claudeAction [as claude-action] (file:///C:/Users/OS/Desktop/commons/bench/lib/adapters.mjs:275:16)\n    at file:///C:/Users/OS/Desktop/commons/bench/run.mjs:186:33\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:69:30\n    at async Promise.all (index 0)\n    at async pool (file:///C:/Users/OS/Desktop/commons/bench/run.mjs:68:3)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:162:1",
+ "cost_usd": 0
+}

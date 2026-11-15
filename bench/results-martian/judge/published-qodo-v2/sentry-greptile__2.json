@@ -1,0 +1,52 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "OptimizedCursorPaginator's negative-offset branch in get_result() passes cursor.offset directly as start_offset to queryset slicing when enable_advanced_features is True and cursor.offset < 0.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 points out that OptimizedCursorPaginator uses negative cursor offsets directly when slicing the queryset."
+  },
+  {
+   "comment": "In BasePaginator.get_result(), when cursor.is_prev is True, it sets start_offset = offset without clamping, allowing negative offset values to be passed to queryset slicing.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate flags the missing clamp on the is_prev branch in BasePaginator. C1 even assumes the other paginators already reject negative offsets."
+  },
+  {
+   "comment": "OptimizedCursorPaginator.get_item_key uses floor/ceil on a datetime key (order_by='-datetime'), causing TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 identifies floor/ceil being applied to a datetime key, which raises a TypeError."
+  },
+  {
+   "comment": "Accessing .has_global_access on organization_context.member can raise an AttributeError when organization_context is None, particularly for non-superuser non-member users.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.8,
+   "reasoning": "C3 identifies the AttributeError when .has_global_access is read on a member that doesn't exist, which is the same issue."
+  }
+ ],
+ "candidates": [
+  "OptimizedCursorPaginator permits negative cursor offsets and uses them for queryset slicing, while other paginators treat negative offsets as invalid. Since Cursor.from_string accepts arbitrary offsets, this enables unvalidated negative offsets to reach query execution and produce inconsistent behavior or errors.",
+  "OptimizedCursorPaginator applies math.floor/ceil to the ordered field value and returns raw cursor.value, but the audit logs endpoint orders by a datetime field (\"-datetime\"). This will raise type errors or build invalid queryset filters, breaking the endpoint when optimized pagination is enabled.",
+  "The endpoint gates optimized pagination using request.user.is_superuser, but the permission class grants access based on is_active_superuser(request). Active superusers without org membership can pass permission checks yet hit an AttributeError when organization_context.member is None."
+ ]
+}

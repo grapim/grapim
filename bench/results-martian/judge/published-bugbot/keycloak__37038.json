@@ -1,0 +1,33 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "keycloak__37038",
+ "url": "https://github.com/keycloak/keycloak/pull/37038",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In GroupPermissionsV2.canManage(), the permission fallback checks for both VIEW and MANAGE scopes (hasPermission(null, AdminPermissionsSchema.VIEW, AdminPermissionsSchema.MANAGE)), but canManage() should only grant access for MANAGE scope, not VIEW. This means users with only VIEW permission on groups can pass the canManage() check, granting them write access they should not have. The canView() method correctly checks both VIEW and MANAGE, but canManage() should only check MANAGE.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "Both say canManage() accepts the VIEW scope as well as MANAGE, which lets users who only have VIEW perform management actions."
+  },
+  {
+   "comment": "In getGroupIdsWithViewPermission, hasPermission is called with groupResource.getId() and the same groupResource.getId() is added to granted, but hasPermission resolves resources by name (treating the argument as a group id) and the GroupPermissionEvaluator contract says this method returns group IDs that are later used as UserModel.GROUPS and in getUsersCount group filters. This mismatch means per-group VIEW_MEMBERS/MANAGE_MEMBERS permissions may not yield the expected group IDs for filtering and counts, and evaluation may effectively only look at the type-level 'all-groups' resource; consider revisiting whether this should operate on the underlying group ids (resource names) instead so it aligns with the JPA queries and the interface contract.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "Both say getGroupIdsWithViewPermission uses the resource ID where it should use the group ID (the resource name). This mismatch breaks the lookup and the group filtering."
+  }
+ ],
+ "candidates": [
+  "The canManage() method in GroupPermissionsV2 passes both AdminPermissionsSchema.VIEW and AdminPermissionsSchema.MANAGE to hasPermission(), meaning it returns true if the user has EITHER scope. This allows users with only VIEW permission to perform management operations like creating top-level groups via GroupsResource.addTopLevelGroup(). The Javadoc and implementation both include VIEW, suggesting a copy-paste error from canView().",
+  "The getGroupIdsWithViewPermission() method in V2 uses groupResource.getId() (the authorization resource's auto-generated UUID) when it should use groupResource.getName() (which contains the Keycloak group ID). The hasPermission() method looks up resources by name via resourceStore.findByName(server, groupId), but the passed value is a resource UUID, causing the lookup to fail. Additionally, granted.add(groupResource.getId()) adds resource UUIDs instead of group IDs, breaking user filtering by group membership since the returned IDs don't correspond to actual groups."
+ ]
+}

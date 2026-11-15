@@ -1,0 +1,77 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "astral-sh__uv__14738",
+ "url": "https://github.com/astral-sh/uv/pull/14738",
+ "head_sha": "bfcd9754884dde39031bdfa47bd236731ccb9577",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:06:09.811Z",
+ "seconds": 39.314,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "crates/uv/src/commands/project/version.rs",
+   "line": 342,
+   "end_line": 351,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The hint also appears when the user is setting or bumping a version, where it doesn't make sense.",
+   "body": "`find_target` is used for every `uv version` mode, not just reading the version. So `uv version 1.2.3`, `uv version --bump patch` or `uv version --package foo` with no `pyproject.toml` would also print \"If you meant to view uv's version, use `uv self version` instead\". In those cases the user was clearly trying to change a project, so the hint is misleading.\n\n**Fix:** only add the hint when no value, `--bump` or `--package` was given.",
+   "raised": 1
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 4913,
+  "cacheRead": 11437,
+  "output": 3319,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16354,
+   "outputTokens": 3319,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14730",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "crates/uv/src/commands/project/version.rs",
+    "line": 361,
+    "end_line": 371,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The hint is baked into the error text, so the error loses its `WorkspaceError` type and the hint shows up wherever the message is reused.",
+    "body": "Before this change, `?` wrapped the `WorkspaceError` in anyhow and kept its type. Now a `MissingPyprojectToml` becomes a plain string error with the hint inside it. Two things can go wrong:\n\n1. Any caller of `find_target` that runs `downcast_ref::<WorkspaceError>()` will stop matching.\n2. Any caller that puts `{err}` into another message will carry the hint into that message. For example, a non-strict fallback warning like `Failed to read project metadata ({err}). Running uv self version…` would get a `\\n\\nhint: …` line in the middle of the warning.\n\nThe test name `version_get_fallback_missing_strict_preview` suggests such a fallback path exists, but I couldn't see the caller to confirm it.\n\n**Fix:** keep the typed error and add the hint where the error is finally reported. If you do wrap it here, keep the source error with `.context()` or a typed wrapper rather than `anyhow!(\"{}\", err)`, and don't duplicate the identical closure in both branches.",
+    "raised": 1
+   }
+  ]
+ },
+ "cost_usd": 0.0932484
+}

@@ -1,0 +1,44 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "BlockedEmail.should_block_email? method has side effects during a read operation - it updates statistics even when just checking if an email should be blocked. This could cause race conditions in concurrent environments and makes the method name misleading.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1,
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 points out the stats side effects during a check/validation. C4 points out the race condition in the stats update. G1 raises both concerns."
+  },
+  {
+   "comment": "The regex pattern @(#{domains}) in email_in_restriction_setting? method only matches domain suffixes, not full domains with proper boundary anchoring. An attacker can register evil.example.com to bypass a whitelist entry for example.com.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the regex domain-boundary bypass."
+  },
+  {
+   "comment": "The case-sensitive email lookup in `BlockedEmail.should_block?` creates a bypass risk, allowing 'User@Example.com' to bypass a block on 'user@example.com'. This can lead to unauthorized access to blocked users.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 identifies the same case-sensitivity bypass."
+  }
+ ],
+ "candidates": [
+  "Email validation calls BlockedEmail.should_block? which increments match_count and saves, causing DB writes during validation - UsersController#create runs validations at least twice (valid? then save), so a single blocked signup attempt will double-increment stats and add unnecessary DB write load",
+  "BlockedEmail lookup uses exact string match, so case/whitespace variants of a blocked address can bypass blocking and allow duplicate blocked entries differing only by case - should canonicalize via Email.downcase(...).strip like other email lookups",
+  "EmailValidator always queries BlockedEmail which will raise an exception if the new blocked_emails table hasn't been migrated yet during deploy - should use table_exists? guard pattern",
+  "BlockedEmail.should_block? updates match_count by read-modify-write which can lose increments under concurrent requests - should be incremented atomically"
+ ]
+}

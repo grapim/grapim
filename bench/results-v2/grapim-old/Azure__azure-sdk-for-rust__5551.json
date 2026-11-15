@@ -1,0 +1,45 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "Azure__azure-sdk-for-rust__5551",
+ "url": "https://github.com/Azure/azure-sdk-for-rust/pull/5551",
+ "head_sha": "0e1c2ddc6933568defe654b728d7f8e3d57eb96b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:07:45.559Z",
+ "seconds": 6.368,
+ "status": "ok",
+ "findings": [],
+ "usage": {
+  "requests": 2,
+  "input": 72112,
+  "cacheWrite": 0,
+  "cacheRead": 4192,
+  "output": 20,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 33,
+   "reviewedHunks": 31,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 76304,
+   "outputTokens": 20,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.2896864
+}

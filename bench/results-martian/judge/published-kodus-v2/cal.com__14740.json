@@ -1,0 +1,65 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The addGuests.handler.ts blacklist check uses blacklistedGuestEmails.includes(guest) after lowercasing the blacklist but not the input guest emails, allowing attackers to bypass BLACKLISTED_GUEST_EMAILS restrictions by submitting emails with uppercase characters.",
+   "severity": "High",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate discusses case-sensitivity bypass of blacklist."
+  },
+  {
+   "comment": "The logic for checking team admin/owner permissions is incorrect. This condition uses AND (&&) which requires both isTeamAdmin AND isTeamOwner to be true, but it should use OR (||) since a user needs to be either an admin OR an owner to have permission.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 identifies the && vs || admin/owner bug."
+  },
+  {
+   "comment": "The sendAddGuestsEmails function in email-manager.ts passes the full calendarEvent.attendees array when determining which attendees receive AttendeeScheduledEmail vs AttendeeAddGuestsEmail, but checks if newGuests.includes(attendee.email) where newGuests is the input guests array.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.75,
+   "reasoning": "C2 describes the mismatch in sendAddGuestsEmails where the raw guests input is used to decide which attendees get AttendeeScheduledEmail vs AttendeeAddGuestsEmail. That is the same issue."
+  },
+  {
+   "comment": "uniqueGuests filters out existing attendees and blacklisted emails but does not deduplicate duplicates within the input; createMany can insert duplicate attendee rows if the client submits repeated emails.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions that duplicate emails within the input are not removed."
+  },
+  {
+   "comment": "Starting with an array containing an empty string may cause validation issues. Consider starting with an empty array [] and handling the empty state in the MultiEmail component instead.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the empty-string initial array."
+  },
+  {
+   "comment": "The `sendAddGuestsEmails` function does not check the `disableStandardEmails` flags in the `EventType` metadata, which may result in sending emails to hosts/attendees even when standard emails are disabled for the event type.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the disableStandardEmails flags."
+  }
+ ],
+ "candidates": [
+  "Authorization logic bug: the variable `isTeamAdminOrOwner` joins `isTeamAdmin()` and `isTeamOwner()` with a logical AND (`&&`) instead of OR (`||`), requiring a user to be both a team admin and a team owner simultaneously, effectively denying access to users who hold only one of those roles",
+  "Wrong email type sent to existing attendees: `sendAddGuestsEmails` receives the raw `guests` input instead of `uniqueGuests`, causing existing attendees whose email appeared in the original input to incorrectly receive a full booking confirmation email (`AttendeeScheduledEmail`) instead of a guest-added notification (`AttendeeAddGuestsEmail`)"
+ ]
+}

@@ -1,0 +1,70 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "cli__cli__15009",
+ "url": "https://github.com/cli/cli/pull/15009",
+ "head_sha": "e8022e837d4d422370059c3ea954d13e11ebeeaf",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T17:54:21.043Z",
+ "seconds": 35.854,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 401,
+   "end_line": 403,
+   "severity": null,
+   "category": null,
+   "title": "Unsanitized Output",
+   "body": "`entry.Error` is written raw to the terminal, and the new code only prints it when stderr is a TTY. Parts of that string come from the server: GraphQL error messages appear as-is, e.g. `GraphQL: <message>`.\n\nA malicious or compromised GitHub Enterprise host could return a message containing ANSI/OSC escape sequences. Those sequences would be interpreted by the user's terminal.\n\nHTTP bodies are `%q`-quoted in the tested paths, but GraphQL messages are not. Consider stripping control characters before printing."
+  },
+  {
+   "path": null,
+   "line": null,
+   "end_line": null,
+   "severity": null,
+   "category": "security",
+   "title": "Security concerns",
+   "body": "Terminal escape injection: server-controlled error text (e.g. GraphQL error messages from a GHE host) is now printed verbatim to an interactive terminal via `entry.Error`. A malicious host could embed control/escape sequences that manipulate the user's terminal. Uncertain: this depends on whether all error paths escape the server content. Only the HTTP-body path visibly uses quoting."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 6005,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 1452,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 2,
+    "relevant_tests": "Yes\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "pkg/cmd/auth/status/status.go\n",
+      "issue_header": "Unsanitized Output\n",
+      "issue_content": "`entry.Error` is written raw to the terminal, and the new code only prints it when stderr is a TTY. Parts of that string come from the server: GraphQL error messages appear as-is, e.g. `GraphQL: <message>`.\n\nA malicious or compromised GitHub Enterprise host could return a message containing ANSI/OSC escape sequences. Those sequences would be interpreted by the user's terminal.\n\nHTTP bodies are `%q`-quoted in the tested paths, but GraphQL messages are not. Consider stripping control characters before printing.\n",
+      "start_line": 401,
+      "end_line": 403
+     }
+    ],
+    "security_concerns": "Terminal escape injection: server-controlled error text (e.g. GraphQL error messages from a GHE host) is now printed verbatim to an interactive terminal via `entry.Error`. A malicious host could embed control/escape sequences that manipulate the user's terminal. Uncertain: this depends on whether all error paths escape the server content. Only the HTTP-body path visibly uses quoting.\n"
+   },
+   "usage": {
+    "prompt_tokens": 6005,
+    "completion_tokens": 1452,
+    "total_tokens": 7457
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "\u001b[32m2026-11-15 01:54:01.625\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 01:54:01.626\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 01:54:02.163\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 2 🔵🔵⚪⚪⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>PR contains tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>Security concerns</strong><br><br>\n\n<strong>Terminal escape injection:</strong><br> server-controlled error text (e.g. GraphQL error messages from a GHE host) is now printed verbatim to an interactive terminal via `entry.Error`. A malicious host could embed control/escape sequences that manipulate the user's terminal. Uncertain: this depends on whether all error paths escape the server content. Only the HTTP-body path visibly uses quoting.</td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Unsanitized Output</strong><br>`entry.Error` is written raw to the terminal, and the new code only prints it when stderr is a TTY. Parts of that string come from the server: GraphQL error messages appear as-is, e.g. `GraphQL: <message>`.\n\nA malicious or compromised GitHub Enterprise host could return a message containing ANSI/OSC escape sequences. Those sequences would be interpreted by the user's terminal.\n\nHTTP bodies are `%q`-quoted in the tested paths, but GraphQL messages are not. Consider stripping control characters before printing.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.05306
+}

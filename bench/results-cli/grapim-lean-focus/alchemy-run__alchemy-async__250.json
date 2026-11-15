@@ -1,0 +1,133 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "alchemy-run__alchemy-async__250",
+ "url": "https://github.com/alchemy-run/alchemy-async/pull/250",
+ "head_sha": "768c3f7bf1df594ef6ffaf218a8aa5047717f15e",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:39:06.080Z",
+ "seconds": 35.381,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 208,
+   "end_line": 208,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Update re-POSTs secrets that already exist, so redeploying fails.",
+   "body": "On the update phase, `insertSecrets` sends every secret in `props.secrets` to `POST .../secrets`, which creates secrets. Secrets whose names are still in props are never deleted first, so a plain redeploy with the same secrets (or a changed value) sends a create for names that already exist. Cloudflare will likely reject it as a duplicate, and `insertSecrets` throws. The adopt path at line 239 has the same problem when the adopted store already holds those names. Fix: send only new names to the create endpoint, and update existing secrets with PATCH on `/secrets/{secret_id}`, using IDs from the list call."
+  },
+  {
+   "path": "alchemy/src/cloudflare/worker-metadata.ts",
+   "line": 389,
+   "end_line": 395,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Worker binding uses the wrong type and binds a secret named after the binding.",
+   "body": "Cloudflare's Worker binding for Secrets Store is `secrets_store_secret`, and it binds one secret: `store_id` plus `secret_name`. This code sends `type: \"secrets_store\"` and `secret_name: bindingName`, so `SECRETS: store` either fails to upload or looks up a secret literally called `SECRETS`. At runtime the binding is a single secret with `get()` taking no arguments, not the `get(secretName)` store object that `Bound` declares in `bound.ts`. Fix: model the binding per secret (for example `store.secret(\"API_KEY\")`), emit `secrets_store_secret` with the real secret name, and correct the `Bound` type and `WorkerBindingSecretsStore` to match."
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 192,
+   "end_line": 196,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Changing `name` on update never renames or replaces the store.",
+   "body": "In the update phase the code reuses `this.output.id` and ignores `props.name`. It then returns `name: name` (the new name) while the Cloudflare store keeps its old name. State and the real store drift apart, and a later adopt-by-name will not find it. Fix: when `this.output.name !== name`, call `this.replace()` or rename the store through the API."
+  },
+  {
+   "path": "alchemy/src/cloudflare/wrangler.json.ts",
+   "line": 559,
+   "end_line": 560,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Secrets Store bindings are silently dropped from wrangler.json.",
+   "body": "The comment says these bindings are handled through a `secrets_store_secrets` array, but nothing is pushed to any array. Any Worker bound to a SecretsStore gets a wrangler.json with no such binding, so local dev and type generation miss it. Fix: collect `{binding, store_id, secret_name}` entries and write them to `spec.secrets_store_secrets`."
+  },
+  {
+   "path": "alchemy/src/test/vitest.ts",
+   "line": 188,
+   "end_line": 198,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Unrelated change drops the describe-block prefix from test scope names.",
+   "body": "This change to the shared test harness is not part of the Secrets Store request. Scopes used to be named `describe/testName`; now they are named `testName` only. Tests with the same name in different describe blocks of one file now share a scope and state, so they can adopt or destroy each other's resources. Fix: revert this hunk."
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 205,
+   "end_line": 205,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Bulk delete is sent secret names, but the API expects secret IDs.",
+   "body": "`listSecrets` returns only `secret.name`, and `deleteSecrets` sends that array as the body of `DELETE .../secrets`. As far as I know, Cloudflare's bulk delete takes secret IDs, so removed secrets are never deleted. The call either errors or does nothing, and removed secrets stay in the store. Fix: have `listSecrets` return `{id, name}` and send the IDs of the secrets to remove. `listSecrets` also reads only the first page of results, so a store with more secrets than one page holds will keep stale ones."
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 334,
+   "end_line": 334,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Secrets are created with empty scopes, so Workers cannot read them.",
+   "body": "Each secret is created with `scopes: []`. A Secrets Store secret is only available to Workers when its scopes include `\"workers\"`. With empty scopes, the Worker binding this PR adds cannot read any secret it creates. Fix: use `scopes: [\"workers\"]`, or make scopes configurable."
+  },
+  {
+   "path": "alchemy/test/cloudflare/secrets-store.test.ts",
+   "line": 33,
+   "end_line": 33,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "Assertion compares the ID to itself and always passes.",
+   "body": "`expect(secretsStore.id).toEqual(secretsStore.id)` runs after `secretsStore` has been reassigned, so it can never fail and does not check that the update kept the same store. Fix: save the first ID in a variable and compare the updated store's ID against it."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18607,
+  "cacheRead": 3262,
+  "output": 3461,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21871,
+   "outputTokens": 3461,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #244",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1629154
+}

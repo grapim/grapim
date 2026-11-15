@@ -1,0 +1,54 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate addresses the Italian text in the Lithuanian file."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate addresses the Traditional Chinese text in the zh_CN file."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C2 covers choice-block normalization and C3 covers substring bounds. Neither covers anchor groups being used up when the translation has more anchors than the English text."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the typo in the method name."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the declaration of the HTML_TAGS field."
+  }
+ ],
+ "candidates": [
+  "Admin/account UI English error-invalid-multivalued-size changed to {0} + {2,choice,...} syntax, but the apps are configured for i18next default {{...}} interpolation, causing raw placeholders to display instead of substituted values",
+  "The theme-verifier normalizes away full {...,choice,...} blocks before sanitizing, so illegal HTML inserted inside those blocks can evade detection while still reaching templates at runtime",
+  "The verifier's mismatch-reporting uses substring(start, length-end) without validating bounds, which can throw StringIndexOutOfBoundsException for some sanitized/value length combinations and abort the build"
+ ]
+}

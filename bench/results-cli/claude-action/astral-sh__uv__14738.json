@@ -1,0 +1,143 @@
+{
+ "tool": "claude-action",
+ "pr_id": "astral-sh__uv__14738",
+ "url": "https://github.com/astral-sh/uv/pull/14738",
+ "head_sha": "bfcd9754884dde39031bdfa47bd236731ccb9577",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T07:04:38.354Z",
+ "seconds": 82.311,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "crates/uv/src/commands/project/version.rs",
+   "line": 371,
+   "end_line": 371,
+   "severity": null,
+   "category": null,
+   "title": "The hint shows even when the user is changing the version.** `find_target` runs for `uv version 1.2.3` and `uv version --bump minor` as well as for plain reads. So someone who runs `uv version --bump ",
+   "body": "**The hint shows even when the user is changing the version.** `find_target` runs for `uv version 1.2.3` and `uv version --bump minor` as well as for plain reads. So someone who runs `uv version --bump patch` in the wrong directory is told to \"use `uv self version`\", which makes no sense for a write.\n\nI'd only add the hint for a plain read (`value.is_none() && bump.is_empty()`), and probably only when `--package` isn't set. One way is to pass an `is_read_only` flag into `find_target`, or to map the error in `project_version`, where `is_read_only` is already computed (line 92 — the check would just need to move above the `find_target` call).\n\nPlease also add a test for `uv version --bump patch` with no `pyproject.toml` to lock in whichever behaviour you choose."
+  },
+  {
+   "path": "crates/uv/src/commands/project/version.rs",
+   "line": 351,
+   "end_line": 351,
+   "severity": null,
+   "category": null,
+   "title": "The same mapping is written out twice, and the hint isn't styled like uv's other hints.**",
+   "body": "**The same mapping is written out twice, and the hint isn't styled like uv's other hints.**\n\n1. This closure is identical to the one in the `else` branch (lines 362–371). A small helper would remove the copy, e.g.:\n   ```rust\n   fn hint_self_version(err: WorkspaceError) -> anyhow::Error {\n       if matches!(err, WorkspaceError::MissingPyprojectToml) {\n           anyhow!(\n               \"{err}\\n\\n{}{} If you meant to view uv's version, use `{}` instead\",\n               \"hint\".bold().cyan(),\n               \":\".bold(),\n               \"uv self version\".green(),\n           )\n       } else {\n           err.into()\n       }\n   }\n   ```\n2. Elsewhere in the crate hints are written as `\"hint\".bold().cyan()` + `\":\".bold()` (see `project/remove.rs:461`, `project/mod.rs:173`). The plain `hint:` here will look different from every other hint in colour mode. The snapshots won't change, because the tests strip ANSI codes.\n3. `anyhow!(\"{}\", err)` turns the typed `WorkspaceError` into a plain string, so callers can no longer `downcast_ref::<WorkspaceError>()` it. That's harmless for `MissingPyprojectToml`, which has no source, but `err.into()` followed by `.context(...)`, or a dedicated error variant, would keep the type."
+  },
+  {
+   "path": "crates/uv/tests/it/version.rs",
+   "line": 1730,
+   "end_line": 1730,
+   "severity": null,
+   "category": null,
+   "title": "This test repeats an existing one, and some cases aren't tested.** Plain `uv version` now goes down the same path as `--project .` and `--preview`, so this test, `version_get_fallback_missing_strict` ",
+   "body": "**This test repeats an existing one, and some cases aren't tested.** Plain `uv version` now goes down the same path as `--project .` and `--preview`, so this test, `version_get_fallback_missing_strict` and `version_get_fallback_missing_strict_preview` all produce identical output. Also, the \"fallback\"/\"strict\" names no longer fit, because the fallback is gone from this code path.\n\nConsider merging them and using the space for cases that aren't covered yet:\n- `uv version --bump patch` / `uv version 1.0.0` with no `pyproject.toml` (see the comment on `find_target`).\n- `uv version --package foo` with no `pyproject.toml`, which goes through the other `map_err` branch and currently has no test.\n- A workspace that exists but where `--package` names a missing member, to confirm the hint does **not** appear for other errors."
+  }
+ ],
+ "usage": {
+  "requests": 20,
+  "input": 28,
+  "cacheWrite": 24542,
+  "cacheRead": 352628,
+  "output": 5753,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "result": {
+   "duration_api_ms": 66332,
+   "stop_reason": "end_turn",
+   "session_id": "ce28aa5f-60b1-43d2-8aa7-65bea34368e3",
+   "total_cost_usd": 0.3820336,
+   "usage": {
+    "input_tokens": 28,
+    "cache_creation_input_tokens": 24542,
+    "cache_read_input_tokens": 352628,
+    "output_tokens": 5753,
+    "output_tokens_details": {
+     "thinking_tokens": 1086
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 24542,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "modelUsage": {
+    "claude-opus-5-5": {
+     "inputTokens": 28,
+     "outputTokens": 5753,
+     "cacheReadInputTokens": 352628,
+     "cacheCreationInputTokens": 24542,
+     "webSearchRequests": 0,
+     "costUSD": 0.3820336,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 1086,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   },
+   "permission_denials": [],
+   "terminal_reason": "completed",
+   "fast_mode_state": "off",
+   "fast_mode_disabled_reason": "sdk_opt_in_required",
+   "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+     "background": 0,
+     "foreground": 0,
+     "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+     "parent": 0,
+     "user": 0,
+     "system": 0
+    },
+    "refused": {
+     "depth_limit": 0,
+     "concurrency_limit": 0,
+     "budget": 0
+    },
+    "by_type": {}
+   },
+   "safety_stops": 0,
+   "is_error": false,
+   "num_turns": 20,
+   "subtype": "success",
+   "api_error_status": null,
+   "result": "I posted 3 inline comments on PR #14738. The Bash tool failed on every call (a temp-directory permission error), so I couldn't run `git diff`. I worked out the change from the source with Read/Grep, and I didn't build the code or run the tests.\n\n**What the PR does:** when no `pyproject.toml` is found, `find_target` in `crates/uv/src/commands/project/version.rs` now adds the hint \"If you meant to view uv's version, use `uv self version` instead\". It's a small, useful change and the snapshot tests cover it.\n\n**Issues raised inline:**\n1. **The hint also shows for writes** (`version.rs:362-371`). `find_target` runs for `uv version 1.2.3` and `uv version --bump …` too, so a user trying to bump their project in the wrong folder is told to use `uv self version`. The hint should only appear for plain reads (`value.is_none() && bump.is_empty()`), and probably not when `--package` is set.\n2. **Duplicated code and inconsistent styling** (`version.rs:342-351`). The same `map_err` closure is copied into both branches; a small helper would remove the copy. The hint is plain `hint:` text, while the rest of the crate styles it as `\"hint\".bold().cyan()` + `\":\".bold()`. Converting the error with `anyhow!(\"{}\", err)` also loses the `WorkspaceError` type.\n3. **Test gaps** (`tests/it/version.rs:1713-1730`). The three missing-`pyproject.toml` tests now produce identical output, and the \"fallback/strict\" names are out of date. There are no tests for the write cases (`--bump`, setting a value), for the `--package` branch, or for errors that should *not* get the hint.\n\n**General notes:**\n- **Possible dead file:** `crates/uv/src/commands/version.rs` isn't declared anywhere in `commands/mod.rs`, so it isn't compiled. It's an old copy of the version command with the removed fallback-to-`uv self version` logic and an outdated `VersionBump` API. Without git I couldn't tell whether this PR added it or it was already there. If the PR added it, it should be deleted, because it misleads readers and grep results.\n- **Security / performance:** nothing to flag. The change only touches error formatting.\n- **Docs:** no updates needed. The changelog entry could say the hint only applies to reads once issue 1 is fixed.",
+   "ttft_ms": 2161,
+   "type": "result",
+   "duration_ms": 78198,
+   "uuid": "442fdbba-f473-498f-bb57-db9ceecd2a9c",
+   "ttft_stream_ms": 1596,
+   "time_to_request_ms": 612,
+   "first_content_frame_ms": 1597,
+   "queued_turn_count": 0,
+   "result_index": 0
+  },
+  "summaries": [],
+  "proxyRequests": null
+ },
+ "cost_usd": 0.3084076
+}

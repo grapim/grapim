@@ -1,0 +1,143 @@
+{
+ "tool": "claude-action",
+ "pr_id": "Tyrrrz__LightBulb__474",
+ "url": "https://github.com/Tyrrrz/LightBulb/pull/474",
+ "head_sha": "354d65d206d90e5681bfa27d1f20eb6788efb465",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:19:35.575Z",
+ "seconds": 183.212,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "LightBulb/Views/MainView.axaml.cs",
+   "line": 16,
+   "end_line": 16,
+   "severity": null,
+   "category": null,
+   "title": "The `!DialogHost.IsOpen` check never takes effect, because of the order the `Loaded` handlers run in.**",
+   "body": "**The `!DialogHost.IsOpen` check never takes effect, because of the order the `Loaded` handlers run in.**\n\n`Loaded=\"Window_OnLoaded\"` is attached inside `InitializeComponent()`, which runs in the constructor. `ViewManager.TryBindView` attaches `view.Loaded += async (_, _) => await viewModel.InitializeAsync()` only after the constructor returns. Routed-event handlers run in the order they were added, so this handler always runs **before** `MainViewModel.InitializeAsync()` has opened any dialog. That means `DialogHost.IsOpen` is always `false` here, and a hidden start always hides the window.\n\nWhat happens next with `--start-hidden`:\n- The Ukraine-support, dev-build and limited-gamma-range dialogs open inside a hidden window. Nobody sees them, but `InitializeAsync` waits on each one.\n- `ShowGammaRangeMessageAsync` runs on **every** launch until the user unlocks the extended range. While it waits, `_checkForUpdatesTimer.Start()` is never reached, so the background update check stays off until the user opens the window and closes the dialog.\n- Only `FinalizePendingUpdateAsync` handles this, because it calls `ShowActivateFocus()` itself.\n\nAlso, the window is shown by the lifetime and only then hidden in `Loaded`, so it can flash briefly on hidden startup. The code being reverted avoided both problems because it never showed the window.\n\nPossible fixes: decide visibility inside `MainViewModel.InitializeAsync()` (show the window before each dialog, as `FinalizePendingUpdateAsync` does, and hide it otherwise). Or start the update timer before the dialog chain. Either way, the comment here should describe what the code actually does."
+  },
+  {
+   "path": "LightBulb/App.axaml.cs",
+   "line": 144,
+   "end_line": 144,
+   "severity": null,
+   "category": null,
+   "title": "`ShowSettingsCommand` is an `AsyncRelayCommand`. Calling `ICommand.Execute` directly skips the `CanExecute` gate (by default the command blocks concurrent runs). The command is still running while the",
+   "body": "`ShowSettingsCommand` is an `AsyncRelayCommand`. Calling `ICommand.Execute` directly skips the `CanExecute` gate (by default the command blocks concurrent runs). The command is still running while the settings dialog is open, so it should be unavailable. But `DialogManager` serialises dialogs with a semaphore, so each extra click on the tray **Settings** item puts another settings dialog in the queue. Each one then pops up after the previous one is closed. The same happens if the user clicks it while a startup message box is open.\n\nSuggest checking first:\n```suggestion\n        if (_mainViewModel.ShowSettingsCommand.CanExecute(null))\n            _mainViewModel.ShowSettingsCommand.Execute(null);\n```\nThis also restores the behaviour you get from the in-window settings button, which binds to the command and respects `CanExecute`."
+  },
+  {
+   "path": "LightBulb/Views/MainView.axaml",
+   "line": 17,
+   "end_line": 17,
+   "severity": null,
+   "category": null,
+   "title": "A `TwoWay` binding on `Window.IsVisible` works, but it is a bit fragile:",
+   "body": "A `TwoWay` binding on `Window.IsVisible` works, but it is a bit fragile:\n- `IsOpen` starts as `false`. When `ViewManager` assigns the `DataContext`, the binding writes `IsVisible = false` before the lifetime calls `Show()`. That does nothing today, but it relies on the lifetime calling `Show()` after the binding is set up.\n- Writing `IsOpen = true` from the view model now *shows a window* (on `Window`, setting `IsVisible` calls `Show()`/`Hide()`). Nothing does that yet, but it is an easy-to-miss side effect for anyone who later treats `IsOpen` as a read-only status flag. Only the tray menu reads it.\n\nIf the binding exists only so the tray \"Show/Hide\" label stays correct, `Mode=OneWayToSource` says that intent more clearly and removes both edge cases."
+  }
+ ],
+ "usage": {
+  "requests": 25,
+  "input": 18740,
+  "cacheWrite": 40751,
+  "cacheRead": 473933,
+  "output": 20755,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "result": {
+   "duration_api_ms": 184284,
+   "stop_reason": "end_turn",
+   "session_id": "0f4ba3ad-cb1b-4a70-b922-c0092cb56e1b",
+   "total_cost_usd": 0.9108545999999998,
+   "usage": {
+    "input_tokens": 30,
+    "cache_creation_input_tokens": 40751,
+    "cache_read_input_tokens": 473933,
+    "output_tokens": 10872,
+    "output_tokens_details": {
+     "thinking_tokens": 5410
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 40751,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "modelUsage": {
+    "claude-opus-5-5": {
+     "inputTokens": 18740,
+     "outputTokens": 20755,
+     "cacheReadInputTokens": 473933,
+     "cacheCreationInputTokens": 40751,
+     "webSearchRequests": 0,
+     "costUSD": 0.9108545999999998,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 8519,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   },
+   "permission_denials": [],
+   "terminal_reason": "completed",
+   "fast_mode_state": "off",
+   "fast_mode_disabled_reason": "sdk_opt_in_required",
+   "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+     "background": 0,
+     "foreground": 0,
+     "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+     "parent": 0,
+     "user": 0,
+     "system": 0
+    },
+    "refused": {
+     "depth_limit": 0,
+     "concurrency_limit": 0,
+     "budget": 0
+    },
+    "by_type": {}
+   },
+   "safety_stops": 0,
+   "is_error": false,
+   "num_turns": 25,
+   "subtype": "success",
+   "api_error_status": null,
+   "result": "I reviewed PR #474 (\"Revert UI unloading, restore persistent main window\", already merged into `prime`) against its head commit `0603c3e`. I posted three inline comments; the summary below is the top-level review, which I couldn't post because the shell wasn't working.\n\n## Inline comments\n\n1. **`LightBulb/Views/MainView.axaml.cs:16` (correctness):** The `!DialogHost.IsOpen` check never takes effect. The XAML `Loaded` handler is attached in the window's constructor, before `ViewManager` attaches the one that starts `InitializeAsync()`. So the window is always hidden before any startup dialog opens. With `--start-hidden`:\n   - The Ukraine-support, dev-build and gamma-range dialogs open inside the hidden window, where nobody sees them.\n   - The gamma-range dialog runs on every launch until the user unlocks the extended range. While it waits, the 3-hourly update check (`_checkForUpdatesTimer`) never starts.\n   - The window can also flash on screen before it hides.\n\n   Only the pending-update dialog brings the window forward itself.\n2. **`LightBulb/App.axaml.cs:144` (correctness, minor):** The tray **Settings** item calls `ShowSettingsCommand.Execute(null)` directly. That skips the command's check against running twice, and dialogs wait in a queue. So each extra click opens another settings dialog after the current one closes. I suggested checking `CanExecute` first.\n3. **`LightBulb/Views/MainView.axaml:17` (maintainability):** The two-way `IsVisible` ↔ `IsOpen` binding means that setting `IsOpen` from the view model now shows or hides the window. It also briefly writes `false` before the window's first show. A one-way binding back to the view model (`OneWayToSource`) says the intent more clearly.\n\n## Top-level observations\n- **The revert is clean overall.** It brings back one window that hides instead of closing and removes the window-recreation code (`ShowMainWindow`, `WaitUntilLoadedAsync`, `App.Current`). The window stays loaded when hidden, so dropping `_isInitialized` and `WaitUntilLoadedAsync` is safe. `DashboardViewModel.InitializeAsync` can also run more than once safely.\n- **Closing behaviour is right.** The window only cancels the close when the user closes it. Closes from app shutdown and OS shutdown still go through, so `Shutdown()` and logoff work without the explicit shutdown-mode setting.\n- **Trade-off:** keeping the window in memory gives up the memory savings the reverted change was after. That's a reasonable choice, but the PR description should say so.\n- **Security / performance:** no concerns.\n- **Testing:** the only test projects cover `LightBulb.Core`, so none of this window logic is tested. Before merging, someone should manually test: starting hidden on first run, starting hidden with the gamma range still locked, double-clicking tray **Settings**, and Alt+F4 vs. tray **Exit**.\n- **Docs:** no README change is needed.\n\n**Caveats:**\n- The local checkout is the PR's first commit (`354d65d`), not the head. I took the head code and line numbers from GitHub.\n- The handler-order point is from reading the code. I didn't run the app to confirm it.",
+   "ttft_ms": 2120,
+   "type": "result",
+   "duration_ms": 181685,
+   "uuid": "93d500f9-415c-4ba5-b8cc-997dd0d42d50",
+   "ttft_stream_ms": 1094,
+   "time_to_request_ms": 230,
+   "first_content_frame_ms": 1094,
+   "queued_turn_count": 0,
+   "result_index": 0
+  },
+  "summaries": [],
+  "proxyRequests": null
+ },
+ "cost_usd": 0.7886016
+}

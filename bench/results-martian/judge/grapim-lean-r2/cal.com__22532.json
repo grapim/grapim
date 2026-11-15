@@ -1,0 +1,55 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The updateManyByCredentialId call uses an empty data object, which prevents Prisma's @updatedAt decorator from updating the updatedAt timestamp. This results in inaccurate cache status tracking, as the timestamp isn't updated when the cache is refreshed. To fix this, explicitly set the updatedAt field.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.75,
+   "reasoning": "C3 says that updateMany with empty data most likely does not bump @updatedAt, so the write does nothing useful. That is the same issue, even though C3 recommends removing the call."
+  },
+  {
+   "comment": "logic: macOS-specific sed syntax with empty string after -i flag will fail on Linux systems",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out that sed -i '' is BSD/macOS-only syntax and fails on Linux."
+  },
+  {
+   "comment": "Throwing a generic Error for authentication failures results in a 500 response in tRPC. Instead, it should return a structured TRPCError with an appropriate code, such as FORBIDDEN, to accurately reflect the error type.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    4
+   ],
+   "confidence": 0.93,
+   "reasoning": "C4 says the plain Error reaches the client as a 500 and suggests a TRPCError with NOT_FOUND or FORBIDDEN."
+  },
+  {
+   "comment": "Date is formatted with hardcoded 'en-US' locale instead of using the user's locale from useLocale, which can lead to incorrect date representation for users in different locales.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the hardcoded en-US locale in the date formatting."
+  }
+ ],
+ "candidates": [
+  "apps/web/package.json:11 - Unrelated change to the dev:cron script.. This switches `dev:cron` from `ts-node` to `npx tsx`. That has nothing to do with calendar cache status or actions. `npx tsx` can also fetch a package that isn't pinned in the repo's dependencies. Move this to its own PR or revert it.",
+  "scripts/test-gcal-webhooks.sh:67 - `sed -i ''` only works with BSD/macOS sed and fails on Linux.. GNU sed doesn't take a separate argument after `-i`. On Linux, `''` is read as the sed script and the `s|...|` expression is read as a filename, so the command errors out and `GOOGLE_WEBHOOK_URL` is never updated. The script still prints the ✅ success message afterwards. Use a portable form, for example `sed -i.bak -E ... && rm \"$ENV_FILE.bak\"`. Also, `ENV_FILE=\"../.env\"` is resolved from the caller's working directory, not from the script's location.",
+  "packages/app-store/googlecalendar/lib/CalendarService.ts:1022 - Leftover SelectedCalendar write adds a DB update on every cache refresh, likely a no-op.. The cache status the UI shows comes from `CalendarCache.updatedAt` (`getCacheStatusByCredentialIds`). Nothing in this PR reads `SelectedCalendar.updatedAt`, so this looks left over from an earlier approach. Every webhook-driven availability refresh now runs an extra `updateMany` over all of the credential's selected calendars. Because it is awaited with no error handling, a failure here also fails the refresh after the cache was already written. On top of that, `updateMany` with empty `data: {}` most likely does not bump `@updatedAt` in Prisma, so the write probably does nothing useful. Remove this call. The related `updatedAt`/`googleChannelId` additions in `user.ts` and `getConnectedDestinationCalendars.ts` are probably leftovers too.",
+  "packages/trpc/server/routers/viewer/calendars/deleteCache.handler.ts:24 - Access-denied case throws a plain Error, which the client sees as a 500.. A plain `Error` reaches the client as `INTERNAL_SERVER_ERROR`, so a missing or not-owned credential looks like a server fault. Throw `new TRPCError({ code: \"NOT_FOUND\" })` (or `FORBIDDEN`) instead.",
+  "packages/prisma/migrations/20250715160635_add_calendar_cache_updated_at/migration.sql:9 - Existing cache rows are backfilled with the migration time, so stale caches look freshly updated.. Every existing `CalendarCache` row gets `updatedAt` set to the moment this migration runs. The new cache status UI reads `cacheUpdatedAt` from this column, so right after deploy it shows every existing cache as just updated, even ones that are old or about to expire. To avoid this, backfill from an existing column where possible (for example, derive it from `expiresAt`). Otherwise, accept that the status is inaccurate until each cache is next written.",
+  "scripts/test-gcal-webhooks.sh:1 - Tunnel helper script is outside the requested feature.. This script starts a public Tunnelmole tunnel to localhost:3000 and rewrites `.env`. It is a dev convenience tool and isn't part of the cache status and actions feature. Its failure paths also call `cleanup`, which exits 0, so a failure looks like success to anything that runs it. Consider moving it to a separate PR."
+ ]
+}

@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "astral-sh__uv__14738",
+ "url": "https://github.com/astral-sh/uv/pull/14738",
+ "head_sha": "bfcd9754884dde39031bdfa47bd236731ccb9577",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:35:13.052Z",
+ "seconds": 20.531,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "crates/uv/src/commands/project/version.rs",
+   "line": 361,
+   "end_line": 371,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Turning `MissingPyprojectToml` into an `anyhow!` string loses the error type that callers may check.",
+   "body": "`WorkspaceError::MissingPyprojectToml` used to reach callers as a typed error. Now it is replaced by an `anyhow!(\"{}...\", err)` string. Any code above `find_target` that calls `downcast_ref::<WorkspaceError>()` or matches on this case no longer recognizes it. The likely case is the non-strict fallback where plain `uv version` without `--project` or `--preview` prints uv's own version. The test names `version_get_fallback_missing_strict*` point to that fallback, but its code is not in these hunks. If the fallback depends on the type, it now becomes a hard error in normal mode. That would explain why the new `version_get_missing_with_hint` test expects a failure for plain `uv version`. That is a change in behaviour the issue did not ask for; it only wanted a hint added. If the fallback does not depend on the type, the new test contradicts it. Fix: keep the typed error and add the hint where the error is finally reported, for example with `.context(...)` or a hint wrapper that callers can still downcast through. Then check that plain `uv version` behaves as it did before. The same applies to the `--package` branch at lines 341-351."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 4912,
+  "cacheRead": 3262,
+  "output": 1619,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 8176,
+   "outputTokens": 1619,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14730",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0576004
+}

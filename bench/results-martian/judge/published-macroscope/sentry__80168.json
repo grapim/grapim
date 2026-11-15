@@ -1,0 +1,28 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "sentry__80168",
+ "url": "https://github.com/getsentry/sentry/pull/80168",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "MetricAlertDetectorHandler inherits from StatefulDetectorHandler but only contains pass, failing to implement its required abstract methods: counter_names (property), get_dedupe_value(), get_group_key_values(), and build_occurrence_and_event_data(). This will cause a TypeError at runtime when the class is instantiated.",
+   "severity": "High",
+   "category": "api",
+   "matches": []
+  },
+  {
+   "comment": "Docstring says this returns a list of DetectorEvaluationResult, but the method now returns a dict keyed by DetectorGroupKey. Consider updating the docstring to match the new return type.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": []
+  },
+  {
+   "comment": "Wrong value `6` passed for `group_2` occurrence — the data packet specifies `\"group_2\": 10`. Should be `10` to accurately reflect the test scenario, which will ensure the test produces the correct occurrence data.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": []
+  }
+ ],
+ "candidates": []
+}

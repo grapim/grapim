@@ -1,0 +1,39 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "sentry__80168",
+ "url": "https://github.com/getsentry/sentry/pull/80168",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "MetricAlertDetectorHandler inherits from StatefulDetectorHandler but only contains pass, failing to implement its required abstract methods: counter_names (property), get_dedupe_value(), get_group_key_values(), and build_occurrence_and_event_data(). This will cause a TypeError at runtime when the class is instantiated.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: MetricAlertDetectorHandler subclasses StatefulDetectorHandler with only `pass`, leaves the abstract methods unimplemented, and raises a TypeError when instantiated."
+  },
+  {
+   "comment": "Docstring says this returns a list of DetectorEvaluationResult, but the method now returns a dict keyed by DetectorGroupKey. Consider updating the docstring to match the new return type.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "Neither candidate mentions that the docstring no longer matches the dict return type."
+  },
+  {
+   "comment": "Wrong value `6` passed for `group_2` occurrence — the data packet specifies `\"group_2\": 10`. Should be `10` to accurately reflect the test scenario, which will ensure the test produces the correct occurrence data.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C2 is about a group key mismatch ('val1' vs 'group_key') in a different test. It does not mention the wrong value 6 being passed for group_2, which should be 10."
+  }
+ ],
+ "candidates": [
+  "src/sentry/incidents/grouptype.py:11 - MetricAlertDetectorHandler is now abstract and raises TypeError when instantiated.. `MetricAlertDetectorHandler` now subclasses `StatefulDetectorHandler` with only `pass`, so it implements none of the abstract methods: `get_dedupe_value`, `get_group_key_values` and the new `build_occurrence_and_event_data`. Before this change it was a concrete handler whose `evaluate` returned `[]`. `Detector.detector_handler` creates the handler with `group_type.detector_handler(self)`, so any metric-alert detector run through `process_detectors` would now fail with `TypeError: Can't instantiate abstract class`. I couldn't see whether `MetricAlertFire.detector_handler` is set to this class; the comment in the file suggests it is. Fix: keep a concrete stub that implements the abstract methods (they can return empty values for now), or don't switch the base class until the handler is implemented.",
+  "tests/sentry/workflow_engine/processors/test_detector.py:536 - The expected occurrence is built for group key \"val1\" but the test evaluates \"group_key\".. `build_mock_occurrence_and_event(handler, \"val1\", ...)` sets the fingerprint to `\"<id>:val1\"`. The handler is then run with `expected_result.group_key == \"group_key\"`, so its occurrence gets fingerprint `\"<id>:group_key\"`. The `IssueOccurrence` objects differ, so the equality check on the evaluated result should fail. Pass `\"group_key\"` when building the expected occurrence."
+ ]
+}

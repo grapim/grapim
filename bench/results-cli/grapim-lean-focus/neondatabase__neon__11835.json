@@ -1,0 +1,143 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "neondatabase__neon__11835",
+ "url": "https://github.com/neondatabase/neon/pull/11835",
+ "head_sha": "000503b38a3a27009f9cad9ec8accaa8bf154bc2",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:37:47.567Z",
+ "seconds": 28.366,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 649,
+   "end_line": 651,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "fsync failure on a delta layer is no longer fatal.",
+   "body": "The old code called `.maybe_fatal_err(\"delta_layer sync_all\")`, which aborts the pageserver when `sync_all` fails, following the codebase's fsync policy. The new code wraps the io error into `DeltaLayerWriterError::Other` and returns it. When fsync fails (EIO, ENOSPC on writeback), compaction or flush now logs an ordinary error and retries. After a failed fsync the kernel may already have dropped the dirty pages, so continuing can lead to silent corruption. This is also outside what the request asked for. Fix: keep `.maybe_fatal_err(\"delta_layer sync_all\")` before mapping the error, e.g. `file.sync_all().await.maybe_fatal_err(\"delta_layer sync_all\").map_err(|e| DeltaLayerWriterError::Other(e.into()))?`."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/image_layer.rs",
+   "line": 1073,
+   "end_line": 1075,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "fsync failure on an image layer is no longer fatal.",
+   "body": "This is the same regression as in the delta layer. `.maybe_fatal_err(\"image_layer sync_all\")` used to abort the process when fsync failed. Now the failure becomes `ImageLayerWriterError::Other` and the caller retries it like any other error, which breaks the abort-on-fsync-error policy. Fix: keep `maybe_fatal_err` and only then convert the error."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 507,
+   "end_line": 516,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The LSN-order invariant assert became a recoverable error.",
+   "body": "`assert!(self.lsn_range.start <= lsn, ...)` used to panic when a caller wrote a value below the layer's LSN range, which is an internal invariant violation. Now it returns `DeltaLayerWriterError::Other`, and callers can log it and retry, which hides a logic bug. The request (typing the cancellation error) does not ask for this change. Fix: restore the `assert!`."
+  },
+  {
+   "path": "pageserver/src/tenant/timeline.rs",
+   "line": 5241,
+   "end_line": 5243,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Cancellation is turned back into a generic error, so issue #11762 is not fixed.",
+   "body": "Issue #11762 is about `create image layers: flush task cancelled` being logged as an ERROR and retried during compaction. The new typed `ImageLayerWriterError::Cancelled` is converted straight back to `CreateImageLayersError::Other(anyhow!(\"flush task cancelled\"))`, so the error still has the same kind and the same message. Compaction still logs `Compaction failed ... flush task cancelled` and retries. Every other call site in this PR does the same thing: the `DeltaLayerWriterError::Cancelled`/`ImageLayerWriterError::Cancelled` arms in compaction.rs (map to `CompactionError::Other`), detach_ancestor.rs (maps to `Error::Prepare`), inmemory_layer.rs and timeline.rs (map to `anyhow!`). Fix: map `Cancelled` to the existing cancellation variants (`CreateImageLayersError::Cancelled`, `CompactionError::ShutdownRequested`, the detach `ShuttingDown` error), so callers treat it as shutdown and don't log an error."
+  },
+  {
+   "path": "pageserver/src/tenant/timeline/compaction.rs",
+   "line": 2240,
+   "end_line": 2246,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Matching on the error string does nothing and drops the error context.",
+   "body": "`e.to_string().contains(\"flush task cancelled\")` builds `CompactionError::Other(anyhow!(\"flush task cancelled\"))`, which has the same kind as the else branch. The check classifies nothing, and when it matches it throws away the original error chain and backtrace. The same pattern appears at lines 1552-1558, 3750-3756 and 3769-3775. Hunks 3711 and 3726 also drop the `.context(\"failed to finish delta layer writer\")` / image writer context, so the logs lose that information. This `finish` call converts with `e.into()`, while the identical `finish` call in hunk 4 matches on the typed variant, so the two sites handle the same error differently. Fix: match on the typed error, map `Cancelled` to a shutdown variant, and keep the `.context(...)` on the `Other` arm."
+  },
+  {
+   "path": "pageserver/src/tenant/blob_io.rs",
+   "line": 250,
+   "end_line": 250,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A closed gate during shutdown is reported as Other instead of Cancelled.",
+   "body": "`gate.enter()` fails only when the gate is closing, i.e. the timeline or tenant is shutting down. That is the same shutdown case the issue wants to stop reporting as an error. Mapping it to `BlobWriterError::Other` means a layer writer created during shutdown still produces a generic error, which callers log as ERROR and retry. Fix: map `GateError` to `BlobWriterError::Cancelled`."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/batch_split_writer.rs",
+   "line": 144,
+   "end_line": 161,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "The batch split writers turn the typed Cancelled error back into an anyhow string.",
+   "body": "Issue #11762 is about compaction logging `create image layers: flush task cancelled` as an ERROR and retrying it. Here, and in `put_image` (line 280) and `put_value` (line 429), `DeltaLayerWriterError::Cancelled` and `ImageLayerWriterError::Cancelled` are mapped to `anyhow::anyhow!(\"flush task cancelled\")`. The compaction paths that use `SplitImageLayerWriter`/`SplitDeltaLayerWriter` therefore get the same untyped anyhow error as before. They cannot tell it is a cancellation, so they will still log an ERROR and retry. Fix: return a typed error from these writers (or one that `downcast_ref` can find, e.g. `anyhow::Error::new(e)` without flattening) so callers can map it to `CompactionError::ShuttingDown`. I could not see compaction.rs to confirm how it inspects these errors."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 618,
+   "end_line": 623,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Formatting the error into a string loses the underlying error chain.",
+   "body": "`.context(\"get file metadata to determine size\")` kept the io error as the source. `anyhow!(\"...: {}\", e)` turns it into a string, so it can no longer be downcast and its source chain is gone. The same applies to the sync_all message and to the image layer's metadata error. Fix: use `anyhow::Error::new(e).context(\"...\")`."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/inmemory_layer.rs",
+   "line": 619,
+   "end_line": 623,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`InMemoryLayerError::Cancelled` is never created; a cancelled write becomes `Other`.",
+   "body": "`put_batch` wraps every `write_raw` error, including a cancelled ephemeral-file flush, as `InMemoryLayerError::Other`. Nothing ever constructs the new `Cancelled` variant, and the caller in timeline.rs flattens both variants to anyhow anyway. Either check the underlying error and map cancellation to `Cancelled`, or remove the unused variant."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 39002,
+  "cacheRead": 6524,
+  "output": 4910,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 41,
+   "reviewedHunks": 41,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 45530,
+   "outputTokens": 4910,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #11762",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2945308
+}

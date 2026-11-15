@@ -1,0 +1,63 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": " The findMembers() call is now asynchronous and unhandled. The controller may not have member data immediately available, creating a race condition.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate raises the async findMembers race condition."
+  },
+  {
+   "comment": "In the next action, capping the next offset at user_count can produce an empty page (e.g., total equal to limit results in offset == total, showing 2/2 with no members). This can cause confusing UX on the last page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 is about the totalPages calculation, not about the next offset being capped at user_count."
+  },
+  {
+   "comment": "The remove_member test uses xhr :put to call the remove_member action, but the route defines delete 'members' => 'groups#remove_member' requiring DELETE method.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate raises the PUT vs DELETE mismatch in the test."
+  },
+  {
+   "comment": "The `totalPages` calculation using `Math.floor(user_count / limit) + 1` produces an extra page when `user_count` is an exact multiple of `limit`, leading to incorrect pagination. For example, with 100 users and a limit of 50, it reports 3 pages instead of 2, allowing navigation to an empty page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.98,
+   "reasoning": "C1 describes the same totalPages off-by-one bug."
+  },
+  {
+   "comment": "Expected to return a value at the end of function - code paths without explicit returns will return undefined",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate raises the missing return value."
+  },
+  {
+   "comment": "The route provides the group's ID in params[:id], but the code attempts to read it from params[:group_id], causing the action to fail. This results in a broken feature when trying to access group memberships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate raises the params[:id] vs params[:group_id] mismatch."
+  }
+ ],
+ "candidates": [
+  "totalPages is computed as Math.floor(user_count / limit) + 1 which produces an off-by-one error when user_count is an exact multiple of limit (e.g., 100/50 gives 3 instead of 2), allowing users to navigate to an empty page. Should use Math.ceil(user_count / limit) instead.",
+  "remove_member calls group.users.delete(user_id) which performs a direct SQL DELETE bypassing ActiveRecord callbacks including counter_cache, causing group.user_count to become stale after member removal. Should use group.remove(User.find(user_id)) instead which properly triggers counter cache updates."
+ ]
+}

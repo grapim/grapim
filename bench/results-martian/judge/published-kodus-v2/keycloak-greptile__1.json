@@ -1,0 +1,33 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: the call is missing the UserModel argument."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 identifies the same problem: the user != null check stops conditional passkeys from working before a user has been identified."
+  }
+ ],
+ "candidates": [
+  "Missing `UserModel` argument in `isConditionalPasskeysEnabled()` call in `UsernameForm.java` - the parent class `UsernamePasswordForm` calls `isConditionalPasskeysEnabled(context.getUser())` but the new code invokes it with no arguments, causing either compilation error or incorrect passkey-enabled evaluation",
+  "The `isConditionalPasskeysEnabled` method in `UsernamePasswordForm.java` has an inverted null-check (`user != null` instead of `user == null`), which breaks conditional passkey UI for unauthenticated users since conditional passkeys are designed to appear BEFORE a user is identified for passwordless/discoverable-credential login"
+ ]
+}

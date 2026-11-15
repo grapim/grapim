@@ -1,0 +1,71 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A null reference occurs in GoogleCalendarService.createEvent() and updateEvent() when mainHostDestinationCalendar is destructured from evt.destinationCalendar but evt.destinationCalendar is null or an empty array, causing mainHostDestinationCalendar to be undefined.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.92,
+   "reasoning": "C1 describes the same problem: mainHostDestinationCalendar is undefined when destinationCalendar is null or empty, so accessing .integration fails."
+  },
+  {
+   "comment": "The optional chaining on mainHostDestinationCalendar?.integration is redundant since you already check mainHostDestinationCalendar in the ternary condition.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "G2 says the optional chaining is redundant. No candidate says this; C1 actually asks for optional chaining to be added."
+  },
+  {
+   "comment": "Logic error: when externalCalendarId is provided, you're searching for a calendar where externalId === externalCalendarId, but this will always fail since you're looking for a calendar that matches itself. Should likely find by credentialId or use different logic.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.65,
+   "reasoning": "C2 points to the same broken lookup, destinationCalendar.find(cal.externalId === externalCalendarId), and says it can never match a valid calendar. It describes the branch condition slightly differently, but it is the same logic error."
+  },
+  {
+   "comment": "Logic inversion in organization creation: The slug property is now conditionally set when IS_TEAM_BILLING_ENABLED is true, instead of when it's false as originally intended. This change, combined with requestedSlug still being set when IS_TEAM_BILLING_ENABLED is true, results in both properties being set when billing is enabled, and neither when disabled",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 identifies the same inverted IS_TEAM_BILLING_ENABLED condition for setting slug."
+  },
+  {
+   "comment": "The Calendar interface now requires createEvent(event, credentialId), but some implementations (e.g., Lark/Office365) still declare createEvent(event) only—this breaks the interface contract (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises the Calendar interface signature mismatch."
+  },
+  {
+   "comment": "The `credential` may be undefined when passed to `updateEvent` if `reference.credentialId` is set but the credential is not found. This can lead to a runtime error when `updateEvent` is called with an undefined credential, which should be handled to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises the undefined credential being passed to updateEvent."
+  }
+ ],
+ "candidates": [
+  "When evt.destinationCalendar is null, undefined, or an empty array, mainHostDestinationCalendar becomes undefined. Accessing .integration on undefined throws a TypeError. The condition needs optional chaining: mainHostDestinationCalendar?.integration",
+  "The fallback branch uses event.destinationCalendar?.find((cal) => cal.externalId === externalCalendarId) when externalCalendarId is falsy. Since this branch only executes when externalCalendarId is falsy, the find condition searches for cal.externalId === undefined/null, which will never match a valid calendar. This should use mainHostDestinationCalendar?.externalId instead",
+  "The condition for setting slug directly on the organization was inverted from !IS_TEAM_BILLING_ENABLED to IS_TEAM_BILLING_ENABLED. Previously, slug was set directly only when billing was disabled. Now it's set when billing is enabled, which contradicts the intended behavior where paid organizations should use requestedSlug in metadata pending approval",
+  "When neither eventType.destinationCalendar nor organizerUser.destinationCalendar exists, evt.destinationCalendar is set to null. The subsequent evt.destinationCalendar?.push(...teamDestinationCalendars) does nothing due to optional chaining on null. This silently discards all team members' destination calendars for collective events",
+  "The credential fetching logic (querying prisma.credential.findUnique with app.slug include, then constructing a credential object) is duplicated verbatim in both createAllCalendarEvents and updateAllCalendarEvents. This ~25 line block should be extracted into a shared helper function",
+  "The check if (!Array.isArray(hosts)) on line 746 is unreachable dead code. The variable hosts is initialized with eventType.hosts || [] on line 744, which guarantees it's always an array"
+ ]
+}

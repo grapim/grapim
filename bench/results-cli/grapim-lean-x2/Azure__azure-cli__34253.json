@@ -1,0 +1,64 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "Azure__azure-cli__34253",
+ "url": "https://github.com/Azure/azure-cli/pull/34253",
+ "head_sha": "394d88c2773b00c93c914e44afcdfedb135c6d06",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:20:09.417Z",
+ "seconds": 35.46,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 4998,
+  "cacheRead": 11522,
+  "output": 2438,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16524,
+   "outputTokens": 2438,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/azure-cli/azure/cli/command_modules/containerapp/_utils.py",
+    "line": 983,
+    "end_line": 983,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "An identity entry set to null is turned into `{}`, which assigns the identity instead of removing it.",
+    "body": "`clean_null_values(properties) or {}` maps a `None` value to `{}`. In an ARM identity PATCH, `\"<id>\": null` is the usual way to remove a user-assigned identity, while `\"<id>\": {}` assigns it. Suppose a manifest writes `userAssignedIdentities: {\"<id>\": null}` (or `<id>:` with no value in YAML) to detach an identity. Before this change the entry was dropped, so nothing happened. Now `update --yaml` sends `{}`, which attaches or keeps the identity: the opposite of what the user asked for. I could not check whether the Container Apps PATCH honours null-removal here. Fix: keep explicit nulls, e.g. `{i: (None if p is None else (clean_null_values(p) or {})) for i, p in value.items()}`, or at least don't turn `None` into an assignment.",
+    "raised": 2
+   }
+  ]
+ },
+ "cost_usd": 0.0760704
+}

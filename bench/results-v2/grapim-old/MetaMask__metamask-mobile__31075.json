@@ -1,0 +1,45 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "MetaMask__metamask-mobile__31075",
+ "url": "https://github.com/MetaMask/metamask-mobile/pull/31075",
+ "head_sha": "ef18288a8c8935af936a6f50993936771e772b23",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:09:59.315Z",
+ "seconds": 10.062,
+ "status": "ok",
+ "findings": [],
+ "usage": {
+  "requests": 2,
+  "input": 79501,
+  "cacheWrite": 0,
+  "cacheRead": 4192,
+  "output": 20,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 31,
+   "hunks": 41,
+   "reviewedHunks": 40,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 83693,
+   "outputTokens": 20,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 31,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.31924240000000004
+}

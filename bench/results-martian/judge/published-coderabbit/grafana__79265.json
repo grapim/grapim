@@ -1,0 +1,64 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "Both describe the same race: concurrent requests can pass the count check and push the device count past the limit."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate says that anonymous authentication now fails outright when the device limit is reached."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "Both point out that rowsAffected == 0 means the device was missing or outside the time window, not that a limit was reached."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.75,
+   "reasoning": "Both flag the time window using time.Now() in one place and device.UpdatedAt in another, so the two can disagree."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the cache being filled before the limit check, which lets later requests skip the limit."
+  }
+ ],
+ "candidates": [
+  "Race condition between CountDevices check and device creation/update in CreateOrUpdateDevice allows concurrent requests to exceed the device limit",
+  "updateDevice returning ErrDeviceLimitReached when rowsAffected == 0 is semantically incorrect - zero rows affected could mean the device doesn't exist within the time window, not that the limit was reached",
+  "Potential time skew in limit check - CountDevices uses time.Now().UTC() while subsequent upsert operations use device.UpdatedAt, which may differ significantly",
+  "GrafanaBootConfig class property anonymousDeviceLimit lacks explicit type annotation, causing TypeScript to infer narrower type 'undefined' instead of 'number | undefined' required by GrafanaConfig interface",
+  "Duplicate constant anonymousDeviceExpiration defined in both database.go and api/api.go risks drift if one is updated without the other",
+  "Test for device limit doesn't verify that existing devices can still be updated when limit is reached",
+  "Missing CreatedAt field in test device struct may cause issues with DB constraints or default value handling"
+ ]
+}

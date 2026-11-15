@@ -1,0 +1,169 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__90045",
+ "url": "https://github.com/grafana/grafana/pull/90045",
+ "head_sha": "e369f24665ec70e1e3700f457d25ef83301d931a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:25:11.092Z",
+ "seconds": 44.712,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 50,
+   "end_line": 57,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Background legacy writes use the request context and get cancelled when the request returns.",
+   "body": "Each goroutine builds its context with `context.WithTimeoutCause(ctx, ...)`, where `ctx` is the incoming request context. The handler returns right after starting the goroutine, and the API server then cancels the request context. The legacy Create/Update/Delete/DeleteCollection usually fails with `context canceled` or never runs, so legacy storage silently falls out of sync. That defeats the \"safe measure\" the request describes. The same pattern is at lines 110, 135 and 163. Fix: start from `context.WithoutCancel(ctx)`, which keeps the request values but drops its cancellation, then add the 10s timeout."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 45,
+   "end_line": 45,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "A failed storage Create is recorded as a legacy duration.",
+   "body": "When `d.Storage.Create` fails, the code calls `d.recordLegacyDuration(true, ...)`. Unified-storage failures therefore show up in the legacy metric and are missing from the storage metric. Use `recordStorageDuration` here."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 106,
+   "end_line": 106,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "A successful storage Delete records the object name as the metric's kind label.",
+   "body": "`d.recordStorageDuration(false, mode3Str, name, method, startStorage)` passes `name` where every other call passes `options.Kind`. Successful deletes are then labelled under the wrong kind, and every distinct object name creates a new label value, so the metric's cardinality grows without bound. Pass `options.Kind`."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 129,
+   "end_line": 129,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "A failed storage Update is recorded as a legacy duration.",
+   "body": "When `d.Storage.Update` fails, the code calls `d.recordLegacyDuration(true, ...)`, so storage failures are counted under the legacy metric. Use `recordStorageDuration`."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 166,
+   "end_line": 166,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Legacy DeleteCollection timing is recorded as a storage duration.",
+   "body": "The goroutine runs `d.Legacy.DeleteCollection` and then calls `d.recordStorageDuration`. Legacy timings and errors are mixed into the storage metric, and the legacy metric never sees delete-collection. Use `recordLegacyDuration`."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 55,
+   "end_line": 56,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Legacy write failures are no longer logged.",
+   "body": "The old code logged every legacy write error. The new goroutines (Create, Update, Delete, DeleteCollection) only pass `err != nil` to a duration metric and drop the error itself. When the async write to legacy fails, nothing records which object failed or why, so the drift cannot be diagnosed or repaired. Log the error inside each goroutine, e.g. `log.Error(err, \"unable to create object in legacy storage\")`."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 55,
+   "end_line": 55,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Legacy Create reads the same `obj` concurrently with the response path.",
+   "body": "The goroutine passes the original `obj` to `d.Legacy.Create` while the request goroutine returns `created`. Storage implementations often mutate `obj` in place (resourceVersion, UID, timestamps) or return the same pointer. The response encoder and the legacy store then read and write the same object at the same time, which is a data race. Legacy may also receive storage-assigned metadata such as resourceVersion and reject the create. Pass a `DeepCopyObject()` of the input to the goroutine."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 139,
+   "end_line": 139,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Legacy Update re-runs the original objInfo instead of writing the object storage produced.",
+   "body": "The old code wrapped `objInfo` in `updateWrapper` holding the object returned by storage, so legacy received the same result. Now legacy gets the raw `objInfo` and computes the update again against its own copy of the object. A preconditioned update whose resourceVersion or UID came from unified storage will conflict or fail in legacy, and a patch can produce a different result there, so the two stores diverge. `objInfo` is also used from a goroutine after the request has returned. Pass `&updateWrapper{upstream: objInfo, updated: res}` as before."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 97,
+   "end_line": 97,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Delete puts the base logger into the context instead of the enriched one.",
+   "body": "`ctx = klog.NewContext(ctx, d.Log)` stores the logger without the name, kind and method values. Every other method stores `log`. Use `klog.NewContext(ctx, log)`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 26528,
+  "cacheRead": 3262,
+  "output": 3801,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 9,
+   "reviewedHunks": 8,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 29792,
+   "outputTokens": 3801,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "pkg/apiserver/rest/dualwriter_mode1_test.go",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+    "line": 100,
+    "end_line": 100,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Delete no longer reaches legacy when unified storage returns NotFound.",
+    "body": "The removed code ignored `NotFound` from unified storage and still deleted from legacy. Now any storage error returns early. An object that exists only in legacy (not yet migrated, or a storage write that was lost) can no longer be deleted and stays in legacy. If mode 3 is meant to keep legacy as a safe copy, keep the old NotFound handling and still run the legacy delete."
+   },
+   {
+    "path": "pkg/tests/apis/playlist/playlist_test.go",
+    "line": 132,
+    "end_line": 144,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Mode 3 integration tests may be flaky because legacy writes are asynchronous.",
+    "body": "`doPlaylistTests` appears to check that writes made through the k8s API are visible through the legacy API, though that part of the helper is not shown here. In mode 3 the legacy write runs in a goroutine, and with the current code its context is cancelled when the request ends. Any read of legacy straight after a write then races with that goroutine and can fail intermittently. Either make those checks wait for the legacy write (e.g. poll with Eventually) or skip legacy-consistency checks in mode 3."
+   }
+  ]
+ },
+ "cost_usd": 0.2093204
+}

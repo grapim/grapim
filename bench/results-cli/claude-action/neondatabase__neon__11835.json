@@ -1,0 +1,13 @@
+{
+ "tool": "claude-action",
+ "pr_id": "neondatabase__neon__11835",
+ "url": "https://github.com/neondatabase/neon/pull/11835",
+ "head_sha": "000503b38a3a27009f9cad9ec8accaa8bf154bc2",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T07:30:20.242Z",
+ "seconds": 6.986,
+ "status": "error",
+ "note": "Error: git worktree add --detach: Preparing worktree (detached HEAD 000503b)\nfatal: unable to access 'https://github.com/neondatabase/neon.git/': Could not resolve host: github.com\nfatal: could not fetch c71d49130371f69b487cca2701bb05281151ca12 from promisor remote\n    at git (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:38:11)\n    at worktree (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:119:3)\n    at Object.claudeAction [as claude-action] (file:///C:/Users/OS/Desktop/commons/bench/lib/adapters.mjs:275:16)\n    at file:///C:/Users/OS/Desktop/commons/bench/run.mjs:186:33\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:69:30\n    at async Promise.all (index 0)\n    at async pool (file:///C:/Users/OS/Desktop/commons/bench/run.mjs:68:3)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:162:1",
+ "cost_usd": 0
+}

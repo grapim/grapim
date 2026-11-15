@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "head_sha": "c790227e0cda780e6fea9bb03af27948d9e286b9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:39:49.064Z",
+ "seconds": 16.727,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+   "line": 38,
+   "end_line": 42,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "data_loss",
+   "title": "The retry-count delete is not limited to SMS reminders.",
+   "body": "The new `OR` branch `{ retryCount: { gt: 1 } }` has no `method: WorkflowMethods.SMS` filter, so this SMS cron deletes every `workflowReminder` with `retryCount > 1`, including email and WhatsApp ones. This PR only increments `retryCount` here, but the column is now on the shared model. Once another scheduler (email, WhatsApp) starts counting retries, this job will silently delete those reminders before they are sent. Move `method: WorkflowMethods.SMS` outside the `OR`, or add it to both branches."
+  },
+  {
+   "path": "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+   "line": 190,
+   "end_line": 197,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "If the retry update in the catch block throws, the whole cron run stops.",
+   "body": "The new `prisma.workflowReminder.update` inside `catch` has no error handling of its own. If it throws, the error escapes the `for` loop and the handler returns a 500. That happens when the reminder row was deleted in the meantime (P2025, for example when the booking was cancelled while this run was in progress) or when the database has a transient error. Every remaining reminder in `unscheduledReminders` is then skipped for this run. Before this change the catch only logged, so one bad reminder could not stop the batch. Wrap the update in its own try/catch, or use `updateMany` with the id, which does not throw when no row matches."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 6074,
+  "cacheRead": 6524,
+  "output": 1325,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 12602,
+   "outputTokens": 1325,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0581908
+}

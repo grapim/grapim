@@ -1,0 +1,45 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "cli__cli__15009",
+ "url": "https://github.com/cli/cli/pull/15009",
+ "head_sha": "e8022e837d4d422370059c3ea954d13e11ebeeaf",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T17:53:44.658Z",
+ "seconds": 7.42,
+ "status": "ok",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 13308,
+  "cacheWrite": 2096,
+  "cacheRead": 0,
+  "output": 436,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 15404,
+   "outputTokens": 436,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.072432
+}

@@ -1,0 +1,31 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "G1 is about a missing argument, which would cause a compile/signature error. No candidate mentions it. C1 even assumes the call already passes context.getUser()."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same issue: the method returns false when the user is null, so fillContextForm is skipped on the initial login page and conditional passkey UI breaks."
+  }
+ ],
+ "candidates": [
+  "isConditionalPasskeysEnabled() returns false when user == null, but conditional passkey UI is needed on the initial login screen before a user is identified. In authenticate(), the call isConditionalPasskeysEnabled(context.getUser()) with context.getUser() == null for first-time anonymous logins causes webauthnAuth.fillContextForm(context) to never execute, omitting WebAuthn conditional UI attributes and breaking the passkey flow for anonymous login attempts",
+  "fillContextForm() uses shouldShowWebAuthnAuthenticators(context) to decide whether the user is identified, which breaks subclasses like WebAuthnConditionalUIAuthenticator that override shouldShowWebAuthnAuthenticators() to always return false. This causes IS_USER_IDENTIFIED to be set to false and skips building ALLOWED_AUTHENTICATORS, starting an identifier-less WebAuthn ceremony instead of a user-specific one, preventing users with non-resident credentials from authenticating because they need the server-provided allow-list"
+ ]
+}

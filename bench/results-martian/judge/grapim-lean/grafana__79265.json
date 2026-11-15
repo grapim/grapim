@@ -1,0 +1,61 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same race: the count check and the insert are separate steps, so concurrent requests can exceed the limit."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.6,
+   "reasoning": "C1 points out that tagging used to be async and non-blocking and is now synchronous inside Authenticate, so anonymous auth can fail. That is the same underlying change, though C1 focuses more on latency and DB failures."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C4 identifies that rowsAffected == 0 is wrongly treated as ErrDeviceLimitReached when it does not actually mean the limit was reached."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate discusses the inconsistent time-window calculation."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the cache being populated before the limit check."
+  }
+ ],
+ "candidates": [
+  "pkg/services/anonymous/anonimpl/client.go:44 - Device tagging now runs synchronously on every anonymous login, without the old timeout or panic recovery.. Before this change, `TagDevice` ran in a background goroutine with a 2-minute timeout and a `recover()`. Now it runs inside `Authenticate` on the request context.\n\nWhenever the tag is not served from the local cache, the request waits for a database upsert. When `device_limit > 0`, it also waits for a `COUNT(*)` over `anon_device` first. A slow or locked database (SQLite locking, a large table) now delays or fails anonymous page loads directly, and a panic in the tagging path is no longer contained here.\n\nOnly the limit check needs to be synchronous. Run the limit check on its own, or keep the database write in the background and use a cached count to decide whether to deny the request.",
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:108 - Separate count and insert steps let concurrent new devices exceed the limit.. `CountDevices` and the following INSERT/upsert do not run in the same transaction or under a lock. When the count is at `limit-1`, several new devices authenticating at the same moment all see `count < limit` and all get inserted, so the configured limit is exceeded.\n\nFix: do the check and the insert atomically, either with a conditional insert (`INSERT ... SELECT ... WHERE (SELECT COUNT(*) ...) < ?`) or inside one transaction that holds a suitable lock.",
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:83 - The callback rewrites the captured `args` slice, so a retried session sends a corrupted argument list.. `args = append([]interface{}{query}, args...)` reassigns the outer `args` variable inside the `WithDbSession` callback. If the session runs the callback again (for example, when it retries after SQLite reports 'database is locked'), the query string is prepended a second time. `Exec` then gets the wrong number and order of parameters, and the update fails or misbinds.\n\nFix: build the argument list once, outside the closure, or use a local variable inside it:\n\n```go\nexecArgs := append([]interface{}{query}, args...)\n```",
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:95 - Zero rows affected is treated as 'limit reached', which can deny a device that is already registered.. With the default MySQL driver settings, `RowsAffected` is 0 when an UPDATE matches a row but changes nothing. Two requests from the same registered device in the same second can trigger this: same IP, same user agent, and `updated_at` truncated to the same second. That happens, for example, with concurrent requests before the local cache is filled. The second request then gets `ErrDeviceLimitReached` and the anonymous login fails, even though the device is within the limit.\n\nFix: check whether the device exists (for example, `SELECT 1 ... WHERE device_id = ? AND updated_at BETWEEN ...`) rather than relying on rows affected, or enable the client-found-rows option for MySQL."
+ ]
+}

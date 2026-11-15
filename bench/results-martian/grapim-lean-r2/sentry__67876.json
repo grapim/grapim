@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "head_sha": "bb75657fc8f13923c1d7983f422290908a1e7310",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:28:31.112Z",
+ "seconds": 33.134,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "tests/sentry/integrations/github/test_integration.py",
+   "line": 388,
+   "end_line": 396,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "`test_installation_not_found` now only tests a state mismatch, not a missing installation.",
+   "body": "The test now sends `state=ddd023d87a913d5226e2a882c4c4cc05`, which differs from the pipeline signature used everywhere else in this file. The request is therefore rejected in `OAuthLoginView` on the state check and never reaches the installation lookup that returns 404. The assertion was also changed from \"The GitHub installation could not be found.\" to the generic \"Invalid installation request.\". As a result the not-found path has no test coverage any more. Fix: use the valid state so the flow reaches `build_integration`, and assert the original not-found message again. Test the state mismatch in a separate test."
+  },
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 500,
+   "end_line": 505,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "GitHub user check is skipped when no Integration row exists yet.",
+   "body": "The installer-vs-authenticated-user comparison only runs on the path where an `Integration` already exists. When `Integration.objects.get(external_id=installation_id)` raises `DoesNotExist` (line ~481), the view calls `pipeline.next_step()` without comparing `github_authenticated_user` to anyone. Two cases reach this path: the installation webhook has not arrived yet, or it failed. In either case a user can supply a victim's `installation_id` and finish the install without the check this PR adds. I could not see whether `build_integration` checks the installer itself. Fix: run the user check on that path too. One way is to fetch the installation's sender or account from the GitHub API and compare it to the OAuth login. Otherwise, fail closed when the user cannot be verified."
+  },
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 501,
+   "end_line": 504,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`integration.metadata[\"sender\"][\"login\"]` raises KeyError for integrations without sender metadata.",
+   "body": "Integrations created through the pipeline's `build_integration` store metadata like `access_token`, `icon`, `domain_name` and `account_type`. Only the installation webhook adds `sender`. If an older integration like that has no remaining `OrganizationIntegration` and someone reinstalls it, this lookup raises `KeyError` and the setup view returns a 500 instead of the error page. Fix: use `integration.metadata.get(\"sender\", {}).get(\"login\")` and call `error(...)` when it is missing or does not match."
+  },
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 423,
+   "end_line": 430,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A network error on the token exchange is not handled.",
+   "body": "`safe_urlopen` is called outside the `try` block. A connection error or timeout reaching GitHub's access-token endpoint raises out of the view as a 500, instead of showing the \"Invalid installation request\" page that every other failure on this path shows. Fix: move the `safe_urlopen` call inside the `try`, or catch its exceptions and return `error(request, self.active_organization)`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 14841,
+  "cacheRead": 3262,
+  "output": 3045,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 18105,
+   "outputTokens": 3045,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.13576539999999998
+}

@@ -1,0 +1,22 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "sentry__80528",
+ "url": "https://github.com/getsentry/sentry/pull/80528",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The function modifies the config variable to include display values but then returns the original monitor.config instead of the modified version.",
+   "severity": "High",
+   "category": "bug",
+   "matches": []
+  },
+  {
+   "comment": "The code fetches MonitorCheckIn objects by ID when the required data already exists in previous_checkins. This creates an unnecessary database query.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": []
+  }
+ ],
+ "candidates": []
+}

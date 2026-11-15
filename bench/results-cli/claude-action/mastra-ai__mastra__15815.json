@@ -1,0 +1,13 @@
+{
+ "tool": "claude-action",
+ "pr_id": "mastra-ai__mastra__15815",
+ "url": "https://github.com/mastra-ai/mastra/pull/15815",
+ "head_sha": "012c8603ed0837f26723a2b6b18674167f2ae530",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T07:30:07.885Z",
+ "seconds": 33.838,
+ "status": "error",
+ "note": "Error: git worktree add --detach: Preparing worktree (detached HEAD 012c860)\nfatal: unable to access 'https://github.com/mastra-ai/mastra.git/': Could not resolve host: github.com\nfatal: could not fetch e5b6d8d6a67ad0dca8f20117fbfc72e076882d00 from promisor remote\n    at git (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:38:11)\n    at worktree (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:119:3)\n    at Object.claudeAction [as claude-action] (file:///C:/Users/OS/Desktop/commons/bench/lib/adapters.mjs:275:16)\n    at file:///C:/Users/OS/Desktop/commons/bench/run.mjs:186:33\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:69:30\n    at async Promise.all (index 0)\n    at async pool (file:///C:/Users/OS/Desktop/commons/bench/run.mjs:68:3)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:162:1",
+ "cost_usd": 0
+}

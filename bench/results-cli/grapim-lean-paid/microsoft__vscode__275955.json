@@ -1,0 +1,82 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "microsoft__vscode__275955",
+ "url": "https://github.com/microsoft/vscode/pull/275955",
+ "head_sha": "78d21e258e812314b44c11760e91d0e599a259f9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:10:12.136Z",
+ "seconds": 18.017,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 221,
+   "end_line": 221,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Active descendant no longer updates while Ctrl/Cmd is held during quick navigation",
+   "body": "`!this.keyMods.ctrlCmd` blocks the `aria-activedescendant` update whenever Ctrl (Cmd on macOS) is held. Quick-navigate flows move focus through the list with the modifier held: repeated Ctrl+P in Quick Open, or Ctrl+Tab editor switching.\n\nIn those flows the attribute stays on the old item or stays removed, so screen readers announce nothing or the wrong item. That is a new accessibility regression. The same guard in the tree handler (line 262) has the same problem.\n\nFix: remove this guard and handle the Ctrl case in the keydown handler instead."
+  },
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 313,
+   "end_line": 313,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "Ctrl keydown still removes aria-activedescendant, so the reported announcement is not fixed",
+   "body": "The issue says pressing Ctrl makes the screen reader announce the placeholder. The PR description blames the `onKeyDown` handler, which removes `aria-activedescendant` on every key, Ctrl included. This handler is unchanged here apart from the comment wording; it has no modifier-key guard.\n\nPressing Ctrl alone still drops the active descendant. Focus then falls back to the input, and the reader announces \"Type the command to run\". The new `ctrlCmd` checks on `onDidChangeFocus` do not help, because pressing Ctrl alone triggers no focus change.\n\nFix: skip the removal when `e.keyCode` is Ctrl, Shift, Alt or Meta, as the description says."
+  },
+  {
+   "path": "src/vs/platform/quickinput/test/browser/quickinput.test.ts",
+   "line": 283,
+   "end_line": 299,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "New test asserts nothing (`assert.ok(true)`)",
+   "body": "The test only sets the placeholder and then calls `assert.ok(true)`. It never checks the `aria-label` or whether redundant DOM writes are skipped, so it passes whatever the new dedup logic does.\n\nFix: assert the input element's `aria-label` after each change, or spy on `setAttribute` to verify that setting the same value does not write."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 6950,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 1733,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 10067,
+   "outputTokens": 1733,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #271032",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0630834
+}

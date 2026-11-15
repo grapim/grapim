@@ -1,0 +1,56 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "keycloak__36880",
+ "url": "https://github.com/keycloak/keycloak/pull/36880",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Inconsistent feature flag bug causing orphaned permissions. The AdminPermissions event listener, responsible for cleaning up permissions upon role, client, or group removal, is incorrectly guarded by the ADMIN_FINE_GRAINED_AUTHZ (V1) feature flag. This is inconsistent with other methods in the class that use ADMIN_FINE_GRAINED_AUTHZ_V2. Consequently, if ADMIN_FINE_GRAINED_AUTHZ_V2 is enabled but V1 is not, the permission cleanup logic will not execute, leading to orphaned permission data. Cleanup should occur regardless of which fine-grained authorization version is enabled.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G1 says cleanup is skipped when only V2 is enabled because the listener is gated on the V1 flag. C1 covers a different case: with both flags enabled, V1 code paths throw UnsupportedOperationException. They touch the same area but describe different problems."
+  },
+  {
+   "comment": "In hasPermission(ClientModel client, String scope), the resource lookup uses findByName(server, client.getId(), server.getId()), but AdminPermissionsSchema.getOrCreateResource creates per-client resources with the owner set to resourceServer.getClientId(), so this lookup will never find those resources and will always fall back to the 'all-clients' resource, effectively ignoring client-specific permissions.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions that findByName uses the wrong owner, which makes the per-client resource lookup fail."
+  },
+  {
+   "comment": "In getClientsWithPermission(String scope), iterating resourceStore.findByType(server, AdminPermissionsSchema.CLIENTS_RESOURCE_TYPE) and returning resource.getName() will only ever consider the type-level 'Clients' resource (per-client resources have no type) and return its name, while AvailableRoleMappingResource#getRoleIdsWithPermissions expects actual client IDs to pass to realm.getClientById, which can lead to incorrect behavior or a null client and subsequent failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same problem: getClientsWithPermission only finds the type-level resource and returns resource names instead of client IDs."
+  },
+  {
+   "comment": "In ClientPermissionsV2.hasPermission, the method getResourceTypeResource could return null, leading to a NullPointerException in findByResource. Defensive null checks are needed to prevent this issue.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises the possible null return from getResourceTypeResource or the NPE it could cause."
+  },
+  {
+   "comment": "Remove unused getEvaluationContext private method in ClientPermissionsV2 - it is defined but never called",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate points out the unused getEvaluationContext method."
+  }
+ ],
+ "candidates": [
+  "If ADMIN_FINE_GRAINED_AUTHZ (v1) and ADMIN_FINE_GRAINED_AUTHZ_V2 are enabled together, v1 endpoints/listeners still run but AdminPermissions.management() returns MgmtPermissionsV2, whose ClientPermissionsV2 throws UnsupportedOperationException for v1 management-permissions operations, causing 500s for /clients/{id}/management/permissions and removal-event cleanup",
+  "ClientPermissionsV2#getClientsWithPermission returns resource names for resources of type 'Clients', but per-object resources are created without setting type. This can return 'Clients' (not a client UUID) and/or miss client resources, which breaks callers that treat results as client IDs",
+  "PermissionClientTest relies on default client scopes list having at least two entries and stable ordering via get(1), which can cause IndexOutOfBoundsException or removing an unexpected scope if defaults change"
+ ]
+}

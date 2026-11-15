@@ -1,0 +1,45 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "sympy__sympy__30393",
+ "url": "https://github.com/sympy/sympy/pull/30393",
+ "head_sha": "6a273d9be1e485d68af0d875e78750b53452abf4",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T17:56:56.946Z",
+ "seconds": 2.957,
+ "status": "ok",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 1108,
+  "cacheWrite": 0,
+  "cacheRead": 2096,
+  "output": 10,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 1,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 3204,
+   "outputTokens": 10,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 1,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.0050512
+}

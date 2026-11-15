@@ -1,0 +1,88 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__40940",
+ "url": "https://github.com/keycloak/keycloak/pull/40940",
+ "head_sha": "4def149a50c4b9b2c24fbb753ac60fe4f4df0cac",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:32:23.694Z",
+ "seconds": 30.299,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java",
+   "line": 139,
+   "end_line": 155,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The reader thread keeps running forever if a delete throws.",
+   "body": "`deletedAll.set(true)` only runs if every `remove()` call succeeds. If one delete throws (for example a 404 or a server error), the test fails but the reader thread keeps calling the admin API in a tight loop until the JVM exits. That load and noise spill into every later test. Put `deletedAll.set(true)` in a `finally` block, then join the thread. Making it a daemon thread would also help."
+  },
+  {
+   "path": "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java",
+   "line": 155,
+   "end_line": 157,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The test checks for errors without waiting for the reader thread to finish.",
+   "body": "`deletedAll.set(true)` is followed straight away by `assertThat(caughtExceptions, empty())`. The reader thread may still be inside `groups(...)` at that moment. If its last request fails, which is the request most likely to hit the half-deleted state, the exception is added after the assertion has already passed. The test then passes even though the error it is meant to catch happened. Keep a reference to the thread and call `join()` (with a timeout) before asserting."
+  },
+  {
+   "path": "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java",
+   "line": 122,
+   "end_line": 134,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Groups created so far are left in the shared realm if creation fails partway.",
+   "body": "If `fail(...)` is hit partway through the creation loop, the groups already created are never deleted. They stay in the realm that the other `GroupTest` methods share, which can break tests that count or list groups. Delete the created groups in a `finally` block, or register them for cleanup through the managed realm."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 5897,
+  "cacheRead": 3262,
+  "output": 1474,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 5,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 9161,
+   "outputTokens": 1474,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "services/src/main/java/org/keycloak/utils/GroupUtils.java",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0596254
+}

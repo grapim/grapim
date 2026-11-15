@@ -1,0 +1,38 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "sentry__80168",
+ "url": "https://github.com/getsentry/sentry/pull/80168",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "MetricAlertDetectorHandler inherits from StatefulDetectorHandler but only contains pass, failing to implement its required abstract methods: counter_names (property), get_dedupe_value(), get_group_key_values(), and build_occurrence_and_event_data(). This will cause a TypeError at runtime when the class is instantiated.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: the handler only contains pass and leaves the abstract methods unimplemented, which causes a TypeError when the class is instantiated."
+  },
+  {
+   "comment": "Docstring says this returns a list of DetectorEvaluationResult, but the method now returns a dict keyed by DetectorGroupKey. Consider updating the docstring to match the new return type.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the docstring mismatch."
+  },
+  {
+   "comment": "Wrong value `6` passed for `group_2` occurrence — the data packet specifies `\"group_2\": 10`. Should be `10` to accurately reflect the test scenario, which will ensure the test produces the correct occurrence data.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the wrong test value."
+  }
+ ],
+ "candidates": [
+  "src/sentry/incidents/grouptype.py:11 - MetricAlertDetectorHandler leaves the StatefulDetectorHandler abstract methods unimplemented, so it cannot be instantiated.. `StatefulDetectorHandler` is an `abc.ABC` with abstract `get_dedupe_value`, `get_group_key_values` and the new `build_occurrence_and_event_data`. `MetricAlertDetectorHandler` now subclasses it with only `pass`.\n\n**Trigger:** `Detector.detector_handler` instantiates the handler registered on the grouptype, and `MetricAlertFire` presumably registers this class. Any detector of type `metric_alert_fire` that reaches `process_detectors` will then raise `TypeError: Can't instantiate abstract class`.\n\n**What changes:** before this PR the handler's `evaluate` returned `[]`, so these detectors produced no results without failing. Now they crash.\n\n**What I couldn't check:** whether `MetricAlertFire.detector_handler` points at this class. That line is outside this hunk.\n\n**Fix:** either keep a stub that inherits from `DetectorHandler` until the stateful version is implemented, or add stub implementations of the three abstract methods here."
+ ]
+}

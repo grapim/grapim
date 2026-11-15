@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Azure__azure-cli__34253",
+ "url": "https://github.com/Azure/azure-cli/pull/34253",
+ "head_sha": "394d88c2773b00c93c914e44afcdfedb135c6d06",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:42:36.638Z",
+ "seconds": 16.261,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/azure-cli/azure/cli/command_modules/containerapp/_utils.py",
+   "line": 983,
+   "end_line": 983,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A null identity entry, which in ARM PATCH means unassign, is turned into `{}`, which assigns it.",
+   "body": "For an entry like `\"<uami-id>\": null`, `clean_null_values(None) or {}` returns `{}`. In ARM PATCH semantics, a `userAssignedIdentities` entry set to `null` removes that identity from the resource, and `{}` assigns or keeps it. So a manifest that tries to detach an identity now sends a body that keeps or attaches it. Before this change the entry was dropped, so nothing happened; now the request does the opposite of what the user wrote. Keep explicit nulls as nulls: `{k: None if v is None else (clean_null_values(v) or {}) for k, v in value.items()}`. The outer filter still keeps the map because it is a non-empty dict. I could not check whether this PATCH path goes on to merge with the existing identity block."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 5004,
+  "cacheRead": 3262,
+  "output": 1244,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 8268,
+   "outputTokens": 1244,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0505604
+}

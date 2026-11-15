@@ -1,0 +1,77 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "cline__cline__10990",
+ "url": "https://github.com/cline/cline/pull/10990",
+ "head_sha": "e10dc2013dbe54a134ca5839c6c853f2e91aaaa3",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:13:42.136Z",
+ "seconds": 22.153,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "sdk/packages/llms/src/providers/gateway.ts",
+   "line": 165,
+   "end_line": 167,
+   "severity": null,
+   "category": null,
+   "title": "Provider Default Truncation",
+   "body": "When a request omits `maxTokens`, the gateway now sends no output limit, and each provider SDK falls back to its own default. Previously the default was a 32k cap.\n\nSome providers require `max_tokens`. For those, the AI SDK adapter supplies a small default. For example, `@ai-sdk/anthropic` has historically used 4096. Callers that relied on the implicit 32k cap could get truncated responses (`finishReason: \"length\"`), with no error raised.\n\nUncertain: this depends on the installed AI SDK provider versions. It is worth checking Anthropic and Bedrock paths before merging."
+  },
+  {
+   "path": "sdk/packages/llms/src/providers/gateway.ts",
+   "line": 269,
+   "end_line": 286,
+   "severity": null,
+   "category": null,
+   "title": "Lost Overflow Warning",
+   "body": "`resolveGatewayRequestMaxTokens`, and so the `onContextOverflow` callback, now runs only when `request.maxTokens` is set. Requests without `maxTokens` no longer log \"Estimated prompt tokens exceed model context window\", even when the prompt clearly overflows the context window. This removes a useful diagnostic for the most common case.\n\nEstimating input tokens and checking the context window separately would keep the warning, without synthesizing a max-tokens value."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 8134,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 1140,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 2,
+    "relevant_tests": "Yes\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "sdk/packages/llms/src/providers/gateway.ts\n",
+      "issue_header": "Provider Default Truncation\n",
+      "issue_content": "When a request omits `maxTokens`, the gateway now sends no output limit, and each provider SDK falls back to its own default. Previously the default was a 32k cap.\n\nSome providers require `max_tokens`. For those, the AI SDK adapter supplies a small default. For example, `@ai-sdk/anthropic` has historically used 4096. Callers that relied on the implicit 32k cap could get truncated responses (`finishReason: \"length\"`), with no error raised.\n\nUncertain: this depends on the installed AI SDK provider versions. It is worth checking Anthropic and Bedrock paths before merging.\n",
+      "start_line": 165,
+      "end_line": 167
+     },
+     {
+      "relevant_file": "sdk/packages/llms/src/providers/gateway.ts\n",
+      "issue_header": "Lost Overflow Warning\n",
+      "issue_content": "`resolveGatewayRequestMaxTokens`, and so the `onContextOverflow` callback, now runs only when `request.maxTokens` is set. Requests without `maxTokens` no longer log \"Estimated prompt tokens exceed model context window\", even when the prompt clearly overflows the context window. This removes a useful diagnostic for the most common case.\n\nEstimating input tokens and checking the context window separately would keep the warning, without synthesizing a max-tokens value.\n",
+      "start_line": 269,
+      "end_line": 286
+     }
+    ],
+    "security_concerns": "No\n"
+   },
+   "usage": {
+    "prompt_tokens": 8134,
+    "completion_tokens": 1140,
+    "total_tokens": 9274
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "\u001b[32m2026-11-15 02:13:28.273\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:13:28.287\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:13:28.688\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 2 🔵🔵⚪⚪⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>PR contains tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>No security concerns identified</strong></td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Provider Default Truncation</strong><br>When a request omits `maxTokens`, the gateway now sends no output limit, and each provider SDK falls back to its own default. Previously the default was a 32k cap.\n\nSome providers require `max_tokens`. For those, the AI SDK adapter supplies a small default. For example, `@ai-sdk/anthropic` has historically used 4096. Callers that relied on the implicit 32k cap could get truncated responses (`finishReason: \"length\"`), with no error raised.\n\nUncertain: this depends on the installed AI SDK provider versions. It is worth checking Anthropic and Bedrock paths before merging.\n\n<strong>Lost Overflow Warning</strong><br>`resolveGatewayRequestMaxTokens`, and so the `onContextOverflow` callback, now runs only when `request.maxTokens` is set. Requests without `maxTokens` no longer log \"Estimated prompt tokens exceed model context window\", even when the prompt clearly overflows the context window. This removes a useful diagnostic for the most common case.\n\nEstimating input tokens and checking the context window separately would keep the warning, without synthesizing a max-tokens value.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.055336
+}

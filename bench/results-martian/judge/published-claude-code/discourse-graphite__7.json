@@ -1,0 +1,61 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "discourse-graphite__7",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/7",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In .topic-meta-data h5 a, the original code had color: scale-color($primary, $lightness: 30%) but was changed to dark-light-choose(scale-color($primary, $lightness: 70%), scale-color($secondary, $lightness: 30%)). The lightness for the light theme changed from 30% to 70%, which is a dramatic inversion",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "Both point to the same change in .topic-meta-data h5 a, where the light-theme lightness went from 30% to 70%."
+  },
+  {
+   "comment": "This change for desktop/user.css changes $primary from 30% to 50% for the light theme; most other changes preserve the original $primary value and move the complement to $secondary for dark. Consider reviewing this (also applies to a similar .name change in the mobile variant).",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "Both describe the .name change in desktop/mobile user.scss, where the light-theme lightness went from 30% to 50%."
+  },
+  {
+   "comment": "In topic-post.css the original code used $lightness: 70% but the replacement uses $lightness: 30% for the light theme. This makes the text significantly darker than intended.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.7,
+   "reasoning": "This golden describes a 70% to 30% change that makes text darker. That is the opposite direction from C1 and a different spot, and no candidate covers it."
+  },
+  {
+   "comment": "The light theme color for `.topic-meta-data h5 a` was changed from `scale-color($primary, $lightness: 30%)` to `scale-color($primary, $lightness: 70%)`, which may unintentionally reduce contrast and affect readability. This change should be reviewed to ensure it aligns with design intentions.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "Same 30% to 70% change in .topic-meta-data h5 a."
+  },
+  {
+   "comment": "In mobile/user.scss line 497, the lightness value for dark themes should be inverted to 70% instead of being changed to 50%. This change may lead to unintended visual regressions in light themes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 covers the 50% lightness change in mobile user.scss."
+  }
+ ],
+ "candidates": [
+  "desktop/topic-post.scss: .topic-meta-data h5 a light-theme value changed from $primary 30% to 70% lightness, causing visual regression on light themes",
+  "desktop/user.scss and mobile/user.scss: .group-member-info .name changed from $primary 30% to 50% lightness, altering light-theme appearance"
+ ]
+}

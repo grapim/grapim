@@ -1,0 +1,70 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The BrowserReportingCollectorEndpoint returns HttpResponse objects but the endpoint inherits from Endpoint which expects rest_framework.response.Response objects.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the HttpResponse vs Response issue."
+  },
+  {
+   "comment": "In BaseDetectorTypeValidator.update(), the validator incorrectly updates instance.type using validated_data.get('detector_type') instead of validated_data.get('type').",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the detector_type key."
+  },
+  {
+   "comment": "Using zip(error_ids, events.values()) assumes the get_multi result preserves the input order; dict value order is not guaranteed to match error_ids, so event data can be paired with the wrong ID (missing nodes also shift alignment).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.97,
+   "reasoning": "C5 describes the same ordering and missing-id problem with zip."
+  },
+  {
+   "comment": "Hardcoded empty data passed to TableWidgetVisualization causes it to always render an empty table instead of displaying actual results when the feature flag is enabled.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 identifies the hardcoded empty data passed to TableWidgetVisualization."
+  },
+  {
+   "comment": "Validation logic incorrectly uses .get('timestamp'), which treats a timestamp of 0 as absent. It should directly check 'timestamp' in self.initial_data to ensure proper field presence detection, preventing both 'age=0' and 'timestamp' from passing mutual-exclusion validation.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the timestamp falsy check."
+  },
+  {
+   "comment": "Analytics events are recorded before the feature flag check, resulting in analytics being logged for all requests, including those that return 404 due to the feature being disabled. This can lead to misleading analytics data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention analytics being recorded before the feature flag check."
+  }
+ ],
+ "candidates": [
+  "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx:65 - Hidden attributes are only filtered out when a search query is present.. `HIDDEN_ATTRIBUTES` is only checked inside the `sorted.filter(...)` call. That call runs only when `searchQuery.trim()` is non-empty. In the default state with an empty search box, the early `return sorted;` returns every attribute. So `is_segment`, `project_id` and `received` still show in the normal view, and the hiding only works while the user is searching. Fix: filter hidden attributes before the early return, e.g. `const sorted = sortAttributes(attributes).filter(a => !HIDDEN_ATTRIBUTES.includes(a.name));`, then apply the search filter.",
+  "static/app/views/dashboards/widgetCard/chart.tsx:164 - With the feature flag on, every table widget renders as an empty table.. When `use-table-widget-visualization` is enabled, `TableWidgetVisualization` gets hard-coded `columns={[]}` and empty `data`/`meta`, and `result.data`, `result.meta`, `fields` and `loading` are all ignored. Any organization with the flag sees blank table widgets instead of its query results. Pass the real columns and table data built from `result` and `fields`, or keep the flag off until that is wired up.",
+  "src/sentry/migrations/0917_convert_org_saved_searches_to_views.py:14 - Data migration turned into a no-op that points to a 0921 migration this PR does not add.. This change makes `convert_org_saved_searches_to_views` return immediately and says the work moved to `0921_convert_org_saved_searches_to_views_rerevised.py`. That file is not in this PR's CHANGES list. If 0921 is not already in the tree, any install that has not applied 0917 or 0920 will mark them applied and never convert its organization-visibility saved searches into GroupSearchViews. Those users lose their shared searches in the new views UI. The comment also says the migration \"was never run\", but self-hosted instances may already have applied it. I could not confirm whether 0921 exists. None of this relates to the PR's stated goal (replay bulk delete). Fix: add 0921 in this PR with the corrected logic, including the `owner_id__isnull=False` filter, or leave these migrations unchanged and put this in a separate PR.",
+  "src/sentry/migrations/0920_convert_org_saved_searches_to_views_revised.py:13 - The revised migration is also made a no-op, and the 0921 replacement it points to is missing from this PR.. 0920 already had the `owner_id__isnull=False` fix, and it is now gutted as well. It points to a 0921 migration that this PR does not add. Unless 0921 already exists, no migration in the chain converts organization saved searches to views, so the data is never moved on fresh or not-yet-migrated installs. This is also outside the PR's stated scope (replay bulk delete). Fix: include 0921 in this PR, or drop this change from it.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:107 - Zipping `error_ids` with `events.values()` assumes nodestore returns every id, in request order.. `nodestore.backend.get_multi` returns a dict keyed by node id. Some backends and cache paths leave out ids that were not found, and the dict order is not guaranteed to match the request. If even one error is missing (expired or deleted), `zip(error_ids, events.values())` pairs ids with the wrong payloads, so errors are labelled with other errors' ids and the last ones are dropped. Fix: iterate the ids directly, e.g. `for eid, nid in zip(error_ids, node_ids): data = events.get(nid)`.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:153 - Error timestamps (seconds) are compared with breadcrumb timestamps (milliseconds), so errors end up in the wrong place.. The `timestamp` from a nodestore event is a float in epoch seconds. Replay recording events carry `timestamp` in epoch milliseconds. Because `error_ts < event.get(\"timestamp\", 0)` holds for every real event, all errors are emitted before the first breadcrumb, and the summary request loses the chronological order this merge sets out to build. The log line also prints the raw seconds value, while the breadcrumb messages use a different scale. Fix: convert the error timestamp to milliseconds (`* 1000`) when you build `ErrorEvent`, or normalise both sides before comparing.",
+  "static/app/views/performance/newTraceDetails/traceTabsAndVitals.tsx:27 - Second placeholder group lost its gap and vertical alignment.. Before this change, both placeholder groups used `FlexBox`, which set `align-items: center` and `gap: space(1)`. The second group is now a bare `<Flex>`, so its three loading placeholders sit flush against each other. The first group got `align`/`gap`; this one did not. Use `<Flex align=\"center\" gap={space(1)}>` here as well."
+ ]
+}

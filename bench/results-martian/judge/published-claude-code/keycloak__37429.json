@@ -1,0 +1,60 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the Italian text in the Lithuanian file."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions Traditional Chinese terms in the zh_CN file."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "C3 is about santizeAnchors, but its concern is replaceFirst running during iteration and repeated identical anchors. It does not raise the golden's point that English matcher groups are consumed without checking, which breaks when the translation has more anchors."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    1
+   ],
+   "confidence": 0.98,
+   "reasoning": "C1 points out the same method-name typo."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 says HTML_TAGS and the other constant-style fields should be static final."
+  }
+ ],
+ "candidates": [
+  "Typo in method name 'santizeAnchors' (should be 'sanitizeAnchors')",
+  "Instance fields POLICY_SOME_HTML, POLICY_NO_HTML, HTML_TAGS use constant naming convention but aren't declared as static final",
+  "The santizeAnchors method modifies value via replaceFirst while iterating matches, which could have subtle edge cases with repeated identical anchors",
+  "Two new dependencies added with hardcoded versions instead of being managed via a BOM",
+  "The normalizeValue method has special cases for specific keys (templateHelp, optimizeLookupHelp, linkExpirationFormatter, error-invalid-multivalued-size, and email RTL styles) that bypass parts of sanitization and should be verified for completeness and correctness"
+ ]
+}

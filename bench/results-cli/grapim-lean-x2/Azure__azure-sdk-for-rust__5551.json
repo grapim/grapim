@@ -1,0 +1,109 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "Azure__azure-sdk-for-rust__5551",
+ "url": "https://github.com/Azure/azure-sdk-for-rust/pull/5551",
+ "head_sha": "0e1c2ddc6933568defe654b728d7f8e3d57eb96b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:07:44.355Z",
+ "seconds": 92.056,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "sdk/identity/azure_identity/src/custom_token_proxy.rs",
+   "line": 803,
+   "end_line": 805,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The real TLS custom-CA/SNI test now uses a mock client, and the CA acceptance test is now ignored.",
+   "body": "The removed test `sends_requests_with_custom_ca_and_sni` ran in normal CI whenever `client_certificate` was enabled. It started a local OpenSSL server with a freshly generated CA and checked SNI, the Host header and CA trust through the real `impl TokenProxyClient for reqwest::Client` (`tls_backend_rustls`, the custom root certificate, `resolve`). The replacement passes a mock factory that returns `MockSts`, so the production rustls client is never built here. `accepts_inline_and_file_ca` and the new real-TLS test are both `#[ignore]` and need a live AKS pod. The CA-rotation tests now use `MockCaClient` too. As a result, no test that runs by default checks that the built-in client parses a valid PEM CA, trusts it, or sends the right SNI. If that code breaks (for example a reqwest API change, or `resolve` sending traffic to the wrong address), nothing would fail. Issue #5550 only asked to move the feature gate. Keep the self-contained OpenSSL-generated TLS test, gated on `all(feature = \"reqwest_rustls\", feature = \"client_certificate\")`, alongside the new mock tests.",
+   "raised": 2
+  },
+  {
+   "path": "sdk/identity/test-resources-post.ps1",
+   "line": 38,
+   "end_line": 38,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Live-test provisioning and test gating were rewritten, which the request does not cover.",
+   "body": "Issue #5550 and the PR description only cover moving `reqwest/rustls` and the token proxy client to `reqwest_rustls`. This PR also rewrites the shared post-provisioning script and changes how live tests are gated. The script now decides from a new Bicep output whether to run instead of checking `$CI`/`AdditionalParameters`, and it now runs `az account set` and full provisioning outside CI. It drops the `Mandatory` requirement on `TenantId` and `Environment` and adds readiness polling. The live tests no longer have their `CI_HAS_DEPLOYED_RESOURCES` skip, and `imds_system_assigned_live` changes from `#[recorded::test(live)]` to permanently `#[ignore]`. With the skip gone, a live pipeline run with `deployResources=false` (the template default) now panics on missing `IDENTITY_*` variables instead of skipping. These changes affect shared CI behaviour, are not needed for the feature fix, and should go in their own PR.",
+   "raised": 2
+  },
+  {
+   "path": "sdk/core/azure_core_test/Cargo.toml",
+   "line": 26,
+   "end_line": 26,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "azure_core_test now drops azure_identity's default features, which the request did not ask for.",
+   "body": "With `default-features = false`, azure_core_test no longer turns on `azure_core/default` or `reqwest_rustls` through azure_identity. azure_core is already declared here with `default-features = false`. So when azure_core_test is built alone (for example `cargo test -p azure_core_test` or a downstream crate), it can end up without an HTTP transport or TLS backend, and the identity credentials it builds for recording would fail at runtime. Workspace feature unification may hide this in CI, which I could not check. This shared test crate is not covered by the issue. Revert it, or enable the needed features explicitly.",
+   "raised": 1
+  },
+  {
+   "path": "sdk/identity/azure_identity/src/managed_identity_credential.rs",
+   "line": 698,
+   "end_line": 698,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "IMDS live tests now fail instead of skipping when `IDENTITY_IMDS_AVAILABLE` is unset.",
+   "body": "`run_imds_live_test` used to return `Ok(())` when `IDENTITY_IMDS_AVAILABLE` was missing. Now it returns an error. Only `imds_system_assigned_live` was changed to `#[ignore]`. If any other caller of this helper is still `#[recorded::test(live)]` (for example a user-assigned IMDS live test), it will fail in every live-mode run on agents without IMDS. I could not see the other callers. Removing the `CI_HAS_DEPLOYED_RESOURCES` skips in the ACI and workload live tests has the same effect: live pipelines with the default `deployResources=false` will now panic on missing env vars. None of this is part of the feature-flag fix. Mark every caller as ignored, or keep the skip.",
+   "raised": 1
+  },
+  {
+   "path": "sdk/identity/azure_identity/src/managed_identity_credential.rs",
+   "line": 800,
+   "end_line": 801,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "The IMDS live test is now permanently ignored instead of running in live mode.",
+   "body": "`imds_system_assigned_live` used to run under `#[recorded::test(live)]` and skipped itself when `IDENTITY_IMDS_AVAILABLE` was unset. It is now `#[ignore]` with no condition, so live pipelines that do have IMDS will no longer run it unless someone passes `--ignored` by hand. This change is unrelated to the reqwest/rustls feature fix and removes live coverage of system-assigned IMDS. Revert it, or move it to a separate PR that explains the change.",
+   "raised": 1
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 44075,
+  "cacheRead": 50599,
+  "output": 8317,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 25,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 94678,
+   "outputTokens": 8317,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #5550",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.3968508
+}

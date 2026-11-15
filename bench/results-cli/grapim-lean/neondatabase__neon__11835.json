@@ -1,0 +1,133 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "neondatabase__neon__11835",
+ "url": "https://github.com/neondatabase/neon/pull/11835",
+ "head_sha": "000503b38a3a27009f9cad9ec8accaa8bf154bc2",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:16:11.639Z",
+ "seconds": 35.4,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 649,
+   "end_line": 651,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "fsync failure on a delta layer no longer aborts the process.",
+   "body": "The old code called `.maybe_fatal_err(\"delta_layer sync_all\")` on `sync_all()`, which aborts the pageserver when fsync fails. Once fsync fails, the kernel may have dropped the dirty pages and marked them clean, so retrying is not safe. The new code turns the failure into an ordinary `DeltaLayerWriterError::Other`. Compaction or the flush loop then retries and can treat a layer as durable when it is not, which risks silent data loss. Keep `.maybe_fatal_err(...)` and map the error after it."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/image_layer.rs",
+   "line": 1073,
+   "end_line": 1075,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "fsync failure on an image layer no longer aborts the process.",
+   "body": "Same problem as in the delta layer. The `.maybe_fatal_err(\"image_layer sync_all\")` call was replaced with a plain `map_err`, so an fsync error becomes an ordinary error that can be retried instead of a fatal abort. After a failed fsync the page cache contents can't be trusted, so continuing risks persisting corrupt or lost data. Restore `maybe_fatal_err` before converting the error."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/batch_split_writer.rs",
+   "line": 147,
+   "end_line": 161,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The batch writers turn the typed Cancelled error back into a string error.",
+   "body": "`finish`, `put_image` and `put_value` in the batch writers convert `Cancelled` into `anyhow!(\"flush task cancelled\")`. Callers that receive the anyhow error can then only detect cancellation by matching the string, which is what compaction.rs now does. This throws away the classification the PR adds. Return a typed error, or wrap the typed error with `anyhow::Error::from(e)` so callers can `downcast_ref` it."
+  },
+  {
+   "path": "pageserver/src/tenant/timeline.rs",
+   "line": 5241,
+   "end_line": 5243,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The typed Cancelled error is turned back into a generic error, so issue #11762 is not fixed.",
+   "body": "The issue is that a cancelled flush shows up during compaction as `ERROR ... Compaction failed: create image layers: flush task cancelled`. Here `ImageLayerWriterError::Cancelled` is mapped to `CreateImageLayersError::Other(anyhow!(\"flush task cancelled\"))` instead of the existing `CreateImageLayersError::Cancelled`. As a result the compaction loop still logs it as an error and retries. The same flattening happens at line 5348 and in compaction.rs. Map `Cancelled` to `CreateImageLayersError::Cancelled`."
+  },
+  {
+   "path": "pageserver/src/tenant/timeline/compaction.rs",
+   "line": 2153,
+   "end_line": 2158,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Compaction still reports cancellation as `CompactionError::Other`.",
+   "body": "Every new match arm in this file maps `DeltaLayerWriterError::Cancelled` and `ImageLayerWriterError::Cancelled` to `CompactionError::Other(anyhow!(\"flush task cancelled\"))`. This applies here and at lines 1580, 2217, 3711, 3726 and 4304. `Other` is the variant that gets logged as an ERROR and retried, so cancelling during shutdown or detach still produces the error log the issue complains about. Map these to `CompactionError::ShuttingDown`, and to `CreateImageLayersError::Cancelled` at line 4304."
+  },
+  {
+   "path": "pageserver/src/tenant/timeline/compaction.rs",
+   "line": 2240,
+   "end_line": 2246,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The `to_string().contains(\"flush task cancelled\")` checks have no effect and drop error context.",
+   "body": "Here and at lines 1552 and 3750/3769, both branches return `CompactionError::Other`, so the string match changes nothing. When it does match, it replaces the original error and its source chain with a bare message. The rewrite also removed the `.context(\"failed to finish delta/image layer writer\")` messages. Fix it by matching on the typed error (or `downcast_ref`) and returning `CompactionError::ShuttingDown` for cancellation. Otherwise, pass the original error through with its context."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 507,
+   "end_line": 516,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "The LSN-order assertion is now a recoverable error.",
+   "body": "`assert!(self.lsn_range.start <= lsn)` used to panic when a value with an LSN before the layer's start LSN was written, which signals an ingest or compaction logic bug. It now returns `DeltaLayerWriterError::Other`, which callers such as the compaction loop log and retry, so the invariant violation is hidden. Neither the request nor the issue asks for this change; keep the assert."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 618,
+   "end_line": 623,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Formatting the error with `anyhow!(\"...: {}\", e)` drops its source chain.",
+   "body": "`.context(...)` used to keep the underlying io::Error as the source. Formatting it into a new message string loses the chain and the error kind; the same pattern is used for `sync_all` and in image_layer.rs. Use `DeltaLayerWriterError::Other(anyhow::Error::new(e).context(\"get file metadata to determine size\"))`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 35992,
+  "cacheRead": 3262,
+  "output": 3343,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 41,
+   "reviewedHunks": 41,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 39256,
+   "outputTokens": 3343,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #11762",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2474804
+}

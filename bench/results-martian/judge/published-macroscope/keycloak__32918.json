@@ -1,0 +1,30 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "keycloak__32918",
+ "url": "https://github.com/keycloak/keycloak/pull/32918",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "InfinispanIdentityProviderStorageProvider.getForLogin() recursively calls session.identityProviders().getById() instead of idpDelegate.getById(), causing the cache lookup to re-enter the same caching layer.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate addresses the recursive getById call in getForLogin."
+  },
+  {
+   "comment": "Cleanup reference uses incorrect alias - should be 'idp-alias-' + i instead of 'alias'.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 identifies the cleanup using the literal 'alias' instead of 'idp-alias-' + i."
+  }
+ ],
+ "candidates": [
+  "The cleanup callback registered on line 381 passes the literal string \"alias\" to get() instead of the actual provider alias (\"idp-alias-\" + i), causing the cleanup to look up a non-existent provider and skip removal, so all 20 created identity providers leak into subsequent tests and can cause failures in later test runs"
+ ]
+}

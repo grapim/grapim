@@ -1,0 +1,39 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "discourse-graphite__5",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Mixing float: left with flexbox causes layout issues. Further this PR removes the float-based right alignment for .d-header .panel, which may cause the login panel in the non-Ember/noscript header (where .panel is nested inside .row and not a flex item) to stack under the title instead of remaining right-aligned.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 describes the same problem: removing the float from .panel inside the non-flex .row in the server-rendered header."
+  },
+  {
+   "comment": "-ms-align-items never existed in any version of IE/Edge; the correct legacy property is -ms-flex-align.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C2 is about a missing -moz-box-align, not about -ms-align-items being an invalid prefix."
+  },
+  {
+   "comment": "-webkit-box-ordinal-group and -moz-box-ordinal-group require values starting from 1, not 0. If $val is 0, this will cause incorrect rendering in older browsers, leading to layout issues.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate raises the 0-based value problem with box-ordinal-group."
+  }
+ ],
+ "candidates": [
+  "The server-rendered header (_header.html.erb) places .panel inside a Bootstrap .row, but the PR removes float: right and replaces it with flex-only positioning (margin-left: auto + order). Because .row is not a flex container, the login panel will no longer right-align and may drop below the title for logged-out pages.",
+  "The new flexbox()/inline-flex() mixins emit display: -moz-box / display: -moz-inline-box, but align-items() does not emit -moz-box-align. This creates inconsistent cross-browser behavior: any case that falls back to the -moz box model won't get the intended alignment (e.g., badge bullet baseline alignment)."
+ ]
+}

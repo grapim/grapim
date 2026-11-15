@@ -1,0 +1,57 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The updateManyByCredentialId call uses an empty data object, which prevents Prisma's @updatedAt decorator from updating the updatedAt timestamp. This results in inaccurate cache status tracking, as the timestamp isn't updated when the cache is refreshed. To fix this, explicitly set the updatedAt field.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 says an updateMany with empty data may not bump updatedAt and suggests setting it explicitly. That is the same issue as G1."
+  },
+  {
+   "comment": "logic: macOS-specific sed syntax with empty string after -i flag will fail on Linux systems",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 flags the macOS-only `sed -i ''` syntax failing on Linux, which is exactly G2."
+  },
+  {
+   "comment": "Throwing a generic Error for authentication failures results in a 500 response in tRPC. Instead, it should return a structured TRPCError with an appropriate code, such as FORBIDDEN, to accurately reflect the error type.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    7
+   ],
+   "confidence": 0.95,
+   "reasoning": "C7 says the plain Error becomes a 500 and recommends a TRPCError with FORBIDDEN or NOT_FOUND, matching G3."
+  },
+  {
+   "comment": "Date is formatted with hardcoded 'en-US' locale instead of using the user's locale from useLocale, which can lead to incorrect date representation for users in different locales.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the date being formatted with a hardcoded 'en-US' locale."
+  }
+ ],
+ "candidates": [
+  "apps/web/package.json:11 - Unrelated change to how the dev:cron script runs. `dev:cron` switches from `ts-node` to `npx tsx`. This has nothing to do with the calendar cache feature. It changes shared dev tooling, and `npx` may download a package version that isn't pinned. Revert it or move it to a separate PR.",
+  "scripts/test-gcal-webhooks.sh:68 - `sed -i ''` only works with macOS sed and fails on GNU/Linux. With GNU sed, `sed -i '' -E \"s|...|\" file` reads `''` as the script and the substitution as a file name. The command errors out, and `GOOGLE_WEBHOOK_URL` is never updated, yet the script still prints \"Updated\". Use a portable form such as `sed -E \"s|...|\" \"$ENV_FILE\" > tmp && mv tmp \"$ENV_FILE\"`. Also, this new dev script is outside the request's scope.",
+  "packages/app-store/googlecalendar/lib/CalendarService.ts:1023 - Empty-data updateMany adds a write to every cache refresh and may not bump updatedAt. Every cache refresh now runs `updateMany(..., {})` on all SelectedCalendar rows for the credential. With empty `data`, Prisma may skip the `@updatedAt` bump, so this could be a no-op. Even if it works, the UI never reads it: the cache status comes from `CalendarCache.updatedAt` through `getCacheStatusByCredentialIds`. It also adds a bulk write on the webhook path, and that write can fail the refresh after the cache is already saved. Remove the write, or set `updatedAt: new Date()` explicitly if something actually needs it.",
+  "packages/lib/getConnectedDestinationCalendars.ts:21 - Unused `updatedAt`/`googleChannelId` fields added to the required UserWithCalendars type. `UserWithCalendars` now requires `updatedAt` and `googleChannelId` on every selected calendar, and `user.ts` selects them. Nothing in the reviewed code reads them, because cache status comes from CalendarCache. Any other place that builds a `UserWithCalendars` must now supply these fields or it fails the type-check. This looks like a leftover from an earlier attempt. Revert these changes, together with the matching select in `user.ts`.",
+  "packages/platform/atoms/selected-calendars/wrappers/SelectedCalendarsSettingsWebWrapper.tsx:130 - Broken calendars can no longer be removed when connection modification is disabled. In the calendar-error branch, the old code showed the disconnect button whenever the credential was not a delegation credential, even if connection modification was disabled. Now `disableConnectionModification` is passed in, so when it is true (for example in a disabled scope) a user with a broken credential gets no remove action there. The request does not ask for this change. If it isn't intended, keep the old error-branch behaviour by not passing the flag here.",
+  "packages/prisma/migrations/20250715160635_add_calendar_cache_updated_at/migration.sql:9 - Hand-added `DEFAULT NOW()` probably doesn't match the Prisma schema, which causes migration drift.. The header comment is the one Prisma writes when it generates a column with no default. This means `schema.prisma` probably declares `updatedAt DateTime @updatedAt` without `@default(now())`, and the `DEFAULT NOW()` was added to the SQL by hand. With that mismatch, the next `prisma migrate dev` sees drift and generates a migration that drops the default. `migrate diff` and drift checks in CI will also flag it. Fix: add `@default(now())` to the field in `schema.prisma` so the schema matches this SQL, and remove the outdated warning comment. I couldn't see the schema.prisma hunk, so this depends on how the field is declared there.",
+  "packages/trpc/server/routers/viewer/calendars/deleteCache.handler.ts:24 - Access-denied path throws a plain Error, which tRPC returns as a 500. A missing credential, or one owned by someone else, throws a generic `Error`. tRPC returns that as INTERNAL_SERVER_ERROR and logs it as a server fault. Throw `new TRPCError({ code: \"NOT_FOUND\" })` (or FORBIDDEN) so the client gets the correct error code.",
+  "packages/prisma/migrations/20250715160635_add_calendar_cache_updated_at/migration.sql:9 - Backfill makes existing cache rows look freshly updated.. `DEFAULT NOW()` sets `updatedAt` to the migration time for every existing `CalendarCache` row. The new `cacheUpdatedAt` status in the UI will then report every old cache entry as updated at deploy time until the entry is next written, which misstates how fresh it is. A better backfill would use an existing timestamp column, such as `expiresAt` minus the TTL, or would clear the old rows."
+ ]
+}

@@ -1,0 +1,109 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "head_sha": "060cda77729cb1c4a827560e09e89a7b22078ba9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:34:46.048Z",
+ "seconds": 41.611,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/assets/javascripts/admin/controllers/admin-group.js.es6",
+   "line": 11,
+   "end_line": 14,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "totalPages counts one page too many when user_count is an exact multiple of limit.",
+   "body": "`Math.floor(user_count / limit) + 1` returns 2 for 50 members with a limit of 50 (and 3 for 100). In that case `showingLast` is false on the real last page. Clicking next sets offset to `min(50, 50) = 50` and loads an empty page that shows as \"2/2\". Use `Math.ceil(this.get('user_count') / this.get('limit'))` instead."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/templates/group/members.hbs",
+   "line": 6,
+   "end_line": 6,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The public group members page now shows only the first 50 members, with no way to see the rest.",
+   "body": "`/groups/:name/members` now returns at most `limit` (default 50) members for every group. Before, non-automatic groups returned all of their members. The public route calls `model.findMembers()` once, and this template has no previous/next controls (only the admin template has them). So any group with more than 50 members is silently cut off on the public page. Add pagination here as well, or fetch every page."
+  },
+  {
+   "path": "app/controllers/admin/groups_controller.rb",
+   "line": 71,
+   "end_line": 75,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "add_members probably fails when a username already belongs to the group.",
+   "body": "`group.add(user)` runs for every username, including users who are already members. The client never clears the input (see the TODO in `addMembers`), so clicking Add a second time, or listing an existing member, re-adds that user. That likely breaks the GroupUser uniqueness rule and gives an exception or a 500. The client's `addMembers` has no error handler, so the failure is silent. Skip users who are already members (`next if group.users.include?(user)`) and clear `usernames` on the client after a successful add."
+  },
+  {
+   "path": "app/controllers/groups_controller.rb",
+   "line": 22,
+   "end_line": 26,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "limit and offset are not validated, so a negative value causes a 500 error.",
+   "body": "`limit=-1` or `offset=-5` goes straight into SQL, and PostgreSQL rejects a negative LIMIT or OFFSET, so this public endpoint returns a 500. `limit=0` also returns `meta.limit = 0`, and the admin controller then divides by zero in `currentPage`. Clamp both values, for example `limit = [[limit, 1].max, 200].min` and `offset = [offset, 0].max`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20217,
+  "cacheRead": 3262,
+  "output": 3690,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 18,
+   "reviewedHunks": 16,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 23481,
+   "outputTokens": 3690,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 15,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "app/assets/javascripts/discourse/templates/components/admin-group-selector.hbs",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "app/controllers/admin/groups_controller.rb",
+    "line": 90,
+    "end_line": 90,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Removing a member with `group.users.delete` may skip the cleanup that `group.remove` did.",
+    "body": "The old code removed users through `group.remove(user)`. The new code calls `group.users.delete(user_id)` on a has_many :through, which deletes the join rows without running GroupUser destroy callbacks. If those callbacks clear the user's primary group or title, or keep `user_count` up to date, the user ends up with a stale primary group or title. I could not see the Group or GroupUser model to confirm this. Calling `group.remove(User.find(user_id))` keeps the old behaviour."
+   }
+  ]
+ },
+ "cost_usd": 0.1755454
+}

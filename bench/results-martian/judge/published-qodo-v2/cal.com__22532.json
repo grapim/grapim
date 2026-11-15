@@ -1,0 +1,54 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The updateManyByCredentialId call uses an empty data object, which prevents Prisma's @updatedAt decorator from updating the updatedAt timestamp. This results in inaccurate cache status tracking, as the timestamp isn't updated when the cache is refreshed. To fix this, explicitly set the updatedAt field.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 covers the empty data object, which means updatedAt never gets bumped."
+  },
+  {
+   "comment": "logic: macOS-specific sed syntax with empty string after -i flag will fail on Linux systems",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C4 is about tsx being a missing dependency, not about macOS-only sed -i syntax. No candidate raises the sed issue."
+  },
+  {
+   "comment": "Throwing a generic Error for authentication failures results in a 500 response in tRPC. Instead, it should return a structured TRPCError with an appropriate code, such as FORBIDDEN, to accurately reflect the error type.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 flags the generic Error that should be a TRPCError with FORBIDDEN or a similar code."
+  },
+  {
+   "comment": "Date is formatted with hardcoded 'en-US' locale instead of using the user's locale from useLocale, which can lead to incorrect date representation for users in different locales.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 flags the hardcoded en-US locale used instead of the one from useLocale."
+  }
+ ],
+ "candidates": [
+  "GoogleCalendarService calls updateMany with an empty data: {} payload which may be rejected by Prisma at runtime and won't actually bump SelectedCalendar.updatedAt as the comment intends",
+  "deleteCacheHandler throws a generic Error for missing/unauthorized credentials instead of a proper TRPCError with NOT_FOUND/FORBIDDEN error code, causing INTERNAL_SERVER_ERROR to be surfaced to clients",
+  "CredentialActionsDropdown formats the cache timestamp with hard-coded Intl.DateTimeFormat('en-US') instead of using the locale from useLocale(), leading to incorrect locale formatting for non-English users",
+  "dev:cron script changed to use npx tsx but tsx is not listed in apps/web dependencies/devDependencies, making the script dependent on implicit npx downloads and likely to fail in restricted/offline environments",
+  "connectedCalendarsHandler instantiates CalendarCacheRepository directly, bypassing the CalendarCache factory that disables calendar-cache globally via CalendarCacheRepositoryMock, creating inconsistent behavior and unnecessary DB queries when the feature is disabled"
+ ]
+}

@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "alchemy-run__alchemy-async__250",
+ "url": "https://github.com/alchemy-run/alchemy-async/pull/250",
+ "head_sha": "768c3f7bf1df594ef6ffaf218a8aa5047717f15e",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:11:33.863Z",
+ "seconds": 9.112,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "alchemy/src/cloudflare/worker-metadata.ts",
+   "line": 389,
+   "end_line": 395,
+   "severity": "blocker",
+   "category": "correctness",
+   "title": "Secrets store binding uses binding name as secret_name, binding the wrong secret.",
+   "body": "The Cloudflare `secrets_store` binding binds one secret, `secret_name`, from the store. Here `secret_name` is set to the worker binding name (e.g. `SECRETS`), which is usually not a secret in the store. The documented usage `env.SECRETS.get(\"API_KEY\")` also does not fit this API, so bound workers fail at runtime. Emit one binding per secret in `binding.secrets`, or require the caller to give the secret name explicitly."
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 166,
+   "end_line": 171,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Calling `bind` in the deploy-time resource function breaks outside the worker runtime.",
+   "body": "`SecretsStore` always calls `bind(store)` and reads `binding.get`. Other resources only expose runtime bindings when running inside a worker. Unless `bind` is a no-op outside that runtime, this throws during normal deploys. Guard the call the way the other bound resources do."
+  },
+  {
+   "path": "alchemy/src/test/vitest.ts",
+   "line": 188,
+   "end_line": 190,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Removing the describe-block prefix from scope names makes same-named tests collide.",
+   "body": "Test scopes are now keyed only by `testName`. Tests with the same name in different `describe` blocks of one file now share the same scope and state, so they can interfere with each other. This change has nothing to do with the secrets store feature; restore the `ctx.task.suite.name` prefix."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 40311,
+  "cacheWrite": 0,
+  "cacheRead": 2096,
+  "output": 610,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 14,
+   "reviewedHunks": 14,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 42407,
+   "outputTokens": 610,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.17386320000000002
+}

@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "Azure__azure-sdk-for-rust__5551",
+ "url": "https://github.com/Azure/azure-sdk-for-rust/pull/5551",
+ "head_sha": "0e1c2ddc6933568defe654b728d7f8e3d57eb96b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:17:34.305Z",
+ "seconds": 61.129,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "sdk/identity/azure_identity/src/custom_token_proxy.rs",
+   "line": 803,
+   "end_line": 805,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The real TLS, custom CA and SNI tests are replaced by mocks or marked ignored, so CI no longer checks the rustls client.",
+   "body": "Before this change, `sends_requests_with_custom_ca_and_sni` started a local HTTPS server with a generated CA. That test checked that the built-in `reqwest::Client` factory trusts the custom CA, sends the SNI name and rewrites the Host header over a real handshake. `accepts_inline_and_file_ca` checked that a valid PEM CA is accepted, and the rotation tests used real CAs.\n\nNow the TLS test uses `MockTokenProxyClient`, which never calls the `reqwest_rustls` implementation. The CA-acceptance and end-to-end tests are `#[ignore]`d and need a live AKS pod, and the rotation tests use mock factories that accept any bytes. With `reqwest_rustls` enabled, CI no longer tests that `TokenProxyClient for reqwest::Client` (`tls_backend_rustls`, `add_root_certificate`, `resolve_to_addrs`) loads a valid CA or completes a handshake. This change edits exactly that code's feature gating. A regression there, such as a missing `reqwest/rustls` feature at runtime or a broken CA parse, would pass every non-ignored test.\n\nThe issue only asked to move the feature flags. Fix: keep at least one non-ignored positive test of the real client, such as the old in-process TLS server test or a checked-in test CA for `accepts_inline_and_file_ca`, alongside the new mocks."
+  },
+  {
+   "path": "sdk/identity/test-resources-post.ps1",
+   "line": 38,
+   "end_line": 45,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Rewrites the live-test provisioning and skip logic, which the feature-flag issue did not ask for.",
+   "body": "Issue #5550 only asks to move `reqwest/rustls` from the `reqwest` feature to `reqwest_rustls` and adjust the `cfg` gating. This PR also does unrelated work:\n- It rewrites the post-provisioning script: a new required `IDENTITY_DEPLOY_RESOURCES` Bicep output, readiness and endpoint polling, and `az account set` outside CI.\n- It removes the `CI_HAS_DEPLOYED_RESOURCES` early return from the ACI and workload identity live tests.\n- It turns the IMDS live test from a skip into a hard failure and marks it ignored.\n\nThe removed skips change behaviour. In a live-mode run where `deployResources` is false (the Bicep default), `aci_user_assigned_live` and `workload_identity_credential::tests::live` now panic on `expect(\"IDENTITY_..._IP\")` instead of skipping. I could not see whether the CI live pipeline always deploys resources. Fix: split the test-infrastructure changes into their own PR, or confirm the live pipeline always sets `deployResources`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 43944,
+  "cacheRead": 3262,
+  "output": 6098,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 25,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 47208,
+   "outputTokens": 6098,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #5550",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "sdk/core/azure_core_test/Cargo.toml",
+    "line": 26,
+    "end_line": 26,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "scope",
+    "title": "`azure_core_test` now turns off `azure_identity` default features, so it loses its HTTP transport and the built-in token proxy client.",
+    "body": "Before this change, `azure_core_test` got `azure_core/default` and `reqwest_rustls` through `azure_identity`'s default features. `azure_core_test` itself depends on `azure_core` with `default-features = false`. When it is built alone (for example `cargo test -p azure_core_test`), or by a consumer that doesn't otherwise enable `azure_core` defaults, it may now have no Reqwest transport and no TLS backend. Live credentials created through `Recording::credential()` would then fail at runtime. The issue doesn't ask for any change to this shared test crate. I could not see whether every consumer re-enables these features through workspace feature unification. Fix: revert this line, or explicitly enable the features `azure_core_test` needs, such as `features = [\"reqwest_rustls\"]`."
+   }
+  ]
+ },
+ "cost_usd": 0.34234040000000004
+}

@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "tldraw__tldraw__11465",
+ "url": "https://github.com/tldraw/tldraw/pull/11465",
+ "head_sha": "db9e4a4a5d9c4b9cde9b88aace71b21f8dd4f43c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:31:09.003Z",
+ "seconds": 31.293,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/commenting/src/canvas/thread-view.tsx",
+   "line": 427,
+   "end_line": 430,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "After an edit closes, keyboard focus lands on an invisible button with no focus ring.",
+   "body": "`focus({ focusVisible: false })` runs for every edit close, including keyboard ones. A keyboard user who opens the edit composer and presses Escape or Enter gets focus back on the card's ⋯ button with no focus ring. The same PR changed comments.css so the actions show only on `:hover` or `:has(:focus-visible)`, not `:focus-within`, so that button also stays at `opacity: 0`. The user is then focused on an element they cannot see, which is an accessibility regression. Fix: suppress the focus ring only when the edit was closed with the pointer. For example, record whether the closing action came from a pointer event and pass `focusVisible: false` only in that case."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18456,
+  "cacheRead": 3262,
+  "output": 2799,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 15,
+   "reviewedHunks": 15,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21720,
+   "outputTokens": 2799,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.14892039999999998
+}

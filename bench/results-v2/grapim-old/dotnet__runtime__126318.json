@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "dotnet__runtime__126318",
+ "url": "https://github.com/dotnet/runtime/pull/126318",
+ "head_sha": "d6f01d1f04079e04bd1ba8dacefb2cf086a7c656",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T17:59:59.397Z",
+ "seconds": 12.189,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/libraries/Common/src/Interop/Unix/System.Native/Interop.ForkAndExecProcess.cs",
+   "line": 58,
+   "end_line": 63,
+   "severity": "blocker",
+   "category": "correctness",
+   "title": "Shared AddRef flag causes over-release of inherited handles.",
+   "body": "A single `inheritedHandleRefsAdded` bool is reused for every handle. If `DangerousAddRef` throws partway through the list (for example, a disposed handle), the flag is already true from earlier handles. The finally block then calls `DangerousRelease` on every handle, including ones that were never AddRef'd. That corrupts their ref counts and can close handles the caller still owns. A null entry also throws an NRE here.\n\nFix: track a per-handle success count or a bool array, and release only the handles that were actually AddRef'd."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 474,
+   "end_line": 484,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Handle released before clearing its inherit flag, and a throw skips the rest of cleanup.",
+   "body": "`DangerousRelease` runs before `SetHandleInformation`, so the handle can be closed (or its value reused) before the inherit flag is cleared. If `SetHandleInformation` throws, the remaining handles are never released. Because this runs inside `finally`, the throw also skips `ExitReadLock`, leaving the lock held and deadlocking later process starts.\n\nFix: clear the inherit flag first, then release. Do not throw from cleanup; ignore the failure or record it instead."
+  },
+  {
+   "path": "src/native/libs/System.Native/pal_process.c",
+   "line": 535,
+   "end_line": 553,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Handle restriction silently no-ops on platforms without close_range/fdwalk.",
+   "body": "When none of HAVE_CLOSE_RANGE, HAVE_CLOSE_RANGE_SYSCALL or HAVE_FDWALK is set (for example on macOS fork path or older BSDs), nothing marks fds CLOEXEC. All inheritable fds still leak into the child, even though the caller asked for an empty InheritedHandles list. Also, runtime failure of close_range (ENOSYS on kernels older than 5.9) is ignored. Add a fallback that loops fcntl over fds 3 through getrlimit(RLIMIT_NOFILE), or fail the spawn."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 71559,
+  "cacheWrite": 0,
+  "cacheRead": 4192,
+  "output": 872,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 46,
+   "reviewedHunks": 45,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 75751,
+   "outputTokens": 872,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.3045144
+}

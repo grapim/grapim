@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "microsoft__vscode__275955",
+ "url": "https://github.com/microsoft/vscode/pull/275955",
+ "head_sha": "78d21e258e812314b44c11760e91d0e599a259f9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:14:20.376Z",
+ "seconds": 27.594,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 218,
+   "end_line": 221,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Skipping aria-activedescendant updates while Ctrl is held breaks screen-reader navigation in Ctrl-held quick navigate.",
+   "body": "Several pickers are moved through while Ctrl is held down. Examples are Ctrl+Tab for the editor history and quick-navigate (hold Ctrl and press P again). In those cases `keyMods.ctrlCmd` is true on every focus change. The `onKeyDown` handler has also just removed `aria-activedescendant`, and with this guard it is never set again, so a screen reader announces no item at all. The same applies to any Ctrl+arrow navigation. If `ctrlCmd` ever stays stuck true, for example when the keyup is lost because the window loses focus, updates stop completely. This hunk does not show whether that can happen.\n\nThe guard also does not fix the reported bug. That bug comes from pressing Ctrl by itself, which does not change list focus. The fix is to drop this condition and instead leave the attribute alone in `onKeyDown` when the key is a modifier. The same problem is in the tree handler at lines 259–262."
+  },
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 313,
+   "end_line": 313,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The modifier-key check the PR describes is missing, so pressing Ctrl still removes aria-activedescendant.",
+   "body": "The PR description says `onKeyDown` will skip `removeAttribute('aria-activedescendant')` when the key is Ctrl, Shift, Alt or Meta. This hunk only fixes the spelling in a comment. The handler still removes the attribute on every key, Ctrl included. That removal makes focus fall back to the input and the screen reader read its label 'Type the command to run', which is the behaviour issue #271032 asks to stop. The fix is to add the `KeyCode.Ctrl/Shift/Alt/Meta` check before `removeAttribute`, as the description says."
+  },
+  {
+   "path": "src/vs/platform/quickinput/test/browser/quickinput.test.ts",
+   "line": 283,
+   "end_line": 299,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The new test only asserts `true`, so it cannot fail.",
+   "body": "The test sets the placeholder a few times and then calls `assert.ok(true)`. It never reads the input's `aria-label`, and it never checks that an unchanged value skips the DOM write. Any regression in the new `ariaLabel`, `setAttribute` or `removeAttribute` logic would still pass. The fix is to read `aria-label` (and `aria-activedescendant`) from the input element and assert the expected values, or to spy on `setAttribute` and assert it is not called when the value is unchanged."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 7592,
+  "cacheRead": 3262,
+  "output": 2399,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 10856,
+   "outputTokens": 2399,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #271032",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0866004
+}

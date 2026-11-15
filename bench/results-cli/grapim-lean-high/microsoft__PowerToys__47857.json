@@ -1,0 +1,99 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "microsoft__PowerToys__47857",
+ "url": "https://github.com/microsoft/PowerToys/pull/47857",
+ "head_sha": "ea580dbd3714a5081a04a796ba4cef679f102840",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:13:18.637Z",
+ "seconds": 110.265,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+   "line": 53,
+   "end_line": 54,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Raw HTML `<img src>` is only sanitized when local images are ON, contrary to the stated security model.",
+   "body": "The PR description says that with the setting OFF (the default), raw HTML `src` is rewritten to `#` so a `data:` image cannot render. Here the regex rewrite only runs inside `if (allowLocalImages)`. With the setting OFF, `<img src=\"data:...\">`, and any other raw `src`, reach the WebView unchanged. A `data:` URI never goes through `WebResourceRequested`, so it still renders. Either run the rewrite in both states (always produce `#` when the setting is OFF), or correct the security claim."
+  },
+  {
+   "path": "src/common/FilePreviewCommon/HTMLParsingExtension.cs",
+   "line": 166,
+   "end_line": 179,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Containment check is purely lexical; the junction/symlink rejection the PR claims is not implemented.",
+   "body": "`TryResolveVirtualUrl` (and `TryGetLocalImageVirtualUrl`) only use `Path.GetFullPath` and `Path.GetRelativePath`. Nothing checks `FileAttributes.ReparsePoint` on the path components, in this hunk or in any other changed file. The PR's security table says junctions and symlinks below the allowed path are blocked, but they are not.\n\n**Trigger:** a repo or share contains a directory symlink or junction `img` that points elsewhere, for example to `\\\\attacker\\share` or another local folder. `![](img/x.png)` passes the lexical check. The handler then calls `File.Exists` and `File.ReadAllBytes` through the link. That can open an SMB connection to an arbitrary host (leaking the NTLM hash) or serve files from outside the allowed tree.\n\n**Fix:** before serving, walk each component from `basePath` to `fullPath` and reject any that has `FileAttributes.ReparsePoint`. Alternatively, resolve the final target with `FileSystemInfo.ResolveLinkTarget(true)` and re-check containment."
+  },
+  {
+   "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+   "line": 59,
+   "end_line": 79,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "The raw-HTML sanitizer handles only a double-quoted `src`; `srcset` is not removed, contrary to the PR.",
+   "body": "The regex only matches `<img ... src=\"...\">`. The PR says `srcset` on raw `<img>` is removed in both states because its candidates are not validated, but no code strips it. The same applies to single-quoted or unquoted `src`, `<picture><source srcset>`, `<input type=image src>` and `poster`.\n\n**Trigger:** `<img src=\"a.png\" srcset=\"file://host/share/x.png 2x\">` (or a `data:` candidate) reaches the WebView without validation. Whether a `file:`/UNC request is stopped depends on `WebResourceRequested` firing for that scheme, which I could not confirm here. If it does not fire, this leaks an SMB/NTLM connection.\n\n**Fix:** strip `srcset` (and the other URL-bearing attributes, or the elements themselves), and handle `'` and unquoted attribute values. Better still, parse the HTML instead of using a regex."
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 194,
+   "end_line": 199,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "performance",
+   "title": "Any referenced file, whatever its type or size, is read fully into memory on the UI thread.",
+   "body": "The resource handler serves any file that passes containment; there is no check on image extension or size. It reads the whole file with `File.ReadAllBytes` inside the synchronous `WebResourceRequested` callback, which runs on the preview UI thread.\n\n**Trigger:** a markdown file references a large non-image file in its folder or on the same share, for example `![](build/huge.iso)` or `<img src=\"dump.bin\">`. The preview pane, and so Explorer's preview host, blocks while hundreds of MB to GB are allocated and read, possibly over the network. The result is useless because the bytes are not an image.\n\n**Fix:** reject files whose extension is not in the image MIME map, cap the file size, and stream with a `FileStream` instead of `ReadAllBytes`. Use the deferral API (`e.GetDeferral()`) to load off the UI thread."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 42225,
+  "cacheRead": 3262,
+  "output": 10617,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 22,
+   "hunks": 37,
+   "reviewedHunks": 37,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 45489,
+   "outputTokens": 10617,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #40787",
+    "issue #3713",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [
+   {
+    "path": "src/modules/previewpane/MarkdownPreviewHandler/TestFiles/images/test.png",
+    "reason": "binary file"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.42412540000000004
+}

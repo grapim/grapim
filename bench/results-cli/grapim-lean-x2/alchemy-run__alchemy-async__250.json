@@ -1,0 +1,175 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "alchemy-run__alchemy-async__250",
+ "url": "https://github.com/alchemy-run/alchemy-async/pull/250",
+ "head_sha": "768c3f7bf1df594ef6ffaf218a8aa5047717f15e",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:17:11.126Z",
+ "seconds": 69.139,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "alchemy/src/cloudflare/worker-metadata.ts",
+   "line": 389,
+   "end_line": 395,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Secrets Store binding points at a secret named after the binding, not a real secret in the store.",
+   "body": "A Cloudflare `secrets_store` binding connects to one secret (`store_id` plus `secret_name`). This code sets `secret_name` to the binding name. With `bindings: { SECRETS: store }`, the worker is bound to a secret called `SECRETS`, which is not in the store, so the deploy fails or the binding resolves to nothing. The runtime binding also exposes `get()` with no argument, so the `env.SECRETS.get(\"API_KEY\")` usage that the docs and `Bound` type promise cannot work. Model the binding as one store secret (for example a `SecretRef { store, name }`), and emit `secret_name` from that secret's name.",
+   "raised": 2
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 196,
+   "end_line": 208,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Update re-POSTs secrets that already exist, so redeploys with unchanged secrets likely fail.",
+   "body": "On update, only the secrets missing from props are deleted. `insertSecrets` then POSTs every secret in props to the create endpoint again. Cloudflare's create-secrets endpoint rejects a name that already exists, so any redeploy that keeps a secret throws `Error creating secrets batch`. Changing a secret's value cannot work either. Update existing secrets with PATCH by secret id, and create only the new ones. The same problem hits adoption (line 239) when the adopted store already holds those names.",
+   "raised": 2
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 196,
+   "end_line": 208,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "A name change on update is ignored, but the new name is still written to state.",
+   "body": "If `props.name` changes, the update path never renames or replaces the store. It still returns `name: name`, so state reports a name that doesn't match the real store. Fix: replace the resource when the name changes (`this.replace()`), or send a rename call.",
+   "raised": 2
+  },
+  {
+   "path": "alchemy/src/cloudflare/wrangler.json.ts",
+   "line": 559,
+   "end_line": 560,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Secrets Store binding is silently left out of the generated wrangler.json.",
+   "body": "The comment says these bindings are handled through a `secrets_store_secrets` array. That array is never filled or written, so the branch does nothing. Local dev and wrangler runs built from the generated config get no binding, and the worker sees `env.SECRETS` as undefined. Push `{ binding, store_id, secret_name }` entries into `spec.secrets_store_secrets`.",
+   "raised": 2
+  },
+  {
+   "path": "alchemy/src/test/vitest.ts",
+   "line": 188,
+   "end_line": 198,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Unrelated change removes the describe-block prefix from test scope names.",
+   "body": "Each test scope used to be named `${describeName}/${testName}`. Now it is just `testName`. Tests with the same name in different `describe` blocks of one file now share a scope. Their resources and state collide, and a destroy in one can remove the other's resources. The Secrets Store request does not ask for this change to shared test infrastructure. Revert it.",
+   "raised": 2
+  },
+  {
+   "path": "alchemy/test/cloudflare/secrets-store.test.ts",
+   "line": 33,
+   "end_line": 33,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "Assertion compares the store id to itself, so it always passes.",
+   "body": "`secretsStore` is reassigned before this check, so `expect(secretsStore.id).toEqual(secretsStore.id)` is a tautology. It never checks that the update kept the same store. Save the id from the first call and compare the updated store's id against it.",
+   "raised": 2
+  },
+  {
+   "path": "alchemy/src/cloudflare/bound.ts",
+   "line": 76,
+   "end_line": 84,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Runtime type `get(secretName)` does not match the Cloudflare Secrets Store binding API.",
+   "body": "The real Workers binding for a store secret is `SecretsStoreSecret` with `get(): Promise<string>`. It takes no argument and is bound to one secret. This typing tells users to call `env.SECRETS.get(\"API_KEY\")`. That type-checks but fails or returns the wrong value at runtime. Fix the type together with the binding model.",
+   "raised": 1
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 210,
+   "end_line": 239,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Store is orphaned if inserting the secrets fails after it is created.",
+   "body": "`createSecretsStore` succeeds, then `insertSecrets` throws (bad value, quota, or the duplicate problem above). The resource never returns, so the store id is not saved in state. The next run tries to create the store again and hits \"already exists\". Without `adopt` it fails for good, and the orphaned store is never cleaned up. Persist state before inserting secrets, or delete the new store when insertion fails.",
+   "raised": 1
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 331,
+   "end_line": 335,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Secrets are created with no scopes, so Workers may not be allowed to read them.",
+   "body": "Secrets Store controls which services can use a secret through `scopes`. With `scopes: []`, the secrets are probably not readable from Workers, so any Worker binding to them would fail. Set `scopes: [\"workers\"]` or make the scopes configurable.",
+   "raised": 1
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 360,
+   "end_line": 369,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Bulk delete sends secret names, but the endpoint likely expects secret IDs.",
+   "body": "`listSecrets` keeps only the `name` of each secret, and those names become the body of the bulk DELETE. Cloudflare's secrets bulk-delete endpoint takes secret IDs. Removing a secret from props would then fail, or delete nothing. Keep the `id` from the list response and send the IDs.",
+   "raised": 1
+  },
+  {
+   "path": "alchemy/test/cloudflare/secrets-store.test.ts",
+   "line": 141,
+   "end_line": 166,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "Update test only checks the props it passed in, not the secrets actually in the store.",
+   "body": "The test asserts `Object.keys(updatedStore.secrets)`, which just echoes the input props. It never lists the secrets in Cloudflare, so it would pass even if `INITIAL_SECRET` were never deleted or the new secrets were never created. Call the list-secrets API and assert on what the store really contains.",
+   "raised": 1
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 18584,
+  "cacheRead": 25108,
+  "output": 6718,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 43696,
+   "outputTokens": 6718,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #244",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2323176
+}

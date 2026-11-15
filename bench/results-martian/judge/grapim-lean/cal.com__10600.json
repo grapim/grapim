@@ -1,0 +1,60 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The exported function TwoFactor handles backup codes and is in BackupCode.tsx. Inconsistent naming.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the naming of the TwoFactor function in BackupCode.tsx."
+  },
+  {
+   "comment": "Error message mentions 'backup code login' but this is a disable endpoint, not login",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the wrong error message in the disable endpoint."
+  },
+  {
+   "comment": "Backup code validation is case-sensitive due to the use of indexOf(). This causes validation to fail if a user enters uppercase hex characters, as backup codes should be case-insensitive for a better user experience.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions that backup code validation is case-sensitive."
+  },
+  {
+   "comment": "Because backupCodes are decrypted and mutated in memory before being written back, two concurrent login requests using the same backupCode could both pass this check and update, so a single backup code may effectively be accepted more than once if used concurrently, weakening the intended one-time-use semantics.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    4
+   ],
+   "confidence": 0.97,
+   "reasoning": "C4 describes the same race condition: concurrent logins can both use one backup code."
+  },
+  {
+   "comment": "Object URL for backup codes is not revoked on component unmount, leading to a potential memory leak. This can cause increased memory usage over time, especially if the component is mounted and unmounted frequently.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the object URL that is never revoked."
+  }
+ ],
+ "candidates": [
+  "packages/features/auth/lib/next-auth-options.ts:131 - A backup code with any non-empty totpCode logs in without checking the password or the TOTP.. The password check above only runs when `!credentials.totpCode`. The new backup-code branch is checked before the TOTP branch, so a request with `totpCode` set to any value skips the password check, and the TOTP is never verified either. Someone who has only the email and one leaked backup code (for example, from a downloaded or printed list) can post `{email, password:\"\", totpCode:\"x\", backupCode:\"<code>\"}` and get a session. One backup code then replaces both the password and the second factor. Fix: always verify the password when `credentials.backupCode` is used, for example by changing the guard to `user.password && (!credentials.totpCode || credentials.backupCode)`, or reject requests that send both `totpCode` and `backupCode`.",
+  "apps/web/components/settings/EnableTwoFactorModal.tsx:135 - Closing the dialog on the backup-codes step leaves 2FA enabled but the UI unaware.. After a successful enable, `onEnable()` now runs only from the backup-codes Close button. If the user dismisses the dialog with Escape or by clicking outside (`onOpenChange`), 2FA is on in the server, but the parent's enabled state never updates, so the switch stays off. `step` also stays at `DisplayBackupCodes`, so the next time the modal opens it shows the old codes screen, not the password step. Fix: call `onEnable()` (or let the parent refetch) as soon as the server confirms the enable. Also reset the step whenever the dialog closes, however it was closed.",
+  "apps/web/playwright/login.2fa.e2e.ts:50 - First 2FA test never dismisses the new backup-codes screen and relies on an assertion that always passes.. Enabling 2FA now opens the backup-codes step, but this test does not click `backup-codes-close`. It then checks `expect(locator.isChecked()).toBeTruthy()` on an un-awaited Promise, which is always truthy, as the new FIXME admits. So the test passes even though the switch was never confirmed as checked. Close the backup-codes dialog here, as the second test does, and assert `[data-testid=two-factor-switch][data-state=\"checked\"]` is visible instead of adding a FIXME.",
+  "packages/features/auth/lib/next-auth-options.ts:139 - A backup code is used up with an unguarded read-then-write, so two parallel logins can both use it.. The code reads the codes from `user` (fetched earlier), decrypts them, nulls the matching entry and writes the whole list back with no condition. If two requests send the same backup code at the same time, both read the old list, both find the code and both succeed, so a single-use code gives two sessions. The second write can also bring back a code that another concurrent login just used. Fix: do the update conditionally, e.g. `updateMany({ where: { id, backupCodes: user.backupCodes }, ... })`, and fail when `count === 0`, or run the read and write in a serializable transaction.",
+  "packages/ui/components/form/inputs/Input.tsx:49 - Shared PasswordField toggle removed from the keyboard tab order.. `tabIndex={-1}` on the show/hide password button changes every `PasswordField` in the app. Keyboard and screen-reader users can no longer reach the visibility toggle. The backup-codes request does not cover this change to a shared UI component. Drop it, or limit it to the 2FA modals if that is what was intended.",
+  "apps/web/components/settings/EnableTwoFactorModal.tsx:174 - Passing `type=\"password\"` to PasswordField breaks its show/hide toggle.. `PasswordField` spreads `{...props}` onto the input, so the explicit `type=\"password\"` (line 176) probably overrides the type it sets from its visibility state. The eye button would then do nothing. Remove the `type` prop now that this is a `PasswordField`.",
+  "apps/web/components/settings/EnableTwoFactorModal.tsx:278 - The copied toast shows even when the clipboard write fails.. `navigator.clipboard.writeText` is not awaited, so a rejection (permission denied) goes unhandled while the success toast still shows. In a non-secure context `navigator.clipboard` is undefined, so the click throws instead. Await the call in a try/catch, and show an error toast when it fails."
+ ]
+}

@@ -1,0 +1,35 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "cal.com__8330",
+ "url": "https://github.com/calcom/cal.com/pull/8330",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect end time calculation using slotStartTime instead of slotEndTime",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out that slotStartTime is used where slotEndTime should be, which is the same end-time bug."
+  },
+  {
+   "comment": "Using === for dayjs object comparison will always return false as it compares object references, not values. Use .isSame() method instead: dayjs(date.start).add(utcOffset, 'minutes').isSame(dayjs(date.end).add(utcOffset, minutes))",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out that comparing Dayjs objects with === fails and that .isSame() should be used instead."
+  }
+ ],
+ "candidates": [
+  "Line 147 uses slotStartTime for both start and end instead of slotEndTime, ignoring event length in working hours boundary check",
+  "Line 114 compares Dayjs objects with === which always returns false - should use .isSame() for Dayjs comparison",
+  "Lines 102-140: .find() returns on first override that doesn't contain the slot, causing false rejection even if another override on the same day does - should use .filter() to collect all overrides for the day, then .some() to check if any contain the slot",
+  "Line 212 uses override.timeZone which is optional - if undefined, dayjs may default to local TZ and mis-shift overrides. Should add fallback and avoid toString() parsing"
+ ]
+}

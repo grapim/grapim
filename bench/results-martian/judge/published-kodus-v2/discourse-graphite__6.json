@@ -1,0 +1,23 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The include_website_name method is missing the required ? suffix. Rails serializers expect include_ methods to end with ? for conditional attribute inclusion, a convention followed by other methods in this serializer. Without it, the website_name attribute may not be conditionally included as intended. Additionally, the '.' << website_host string concatenation should be replaced with '.' + website_host or '.#{website_host}' to avoid mutating string literals, which can lead to issues.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out the same missing `?` suffix on include_website_name. That is the main issue in G1. C2 is about parsing the URI more than once, which is a different issue."
+  }
+ ],
+ "candidates": [
+  "Missing `?` suffix on `include_website_name` method makes it invisible to ActiveModel::Serializer's conditional inclusion mechanism, causing `website_name` to always be serialized including for users with no website set and for TL0 users viewed anonymously, leaking data that should be hidden",
+  "Duplicate `URI(website.to_s)` parsing occurs up to three times within `website_name` method with inconsistent error handling - only line 138 has `rescue nil` while lines 143 and 146 are unprotected, risking unrescued exceptions from malformed URLs"
+ ]
+}

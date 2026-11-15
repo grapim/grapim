@@ -1,0 +1,77 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__grafana__129096",
+ "url": "https://github.com/grafana/grafana/pull/129096",
+ "head_sha": "a61abddf0637163b35c78609dbed893b2a8c2bac",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:06:10.555Z",
+ "seconds": 30.094,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "public/app/features/provisioning/utils/mermaid.ts",
+   "line": 23,
+   "end_line": 28,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "A failed mermaid chunk load is cached for the rest of the session.",
+   "body": "`loadMermaid` stores the `import('mermaid')` promise in a module-level variable. If that import rejects once (a transient network error or a chunk-load failure after a deploy), the rejected promise is kept. Every later README with a diagram goes straight to the catch branch and flags all its blocks as errors, until the page is fully reloaded.\n\nFix: clear the cache when the import rejects, for example `mermaidPromise = import('mermaid').then(m => m.default).catch(e => { mermaidPromise = undefined; throw e; });`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 15937,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 2843,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 44,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 33,
+   "inputTokens": 19054,
+   "outputTokens": 2843,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [
+   {
+    "path": "yarn.lock",
+    "reason": "ignored by .grapim/review.json"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "package.json",
+    "line": 455,
+    "end_line": 455,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "security",
+    "title": "The resolution pins mermaid's URL sanitizer to an older version, and nothing explains why.",
+    "body": "`\"mermaid/@braintree/sanitize-url\": \"7.0.1\"` forces the library mermaid uses to sanitize link URLs in diagrams to one fixed version. If mermaid 11.16.0 declares a newer range (I could not see its manifest; recent 11.x releases ask for ^7.1.x), this is a downgrade of a security-relevant dependency. README content is untrusted, so that matters here.\n\nThe PR description does not mention the override. Drop it, or justify it and pin to a version inside mermaid's declared range."
+   }
+  ]
+ },
+ "cost_usd": 0.12123139999999999
+}

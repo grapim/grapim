@@ -1,0 +1,59 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "OptimizedCursorPaginator's negative-offset branch in get_result() passes cursor.offset directly as start_offset to queryset slicing when enable_advanced_features is True and cursor.offset < 0.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out that the advanced-features branch passes a negative cursor offset directly into queryset slicing."
+  },
+  {
+   "comment": "In BasePaginator.get_result(), when cursor.is_prev is True, it sets start_offset = offset without clamping, allowing negative offset values to be passed to queryset slicing.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    5,
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C5 says BasePaginator's is_prev branch passes an unclamped negative offset to slicing. C2 also mentions that the else branch for is_prev cursors has the same problem."
+  },
+  {
+   "comment": "OptimizedCursorPaginator.get_item_key uses floor/ceil on a datetime key (order_by='-datetime'), causing TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 says math.floor/ceil applied to the datetime key raises a TypeError."
+  },
+  {
+   "comment": "Accessing .has_global_access on organization_context.member can raise an AttributeError when organization_context is None, particularly for non-superuser non-member users.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 says organization_context.member can be None, so accessing .has_global_access raises an AttributeError."
+  }
+ ],
+ "candidates": [
+  "src/sentry/api/paginator.py:838 - OptimizedCursorPaginator handles the datetime key as a number, so the optimized audit-log path fails.. The audit-log endpoint uses this paginator with `order_by=\"-datetime\"`, so `getattr(item, self.key)` returns a `datetime`. `math.floor` and `math.ceil` raise `TypeError` on a datetime. `build_cursor` calls `get_item_key` on every non-empty page, so every `?optimized_pagination=true` request that returns rows ends in a 500.\n\n`value_from_cursor` also hands the raw integer cursor value to `build_queryset`, which then compares the `datetime` column with an int. Copy `DateTimePaginator`'s `get_item_key` and `value_from_cursor` (epoch conversion), or subclass `DateTimePaginator`.",
+  "src/sentry/api/paginator.py:877 - Negative cursor offsets are passed to Django queryset slicing, which raises.. A client can send a cursor such as `0:-5:0`, since `Cursor` keeps any int offset. With advanced features on, `queryset[-5:...]` runs. Django does not support negative indexing and raises (`ValueError`/`AssertionError`), so the request returns a 500 instead of the promised \"reverse pagination\". The `else` branch does the same for `is_prev` cursors with a negative offset.\n\nThe comments claiming the ORM handles negative slicing, and that this is safe, are wrong. Reject negative offsets (return a 400) or clamp them to 0.",
+  "src/sentry/scripts/spans/add-buffer.lua:62 - Segments over 1000 spans have their earliest spans dropped silently, with no metric or log.. Before this change, an oversized segment was skipped with a metric and an error log. Now `zpopmin` deletes the spans with the lowest `end_timestamp_precise` on each insert. A large trace gets flushed as a truncated segment, and nothing records that spans were lost.\n\nThe limit is also hard-coded to 1000 and ignores the configured `max_segment_spans`. Pass the limit in as an ARGV and return or emit the number of evicted spans so the loss can be seen.",
+  "src/sentry/api/endpoints/organization_auditlogs.py:71 - `organization_context.member` can be None, which crashes every audit-log request for those callers.. `enable_advanced` is computed on every request, even without the query flag. When the caller is not a superuser and has no organization membership (for example org-level auth tokens, or staff access), `organization_context.member` is None. `.has_global_access` then raises `AttributeError`, so the whole endpoint returns 500 for these callers.\n\n`request.user.is_superuser` also checks the raw flag instead of an active superuser session. Compute this only when `use_optimized` is set, guard against `member is None`, and use `is_active_superuser(request)`.",
+  "src/sentry/api/paginator.py:182 - The shared BasePaginator still slices with negative offsets on prev cursors, and the extra-row check no longer matches the clamped offset.. This change touches the base paginator that every endpoint uses. For `is_prev` cursors, a negative offset is still passed to `queryset[...]`, and Django raises on that. For next cursors, the offset is clamped to 0, but line 192 still compares `len(results)` with `offset + limit + extra` using the unclamped offset, so the extra-row trimming check uses the wrong count.\n\nClamp the offset in both directions and use `start_offset` in the later comparison, or reject negative offsets when the cursor is parsed.",
+  "src/sentry/scripts/spans/add-buffer.lua:30 - Redirect depth limit lowered from 10000 to 1000 without a stated reason.. The loop bound sets how deep a segment tree can be and still have its redirects resolved. Trees deeper than 1000 levels will now be split into separate segments when they used to be joined. The request only covers ordering and eviction, and nothing in it asks for this change. Revert it, or explain why it is needed.",
+  "src/sentry/spans/buffer.py:197 - Switching keys from SET to ZSET breaks on keys that already exist in Redis during rollout.. Buffer keys written by the previous version are plain sets with a TTL. After deploy, `zadd`, the Lua script's `zcard`/`zunionstore`, and the flusher's `zscan` on those keys all fail with WRONGTYPE. The process batch then raises, and the consumer or flusher crashes or loops until the old keys expire. Old and new consumers running side by side during the rollout hit the same error.\n\nUse new key prefixes for the ZSET layout, or handle and migrate keys of the old type."
+ ]
+}

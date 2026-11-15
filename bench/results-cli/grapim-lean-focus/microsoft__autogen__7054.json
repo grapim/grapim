@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "microsoft__autogen__7054",
+ "url": "https://github.com/microsoft/autogen/pull/7054",
+ "head_sha": "1921f6253f1e64c324be890d96fc9aa9a21d1d8b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:33:58.334Z",
+ "seconds": 13.202,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "python/packages/autogen-ext/src/autogen_ext/models/openai/config/__init__.py",
+   "line": 103,
+   "end_line": 103,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "`reasoning_effort` rejects \"minimal\", a value gpt-5 supports.",
+   "body": "Linked issue #7053 asks for `reasoning_effort` support for gpt-5 models. gpt-5 accepts \"minimal\" as well as \"low\", \"medium\" and \"high\". This change allows only `Literal[\"low\", \"medium\", \"high\"]`, both here in the Pydantic model and in the `CreateArguments` TypedDict at line 53.\n\nTrigger: a config passed to `ChatCompletionClient.load_component` with `\"reasoning_effort\": \"minimal\"` fails with a `ValidationError`, so users still cannot pick the cheapest gpt-5 setting. The PR description says \"minimal\" is supported, but the code and the validation test (line 3341) both leave it out.\n\nFix: add \"minimal\" to both Literals and to the test's list of valid values."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 7087,
+  "cacheRead": 3262,
+  "output": 956,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 10351,
+   "outputTokens": 956,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #7053",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.055215400000000005
+}

@@ -1,0 +1,123 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "head_sha": "54486a059cd2032042189bb565646ba4e0f6bd61",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:12:16.685Z",
+ "seconds": 42.846,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/features/auth/lib/next-auth-options.ts",
+   "line": 131,
+   "end_line": 145,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "A backup code with any non-empty totpCode logs in without checking the password or the TOTP.",
+   "body": "The password check above only runs when `!credentials.totpCode`. The new backup-code branch is checked before the TOTP branch, so a request with `totpCode` set to any value skips the password check, and the TOTP is never verified either. Someone who has only the email and one leaked backup code (for example, from a downloaded or printed list) can post `{email, password:\"\", totpCode:\"x\", backupCode:\"<code>\"}` and get a session. One backup code then replaces both the password and the second factor. Fix: always verify the password when `credentials.backupCode` is used, for example by changing the guard to `user.password && (!credentials.totpCode || credentials.backupCode)`, or reject requests that send both `totpCode` and `backupCode`."
+  },
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 135,
+   "end_line": 135,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Closing the dialog on the backup-codes step leaves 2FA enabled but the UI unaware.",
+   "body": "After a successful enable, `onEnable()` now runs only from the backup-codes Close button. If the user dismisses the dialog with Escape or by clicking outside (`onOpenChange`), 2FA is on in the server, but the parent's enabled state never updates, so the switch stays off. `step` also stays at `DisplayBackupCodes`, so the next time the modal opens it shows the old codes screen, not the password step. Fix: call `onEnable()` (or let the parent refetch) as soon as the server confirms the enable. Also reset the step whenever the dialog closes, however it was closed."
+  },
+  {
+   "path": "apps/web/playwright/login.2fa.e2e.ts",
+   "line": 50,
+   "end_line": 51,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "First 2FA test never dismisses the new backup-codes screen and relies on an assertion that always passes.",
+   "body": "Enabling 2FA now opens the backup-codes step, but this test does not click `backup-codes-close`. It then checks `expect(locator.isChecked()).toBeTruthy()` on an un-awaited Promise, which is always truthy, as the new FIXME admits. So the test passes even though the switch was never confirmed as checked. Close the backup-codes dialog here, as the second test does, and assert `[data-testid=two-factor-switch][data-state=\"checked\"]` is visible instead of adding a FIXME."
+  },
+  {
+   "path": "packages/features/auth/lib/next-auth-options.ts",
+   "line": 139,
+   "end_line": 156,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A backup code is used up with an unguarded read-then-write, so two parallel logins can both use it.",
+   "body": "The code reads the codes from `user` (fetched earlier), decrypts them, nulls the matching entry and writes the whole list back with no condition. If two requests send the same backup code at the same time, both read the old list, both find the code and both succeed, so a single-use code gives two sessions. The second write can also bring back a code that another concurrent login just used. Fix: do the update conditionally, e.g. `updateMany({ where: { id, backupCodes: user.backupCodes }, ... })`, and fail when `count === 0`, or run the read and write in a serializable transaction."
+  },
+  {
+   "path": "packages/ui/components/form/inputs/Input.tsx",
+   "line": 49,
+   "end_line": 49,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Shared PasswordField toggle removed from the keyboard tab order.",
+   "body": "`tabIndex={-1}` on the show/hide password button changes every `PasswordField` in the app. Keyboard and screen-reader users can no longer reach the visibility toggle. The backup-codes request does not cover this change to a shared UI component. Drop it, or limit it to the 2FA modals if that is what was intended."
+  },
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 174,
+   "end_line": 174,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Passing `type=\"password\"` to PasswordField breaks its show/hide toggle.",
+   "body": "`PasswordField` spreads `{...props}` onto the input, so the explicit `type=\"password\"` (line 176) probably overrides the type it sets from its visibility state. The eye button would then do nothing. Remove the `type` prop now that this is a `PasswordField`."
+  },
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 278,
+   "end_line": 279,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The copied toast shows even when the clipboard write fails.",
+   "body": "`navigator.clipboard.writeText` is not awaited, so a rejection (permission denied) goes unhandled while the success toast still shows. In a non-secure context `navigator.clipboard` is undefined, so the click throws instead. Await the call in a try/catch, and show an error toast when it fails."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 28729,
+  "cacheRead": 6524,
+  "output": 6197,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 34,
+   "reviewedHunks": 34,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 35257,
+   "outputTokens": 6197,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 16,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2689058
+}

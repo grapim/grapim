@@ -1,0 +1,84 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The PollFeed job calls open(SiteSetting.feed_polling_url) without validating the URL, allowing an attacker who controls the feed_polling_url site setting to make the server fetch arbitrary internal or external URLs.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises SSRF via feed_polling_url."
+  },
+  {
+   "comment": "The current origin validation using indexOf is insufficient and can be bypassed. An attacker could use a malicious domain like evil-discourseUrl.com to pass this check.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 identifies the weak indexOf origin check bypass."
+  },
+  {
+   "comment": "postMessage targetOrigin should be the origin (scheme+host+port), not the full referrer URL; using the full URL will cause the message to be dropped and prevent resizing.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate addresses the postMessage targetOrigin being the full referrer URL."
+  },
+  {
+   "comment": "The code sets X-Frame-Options: ALLOWALL which completely disables clickjacking protection. The referer validation can be bypassed (referer headers are easily spoofed), and the fallback to empty string for nil referer masks validation failures.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions X-Frame-Options ALLOWALL."
+  },
+  {
+   "comment": "The TopicEmbed.import method is susceptible to a NoMethodError if the contents parameter is nil when attempting to append a string, and an XSS vulnerability due to unescaped url interpolation in the generated HTML.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C5 is about nil embed.post, not about nil contents or XSS through url interpolation."
+  },
+  {
+   "comment": "The ERB block closes with end if, which is invalid Ruby/ERB and will raise at render; it should just be end to close the if block.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the invalid ERB 'end if'."
+  },
+  {
+   "comment": "Calling `i.content.scrub` assumes that `i.content` is always populated. However, many RSS feeds do not provide a `content` field, leading to a potential nil pointer exception when `i.content` is nil. A fallback to `description` should be implemented to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 is exactly the nil i.content.scrub crash, with a description fallback."
+  },
+  {
+   "comment": "An unescaped request header (request.referer) is interpolated into JavaScript without proper escaping, which can lead to XSS vulnerabilities if the referer contains malicious content. This issue can allow attackers to execute arbitrary scripts in the context of the application.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions XSS from the unescaped referer in JavaScript."
+  }
+ ],
+ "candidates": [
+  "Weak postMessage origin check allows bypass - origin validation uses discourseUrl.indexOf(e.origin) === -1 which allows bypass when attacker controls a domain that is a prefix of the legitimate domain",
+  "RSS feed polling crashes on items without content - code calls i.content.scrub assuming every RSS item has a content field, but many feeds use description instead or have neither field, causing NoMethodError when i.content is nil",
+  "Unused feed_key method is dead code - method is defined but never called anywhere in the codebase, appears to be leftover code for caching feed modification timestamps",
+  "RSS items without title crash topic creation - i.title is passed directly to TopicEmbed.import without checking if it's nil, and RSS/ATOM feeds can have items without titles",
+  "Missing nil check crashes on deleted embedded post - when updating an existing embed, embed.post is assigned without checking if the post still exists, causing NoMethodError when trying to revise a nil post"
+ ]
+}

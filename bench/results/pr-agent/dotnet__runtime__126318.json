@@ -1,0 +1,93 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "dotnet__runtime__126318",
+ "url": "https://github.com/dotnet/runtime/pull/126318",
+ "head_sha": "d6f01d1f04079e04bd1ba8dacefb2cf086a7c656",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:00:35.669Z",
+ "seconds": 35.926,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/libraries/Common/src/Interop/Unix/System.Native/Interop.ForkAndExecProcess.cs",
+   "line": 58,
+   "end_line": 97,
+   "severity": null,
+   "category": null,
+   "title": "Ref-count over-release",
+   "body": "One `inheritedHandleRefsAdded` bool tracks the ref-count for every handle in the list. It becomes true after the first successful `DangerousAddRef`. If a later handle is disposed (so `DangerousAddRef` throws) or is null (NullReferenceException), the `finally` block calls `DangerousRelease` on every entry in `inheritedHandles`. That includes handles that were never AddRef'd and null entries.\n\nThe result is an unbalanced release, which can close a caller's still-in-use SafeHandle early, or a NullReferenceException in `finally`. Track how many refs were actually added (or keep a per-handle flag) and release only those."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 465,
+   "end_line": 486,
+   "severity": null,
+   "category": null,
+   "title": "Lock leak in finally",
+   "body": "`CleanupHandles` runs inside `finally`, before `ExitReadLock`/`ExitWriteLock`, and it can throw a `Win32Exception`. It can also throw `ObjectDisposedException` from SafeHandle marshaling, because `DangerousRelease` runs before `SetHandleInformation(safeHandle, ...)` and may drop the last ref.\n\nIf it throws:\n- the remaining handles are never released or un-inherited;\n- the original exception is masked;\n- `s_processStartLock` is never exited, so every later `Process.Start` deadlocks.\n\nFix: clear the inherit flag before releasing, avoid throwing from cleanup, and exit the lock in its own `finally`."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 124,
+   "end_line": 127,
+   "severity": null,
+   "category": null,
+   "title": "Concurrent start race",
+   "body": "Starts that set `InheritedHandles` now take only a read lock, so they run concurrently. Suppose two such starts list the same `SafeHandle`, e.g. a shared log pipe. When the first finishes, `CleanupHandles` clears `HANDLE_FLAG_INHERIT` while the second may be about to call `CreateProcess`. `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` requires every listed handle to be inheritable, so the second start fails intermittently with ERROR_INVALID_PARAMETER.\n\nPossible fixes: reference-count inherit-flag changes per handle, or serialize these starts."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 25336,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 2203,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 4,
+    "relevant_tests": "Yes\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "src/libraries/Common/src/Interop/Unix/System.Native/Interop.ForkAndExecProcess.cs\n",
+      "issue_header": "Ref-count over-release\n",
+      "issue_content": "One `inheritedHandleRefsAdded` bool tracks the ref-count for every handle in the list. It becomes true after the first successful `DangerousAddRef`. If a later handle is disposed (so `DangerousAddRef` throws) or is null (NullReferenceException), the `finally` block calls `DangerousRelease` on every entry in `inheritedHandles`. That includes handles that were never AddRef'd and null entries.\n\nThe result is an unbalanced release, which can close a caller's still-in-use SafeHandle early, or a NullReferenceException in `finally`. Track how many refs were actually added (or keep a per-handle flag) and release only those.\n",
+      "start_line": 58,
+      "end_line": 97
+     },
+     {
+      "relevant_file": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs\n",
+      "issue_header": "Lock leak in finally\n",
+      "issue_content": "`CleanupHandles` runs inside `finally`, before `ExitReadLock`/`ExitWriteLock`, and it can throw a `Win32Exception`. It can also throw `ObjectDisposedException` from SafeHandle marshaling, because `DangerousRelease` runs before `SetHandleInformation(safeHandle, ...)` and may drop the last ref.\n\nIf it throws:\n- the remaining handles are never released or un-inherited;\n- the original exception is masked;\n- `s_processStartLock` is never exited, so every later `Process.Start` deadlocks.\n\nFix: clear the inherit flag before releasing, avoid throwing from cleanup, and exit the lock in its own `finally`.\n",
+      "start_line": 465,
+      "end_line": 486
+     },
+     {
+      "relevant_file": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs\n",
+      "issue_header": "Concurrent start race\n",
+      "issue_content": "Starts that set `InheritedHandles` now take only a read lock, so they run concurrently. Suppose two such starts list the same `SafeHandle`, e.g. a shared log pipe. When the first finishes, `CleanupHandles` clears `HANDLE_FLAG_INHERIT` while the second may be about to call `CreateProcess`. `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` requires every listed handle to be inheritable, so the second start fails intermittently with ERROR_INVALID_PARAMETER.\n\nPossible fixes: reference-count inherit-flag changes per handle, or serialize these starts.\n",
+      "start_line": 124,
+      "end_line": 127
+     }
+    ],
+    "security_concerns": "No\n"
+   },
+   "usage": {
+    "prompt_tokens": 25336,
+    "completion_tokens": 2203,
+    "total_tokens": 27539
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "\u001b[32m2026-11-15 02:00:12.074\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:00:12.074\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:00:12.590\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 4 🔵🔵🔵🔵⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>PR contains tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>No security concerns identified</strong></td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Ref-count over-release</strong><br>One `inheritedHandleRefsAdded` bool tracks the ref-count for every handle in the list. It becomes true after the first successful `DangerousAddRef`. If a later handle is disposed (so `DangerousAddRef` throws) or is null (NullReferenceException), the `finally` block calls `DangerousRelease` on every entry in `inheritedHandles`. That includes handles that were never AddRef'd and null entries.\n\nThe result is an unbalanced release, which can close a caller's still-in-use SafeHandle early, or a NullReferenceException in `finally`. Track how many refs were actually added (or keep a per-handle flag) and release only those.\n\n<strong>Lock leak in finally</strong><br>`CleanupHandles` runs inside `finally`, before `ExitReadLock`/`ExitWriteLock`, and it can throw a `Win32Exception`. It can also throw `ObjectDisposedException` from SafeHandle marshaling, because `DangerousRelease` runs before `SetHandleInformation(safeHandle, ...)` and may drop the last ref.\n\nIf it throws:\n- the remaining handles are never released or un-inherited;\n- the original exception is masked;\n- `s_processStartLock` is never exited, so every later `Process.Start` deadlocks.\n\nFix: clear the inherit flag before releasing, avoid throwing from cleanup, and exit the lock in its own `finally`.\n\n<strong>Concurrent start race</strong><br>Starts that set `InheritedHandles` now take only a read lock, so they run concurrently. Suppose two such starts list the same `SafeHandle`, e.g. a shared log pipe. When the first finishes, `CleanupHandles` clears `HANDLE_FLAG_INHERIT` while the second may be about to call `CreateProcess`. `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` requires every listed handle to be inheritable, so the second start fails intermittently with ERROR_INVALID_PARAMETER.\n\nPossible fixes: reference-count inherit-flag changes per handle, or serialize these starts.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.145404
+}

@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "MetaMask__metamask-mobile__31075",
+ "url": "https://github.com/MetaMask/metamask-mobile/pull/31075",
+ "head_sha": "ef18288a8c8935af936a6f50993936771e772b23",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:38:30.507Z",
+ "seconds": 26.463,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/components/UI/Ramp/Views/NativeFlow/components/PhoneField/PhoneField.tsx",
+   "line": 60,
+   "end_line": 66,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "When several countries share a dialing code, the prefix match overrides the user's own region.",
+   "body": "`defaultPhoneCountry` prefers `findCountryByPhonePrefix` over `fallbackCountry`. Several countries can share the same prefix digits: Canada and the US (and possibly NANP territories) all use `+1`, and Russia and Kazakhstan both use `+7`. In that case `find` returns whichever comes first in the `countries` list. So a user in Canada with a prefilled `+1...` number sees the flag of whichever `+1` country is listed first, often the US, even though their own region matches the number. The same thing happens to a user in Kazakhstan with a `+7` number.\n\nFix: if `fallbackCountry`'s prefix digits match the start of `initialNumber`, keep `fallbackCountry`. Only fall back to `findCountryByPhonePrefix` when the user's region does not match the number."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 40184,
+  "cacheRead": 3262,
+  "output": 2192,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 31,
+   "hunks": 39,
+   "reviewedHunks": 39,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 43448,
+   "outputTokens": 2192,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 31,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.24542039999999998
+}

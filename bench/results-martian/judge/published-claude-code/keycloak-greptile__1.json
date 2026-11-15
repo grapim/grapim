@@ -1,0 +1,30 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same missing-argument call to isConditionalPasskeysEnabled."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 only covers the compile error. It doesn't mention the behavioral problem: a null user on the initial login page stops the conditional passkey UI from being set up."
+  }
+ ],
+ "candidates": [
+  "UsernameForm.java:47 calls isConditionalPasskeysEnabled() with no arguments, but the method requires a UserModel parameter after commit 3214b18 changed the signature to isConditionalPasskeysEnabled(UserModel user), causing a compilation error. The fix is to call isConditionalPasskeysEnabled(context.getUser()) instead."
+ ]
+}

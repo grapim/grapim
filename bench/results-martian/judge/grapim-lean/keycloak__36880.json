@@ -1,0 +1,57 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__36880",
+ "url": "https://github.com/keycloak/keycloak/pull/36880",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Inconsistent feature flag bug causing orphaned permissions. The AdminPermissions event listener, responsible for cleaning up permissions upon role, client, or group removal, is incorrectly guarded by the ADMIN_FINE_GRAINED_AUTHZ (V1) feature flag. This is inconsistent with other methods in the class that use ADMIN_FINE_GRAINED_AUTHZ_V2. Consequently, if ADMIN_FINE_GRAINED_AUTHZ_V2 is enabled but V1 is not, the permission cleanup logic will not execute, leading to orphaned permission data. Cleanup should occur regardless of which fine-grained authorization version is enabled.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the AdminPermissions event listener being guarded by the V1 feature flag."
+  },
+  {
+   "comment": "In hasPermission(ClientModel client, String scope), the resource lookup uses findByName(server, client.getId(), server.getId()), but AdminPermissionsSchema.getOrCreateResource creates per-client resources with the owner set to resourceServer.getClientId(), so this lookup will never find those resources and will always fall back to the 'all-clients' resource, effectively ignoring client-specific permissions.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate points out the owner mismatch in findByName (client.getId() vs. resourceServer.getClientId())."
+  },
+  {
+   "comment": "In getClientsWithPermission(String scope), iterating resourceStore.findByType(server, AdminPermissionsSchema.CLIENTS_RESOURCE_TYPE) and returning resource.getName() will only ever consider the type-level 'Clients' resource (per-client resources have no type) and return its name, while AvailableRoleMappingResource#getRoleIdsWithPermissions expects actual client IDs to pass to realm.getClientById, which can lead to incorrect behavior or a null client and subsequent failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers getClientsWithPermission returning resource names instead of client IDs."
+  },
+  {
+   "comment": "In ClientPermissionsV2.hasPermission, the method getResourceTypeResource could return null, leading to a NullPointerException in findByResource. Defensive null checks are needed to prevent this issue.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 identifies the same problem: getResourceTypeResource can return null, which then causes an NPE in findByResource."
+  },
+  {
+   "comment": "Remove unused getEvaluationContext private method in ClientPermissionsV2 - it is defined but never called",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    1
+   ],
+   "confidence": 0.5,
+   "reasoning": "C1 explicitly notes that the getEvaluationContext helper is unused. However, its main concern is the UnsupportedOperationException, so this is only a partial match."
+  }
+ ],
+ "candidates": [
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java:147 - canExchangeTo and other reachable methods now throw UnsupportedOperationException under V2.. Before this change, `MgmtPermissionsV2.clients()` returned the V1 `ClientPermissions`, which handled `canExchangeTo`, `isPermissionsEnabled`, `getPermissions`, `setPermissionsEnabled` and `resource`. These now throw `UnsupportedOperationException`. Legacy token exchange calls `management(session, realm).clients().canExchangeTo(...)`, so with FGAP v2 enabled a token-exchange request would fail with a 500 instead of being allowed or denied. The client `management/permissions` admin endpoints would also return a 500 instead of a clean 4xx. The unused `getEvaluationContext` helper suggests the exchange path was started and not finished. Return a deny result (`false`) or a proper client error instead of throwing on these paths.",
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java:214 - Missing \"Clients\" type resource causes an NPE instead of a denial.. If no per-client resource exists, `hasPermission(client, scope)` falls back to `getResourceTypeResource(..., CLIENTS_RESOURCE_TYPE)` and never checks the result for null. The type resources are created when a realm's admin-permissions client is set up. A realm that enabled FGAP v2 before this change has only the \"Users\" type resource, so this call returns null. Then `findByResource(server, null)` or `resource.getScopes()` fails, and an admin without manage-clients gets a 500 on every client view or update instead of a 403. I could not check `getResourceTypeResource`, so it may create the resource on demand. If it does not, return `false` when `resource == null`, as the scope-less `hasPermission(String)` already does."
+ ]
+}

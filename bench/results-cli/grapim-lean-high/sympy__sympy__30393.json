@@ -1,0 +1,72 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "sympy__sympy__30393",
+ "url": "https://github.com/sympy/sympy/pull/30393",
+ "head_sha": "6a273d9be1e485d68af0d875e78750b53452abf4",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:08:40.918Z",
+ "seconds": 43.35,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "sympy/functions/special/error_functions.py",
+   "line": 2938,
+   "end_line": 2951,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Arguments are converted at `prec` with no guard bits, and a fixed +10 guard bits does not cover the sensitivity to large h.",
+   "body": "`hm` and `am` are converted to mpmath at exactly `prec`, outside `workprec(prec + 10)`, so the guard bits only cover the arithmetic. The integrand is `exp(-h²s/2)`, which multiplies a relative error δ in `h` by about `h²·s`. For an irrational argument such as `owens_t(50*sqrt(2), 3)`, the conversion error alone costs about log2(h²·(1+a²)) bits, here ~16. Rounding in `hm**2*s/2` costs the same, and 10 guard bits cannot absorb it. The result then has fewer correct bits than `prec`, but `_from_mpmath` labels it as full precision. This breaks the guarantee that `Add`'s cancellation retries depend on. The old `Integral` path tracked this accuracy. Fix: do the conversions inside the raised working precision, and size the guard bits by the magnitude of the exponent, e.g. `extra = 10 + max(0, int(mpmath.log(abs(hm)**2*(1+abs(am)**2), 2)))`."
+  },
+  {
+   "path": "sympy/functions/special/error_functions.py",
+   "line": 2952,
+   "end_line": 2953,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The quadrature error estimate is never checked, so an unconverged result is returned as if fully accurate.",
+   "body": "`mpmath.quad` returns its best estimate without complaint when tanh-sinh fails to converge within its default degree. That happens with oscillatory integrands, e.g. complex `h` with a large imaginary part of `h²` (`owens_t(10+10*I, 10)` oscillates about 1600 times over the interval), or with a very large `a`. The old `Integral` evalf path used the error estimate and raised the working precision until it converged. The new code always returns `_from_mpmath(result, prec)`, so a wrong value can be reported with full precision. Fix: call `mpmath.quad(..., error=True)` and compare the error with `2**-prec * abs(result)`. If it is too large, retry with a higher `maxdegree`, or fall back to `self.rewrite(Integral).evalf(...)`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 3757,
+  "cacheRead": 3262,
+  "output": 3773,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 1,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 7021,
+   "outputTokens": 3773,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 1,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0949054
+}

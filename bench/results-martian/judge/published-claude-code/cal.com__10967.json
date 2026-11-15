@@ -1,0 +1,75 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A null reference occurs in GoogleCalendarService.createEvent() and updateEvent() when mainHostDestinationCalendar is destructured from evt.destinationCalendar but evt.destinationCalendar is null or an empty array, causing mainHostDestinationCalendar to be undefined.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1,
+    7
+   ],
+   "confidence": 0.5,
+   "reasoning": "C1 describes the same undefined mainHostDestinationCalendar crash when destinationCalendar is null/empty, but it points to EventManager rather than GoogleCalendarService. C7 describes the general unguarded-destructuring pattern."
+  },
+  {
+   "comment": "The optional chaining on mainHostDestinationCalendar?.integration is redundant since you already check mainHostDestinationCalendar in the ternary condition.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate says the optional chaining is redundant."
+  },
+  {
+   "comment": "Logic error: when externalCalendarId is provided, you're searching for a calendar where externalId === externalCalendarId, but this will always fail since you're looking for a calendar that matches itself. Should likely find by credentialId or use different logic.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 identifies the same broken find on externalId === externalCalendarId."
+  },
+  {
+   "comment": "Logic inversion in organization creation: The slug property is now conditionally set when IS_TEAM_BILLING_ENABLED is true, instead of when it's false as originally intended. This change, combined with requestedSlug still being set when IS_TEAM_BILLING_ENABLED is true, results in both properties being set when billing is enabled, and neither when disabled",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 identifies the reversed slug logic based on billing."
+  },
+  {
+   "comment": "The Calendar interface now requires createEvent(event, credentialId), but some implementations (e.g., Lark/Office365) still declare createEvent(event) only—this breaks the interface contract (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the Calendar interface signature mismatch."
+  },
+  {
+   "comment": "The `credential` may be undefined when passed to `updateEvent` if `reference.credentialId` is set but the credential is not found. This can lead to a runtime error when `updateEvent` is called with an undefined credential, which should be handled to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 identifies the same issue: updateEvent is called with a credential that may be undefined."
+  }
+ ],
+ "candidates": [
+  "EventManager.ts:119 will crash with TypeError when destinationCalendar is null/empty - the old code used optional chaining but the new code accesses .integration directly on potentially-undefined mainHostDestinationCalendar",
+  "GoogleCalendarService updateEvent (line 256) and deleteEvent (line 317) have broken fallback logic - the else branch searches .find(cal => cal.externalId === externalCalendarId) but externalCalendarId is falsy there, so it never matches",
+  "organizations/create.handler.ts:151 reverses the slug assignment logic - old: slug set when billing disabled, new: slug set when billing enabled",
+  "In updateAllCalendarEvents (line 542), updateEvent(credential, ...) is called without checking if credential is defined, causing a runtime error if both in-memory lookup and DB fallback fail",
+  "In createAllCalendarEvents, the else branch (line 380) calls createEvent(c, event) without passing destination.externalId as the third argument, unlike the if-branch, causing externalCalendarId to be undefined for the legacy fallback path and potentially breaking future update/delete operations",
+  "The loadUsers function in handleNewBooking.ts was refactored and the organization select was removed from the dynamic user query, which could break organization-related user lookups",
+  "Multiple places use destructuring like [first] = array without guarding against undefined before property access"
+ ]
+}

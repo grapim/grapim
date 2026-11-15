@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "keycloak__40940",
+ "url": "https://github.com/keycloak/keycloak/pull/40940",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returning null from getSubGroupsCount() violates the GroupModel contract (Javadoc says it never returns null) and may lead to NPEs in callers that expect a non-null count.",
+   "severity": "Critical",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions getSubGroupsCount returning null."
+  },
+  {
+   "comment": "The reader thread isn’t waited for; flipping deletedAll to true and asserting immediately can race and miss exceptions added just after the flag change, making this test flaky.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out that the reader thread is never joined, so the assertion can race and miss exceptions. This is the same issue as G2."
+  }
+ ],
+ "candidates": [
+  "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java:139 - Reader thread is never joined, so the assertion can miss exceptions and the thread can loop forever.. The test sets `deletedAll` and then checks `caughtExceptions` straight away. It never waits for the reader thread. A request that is still running when the flag flips, which is the window most likely to hit a deleted group, can add its exception after `assertThat` has already passed, so the test can miss the NPE it is meant to catch. If any `remove()` call throws, `deletedAll.set(true)` never runs and the reader thread keeps calling the admin API with no end, still running after the test and realm cleanup finish. Keep the `Thread` reference, put the deletes in `try { ... } finally { deletedAll.set(true); }`, and call `thread.join()` before the assertion. Making it a daemon thread would also help."
+ ]
+}

@@ -1,0 +1,120 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "microsoft__PowerToys__47857",
+ "url": "https://github.com/microsoft/PowerToys/pull/47857",
+ "head_sha": "ea580dbd3714a5081a04a796ba4cef679f102840",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:09:15.679Z",
+ "seconds": 79.688,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/common/FilePreviewCommon/HTMLParsingExtension.cs",
+   "line": 143,
+   "end_line": 179,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The reparse-point (junction/symlink) check that the PR describes is not implemented.",
+   "body": "The PR's security table says each component of the resolved path is rejected if it has `FileAttributes.ReparsePoint`. Neither `TryGetLocalImageVirtualUrl` nor `TryResolveVirtualUrl`, nor the serving code in the control, checks attributes. Containment is purely lexical. A cloned repo or extracted folder that has a symlink or junction such as `images -> C:\\Users\\<user>\\Pictures` passes the check, and the handler reads files outside the allowed tree. Fix: add the per-component reparse-point check before serving, or correct the documented security model."
+  },
+  {
+   "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+   "line": 53,
+   "end_line": 61,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Raw HTML `src` is only sanitized when local images are on, and `srcset` is never removed, contrary to the stated security model.",
+   "body": "The PR says raw HTML `src` is rewritten to `#` with the setting OFF too, so `data:` images cannot render, and that `srcset` is removed in both states. The rewrite is wrapped in `if (allowLocalImages)`, so with the default OFF state `<img src=\"data:...\">` still renders. No code touches `srcset` in either state. The regex also matches only double-quoted `src`. With the setting ON, `src='data:...'` or an unquoted `src` passes through unchanged and does not fire the blocked-image callback. Fix: run the sanitizer in both states (blocking everything when OFF), strip `srcset`, and handle single-quoted and unquoted attributes. Alternatively, sanitize the Markdig HtmlBlock/HtmlInline nodes instead of using a regex."
+  },
+  {
+   "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+   "line": 61,
+   "end_line": 61,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Local images in raw HTML with single-quoted or unquoted `src` are never rendered.",
+   "body": "The pattern only matches `src=\"...\"`. With the setting enabled, `<img src='images/a.png'>` or `<img src=images/a.png>` is left untouched. The browser then requests a `file:` or relative URL, which the resource filter answers with 403. The image stays blocked and the info bar does not appear. Fix: extend the pattern to accept `'...'` and unquoted values, or rewrite the attributes on the parsed HTML nodes."
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 127,
+   "end_line": 136,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "The share-root logic widens the allowed base for `\\\\?\\` and `\\\\.\\` paths and admin shares.",
+   "body": "Any directory that starts with `\\\\` is treated as UNC, and the first two path segments become `_allowedBasePath`. If the file arrives as a long or device path, the base becomes far too broad. `\\\\?\\C:\\docs\\x` gives the base `\\\\?\\C:` (the whole drive), and `\\\\?\\UNC\\server\\share\\x` gives `\\\\?\\UNC`. A `\\\\server\\C$\\...` path also gives the whole remote drive. Containment is then checked against that base, on both the rewrite side and the serving side, so `../../..` references can reach far outside the document folder. I could not confirm whether Explorer ever passes `\\\\?\\` paths to this handler. Fix: parse the path with a real UNC/device-path parser and handle the `\\\\?\\UNC\\` and `\\\\?\\X:` forms. Otherwise fall back to the markdown directory rather than an inferred root."
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 194,
+   "end_line": 200,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "performance",
+   "title": "Image files are read whole and synchronously on the UI thread, with no size or type limit.",
+   "body": "`WebResourceRequested` runs on the UI thread. `File.ReadAllBytes` loads the entire file, which can be slow on a network share. The serving side also accepts any file under the base, not just images. A document that references something like `![](big.iso)`, or several large files on a slow UNC share, freezes the preview pane and can throw `OutOfMemoryException`, which is not caught here. Fix: use `GetDeferral()` with a `FileStream` opened asynchronously, cap the file size, and serve only image extensions."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 42175,
+  "cacheRead": 3262,
+  "output": 7795,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 22,
+   "hunks": 37,
+   "reviewedHunks": 37,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 45439,
+   "outputTokens": 7795,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #40787",
+    "issue #3713",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [
+   {
+    "path": "src/modules/previewpane/MarkdownPreviewHandler/TestFiles/images/test.png",
+    "reason": "binary file"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/modules/previewpane/MarkdownPreviewHandler/Settings.cs",
+    "line": 66,
+    "end_line": 73,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Settings read failures other than a missing file break the whole Markdown preview.",
+    "body": "Only `FileNotFoundException` is caught. A settings.json that is corrupt or locked, or a missing directory, makes `GetSettings` throw `JsonException`, `IOException` or `DirectoryNotFoundException`. Because `GetLocalImagesEnabled` is called inside `DoPreview` before rendering, the whole preview then fails instead of just falling back to blocking images. I could not see how `SettingsUtils.GetSettings` handles these errors internally. Fix: catch `Exception` (or use `GetSettingsOrDefault`) and return false."
+   }
+  ]
+ },
+ "cost_usd": 0.3674354
+}

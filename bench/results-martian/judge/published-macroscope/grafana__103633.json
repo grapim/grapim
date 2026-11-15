@@ -1,0 +1,38 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The Check operation exhibits asymmetric cache trust logic: cached permission grants are trusted and returned immediately, but cached denials from the same permission cache are ignored, leading to a fresh database lookup. This allows stale cached grants to provide access to revoked resources, posing a security risk. ",
+   "severity": "High",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the asymmetric trust of cached grants versus cached denials."
+  },
+  {
+   "comment": "The test comment says the cached permissions 'allow access', but the map stores false for dashboards:uid:dash1, so checkPermission will still treat this scope as not allowed.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the misleading test comment."
+  },
+  {
+   "comment": "The cache key construction in `userPermDenialCacheKey` uses simple string concatenation with underscores, which can lead to ambiguous keys and collision risks when any component contains underscores or is empty. This could result in incorrect denial cache hits, affecting user permissions.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies the same problem: building the denial cache key by joining parts with underscores can cause key collisions."
+  }
+ ],
+ "candidates": [
+  "The cache key uses underscores as delimiters, but `name` and `parent` can themselves contain underscores. For example, `name=\"foo_bar\"`, `parent=\"baz\"` produces the same key as `name=\"foo\"`, `parent=\"bar_baz\"`, causing a cache collision that incorrectly denies access to an unrelated resource. Consider using a delimiter that cannot appear in the input values, or hash/sanitize the components."
+ ]
+}

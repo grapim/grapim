@@ -1,0 +1,40 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Null reference if github_authenticated_user state is missing",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate raises the null reference that happens when the github_authenticated_user state is missing. C2 is about missing sender metadata, which is a different problem."
+  },
+  {
+   "comment": "OAuth state uses pipeline.signature (static) instead of a per-request random value",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate points out that the OAuth state uses a static pipeline signature. C1 is about a mismatched state in a test, not about the static value."
+  },
+  {
+   "comment": "The code attempts to access integration.metadata[sender][login] without checking for the existence of the sender key. This causes a KeyError for integrations where the sender metadata was not set during creation",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same issue: a KeyError when the sender metadata is missing."
+  }
+ ],
+ "candidates": [
+  "Test uses mismatched state which triggers state check failure instead of exercising the installation-not-found 404 path as intended",
+  "Guard against missing sender metadata before dereference - if sender is absent (e.g., legacy integrations), this raises a KeyError and yields a 500; should treat it as invalid instead",
+  "Broad exception catch when parsing OAuth token response can mask unexpected failures - catching Exception is too general, and parse_qsl() with default parameters won't raise ValueError as expected"
+ ]
+}

@@ -1,0 +1,30 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Unsafe raw List deserialization without type safety. Calling Optional.get() directly on the Optional returned by RecoveryAuthnCodesUtils.getCredential(user) without checking isPresent() can lead to a NoSuchElementException if the Optional is empty.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 doesn't mention calling Optional.get() without an isPresent check, or unsafe raw List deserialization."
+  },
+  {
+   "comment": "After creating the RecoveryAuthnCodesCredentialModel, consider setting its id from the stored credential (e.g., myUser.recoveryCodes.getId()); otherwise getId() will be null and downstream removal by id (e.g., removeStoredCredentialById in the authenticator flow) may not work.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.6,
+   "reasoning": "Both say that removing the federated recovery-code credential in the authenticator flow will fail. C1 blames the local-storage removal API rather than the missing id. Still, it points to the same flow and the same symptom."
+  }
+ ],
+ "candidates": [
+  "getCredential() now returns a federated recovery-code credential before checking local storage, which breaks the existing call path in RecoveryAuthnCodesFormAuthenticator.isRecoveryAuthnCodeInputValid() - after a successful last-code use, the local-storage removal API will not remove the federated credential, so an exhausted recovery-code credential can remain undeleted in user storage and leave the user in stale state"
+ ]
+}

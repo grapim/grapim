@@ -1,0 +1,90 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "discourse-graphite__10",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/10",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The EmbeddableHost model's before_validation callback calls self.host.sub! to strip http://, https://, and path segments, but if self.host is nil, this raises NoMethodError.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.97,
+   "reasoning": "C5 describes the same NoMethodError from host.sub! when host is nil."
+  },
+  {
+   "comment": "The update and destroy methods in Admin::EmbeddableHostsController do not validate the existence of the EmbeddableHost record retrieved by ID. If EmbeddableHost.where(id: params[:id]).first returns nil (i.e., the host does not exist), attempting to call methods on the nil object (e.g., save_host or destroy) will result in a NoMethodError.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.96,
+   "reasoning": "C4 points out that update and destroy hit nil when the id does not exist."
+  },
+  {
+   "comment": "record_for_host compares lower(host) = ? but does not normalize the parameter’s case, so mixed‑case referer hosts may fail to match even though comparison intends to be case‑insensitive.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    6
+   ],
+   "confidence": 0.8,
+   "reasoning": "C6 notes that the column is lowercased but the referer host is not, so mixed-case hosts never match."
+  },
+  {
+   "comment": "Because this migration inserts embeddable_hosts rows with raw SQL, any existing embeddable_hosts values that include http:// or /https:// or path segments won’t go through the EmbeddableHost model’s normalization, so the new host lookup (which compares only the bare host) may fail for migrated data. Consider ensuring that migrated hosts are normalized to the same format as newly created EmbeddableHost records so existing embedding configurations keep working.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    2
+   ],
+   "confidence": 0.93,
+   "reasoning": "C2 says the migration inserts hosts raw, skipping the model's scheme and path normalization, so lookups fail."
+  },
+  {
+   "comment": "The contents of `category_fabricator.rb` and `embeddable_host_fabricator.rb` have been swapped, resulting in the loss of original category fabricators and potentially causing errors in fabricator usage.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    9
+   ],
+   "confidence": 0.93,
+   "reasoning": "C9 identifies the fabricator definitions swapped between the two files."
+  },
+  {
+   "comment": "The SQL query in the `app/controllers/admin/embeddable_hosts_controller.rb` file uses string interpolation (`'#{h}'`) to insert values, which is vulnerable to SQL injection. It should use parameter binding or proper quoting to prevent this security vulnerability.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.55,
+   "reasoning": "The golden comment names the controller file, but the interpolation it describes, '#{h}', is in the migration's raw SQL. C2 flags unescaped values breaking that SQL and recommends quoting, which is the same issue."
+  },
+  {
+   "comment": "The migration accesses execute(...)[0]['id'] without checking if the query returned any rows, which causes a crash when no embed_category setting exists. This can lead to a broken feature when attempting to edit category/host relationships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.96,
+   "reasoning": "C1 describes the crash from execute(...)[0]['id'] when the query returns no rows."
+  }
+ ],
+ "candidates": [
+  "db/migrate/20150818190757_create_embeddable_hosts.rb:9 - Migration crashes when embed_category or uncategorized_category_id has no row in site_settings.. `execute(...)[0]['id']` assumes the query returns a row. `site_settings` only stores values that were changed from their defaults. If `embed_category` was never set, or its name matches no category, the result is empty, `[0]` raises, and the migration aborts during deploy. The `uncategorized_category_id` lookup on line 15 has the same problem. Check `ntuples`/`cmd_tuples` before indexing, and fall back to a safe default.",
+  "db/migrate/20150818190757_create_embeddable_hosts.rb:22 - Migrated hosts are not normalized or escaped, so existing embeds break, and the old settings are deleted anyway.. The old `embeddable_hosts` setting allowed entries like `http://discourse.org` or `https://example.com/1234`; the old specs used exactly these. The migration inserts each line raw. It skips the model's scheme and path stripping and does not remove whitespace or `\\r`. `record_for_host` compares `uri.host` with `lower(host)`, so those rows never match, and embedding stops working for those sites. A value containing `'` also breaks the SQL statement. Line 31 then deletes the original settings in a `change` migration with no `down`, so the data cannot be recovered. Strip the scheme, path and whitespace, skip blank lines, quote values with `ActiveRecord::Base.connection.quote`, and make the delete reversible or keep the old setting values.",
+  "app/assets/javascripts/discourse/models/store.js.es6:192 - Every `*_ids` attribute on any REST model is now replaced, and a null value crashes hydration.. The regex now matches any key ending in `_ids`, not just the new `embeddable_host_ids`. The original `*_ids` key is deleted unconditionally and replaced with an array of `_lookupSubType` results. Those are `undefined` when the payload has no matching sideloaded collection. So any existing rest-serialized model with an array of ids loses that data. If the value is `null` or not an array, `obj[k].map` throws and the whole find fails. `hydrated || []` never helps, because `map` always returns an array. Only convert the key when it holds an array and the matching collection exists in `root`. Otherwise leave the key alone, as the single-id branch does.",
+  "app/controllers/admin/embeddable_hosts_controller.rb:10 - update and destroy return a 500 for an unknown id.. `EmbeddableHost.where(id: ...).first` returns nil for a missing or already-deleted id. `save_host(nil)` and `host.destroy` then raise NoMethodError. This happens, for example, when two admins delete the same host. Use `find` or `raise Discourse::NotFound` so the client gets a 404.",
+  "app/models/embeddable_host.rb:5 - before_validation crashes with NoMethodError when host is nil.. `self.host.sub!` raises when `host` is nil, for example when the admin API receives `embeddable_host[category_id]` without `host`. The result is a 500 instead of a validation error. Guard the normalization with `if host.present?`, or use `self.host = host.to_s.sub(...)`.",
+  "app/models/embeddable_host.rb:17 - Hosts saved with a port or uppercase letters never match.. The validation accepts `host:port`, and `before_validation` does not strip the port. `uri.host` never includes the port, so a host saved as `example.com:8080` is never allowed. The column is lowercased in the comparison but the referer host is not, and the stored value is not downcased. Downcase both sides and strip or compare the port consistently.",
+  "app/models/topic.rb:869 - expandable_first_post? no longer checks that any embeddable host is configured.. The old guard `SiteSetting.embeddable_hosts.present?` was removed without a replacement such as `EmbeddableHost.exists?`. Topics with an embed record are now expandable even after every host is deleted. The spec \"is false if embeddable_host is blank\" still passes only because a built topic has no id, so `has_topic_embed?` is false. The test no longer checks the condition it is named for. Add `EmbeddableHost.exists? &&` to the condition.",
+  "app/assets/javascripts/admin/components/embeddable-host.js.es6:46 - A delete failure is silently ignored.. `destroyRecord()` has no `.catch(popupAjaxError)`. If the server delete fails, the admin sees no error and the row stays as if nothing happened. Add `.catch(popupAjaxError)`, as `save` does.",
+  "spec/fabricators/category_fabricator.rb:1 - Fabricator definitions are swapped between files.. `category_fabricator.rb` now defines only `:embeddable_host`, and `embeddable_host_fabricator.rb` holds all the category fabricators. It works because all fabricators are loaded, but anyone editing category fabricators will look in the wrong file. Put each definition back in the file named for it."
+ ]
+}

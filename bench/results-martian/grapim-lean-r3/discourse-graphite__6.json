@@ -1,0 +1,89 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "head_sha": "267d8be1f556ed59639ced396c885bb44586da19",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:35:58.856Z",
+ "seconds": 23.454,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/serializers/user_serializer.rb",
+   "line": 144,
+   "end_line": 146,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The same-parent check treats unrelated sites under a public suffix as the instance's own domain.",
+   "body": "For hosts with the same number of labels (more than two), the code compares everything after the first label. So `foo.co.uk` against an instance at `forum.co.uk`, or `someone.github.io` against `forum.github.io`, counts as the same domain, and the full URL path is shown for an unrelated site. To fix this, compare against the registrable domain (public-suffix aware), or limit the match to `website_host` equal to the instance host or one of its parent domains."
+  },
+  {
+   "path": "app/serializers/user_serializer.rb",
+   "line": 153,
+   "end_line": 155,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`include_website_name` lacks the `?`, so the serializer never calls it.",
+   "body": "ActiveModel::Serializers only checks `include_<attr>?` methods. Without the `?`, this method is never called, so `website_name` is always serialized, as `null` when there is no website. Rename it to `include_website_name?`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 5097,
+  "cacheRead": 3262,
+  "output": 1866,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 6,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 8361,
+   "outputTokens": 1866,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "app/assets/javascripts/discourse/controllers/user.js.es6",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "app/assets/javascripts/discourse/templates/user/user.hbs",
+    "line": 66,
+    "end_line": 71,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The website label now comes from a static server field and can go stale after the website is edited.",
+    "body": "The old `websiteName` was a computed property on the website value, so it updated whenever `model.website` changed. `model.website_name` is set only when the server serializes the user. If a user changes their website in preferences and the same client-side user model is reused without a reload, the link points to the new `website` URL while its text still shows the old name, or is hidden if the website was empty before. I could not check whether the profile route always reloads the model. If it does not, refresh `website_name` from the save response or compute it on the client."
+   }
+  ]
+ },
+ "cost_usd": 0.0634654
+}

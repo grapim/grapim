@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cli__cli__15009",
+ "url": "https://github.com/cli/cli/pull/15009",
+ "head_sha": "e8022e837d4d422370059c3ea954d13e11ebeeaf",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:28:12.646Z",
+ "seconds": 18.182,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 401,
+   "end_line": 403,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Rate-limit, 5xx and network failures are still reported as an invalid token with re-auth advice.",
+   "body": "Issue #14053 asks `gh auth status` to tell a 401 (token really invalid or revoked) apart from other failures (403 rate limit, 5xx, TLS/DNS). For those other failures it should stop saying \"The token in X is invalid.\" and stop suggesting `gh auth refresh`, which the issue says makes a rate-limited account look worse.\n\nThis change only adds an `- Error: ...` line, and only when stderr is a TTY. With a 403 rate limit or a 503, the output still says the token is invalid and still tells the user to re-authenticate. The new tests lock this in: the 503 case in hunk 6 and the rate-limit, server-error and network-error cases in hunk 11 still expect the invalid-token wording.\n\nThe issue's own trigger is an agent or CI loop, which usually runs with stderr not on a TTY. In that case the output doesn't change at all.\n\nFix: classify on the HTTP status (401 means invalid; anything else means \"Could not verify token: <error>\" with no refresh hint), as the issue asks. Also show the error even when stderr is not a TTY."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 11874,
+  "cacheRead": 3262,
+  "output": 1485,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 15138,
+   "outputTokens": 1485,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14053",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.08973039999999999
+}

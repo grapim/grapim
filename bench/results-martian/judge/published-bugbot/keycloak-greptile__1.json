@@ -1,0 +1,28 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "C1 is about logic for an auth note being duplicated. It says nothing about the missing UserModel parameter."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "C1 doesn't mention conditional passkeys or the null user on the initial login page."
+  }
+ ],
+ "candidates": [
+  "The auth note checking logic for USER_SET_BEFORE_USERNAME_PASSWORD_AUTH is duplicated between AbstractUsernameFormAuthenticator.isUserAlreadySetBeforeUsernamePasswordAuth() and AuthenticatorUtils.setupReauthenticationInUsernamePasswordFormError(), creating maintenance burden and risk of inconsistency if the auth note name or parsing logic changes"
+ ]
+}

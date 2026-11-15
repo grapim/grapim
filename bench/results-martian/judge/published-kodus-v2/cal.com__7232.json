@@ -1,0 +1,41 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Asynchronous functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called without await inside forEach loops. This occurs during booking rescheduling/cancellation, and workflow/workflow step deletion/updates. Consequently, scheduled workflow reminders may not be reliably cancelled, potentially leaving them active.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 points out the same missing await on the delete reminder calls inside forEach."
+  },
+  {
+   "comment": "When immediateDelete is true, the deleteScheduledEmailReminder function cancels the SendGrid email but fails to delete the corresponding WorkflowReminder record from the database. This creates orphaned database entries and is inconsistent with the immediateDelete: false path, which marks the record as cancelled. The SendGrid DELETE API call is also omitted in this path.",
+   "severity": "High",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "C2 is about a try/catch skipping later operations when an earlier one fails. C3 is about the flag being used inconsistently. Neither says that the immediateDelete=true path fails to delete or update the DB record."
+  },
+  {
+   "comment": "The 'cancelled' field is nullable, which can lead to existing records having null values instead of a default of false. This can cause incorrect behavior in the application when checking the cancellation status of reminders.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions that the cancelled field is nullable."
+  }
+ ],
+ "candidates": [
+  "Unhandled async rejections: deleteScheduledEmailReminder and deleteScheduledSMSReminder are called inside .forEach() without await, meaning the wrapping try/catch never catches their rejections and they become unhandled promise rejections that can crash the Node.js process",
+  "Single try/catch blocks wrapping multiple sequential async operations (external API call + database deletion) create failure cascades: when the first operation throws, subsequent critical operations like deleting the database record are skipped, leaving orphaned records that cron jobs re-process",
+  "Inconsistent immediateDelete usage for email reminder cancellation between booking cancellation and rescheduling - handleCancelBooking.ts omits the flag while handleNewBooking.ts passes immediateDelete: true, meaning cancelled bookings may still receive email reminders if the cron hasn't processed the record before SendGrid fires it",
+  "Missing method: WorkflowMethods.EMAIL filter in the remindersToCancel query causes cancelled SMS reminders to be picked up and their Twilio SID sent to SendGrid API as a batch_id, causing API failures. Since the entire cancellation loop is in a single try-catch, one failure aborts processing of all subsequent reminders"
+ ]
+}

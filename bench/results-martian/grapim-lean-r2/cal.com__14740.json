@@ -1,0 +1,114 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "head_sha": "92f44dcea7ff19e9123a30c63c167a2938df5a55",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:42:28.656Z",
+ "seconds": 27.991,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 74,
+   "end_line": 78,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Blacklist and duplicate checks are case-sensitive and the server never rejects duplicate guests.",
+   "body": "The blacklist entries are lowercased, but `guest` is not. So `Spam@Blocked.com` gets past `BLACKLISTED_GUEST_EMAILS`. The check against existing attendees also uses `===`, so an existing attendee can be added again just by changing letter case. The schema has no uniqueness rule and the uniqueness refine runs only on the client, so a direct API call with `[a@x.com, a@x.com]` makes `createMany` insert duplicate attendees. Lowercase guests before comparing, and remove duplicates or reject them on the server."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 168,
+   "end_line": 168,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Emails are sent using the raw `guests` input instead of the filtered `uniqueGuests`.",
+   "body": "`sendAddGuestsEmails` is passed `guests`, which can still include emails of people who were already attendees. Those existing attendees then get a fresh `AttendeeScheduledEmail` (a new booking confirmation) instead of the 'guests added' notice. Pass `uniqueGuests`."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 46,
+   "end_line": 48,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Admin/owner check uses && so team admins who are not owners are denied.",
+   "body": "`isTeamAdminOrOwner` requires both `isTeamAdmin` and `isTeamOwner` to be true. A team ADMIN who is not the OWNER fails this check and gets FORBIDDEN on team bookings they should be able to manage. If `isTeamAdmin` already counts owners, this check only lets owners through. Use `||`, or just `isTeamAdmin` if it already covers owners."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 158,
+   "end_line": 165,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Calendar update uses the caller's credentials instead of the organizer's, and a failure here is not caught.",
+   "body": "When an attendee or team admin calls this, `EventManager` is built from `ctx.user` and that user's credentials. The booking's calendar references belong to the organizer, so the external event either is not updated or the update throws. `updateCalendarAttendees` is not wrapped in try/catch, and it runs after the attendees were already written to the database. A failure there sends an error to the client and skips the emails, but the guests stay saved, so a retry fails with `emails_must_be_unique_valid`. Build the EventManager from the organizer (`booking.user` and its credentials), and handle errors from the calendar update."
+  },
+  {
+   "path": "apps/web/components/dialog/AddGuestsDialog.tsx",
+   "line": 43,
+   "end_line": 44,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The fallback error message can never be shown.",
+   "body": "`message` is a template string that always has content (at least `\"undefined: ...\"`), so `t(\"unable_to_add_guests\")` is never used. Also, `isInvalidEmail` is never cleared after the user fixes the input or the request succeeds. Build the message conditionally, and reset `isInvalidEmail` in `onSuccess` and when the user edits the input."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 21021,
+  "cacheRead": 3262,
+  "output": 2615,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 15,
+   "hunks": 22,
+   "reviewedHunks": 22,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 24285,
+   "outputTokens": 2615,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 15,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+    "line": 52,
+    "end_line": 56,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "security",
+    "title": "Any attendee can add unlimited arbitrary emails, which then get mail sent in the organizer's name.",
+    "body": "Any attendee is authorised, and there is no check on booking status (cancelled or past), on seat limits (`seatsPerTimeSlot`), or on how many guests can be added. An attendee can therefore add any number of addresses to someone else's booking. Each of those addresses gets an email sent as the organizer, and the organizer's calendar event is changed. This also gets around seat limits on seated events. Restrict this to organizers and admins, or add limits and status/seat checks. Whether attendee access was intended is not stated in the request."
+   }
+  ]
+ },
+ "cost_usd": 0.1580654
+}

@@ -1,0 +1,64 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "oven-sh__bun__25462",
+ "url": "https://github.com/oven-sh/bun/pull/25462",
+ "head_sha": "7cdf07e36e3785afa797f5ef753f478dbfb3ea31",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T17:58:10.684Z",
+ "seconds": 18.139,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/bundler/bundle_v2.zig",
+   "line": 1840,
+   "end_line": 1840,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Borrowed `config.features` pointer can be freed by `BundleOptions.deinit`.",
+   "body": "Here the transpiler is given a pointer to `config.features`, which `JSBundler.Config` owns. `BundleOptions.deinit` now treats any non-static `bundler_feature_flags` as heap-allocated by the transpiler. It calls `deinit()` and then `allocator.destroy()` on it.\n\nIf this transpiler is ever deinitialized, that is an invalid free of a struct field. It is followed by a double free when `Config.deinit` frees `features` again.\n\nFix: either copy the set into a transpiler-owned allocation, or track ownership with a flag so `deinit` only frees sets it created."
+  },
+  {
+   "path": "src/runtime.zig",
+   "line": 216,
+   "end_line": 216,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Feature flags are not part of the runtime transpiler cache key.",
+   "body": "`feature()` calls are folded to literals using `bundler_feature_flags`. However, `hashForRuntimeTranspiler` does not include the flag set. With `bun run`, a cached transpilation of a large file made with one `--feature` set is reused under a different set, so the wrong branch runs.\n\nFix: hash the sorted enabled flags into the cache key, or bypass the runtime transpiler cache when the file imports `bun:bundle` or any flags are set."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 32687,
+  "cacheWrite": 0,
+  "cacheRead": 2096,
+  "output": 937,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 35,
+   "reviewedHunks": 35,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 34783,
+   "outputTokens": 937,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.14990720000000002
+}

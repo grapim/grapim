@@ -1,0 +1,46 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The updateManyByCredentialId call uses an empty data object, which prevents Prisma's @updatedAt decorator from updating the updatedAt timestamp. This results in inaccurate cache status tracking, as the timestamp isn't updated when the cache is refreshed. To fix this, explicitly set the updatedAt field.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the empty data object means updatedAt doesn't get bumped. It also proposes the same fix of setting updatedAt explicitly."
+  },
+  {
+   "comment": "logic: macOS-specific sed syntax with empty string after -i flag will fail on Linux systems",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the macOS-only sed syntax."
+  },
+  {
+   "comment": "Throwing a generic Error for authentication failures results in a 500 response in tRPC. Instead, it should return a structured TRPCError with an appropriate code, such as FORBIDDEN, to accurately reflect the error type.",
+   "severity": "High",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates covers the generic Error that should be a TRPCError."
+  },
+  {
+   "comment": "Date is formatted with hardcoded 'en-US' locale instead of using the user's locale from useLocale, which can lead to incorrect date representation for users in different locales.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the hardcoded en-US locale."
+  }
+ ],
+ "candidates": [
+  "No-op updateMany call: updateManyByCredentialId(this.credential.id, {}) passes an empty data object {} to Prisma's updateMany. Prisma's @updatedAt directive only triggers when an actual field mutation occurs in the data payload. An empty data: {} produces a SQL UPDATE ... SET with no columns, which either no-ops or errors depending on the database driver — updatedAt will not be bumped. Fix by explicitly passing updatedAt: new Date() in the data object."
+ ]
+}

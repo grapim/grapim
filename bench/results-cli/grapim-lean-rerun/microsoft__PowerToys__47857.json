@@ -1,0 +1,110 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "microsoft__PowerToys__47857",
+ "url": "https://github.com/microsoft/PowerToys/pull/47857",
+ "head_sha": "ea580dbd3714a5081a04a796ba4cef679f102840",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:32:54.416Z",
+ "seconds": 90.225,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/common/FilePreviewCommon/HTMLParsingExtension.cs",
+   "line": 166,
+   "end_line": 179,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Promised reparse-point (junction/symlink) check is not implemented; links can escape the allowed folder.",
+   "body": "The PR's security model says each component of the resolved path is rejected if it has `FileAttributes.ReparsePoint`, because checking the path text alone does not stop redirection. Neither `TryResolveVirtualUrl` nor the serving code in `MarkdownPreviewHandlerControl` checks attributes. The only check is `GetFullPath` plus `GetRelativePath`.\n\nTrigger: a document folder (for example a cloned repo or a share) contains a symlink or junction `img -> C:\\Users\\me` and the Markdown file has `![](img/secret.png)`. The text check passes, `File.Exists` and `File.ReadAllBytes` follow the link, and a file outside the allowed tree is served.\n\nFix: walk each component from `basePath` to `fullPath` and reject any that has `FileAttributes.ReparsePoint`, or compare the final target (`FileInfo.ResolveLinkTarget(true)`) against the base. Otherwise, take the claim out of the description."
+  },
+  {
+   "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+   "line": 53,
+   "end_line": 79,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Raw-HTML hardening described in the PR (OFF-state rewrite, srcset removal) is not implemented.",
+   "body": "The description says that with the setting OFF, raw HTML `src` is rewritten to `#` so `data:` images cannot render. It also says `srcset` is removed from raw `<img>` in both states. The code rewrites only when `allowLocalImages` is true and never touches `srcset`.\n\nThe regex also matches only double-quoted `src`. So with the setting ON, `<img src='data:image/...'>` is not caught: `data:` is resolved without going through the resource filter, so it renders, and no info bar is raised.\n\nFix: either implement what the description promises (run the rewrite in both states, strip `srcset`, handle single-quoted and unquoted attributes), or correct the security model in the description."
+  },
+  {
+   "path": "src/common/FilePreviewCommon/HTMLParsingExtension.cs",
+   "line": 116,
+   "end_line": 116,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Virtual URL is built without escaping, so an image file name containing '#' never loads.",
+   "body": "`relativePath` is added to `https://localmdimages/` as-is. For `![](images/c#-diagram.png)` the browser treats `#-diagram.png` as a fragment, so the request is for `images/c`, which returns 404 and the image does not show.\n\nThe serving side also unescapes the path, so a file literally named `a%20b.png` is looked up as `a b.png`.\n\nFix: build the URL from `Uri.EscapeDataString` of each path segment, so the result round-trips through `Uri.UnescapeDataString` in `TryResolveVirtualUrl`."
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 194,
+   "end_line": 199,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "performance",
+   "title": "Image bytes are read synchronously and without limits on the WebResourceRequested (UI) thread.",
+   "body": "The handler calls `File.Exists` and `File.ReadAllBytes` on whatever file under the base path is requested. There is no size cap, no check that it is an image type, and no deferral.\n\nTrigger: a Markdown file on a slow or unreachable UNC share, or one that references a large file (an ISO or video in the repo, or anywhere under the share root). The Explorer preview host's UI thread then blocks, or the whole file (up to about 2 GB) is loaded into memory.\n\nFix: use `e.GetDeferral()` and read on a background thread. Return a `FileStream` instead of reading the whole file into memory. Allow only known image extensions and set a size cap."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 42174,
+  "cacheRead": 3262,
+  "output": 8607,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 22,
+   "hunks": 37,
+   "reviewedHunks": 37,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 45438,
+   "outputTokens": 8607,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #40787",
+    "issue #3713",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [
+   {
+    "path": "src/modules/previewpane/MarkdownPreviewHandler/TestFiles/images/test.png",
+    "reason": "binary file"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/modules/previewpane/MarkdownPreviewHandler/Settings.cs",
+    "line": 66,
+    "end_line": 73,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Only FileNotFoundException is caught when reading settings; other read errors break the whole preview.",
+    "body": "`GetLocalImagesEnabled` runs inside `DoPreview`'s main try block on every preview. If `settings.json` is corrupt, partly written, or locked, `GetSettings` can throw `JsonException`, `IOException`, or `DirectoryNotFoundException`. The preview then fails with the internal-error path instead of just falling back to local images off.\n\nI could not see what `SettingsUtils.GetSettings` throws, so this depends on that. Fix: catch `Exception` here and return `false`, or use `GetSettingsOrDefault`."
+   }
+  ]
+ },
+ "cost_usd": 0.3836704
+}

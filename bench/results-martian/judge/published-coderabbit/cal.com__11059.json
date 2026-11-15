@@ -1,0 +1,119 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "cal.com__11059",
+ "url": "https://github.com/calcom/cal.com/pull/11059",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The parseRefreshTokenResponse function incorrectly sets refresh_token to the hardcoded string 'refresh_token' when it's missing from the OAuth refresh token response. This invalidates the token, breaking subsequent token refreshes and causing authentication failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same hardcoded 'refresh_token' placeholder bug."
+  },
+  {
+   "comment": "The Zod schema in parseRefreshTokenResponse uses computed property keys [z.string().toString()] and [z.string().optional().toString()] in minimumTokenResponseSchema, which is invalid Zod syntax and will throw a runtime error.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 flags the same broken computed-key schema in minimumTokenResponseSchema. It describes a different failure (the key becomes a literal and validation fails), but it is the same code problem."
+  },
+  {
+   "comment": "parseRefreshTokenResponse returns a Zod safeParse result ({ success, data, error }), not the credential key object. Persisting that as key stores the wrapper instead of the token payload; we should store the parsed data or use schema parse.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 says the whole safeParse wrapper is stored as the key instead of .data."
+  },
+  {
+   "comment": "When APP_CREDENTIAL_SHARING_ENABLED and CALCOM_CREDENTIAL_SYNC_ENDPOINT are set, the refreshFunction helper returns the fetch Response, but several callers (for example GoogleCalendarService.refreshAccessToken expecting res.data, and HubspotCalendarService.refreshAccessToken expecting a HubspotToken) assume it returns the integration-specific token object. That mismatch will cause runtime errors in the sync-enabled path unless the return type or those call sites are adjusted.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    4,
+    17
+   ],
+   "confidence": 0.85,
+   "reasoning": "C4 and C17 both point out that callers expect the integration token object, but refreshOAuthTokens returns a fetch Response."
+  },
+  {
+   "comment": "When the sync endpoint path is used, res is a fetch Response and has no .data; res?.data will be undefined and token.access_token will throw at runtime. This relies on a consistent return shape from refreshOAuthTokens, which isn’t guaranteed currently.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4,
+    17
+   ],
+   "confidence": 0.85,
+   "reasoning": "C4 and C17 both say res.data is undefined when refreshOAuthTokens returns a fetch Response."
+  },
+  {
+   "comment": "The `refreshOAuthTokens` function is passed `credentialId` instead of `userId`, which breaks the credential sync functionality by causing incorrect user lookups. This issue can lead to failures in syncing user credentials, impacting user experience.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.9,
+   "reasoning": "C5 says credentialId is passed instead of userId."
+  },
+  {
+   "comment": "The Salesforce integration checks `response.statusText` instead of `response.ok` when handling OAuth token refresh responses. This can lead to unreliable behavior, as a successful response may not be correctly identified, resulting in the use of stale credentials and potential authentication failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions the Salesforce check on statusText instead of response.ok. C6 is about refreshOAuthTokens in general, not this check."
+  },
+  {
+   "comment": "The `jsforce.Connection` is created using stale `credentialKey.access_token` and `credentialKey.instance_url` after a token refresh, which can lead to authentication failures and incorrect data access. Ensure that the connection is established using the refreshed token values instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    7
+   ],
+   "confidence": 0.95,
+   "reasoning": "C7 flags the same stale credentialKey values used to build the jsforce connection."
+  },
+  {
+   "comment": "The `appCredentialWebhookRequestBodySchema.parse` function can throw on invalid payloads, resulting in 500 Internal Server Errors instead of the expected 400 Bad Request responses. This can lead to confusion for clients and hinder proper error handling.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    8
+   ],
+   "confidence": 0.95,
+   "reasoning": "C8 is the same issue: parse throws, so bad input returns 500 instead of 400."
+  }
+ ],
+ "candidates": [
+  "parseRefreshTokenResponse overwrites missing refresh tokens with placeholder 'refresh_token' string, which will clobber valid refresh tokens downstream and break future refreshes",
+  "minimumTokenResponseSchema uses [z.string().toString()] which yields a literal key and makes it required, so real token payloads will fail validation",
+  "googlecalendar/lib/CalendarService.ts stores entire parseRefreshTokenResponse wrapper object as credential key instead of extracting .data property",
+  "refreshOAuthTokens returns a Response object when credential sharing is enabled but returns refreshFunction() result otherwise - callers expect .data property which doesn't exist on Response objects",
+  "zoho-bigin/lib/CalendarService.ts passes credentialId instead of credential.userId to refreshOAuthTokens, causing sync to target wrong subject",
+  "No response validation in refreshOAuthTokens - the fetch response status and content aren't checked",
+  "salesforce/lib/CalendarService.ts uses stale credentialKey values when creating jsforce connection instead of refreshed token values",
+  "appCredentialWebhookRequestBodySchema.parse can throw on invalid payload, turning bad input into 500s instead of 400s",
+  "Handler accepts any HTTP method but should enforce POST with a 405 response like other webhook handlers",
+  "Header lookup is case-sensitive - if CALCOM_WEBHOOK_HEADER_NAME is set in mixed case, lookup will fail because Node.js normalizes incoming headers to lowercase",
+  "Header lookup doesn't handle arrays - if the header is sent multiple times, req.headers[...] will be an array and comparison against a string will incorrectly allow the request through",
+  "JSON.parse(symmetricDecrypt(...)) can throw on decrypt/JSON errors, turning bad input into 500s instead of 400s",
+  "No error handling for the fetch call in refreshOAuthTokens - network failures throw unhandled exceptions",
+  "No timeout on the external fetch in refreshOAuthTokens, risking indefinite hangs",
+  "The () => any type signature in refreshOAuthTokens provides no type safety",
+  "Missing prisma import in salesforce/lib/CalendarService.ts for credential update",
+  "zohocrm/lib/CalendarService.ts caller expects AxiosResponse with .data property but refreshOAuthTokens can return fetch Response, causing runtime error",
+  "Read-then-write pattern for credential upsert can create duplicates under concurrent requests without unique constraint"
+ ]
+}

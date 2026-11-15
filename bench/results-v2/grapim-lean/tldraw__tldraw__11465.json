@@ -1,0 +1,61 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "tldraw__tldraw__11465",
+ "url": "https://github.com/tldraw/tldraw/pull/11465",
+ "head_sha": "db9e4a4a5d9c4b9cde9b88aace71b21f8dd4f43c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:06:57.813Z",
+ "seconds": 25.164,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "packages/commenting/src/canvas/thread-view.tsx",
+   "line": 427,
+   "end_line": 430,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Keyboard users land on a hidden, ring-less ⋯ button after leaving edit mode",
+   "body": "Closing the edit composer now hands focus back with `focus({ focusVisible: false })`. In the same change, `comments.css` reveals a card's actions only on `:hover` or `:has(:focus-visible)`, where it used to use `:focus-within`.\n\nTrigger: a keyboard user opens Edit from the ⋯ menu, then saves or cancels with the keyboard. Focus goes to the ⋯ button, but `:focus-visible` does not match, so:\n- the actions stay at `opacity: 0`;\n- the focused element shows no focus ring;\n- the byline time stays put instead of making way.\n\nThe user is left on an invisible control.\n\nFix: keep `focusVisible: false` only when the edit was entered with the pointer. For example, record in `editReturnFocus` whether the opener had `:focus-visible`, and restore with the same value. Alternatively, keep a `:focus-within` fallback for the case where the pointer is not involved."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 17906,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 2198,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 15,
+   "reviewedHunks": 15,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21023,
+   "outputTokens": 2198,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.11620739999999999
+}

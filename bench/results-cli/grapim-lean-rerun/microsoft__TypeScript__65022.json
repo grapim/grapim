@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "microsoft__TypeScript__65022",
+ "url": "https://github.com/microsoft/TypeScript/pull/65022",
+ "head_sha": "ad98c177d3b79373edbb817fb790b12cdde3693f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:41:41.774Z",
+ "seconds": 22.228,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "tsc/internal/parser/jsdoc.go",
+   "line": 1200,
+   "end_line": 1200,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A broken top-level tag after a nested group is now pulled into that group.",
+   "body": "With this check, any `@property`/`@param` whose name is missing is kept as a child of the nested literal being parsed, even when it was meant at the top level. Example: `@property {object} Args`, `@property {string} Args.name`, `@property {function(string)=} onSave`, `@property {string} other`. Before, `onSave` closed `Args` and became a top-level `\"\"` key. Now it becomes `Args[\"\"]`, and the typedef no longer gets that top-level key. The same happens to `@param` lists after an `opts.*` group. The parser cannot tell which level was meant, so the harm is small. It would be more consistent to keep the tag nested only when the raw text after the type starts with `<parentName>.`, or to drop the missing-name tag instead of attaching it to the parent."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 7018,
+  "cacheRead": 3262,
+  "output": 1691,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 10282,
+   "outputTokens": 1691,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #65020",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.06957039999999999
+}

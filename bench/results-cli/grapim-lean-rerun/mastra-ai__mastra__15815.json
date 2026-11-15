@@ -1,0 +1,112 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "mastra-ai__mastra__15815",
+ "url": "https://github.com/mastra-ai/mastra/pull/15815",
+ "head_sha": "012c8603ed0837f26723a2b6b18674167f2ae530",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:39:03.532Z",
+ "seconds": 30.481,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "observability/mastra/src/exporters/cloud.ts",
+   "line": 20,
+   "end_line": 27,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The signal filter infrastructure the description says was removed is still added to CloudExporter.",
+   "body": "The description says the \"signal filter infrastructure\" was removed from this PR. The diff still adds a public `signalFilters` config with per-signal callbacks for spans, logs, metrics, scores and feedback, and wires it into every `on*Event` handler. The new public API also has a side effect: setting `signalFilters.spans` replaces the default filter completely, so the `MODEL_CHUNK` drop this PR is meant to add stops applying. Drop `signalFilters` here and hardcode the `MODEL_CHUNK` check."
+  },
+  {
+   "path": "observability/mastra/src/instances/base.ts",
+   "line": 641,
+   "end_line": 645,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The `metrics.autoExtract` control is still added despite the description saying it was removed.",
+   "body": "The description says the \"metrics auto-extract controls\" were removed. The diff still adds `metrics.autoExtract` to the config types (in both core and observability), to the zod schema and to the instance. Setting it to `false` skips every auto-extracted duration and token metric. The request does not ask for this. Remove it from this PR."
+  },
+  {
+   "path": "packages/core/src/processors/index.ts",
+   "line": 325,
+   "end_line": 333,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Processor observability controls are still in the PR although the description says they were removed.",
+   "body": "The PR description says it was narrowed to two changes (dropping `MODEL_CHUNK` spans in CloudExporter and a `warn` log default), and that \"the processor observability work\" was removed and deferred. The diff still adds the public `Processor.observability` option. It also rewires span creation in runner.ts and in both workflow.ts files, and adds the `processorObservability`/`processorOutcome` span attributes. The changeset (`.changeset/observability-volume-controls.md`) also announces these controls. This changes the public API and shared processor code that nobody asked for. Remove it, or update the scope of the request."
+  },
+  {
+   "path": "packages/core/src/processors/runner.ts",
+   "line": 62,
+   "end_line": 66,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "TripWire processor spans are no longer marked as errors for any processor.",
+   "body": "Before this change, a TripWire abort in the legacy runner called `processorSpan.error({ error, endSpan: true, ... })`. The removed comment said this was done \"so it shows as ERROR in traces\". `endTripWireProcessorSpan` now calls `span.end()` with attributes only, so every processor that trips (not just `errors-only` ones) ends as a successful span with no `errorInfo`. Trace UIs, error filters and error-based alerts will stop showing guardrail blocks as errors. This also contradicts the narrowed PR, which claims no processor changes. Keep `span.error({ error, endSpan: true, attributes: getTripWireSpanAttributes(error) })` on the TripWire path, or drop this change from the PR."
+  },
+  {
+   "path": "observability/mastra/src/exporters/cloud.ts",
+   "line": 56,
+   "end_line": 63,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Dropping successful `errors-only` processor spans leaves their child spans pointing to a parent that was never exported.",
+   "body": "Processors marked `errors-only` still create a `PROCESSOR_RUN` span, and processor-internal work (for example, nested agent or model calls) is parented under it via `createProcessorObservabilityContext`. CloudExporter drops that span when it succeeds, but its child spans are still exported, and their `parentSpanId` points to a span cloud never receives. Traces in the cloud UI will then show orphaned subtrees. Either drop the descendants as well, or reparent them to the processor span's parent before export. I could not check whether the cloud backend tolerates missing parents."
+  },
+  {
+   "path": ".changeset/observability-volume-controls.md",
+   "line": 8,
+   "end_line": 8,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The changeset announces processor controls that the PR says it does not ship.",
+   "body": "The changeset advertises \"controls to run processors without `PROCESSOR_RUN` spans and mark processor spans as errors-only\". That contradicts the narrowed scope in the description, and it says nothing about the change in the default log level to `warn`, which affects users. Make the changeset match what actually ships."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 50355,
+  "cacheRead": 3262,
+  "output": 2852,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 58,
+   "reviewedHunks": 58,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 53619,
+   "outputTokens": 2852,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.3094754
+}

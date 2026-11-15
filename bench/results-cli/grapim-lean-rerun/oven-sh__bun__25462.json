@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "oven-sh__bun__25462",
+ "url": "https://github.com/oven-sh/bun/pull/25462",
+ "head_sha": "7cdf07e36e3785afa797f5ef753f478dbfb3ea31",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:30:46.595Z",
+ "seconds": 45.331,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/ast/P.zig",
+   "line": 2664,
+   "end_line": 2688,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Default, namespace and unknown imports from \"bun:bundle\" are dropped silently and leave undeclared bindings.",
+   "body": "Only named items are checked. For `import * as b from \"bun:bundle\"` or `import f from \"bun:bundle\"`, the statement is removed with no diagnostic and no symbol is declared. `b.feature(\"X\")` then builds without error and fails at runtime with a ReferenceError. Unknown named specifiers get a warning that says they \"will be undefined\", but they are never declared either, so using them also throws a ReferenceError rather than giving `undefined`. Report an error for default and namespace imports. For unknown specifiers, either declare them or raise an error. The same problem applies to a non-call use of `feature`, such as `const f = feature`, which is left pointing at a binding that no longer exists."
+  },
+  {
+   "path": "src/bundler/bundle_v2.zig",
+   "line": 1839,
+   "end_line": 1840,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Pointer to an embedded `config.features` field can be passed to `allocator.destroy` in `BundleOptions.deinit`.",
+   "body": "`BundleOptions.deinit` now calls `.deinit()` and `allocator.destroy()` on any `bundler_feature_flags` pointer that is not the static empty set. Here the pointer is set to `&config.features`, a field inside the JS bundler config. That config is not a separate heap allocation, and `Config.deinit` already frees it (`self.features.deinit()`). If this transpiler's `deinit` runs, the result is a double free and an invalid `destroy` of a non-heap pointer. Even if it does not run, the transpiler holds a pointer into a config that may be freed first. Track ownership with a flag, or clone the set into a heap allocation that the transpiler owns. I could not see whether this bundle-thread transpiler is ever deinit'd."
+  },
+  {
+   "path": "src/runtime.zig",
+   "line": 214,
+   "end_line": 218,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Feature flags are not part of the runtime transpiler cache key.",
+   "body": "`bundler_feature_flags` changes the transpiled output, but it is not added to `hash_fields_for_runtime_transpiler`, and nothing else in the change hashes the set's contents. `bun run` and `bun test` can reuse cached output from the runtime transpiler cache, which applies to larger files. So if you run `bun run --feature=X big.ts` and then `bun run big.ts`, the second run can get the cached output with `feature(\"X\")` already folded to `true`, or the other way round. The fix is to mix a hash of the sorted flag names into the cache key, or to turn the cache off whenever any `bun:bundle` feature call is replaced."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 32831,
+  "cacheRead": 3262,
+  "output": 4066,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 35,
+   "reviewedHunks": 35,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 36095,
+   "outputTokens": 4066,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/options.zig",
+    "line": 1912,
+    "end_line": 1918,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The feature-flag set has no clear owner, so copies of the options can double free it or leak it.",
+    "body": "`BundleOptions` is copied by value in several places, for example when worker or child transpilers are created from a parent. Each copy keeps the same `bundler_feature_flags` pointer, and each copy's `deinit` would free and destroy it again. Separately, `build_command.zig` line 85 replaces a set that `fromApi` already allocated from the same `ctx.args.feature_flags`, so the first set leaks. Give one owner the job of freeing the set (an ownership flag works), and reuse the set that already exists instead of allocating it twice."
+   },
+   {
+    "path": "src/ast/visitExpr.zig",
+    "line": 1688,
+    "end_line": 1693,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The flag lookup ignores rope (concatenated) e_string values.",
+    "body": "`flag_string.data` holds only the first segment when an `E.String` is a rope, for example after constant folding of `\"FOO\" + \"BAR\"`. The lookup would then test `FOO` instead of `FOOBAR` and return the wrong value. Reject ropes (`next != null`) or resolve them to the full string before calling `contains`."
+   }
+  ]
+ },
+ "cost_usd": 0.2461354
+}

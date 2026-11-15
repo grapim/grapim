@@ -1,0 +1,30 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "keycloak__36882",
+ "url": "https://github.com/keycloak/keycloak/pull/36882",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect method call for exit codes. The picocli.exit() method calls System.exit() directly, which is problematic:",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C1 is about the exit code value changing, not about picocli.exit() calling System.exit() directly."
+  },
+  {
+   "comment": "Need to add changelog/release notes documenting the exit code change and migration guidance",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.6,
+   "reasoning": "G2 asks for release notes and migration guidance for the exit code change. C1 flags the same change as breaking for existing scripts. Both point to the same user-facing impact of the exit code change, so this is a reasonable semantic match."
+  }
+ ],
+ "candidates": [
+  "Breaking exit code change: RECREATE_UPGRADE_EXIT_CODE moved from 4 to 3, which could break existing scripts consuming these codes"
+ ]
+}

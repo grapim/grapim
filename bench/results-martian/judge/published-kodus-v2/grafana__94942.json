@@ -1,0 +1,30 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The enableSqlExpressions function has flawed logic that always returns false, effectively disabling SQL expressions unconditionally:",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same issue: enableSqlExpressions always returns false."
+  },
+  {
+   "comment": "The DB methods NewInMemoryDB().RunCommands, DB.QueryFramesInto, and DB.TablesList in pkg/expr/sql/db.go return hardcoded 'not implemented' errors after removing the go-duck dependency.",
+   "severity": "High",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 mentions sql/db.go only as code that can't be reached. It doesn't flag the hardcoded 'not implemented' stubs."
+  }
+ ],
+ "candidates": [
+  "The enableSqlExpressions function in pkg/expr/reader.go (lines 194-200) contains a logic bug that causes it to unconditionally return false on every code path. The negation of IsEnabledGlobally(...) combined with both branches returning false means the FlagSqlExpressions feature flag has zero effect, permanently blocking SQL expressions and making downstream execution code (sql_command.go, sql/db.go) unreachable dead code."
+ ]
+}

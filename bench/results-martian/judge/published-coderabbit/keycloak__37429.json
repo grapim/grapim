@@ -1,0 +1,68 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same Italian text sitting in the Lithuanian file."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 flags the same Traditional Chinese terms in the zh_CN file."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates deals with the anchor sanitization logic consuming English matcher groups."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    3
+   ],
+   "confidence": 0.98,
+   "reasoning": "C3 reports the same typo in the method name."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    4
+   ],
+   "confidence": 0.93,
+   "reasoning": "C4 says HTML_TAGS should be static final."
+  }
+ ],
+ "candidates": [
+  "Wrong language in Lithuanian bundle (messages_lt.properties) - totpStep1 at line 101 contains Italian text instead of Lithuanian",
+  "Traditional Chinese characters used in Simplified Chinese locale file (messages_zh_CN.properties) - totpStep1 at line 112 contains Traditional Chinese characters (手機, 安裝, 應用程式) instead of Simplified Chinese equivalents (手机, 安装, 应用程序)",
+  "Typo in method name: santizeAnchors should be sanitizeAnchors",
+  "Pattern HTML_TAGS should be static final to avoid recompilation per instance",
+  "Placeholder format mismatch in error-invalid-multivalued-size message - uses {0}, {1}, {2} and choice syntax instead of i18next-standard {{...}} interpolation, causing the Admin UI to display validation message literally instead of interpolating values",
+  "owasp-java-html-sanitizer dependency version 20240325.1 is outdated and should be updated to 20260313.1",
+  "commons-text dependency version 1.13.0 is outdated and should be updated to 1.15.0",
+  "Inconsistent placeholder spacing after <br /> in Georgian locale (messages_ka.properties) - lines 172, 174, 451, 452 use <br />{0} while other locales use <br /> {0}",
+  "PolicyFactory instances POLICY_SOME_HTML and POLICY_NO_HTML should be static final for performance and clarity"
+ ]
+}

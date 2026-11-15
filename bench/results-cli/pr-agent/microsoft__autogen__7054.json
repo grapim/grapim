@@ -1,0 +1,77 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "microsoft__autogen__7054",
+ "url": "https://github.com/microsoft/autogen/pull/7054",
+ "head_sha": "1921f6253f1e64c324be890d96fc9aa9a21d1d8b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:07:08.184Z",
+ "seconds": 58.947,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "python/packages/autogen-ext/src/autogen_ext/models/openai/config/__init__.py",
+   "line": 53,
+   "end_line": 53,
+   "severity": null,
+   "category": null,
+   "title": "Missing `minimal` value",
+   "body": "`reasoning_effort` only allows `\"low\"`, `\"medium\"` and `\"high\"`. GPT-5 models, which the tests target, also accept `\"minimal\"`, and the OpenAI SDK's `ReasoningEffort` type includes it. Because of the narrower `Literal`, `load_component` rejects `\"minimal\"` with a `ValidationError`, and type checkers flag it in the constructor. Consider adding `\"minimal\"` to the `Literal`, or reusing the SDK's `ReasoningEffort` type, in both `CreateArguments` and `CreateArgumentsConfigModel`."
+  },
+  {
+   "path": "python/packages/autogen-ext/tests/models/test_openai_model_client.py",
+   "line": 3341,
+   "end_line": 3347,
+   "severity": null,
+   "category": null,
+   "title": "Type-check failures",
+   "body": "The new tests are likely to fail strict pyright/mypy checks if those run on tests:\n- The loop passes `valid_value`, inferred as `str`, to a parameter typed `Literal[\"low\", \"medium\", \"high\"]`.\n- `_create_args` and `_raw_config` are accessed on the result of `ChatCompletionClient.load_component`, which is typed as the base `ChatCompletionClient` and does not declare these attributes.\n\nTo fix, use explicit `Literal`-typed values or `cast`, load via `OpenAIChatCompletionClient.load_component` / `AzureOpenAIChatCompletionClient.load_component`, or narrow with `isinstance`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4761,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 1427,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 2,
+    "relevant_tests": "Yes\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "python/packages/autogen-ext/src/autogen_ext/models/openai/config/__init__.py\n",
+      "issue_header": "Missing `minimal` value\n",
+      "issue_content": "`reasoning_effort` only allows `\"low\"`, `\"medium\"` and `\"high\"`. GPT-5 models, which the tests target, also accept `\"minimal\"`, and the OpenAI SDK's `ReasoningEffort` type includes it. Because of the narrower `Literal`, `load_component` rejects `\"minimal\"` with a `ValidationError`, and type checkers flag it in the constructor. Consider adding `\"minimal\"` to the `Literal`, or reusing the SDK's `ReasoningEffort` type, in both `CreateArguments` and `CreateArgumentsConfigModel`.\n",
+      "start_line": 53,
+      "end_line": 53
+     },
+     {
+      "relevant_file": "python/packages/autogen-ext/tests/models/test_openai_model_client.py\n",
+      "issue_header": "Type-check failures\n",
+      "issue_content": "The new tests are likely to fail strict pyright/mypy checks if those run on tests:\n- The loop passes `valid_value`, inferred as `str`, to a parameter typed `Literal[\"low\", \"medium\", \"high\"]`.\n- `_create_args` and `_raw_config` are accessed on the result of `ChatCompletionClient.load_component`, which is typed as the base `ChatCompletionClient` and does not declare these attributes.\n\nTo fix, use explicit `Literal`-typed values or `cast`, load via `OpenAIChatCompletionClient.load_component` / `AzureOpenAIChatCompletionClient.load_component`, or narrow with `isinstance`.\n",
+      "start_line": 3341,
+      "end_line": 3347
+     }
+    ],
+    "security_concerns": "No\n"
+   },
+   "usage": {
+    "prompt_tokens": 4761,
+    "completion_tokens": 1427,
+    "total_tokens": 6188
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "\u001b[32m2026-11-15 02:06:49.384\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:06:49.386\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:06:50.557\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 2 🔵🔵⚪⚪⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>PR contains tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>No security concerns identified</strong></td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Missing `minimal` value</strong><br>`reasoning_effort` only allows `\"low\"`, `\"medium\"` and `\"high\"`. GPT-5 models, which the tests target, also accept `\"minimal\"`, and the OpenAI SDK's `ReasoningEffort` type includes it. Because of the narrower `Literal`, `load_component` rejects `\"minimal\"` with a `ValidationError`, and type checkers flag it in the constructor. Consider adding `\"minimal\"` to the `Literal`, or reusing the SDK's `ReasoningEffort` type, in both `CreateArguments` and `CreateArgumentsConfigModel`.\n\n<strong>Type-check failures</strong><br>The new tests are likely to fail strict pyright/mypy checks if those run on tests:\n- The loop passes `valid_value`, inferred as `str`, to a parameter typed `Literal[\"low\", \"medium\", \"high\"]`.\n- `_create_args` and `_raw_config` are accessed on the result of `ChatCompletionClient.load_component`, which is typed as the base `ChatCompletionClient` and does not declare these attributes.\n\nTo fix, use explicit `Literal`-typed values or `cast`, load via `OpenAIChatCompletionClient.load_component` / `AzureOpenAIChatCompletionClient.load_component`, or narrow with `isinstance`.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.047584
+}

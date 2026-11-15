@@ -1,0 +1,35 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "keycloak__37038",
+ "url": "https://github.com/keycloak/keycloak/pull/37038",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In GroupPermissionsV2.canManage(), the permission fallback checks for both VIEW and MANAGE scopes (hasPermission(null, AdminPermissionsSchema.VIEW, AdminPermissionsSchema.MANAGE)), but canManage() should only grant access for MANAGE scope, not VIEW. This means users with only VIEW permission on groups can pass the canManage() check, granting them write access they should not have. The canView() method correctly checks both VIEW and MANAGE, but canManage() should only check MANAGE.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same problem as G1: canManage() accepts the VIEW scope as well as MANAGE."
+  },
+  {
+   "comment": "In getGroupIdsWithViewPermission, hasPermission is called with groupResource.getId() and the same groupResource.getId() is added to granted, but hasPermission resolves resources by name (treating the argument as a group id) and the GroupPermissionEvaluator contract says this method returns group IDs that are later used as UserModel.GROUPS and in getUsersCount group filters. This mismatch means per-group VIEW_MEMBERS/MANAGE_MEMBERS permissions may not yield the expected group IDs for filtering and counts, and evaluation may effectively only look at the type-level 'all-groups' resource; consider revisiting whether this should operate on the underlying group ids (resource names) instead so it aligns with the JPA queries and the interface contract.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.93,
+   "reasoning": "C2 describes the same mismatch as G2: the code uses the resource ID where it should use the resource name, which is the group ID."
+  }
+ ],
+ "candidates": [
+  "canManage() grants manage access when the caller only has the view scope for groups because it passes both VIEW and MANAGE to hasPermission(), breaking the intended separation between view and manage permissions",
+  "getGroupIdsWithViewPermission() uses groupResource.getId() (the authorization resource id) instead of groupResource.getName() (the realm group id), causing hasPermission() to miss per-group resources and return authorization resource ids instead of realm group ids",
+  "Renaming getGroupsWithViewPermission() to getGroupIdsWithViewPermission() is a binary-incompatible breaking change that will cause AbstractMethodError for existing implementations and NoSuchMethodError for external callers compiled against the old method name",
+  "Removing the canViewGlobal short-circuit causes getSubGroups to filter out visible children when the caller has only schema-level Groups view/manage permission, returning an empty list instead of visible children"
+ ]
+}

@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "immich-app__immich__32240",
+ "url": "https://github.com/immich-app/immich/pull/32240",
+ "head_sha": "4e89904e255e00310d7661f6d45212a5a6e56d85",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:40:10.588Z",
+ "seconds": 19.784,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 10179,
+  "cacheRead": 6524,
+  "output": 1977,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16707,
+   "outputTokens": 1977,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #32083",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "server/test/medium/specs/workflow/workflow-core-plugin.spec.ts",
+    "line": 112,
+    "end_line": 112,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "New uses of `Kysely`, `DB` and `AssetRepository` come with no added imports.",
+    "body": "The CHANGES block counts +36 lines for this file, and all 36 are in these two hunks. That leaves no room for new import lines, yet the change adds `let db: Kysely<DB>` and calls `ctx.get(AssetRepository)`. The test still runs under vitest because esbuild strips types, but if the file did not already import `Kysely`, `DB` and `AssetRepository`, the server type-check (`tsc`/lint) fails, and the `AssetRepository` value reference fails at runtime. I can't see the file's import section to confirm. If any of these imports is missing, add it (`import { Kysely } from 'kysely'`, `DB` from the schema, `AssetRepository` from its repository)."
+   },
+   {
+    "path": "server/test/medium/specs/workflow/workflow-core-plugin.spec.ts",
+    "line": 776,
+    "end_line": 782,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Updating the step orders one row at a time can collide on a unique (workflowId, order) index.",
+    "body": "If `createWorkflow` gives the steps orders 0 and 1 by insert position, the action has 0 and the filter has 1. This loop may set the action to 1 while the filter still holds 1. If `workflow_step` has a unique, non-deferrable constraint on (workflowId, order), the update throws and the test fails for a reason unrelated to the fix. I can't see the schema to check whether that constraint exists. To be safe, swap the values in a single `UPDATE ... SET order = CASE ...` statement, or move one row to a temporary value first."
+   }
+  ]
+ },
+ "cost_usd": 0.0917558
+}

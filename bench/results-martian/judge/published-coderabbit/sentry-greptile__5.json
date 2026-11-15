@@ -1,0 +1,84 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The BrowserReportingCollectorEndpoint returns HttpResponse objects but the endpoint inherits from Endpoint which expects rest_framework.response.Response objects.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the HttpResponse vs Response type mismatch."
+  },
+  {
+   "comment": "In BaseDetectorTypeValidator.update(), the validator incorrectly updates instance.type using validated_data.get('detector_type') instead of validated_data.get('type').",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the detector_type vs type key bug."
+  },
+  {
+   "comment": "Using zip(error_ids, events.values()) assumes the get_multi result preserves the input order; dict value order is not guaranteed to match error_ids, so event data can be paired with the wrong ID (missing nodes also shift alignment).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 raises the same concern: zip order may not line up with error_ids."
+  },
+  {
+   "comment": "Hardcoded empty data passed to TableWidgetVisualization causes it to always render an empty table instead of displaying actual results when the feature flag is enabled.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 identifies the same hardcoded empty data passed to the table."
+  },
+  {
+   "comment": "Validation logic incorrectly uses .get('timestamp'), which treats a timestamp of 0 as absent. It should directly check 'timestamp' in self.initial_data to ensure proper field presence detection, preventing both 'age=0' and 'timestamp' from passing mutual-exclusion validation.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 identifies the same truthiness problem where timestamp 0 is treated as absent."
+  },
+  {
+   "comment": "Analytics events are recorded before the feature flag check, resulting in analytics being logged for all requests, including those that return 404 due to the feature being disabled. This can lead to misleading analytics data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.97,
+   "reasoning": "C4 describes the same issue: analytics recorded before the feature flag check."
+  }
+ ],
+ "candidates": [
+  "events.values() order from nodestore.backend.get_multi() may not align with error_ids order, causing wrong event data to be associated with wrong IDs when zipping",
+  "Feature-flag path passes empty columns and empty tableData to TableWidgetVisualization, causing blank tables even when results exist",
+  "Mutual-exclusion validation for age/timestamp uses truthy-based check with self.initial_data.get(...) which treats 0 as falsey - should use key presence check instead",
+  "Analytics event is recorded before feature flag check, meaning analytics will be recorded for all requests including those that return 404 due to feature being disabled",
+  "_truncate_title can return a string longer than max_length because it adds '...' after slicing - should slice to max_length - 3 before appending ellipsis",
+  "Broad exception catch (Exception) may hide underlying issues - should catch more specific exceptions like NodeStoreError, KeyError",
+  "Typo in comment: 'segements' should be 'segments'",
+  "TriggerLabelWrap renders a span while Flex renders a div - nesting div inside span can break inline layout/ellipsis behavior",
+  "When useApiQuery is disabled or idle, data can be undefined, so data.summary will throw and break the page for orgs without the feature flag",
+  "Custom renderers that return falsy React nodes (0, '', false, null) are treated as 'no render' due to truthy check - should use explicit undefined check",
+  "Meta is missing the 'id' column - rows include 'id' but meta.fields/meta.units don't list it, leading to undefined metadata lookups",
+  "Typo in story text: duplicated 'the' in 'Below is the the most basic example'",
+  "UseGetTraceItemAttributeValuesProps extends UseTraceItemAttributeBaseProps which provides projects?: Project[], but hook uses projectIds?: PageFilters['projects'] (number[]) - incompatible types",
+  "useGetTraceItemAttributeValues call defaults to page filters instead of using provided projectIds prop, returning results from wrong project scope",
+  "requests.post call lacks a timeout, which could cause tests to hang indefinitely if Snuba is unresponsive",
+  "HIDDEN_ATTRIBUTES filter is only applied when searchQuery is present - when searchQuery is empty, hidden attributes like is_segment, project_id, received will still be visible",
+  "request.user.id may raise an error if the user is anonymous when recording analytics"
+ ]
+}

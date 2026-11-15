@@ -1,0 +1,45 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "mastra-ai__mastra__15815",
+ "url": "https://github.com/mastra-ai/mastra/pull/15815",
+ "head_sha": "012c8603ed0837f26723a2b6b18674167f2ae530",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:09:31.737Z",
+ "seconds": 8.025,
+ "status": "ok",
+ "findings": [],
+ "usage": {
+  "requests": 2,
+  "input": 87073,
+  "cacheWrite": 0,
+  "cacheRead": 4192,
+  "output": 20,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 80,
+   "reviewedHunks": 80,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 91265,
+   "outputTokens": 20,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.3495304
+}

@@ -1,0 +1,35 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The magic number 50 for max_wait is used repeatedly throughout the tests. Consider extracting this as a named constant to improve maintainability.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the magic number 50 for max_wait."
+  },
+  {
+   "comment": "The test test_thread_queue_parallel_error_handling has a docstring that doesn't match the test implementation.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    6
+   ],
+   "confidence": 0.8,
+   "reasoning": "C6 says the error-handling test checks the opposite of what its docstring states, which is the same docstring/implementation mismatch."
+  }
+ ],
+ "candidates": [
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:335 - Closing the strategy shuts down the factory's shared queue pool, so messages after a rebalance are dropped and committed.. `FixedQueuePool` is created once in the factory's `__init__` and handed to every strategy. Arroyo calls `close()`/`join()` on the old strategy at each partition revocation, then calls `create_with_partitions` again. `close()` calls `self.queue_pool.shutdown()`, which stops all workers and shuts down every queue in that shared pool. The next strategy gets the same dead pool. In `submit`, `work_queue.put` then raises `queue.ShutDown`. The broad `except` logs it and marks the offset as completed, so the commit loop commits messages that were never processed. Every message after the first rebalance is silently lost. The pool should belong to the strategy and be created in `create_thread_queue_parallel_worker`, or `close()` should only drain it and leave shutdown to `factory.shutdown()`. Also, a submit failure should not mark the offset complete.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:185 - The queues have no size limit, so there is no backpressure and memory can grow without bound.. `queue.Queue()` is created with no `maxsize`, and `submit` never raises `MessageRejected`. When processing is slow, which is the case this PR is meant to handle, the consumer keeps reading from Kafka and buffers every message in memory. This can end in an OOM, even though the class docstring promises \"Natural backpressure when queues fill up\". Set a `maxsize`, and in `submit` raise arroyo's `MessageRejected` when the target queue is full.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:86 - A gap in Kafka offsets stops all further commits for that partition.. After `mark_committed`, `start` is `last_committed + 1`, and the loop `break`s on the first offset not in `all_offsets`. Kafka partitions can have offsets that are never delivered, for example transaction control markers or compacted records. When that happens the missing offset is never added, the loop never moves past it, and nothing on that partition is committed again until restart. `all_offsets` also grows without limit in the meantime. Fix: commit up to just below the smallest outstanding offset, or up to the highest seen offset if nothing is outstanding, instead of requiring every integer offset to be present.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:273 - Offsets are committed from a background thread, including for partitions that may have been revoked.. `_commit_loop` calls arroyo's `commit` callable from its own thread while the StreamProcessor thread is polling the consumer. Arroyo's commit path and its KafkaConsumer are not designed for concurrent use. The offset tracker is also shared across rebalances and is never cleared for revoked partitions, so after a rebalance this thread can commit offsets for partitions this consumer no longer owns. That raises errors or overwrites another consumer's progress. Safer: compute the committable offsets in `poll()` (main thread) and commit from there. Also drop tracker state for partitions that are no longer assigned.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:335 - `close()` stops committing before the workers finish, so finished work is never committed and gets reprocessed.. `close()` stops the commit thread first and only then shuts down the pool. The workers also check `self.shutdown = True` and exit after their current item without draining their queue. Items processed during shutdown are never committed, and queued items are dropped without being processed. After a restart or rebalance they are all redelivered, which means duplicate processing. Fix: drain the queues (or wait for them to empty), then run one final commit before stopping.",
+  "tests/sentry/uptime/consumers/test_results_consumer.py:1921 - The error-handling test asserts no commit happens, which contradicts the implementation and only passes by timing.. Both offsets 100 and 101 are marked complete even when processing fails (see `finally` in the worker), so the commit loop will commit 102 within about 1s. The test asserts that `test_partition` is not in `committed_offsets` after only about 0.2–2s of waiting, so it passes or fails depending on when the 1s commit tick lands. It is flaky, and it checks the opposite of what its docstring says (\"errors don't block offset commits\"). Wait for the commit and assert `committed_offsets[test_partition] == 102`."
+ ]
+}

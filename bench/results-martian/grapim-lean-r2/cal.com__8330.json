@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__8330",
+ "url": "https://github.com/calcom/cal.com/pull/8330",
+ "head_sha": "ee38fd295fd294b9fc787eba482bde24bbfea69b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:39:31.579Z",
+ "seconds": 32.233,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/trpc/server/routers/viewer/slots.ts",
+   "line": 133,
+   "end_line": 135,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Busy times are skipped on any day that has a date override.",
+   "body": "When a slot falls on a day with a date override, `dateOverrideExist` is set and the function returns `true` before `busy.every(...)` runs. Existing bookings and calendar events on that day are never checked, so slots that overlap them are offered and double bookings follow. Return `true` only from the override/working-hours check and let the code fall through to the busy check in every case."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/slots.ts",
+   "line": 138,
+   "end_line": 148,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Any working-hours range that doesn't contain the slot rejects it, so a day with several ranges loses slots.",
+   "body": "`workingHours.find` returns true (slot unavailable) as soon as one range that covers the day does not contain the slot. With several ranges on the same day (for example 9–12 and 13–17, or one range split at UTC midnight by the organizer's offset), a 14:00 slot is outside the first range and gets rejected even though the second range contains it. The check needs to be: the slot is available if some range contains it (`some`), not unavailable if any range excludes it. The same problem applies to the date-override `find` at line 106 when a day has several override ranges."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/slots.ts",
+   "line": 114,
+   "end_line": 125,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The date-override bounds checks compare by reference and ignore slots that run past the override's end.",
+   "body": "`dayjs(a) === dayjs(b)` compares two new objects by reference, so it is always false. A zero-length override (marking the day unavailable) is never detected here, and a slot that starts exactly at the override time passes. Also, `slotStartTime.isAfter(end)` only rejects slots that start after the override ends, so a slot that starts inside the override and ends after it is accepted. Use `.isSame(...)` for the first check and compare `slotEndTime` against the override end."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/slots.ts",
+   "line": 141,
+   "end_line": 143,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The working-hours end check uses the slot's start time instead of its end time.",
+   "body": "`end` is computed from `slotStartTime`, so `end > workingHour.endTime` never catches a slot that starts inside working hours and runs past their end. For example, a 60‑minute slot at 16:30 with hours ending at 17:00 is accepted. Compute `end` from `slotEndTime`, and take care when the end crosses midnight."
+  },
+  {
+   "path": "packages/lib/slots.ts",
+   "line": 218,
+   "end_line": 223,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Shifting the override by the timezone offset can wrap past midnight, giving an endTime earlier than startTime.",
+   "body": "The start and end are shifted by `offset` and then reduced to minutes since midnight, which drops the date. Example: an override from 20:00 to 23:00 with an invitee 2h ahead becomes start=1320 and end=60. That range is empty or inverted, so the slots are lost or computed wrongly. Also, `override.timeZone` is now optional; when a caller leaves it out, `.tz(undefined)` falls back to the server's local timezone and gives the wrong offset. Handle the day boundary (split or clamp the range) and require the timezone, or fall back to a sensible one."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 9711,
+  "cacheRead": 3262,
+  "output": 2955,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 10,
+   "reviewedHunks": 9,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 12975,
+   "outputTokens": 2955,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.10831539999999999
+}

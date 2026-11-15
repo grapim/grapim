@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "oven-sh__bun__25462",
+ "url": "https://github.com/oven-sh/bun/pull/25462",
+ "head_sha": "7cdf07e36e3785afa797f5ef753f478dbfb3ea31",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:10:18.210Z",
+ "seconds": 90.365,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/ast/P.zig",
+   "line": 2664,
+   "end_line": 2687,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Default and namespace imports from \"bun:bundle\" are silently dropped and leave unbound identifiers.",
+   "body": "The `bun:bundle` branch only looks at `stmt.items`, then returns `S.Empty` for the whole statement. For `import * as b from \"bun:bundle\"` or `import feature from \"bun:bundle\"`, `stmt.namespace_ref` and `stmt.default_name` are never declared and no diagnostic is emitted. So `b.feature(\"X\")` or `feature(\"X\")` stays in the output as a reference to an undeclared global and throws a ReferenceError at runtime. The build reports no error or warning. Fix: report an error (or at least a warning) when `stmt.star_name_loc` or `stmt.default_name` is set on a `bun:bundle` import."
+  },
+  {
+   "path": "src/ast/visitExpr.zig",
+   "line": 1662,
+   "end_line": 1664,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`feature` used anywhere other than a direct call is left as a dangling reference.",
+   "body": "The import statement is removed at parse time, so `feature` only works when it appears directly as a call target. Any other use is left in the output pointing at a symbol with no declaration, with no diagnostic. Examples: `const f = feature; f(\"X\")`, `[\"A\"].map(feature)`, `typeof feature`, `feature?.(\"X\")` if the optional-call target shape differs. These fail at runtime with a ReferenceError, or with a wrong result for `typeof`. Fix: in the `e_identifier` visitor, report an error when the ref equals `p.bundler_feature_flag_ref` and the identifier is not the target of a call."
+  },
+  {
+   "path": "src/runtime.zig",
+   "line": 214,
+   "end_line": 216,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Feature flags are not part of the runtime transpiler cache key, so cached output can ignore `--feature`.",
+   "body": "`bun run` and `bun test` now produce different transpiled output depending on `bundler_feature_flags`. However, the field is not added to `hash_fields_for_runtime_transpiler`, the list hashed into the runtime transpiler cache key. Here is how it breaks: run `bun run index.ts` on a file large enough to be cached (about 50KB and up), then run `bun run --feature=FLAG index.ts`. The second run gets the cached transpilation with every `feature()` replaced by `false`, so the flag is silently ignored. The reverse order fails the same way. Fix: mix the sorted flag names into the cache hash, or turn the cache off when `bundler_feature_flags` is not empty. I could not see the cache's size threshold, so the exact file size that triggers this is unconfirmed."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 32658,
+  "cacheRead": 3262,
+  "output": 8466,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 35,
+   "reviewedHunks": 35,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 35922,
+   "outputTokens": 8466,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/bundler/bundle_v2.zig",
+    "line": 1840,
+    "end_line": 1840,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The transpiler option now points into the JS config, but the new `BundleOptions.deinit` frees it as if heap-allocated.",
+    "body": "`transpiler.options.bundler_feature_flags = &config.features` stores a pointer to a field inside the `JSBundler.Config`. The new `BundleOptions.deinit` in options.zig frees any pointer other than the static empty set: it calls `deinit()` on it, then `allocator.destroy()`. If this transpiler is ever deinitialized, that destroys memory that was never allocated on its own, and `Config.deinit` later deinitializes `features` a second time. That is an invalid free plus a double deinit. I could not see whether the Bun.build transpiler is ever passed to `Transpiler.deinit`. Fix: copy the set into its own allocation, as `initBundlerFeatureFlags` does, or record ownership in a flag instead of comparing addresses."
+   }
+  ]
+ },
+ "cost_usd": 0.3332704
+}

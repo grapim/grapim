@@ -1,0 +1,117 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "head_sha": "8df850371034b73dc4dd9908cc30fa09f12a1f97",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:31:07.764Z",
+ "seconds": 54.047,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "public/app/features/alerting/unified/components/rule-viewer/AlertRuleMenu.tsx",
+   "line": 73,
+   "end_line": 92,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "The skipToken path still grants Duplicate, so cloud rules show Duplicate based on Grafana's create permission.",
+   "body": "For a non-Grafana `promRule`, or when `promRule` is undefined, the hook gets `skipToken`. `useAllGrafanaPromRuleAbilities(undefined)` then returns `loading: false` and `isPluginProvided: false`, so Duplicate becomes `toAbility(AlwaysSupported, getRulesPermissions('grafana').create)`. Because `canDuplicate` ORs this with the ruler result, a Mimir/Prometheus rule shows Duplicate whenever the user has Grafana `alert.rules:create`. This happens even when the ruler says the action is unsupported (no ruler, ruler still loading) or the user lacks external rule write permissions. Make every ability return NotSupported when the rule is skipped, or only use the Grafana result when `promRule` is a Grafana rule."
+  },
+  {
+   "path": "public/app/features/alerting/unified/hooks/useAbilities.ts",
+   "line": 227,
+   "end_line": 228,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Federated rule groups are no longer treated as immutable by useAllAlertRuleAbilities.",
+   "body": "`useAllAlertRuleAbilities` used to set `isFederated = isFederatedRuleGroup(rule.group)`, which made Mimir federated groups (with `source_tenants`) immutable. It now delegates to `useAllRulerRuleAbilities`, which hardcodes `isFederated = false` (line 245). As a result, Update/Delete/Pause become supported for federated rules wherever the deprecated CombinedRule hook is still used, such as the existing list view and the details components. Pass the federation state through to `useAllRulerRuleAbilities`, or keep the `isFederatedRuleGroup(rule.group)` check in this wrapper."
+  },
+  {
+   "path": "public/app/features/alerting/unified/rule-list/components/RuleActionsButtons.V2.tsx",
+   "line": 25,
+   "end_line": 28,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The list view loses Delete and Pause, and probably Silence, when no ruler rule is passed.",
+   "body": "The new list only passes `promRule`, so `rule` (the ruler rule) is undefined. The Delete action calls `handleDelete(rulerRule, …)` and Pause renders `MenuItemPauseRule` with the ruler rule, so both are dropped even when `canDelete`/`canPause` are true. The new GrafanaGroupLoader test confirms this: with delete permission granted, it asserts that exactly 4 menu items appear and Delete is not one of them. The silence drawer in this component (unchanged lines) is likely gated on `rulerRuleType.grafana.rule(rule)`. If so, the Silence item shown for prom-only rules opens nothing. I could not see those lines to confirm. Either support these actions with a prom rule (by uid) or hide the menu items, and don't lock the regression into the test."
+  },
+  {
+   "path": "public/app/features/alerting/unified/rule-list/FilterView.tsx",
+   "line": 157,
+   "end_line": 157,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The `key` prop was dropped from the list item rendered inside `rules.map`.",
+   "body": "The old `GrafanaRuleLoader` got `key={key}`, but the new `GrafanaRuleListItem` has no key. This causes React key warnings, and React matches items by index, so when rules are added or filtered, state such as open drawers or menus can attach to the wrong rule. Add `key={key}`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 38442,
+  "cacheRead": 3262,
+  "output": 5532,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 26,
+   "reviewedHunks": 22,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 41706,
+   "outputTokens": 5532,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "public/app/features/alerting/unified/rule-list/GrafanaRuleLoader.tsx",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "public/app/features/alerting/unified/rule-list/hooks/prometheusGroupsGenerator.ts",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "public/locales/en-US/grafana.json",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "public/app/features/alerting/unified/components/rule-viewer/AlertRuleMenu.tsx",
+    "line": 81,
+    "end_line": 100,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "ORing the Prometheus-based abilities can override the ruler's provisioned-rule immutability.",
+    "body": "`canPause`, `canDelete` and the others are now `ruler || grafanaProm`. Pages that pass both `rulerRule` and `promRule` (the rule viewer) used to get NotSupported for provisioned rules from the ruler check. The new Prometheus path decides provisioning only from `promRule.provenance`, a field this PR just adds to the type with no backend change in the change list. If the Grafana Prometheus-compatible API does not return `provenance`, provisioned rules become pausable or deletable here, and their Edit button appears in the new list view. I could not confirm whether the backend fills this field. Prefer the ruler result when `rulerRule` is present, and only fall back to the Prometheus abilities when it is absent."
+   }
+  ]
+ },
+ "cost_usd": 0.3035104
+}

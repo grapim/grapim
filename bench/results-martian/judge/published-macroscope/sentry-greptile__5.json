@@ -1,0 +1,68 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The BrowserReportingCollectorEndpoint returns HttpResponse objects but the endpoint inherits from Endpoint which expects rest_framework.response.Response objects.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions HttpResponse vs Response."
+  },
+  {
+   "comment": "In BaseDetectorTypeValidator.update(), the validator incorrectly updates instance.type using validated_data.get('detector_type') instead of validated_data.get('type').",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the detector_type key."
+  },
+  {
+   "comment": "Using zip(error_ids, events.values()) assumes the get_multi result preserves the input order; dict value order is not guaranteed to match error_ids, so event data can be paired with the wrong ID (missing nodes also shift alignment).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the zip ordering problem."
+  },
+  {
+   "comment": "Hardcoded empty data passed to TableWidgetVisualization causes it to always render an empty table instead of displaying actual results when the feature flag is enabled.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies the same hardcoded empty data passed to TableWidgetVisualization."
+  },
+  {
+   "comment": "Validation logic incorrectly uses .get('timestamp'), which treats a timestamp of 0 as absent. It should directly check 'timestamp' in self.initial_data to ensure proper field presence detection, preventing both 'age=0' and 'timestamp' from passing mutual-exclusion validation.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers timestamp validation."
+  },
+  {
+   "comment": "Analytics events are recorded before the feature flag check, resulting in analytics being logged for all requests, including those that return 404 due to the feature being disabled. This can lead to misleading analytics data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 identifies analytics being recorded before the feature flag check."
+  }
+ ],
+ "candidates": [
+  "When organization.features.includes('use-table-widget-visualization') is true, TableWidgetVisualization receives hardcoded empty values (columns: [], data: []) instead of the actual result.data and result.meta from the query, causing the table to render with no rows and no columns regardless of what data is available.",
+  "The analytics.record('preprod_artifact.api.assemble', ...) call executes before the feature flag check, so analytics events are recorded even when the feature is disabled and the endpoint returns 404. The event name implies a successful assembly operation, but the request was rejected.",
+  "When transparentMask is true, RightMask uses transparent which equals rgba(0, 0, 0, 0), causing the gradient to interpolate through black on dark mode backgrounds and producing visible color banding. LeftMask correctly uses Color(p.theme.background).alpha(0).rgb().string() but RightMask should match that pattern.",
+  "When tableData is nullish at runtime, line 94 throws TypeError: Cannot convert undefined or null to object because Object.keys(tableData?.meta.fields) evaluates to Object.keys(undefined). This is inconsistent with the defensive handling on line 103 (tableData?.data ?? []). Should add optional chaining and a fallback: Object.keys(tableData?.meta?.fields ?? {}).",
+  "The comment on lines 19-20 states top events are only supported when there are no multiple y-axes, but the diff removed the visualizes.some(visualize => visualize.yAxes.length > 1) check. The function now returns TOP_EVENTS_LIMIT even with multiple y-axes, which contradicts the documented constraint."
+ ]
+}

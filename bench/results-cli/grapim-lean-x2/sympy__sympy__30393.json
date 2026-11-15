@@ -1,0 +1,75 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "sympy__sympy__30393",
+ "url": "https://github.com/sympy/sympy/pull/30393",
+ "head_sha": "6a273d9be1e485d68af0d875e78750b53452abf4",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:58:13.486Z",
+ "seconds": 68.301,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "sympy/functions/special/error_functions.py",
+   "line": 2938,
+   "end_line": 2953,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Inputs rounded at `prec` and a fixed 10 guard bits lose accuracy for large |h|, but the result is still labelled full precision.",
+   "body": "`hm` and `am` are converted with `_to_mpmath(prec)` before `workprec(prec + 10)` takes effect, so a non-exact `h` (e.g. `sqrt(2)*10`, `Rational(1,3)*50`) carries a relative rounding error of 2^-prec. The integrand `exp(-h**2*s/2)` multiplies that error by about h²: the exponent `h**2*s/2` has a large magnitude, and its relative error becomes an absolute error in the exponent. For h ≈ 100 that costs about 13 bits, which is more than the 10 guard bits. Even exactly representable `h` loses log2(h²/2) bits when `hm**2*s/2` is rounded at prec+10. `Expr._from_mpmath(result, prec)` still presents the value as `prec`-accurate, so `Add`'s cancellation logic, which this change exists to serve, trusts digits that are wrong. The old `Integral` path tracked accuracy through `evalf`. Fix: convert `h` and `a` inside a higher working precision and scale the guard bits with the size of the exponent, for example `extra = 10 + max(0, int(mpmath.log(abs(hm)**2 + 1, 2)))`, converting the arguments at `prec + extra`.",
+   "raised": 2
+  },
+  {
+   "path": "sympy/functions/special/error_functions.py",
+   "line": 2938,
+   "end_line": 2939,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The arguments are converted at `prec` bits, so the 10 guard bits do not protect them.",
+   "body": "`hm` and `am` are evaluated at exactly `prec` bits, outside `workprec(prec + 10)`. When `h` is irrational (for example `3*sqrt(2)`), its rounding error is scaled by about `h**2/2` once it goes through `exp(-h**2*s/2)`. For `|h|` around 5 or more, the result loses more bits than the guard bits make up for, yet it is still reported as `prec` bits accurate. Convert both arguments with `_to_mpmath(prec + 10)` so they get the same guard bits as the quadrature.",
+   "raised": 1
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 3782,
+  "cacheRead": 10306,
+  "output": 5899,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 1,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 14092,
+   "outputTokens": 5899,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 1,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1389672
+}

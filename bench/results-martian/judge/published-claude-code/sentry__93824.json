@@ -1,0 +1,64 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "sentry__93824",
+ "url": "https://github.com/getsentry/sentry/pull/93824",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In the SpanFlusher flush loop, metric tags inconsistently use 'shard' (e.g., in spans.buffer.flusher.produce and spans.buffer.segment_size_bytes) and 'shards' (in spans.buffer.flusher.wait_produce) for the same shard identifier value. This prevents correct metric aggregation across flush stages — dashboards and alerts filtering by tag 'shard' will miss data tagged as 'shards' and vice versa.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same 'shards' vs 'shard' tag mismatch."
+  },
+  {
+   "comment": "The test_basic function in test_consumer.py uses a monkeypatched time.sleep that returns immediately, but then calls time.sleep(0.1) expecting it to actually wait.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the monkeypatched time.sleep in the test."
+  },
+  {
+   "comment": "Because flusher processes are created via multiprocessing.get_context('spawn').Process, they are instances of multiprocessing.context.SpawnProcess, which on POSIX is not a subclass of multiprocessing.Process, so this isinstance check will always be false and hung processes won't be killed here.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2,
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 raises the same SpawnProcess isinstance problem. C4 describes its effect: processes are never killed."
+  },
+  {
+   "comment": "Sleep in test_consumer.py won’t actually wait because time.sleep was monkeypatched above; consider restoring sleep or using a different sync to ensure the flusher has time to process.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the test sleep."
+  },
+  {
+   "comment": "Breaking out of the loop when the deadline has elapsed can skip terminating remaining flusher processes, potentially leaving them running after shutdown; consider ensuring termination is attempted even if the deadline is exceeded.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 says the break skips terminate() for the remaining processes."
+  }
+ ],
+ "candidates": [
+  "Typo on line 199: tags={'shards': shard_tag} should be tags={'shard': shard_tag} (singular) to match the other two metrics on lines 186 and 195, causing dashboards filtering by the shard tag to silently miss the wait_produce timer",
+  "isinstance(process, multiprocessing.Process) is always False for SpawnProcess objects created via get_context('spawn').Process(), since SpawnProcess inherits from BaseProcess, not multiprocessing.Process, causing process.kill() and process.terminate() to never be called",
+  "The break at line 340 exits the entire for loop when the deadline expires, so terminate() is skipped for all remaining processes even if the isinstance bug were fixed",
+  "process.kill() in _ensure_processes_alive is a regression since the pre-PR code called it unconditionally, meaning unhealthy/hung processes are now never killed before spawning a replacement",
+  "_create_process_for_shard (singular, line 127) is defined but never called anywhere - it's dead code that should be removed",
+  "Having both _create_process_for_shard and _create_process_for_shards methods with near-identical names is confusing for future maintainers"
+ ]
+}

@@ -1,0 +1,30 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "logic: Potential nil pointer exception - if no TopicUser record exists, tu will be nil and calling methods on it will crash",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same nil TopicUser problem: calling a method on tu when no record exists crashes."
+  },
+  {
+   "comment": "Typo in property name: 'stopNotificiationsText' should be 'stopNotificationsText' (missing 'n' in 'Notifications')",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the typo in the property name."
+  }
+ ],
+ "candidates": [
+  "TopicUser.find_by on line 105 returns nil when the user has never interacted with the topic, but line 107 immediately calls tu.notification_level without a nil check, causing NoMethodError when the record doesn't exist"
+ ]
+}

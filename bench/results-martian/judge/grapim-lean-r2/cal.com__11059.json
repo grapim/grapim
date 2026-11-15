@@ -1,0 +1,117 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "cal.com__11059",
+ "url": "https://github.com/calcom/cal.com/pull/11059",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The parseRefreshTokenResponse function incorrectly sets refresh_token to the hardcoded string 'refresh_token' when it's missing from the OAuth refresh token response. This invalidates the token, breaking subsequent token refreshes and causing authentication failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    10
+   ],
+   "confidence": 0.95,
+   "reasoning": "C10 flags the hardcoded 'refresh_token' placeholder overwriting the real token."
+  },
+  {
+   "comment": "The Zod schema in parseRefreshTokenResponse uses computed property keys [z.string().toString()] and [z.string().optional().toString()] in minimumTokenResponseSchema, which is invalid Zod syntax and will throw a runtime error.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    7
+   ],
+   "confidence": 0.8,
+   "reasoning": "C7 identifies the same broken computed-key Zod schema in minimumTokenResponseSchema. It describes the effect differently from the golden comment, but it is the same flaw."
+  },
+  {
+   "comment": "parseRefreshTokenResponse returns a Zod safeParse result ({ success, data, error }), not the credential key object. Persisting that as key stores the wrapper instead of the token payload; we should store the parsed data or use schema parse.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 says the safeParse result, rather than the token data, is stored as the credential key."
+  },
+  {
+   "comment": "When APP_CREDENTIAL_SHARING_ENABLED and CALCOM_CREDENTIAL_SYNC_ENDPOINT are set, the refreshFunction helper returns the fetch Response, but several callers (for example GoogleCalendarService.refreshAccessToken expecting res.data, and HubspotCalendarService.refreshAccessToken expecting a HubspotToken) assume it returns the integration-specific token object. That mismatch will cause runtime errors in the sync-enabled path unless the return type or those call sites are adjusted.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    1,
+    3,
+    6,
+    8
+   ],
+   "confidence": 0.85,
+   "reasoning": "Each of these candidates points out that callers expect a token object but get a fetch Response in sync mode."
+  },
+  {
+   "comment": "When the sync endpoint path is used, res is a fetch Response and has no .data; res?.data will be undefined and token.access_token will throw at runtime. This relies on a consistent return shape from refreshOAuthTokens, which isn’t guaranteed currently.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1,
+    6,
+    8
+   ],
+   "confidence": 0.75,
+   "reasoning": "Each of these candidates says res.data is undefined on a fetch Response, so the caller crashes."
+  },
+  {
+   "comment": "The `refreshOAuthTokens` function is passed `credentialId` instead of `userId`, which breaks the credential sync functionality by causing incorrect user lookups. This issue can lead to failures in syncing user credentials, impacting user experience.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    6
+   ],
+   "confidence": 0.9,
+   "reasoning": "C6 says Zoho Bigin passes the credentialId where a userId is expected."
+  },
+  {
+   "comment": "The Salesforce integration checks `response.statusText` instead of `response.ok` when handling OAuth token refresh responses. This can lead to unreliable behavior, as a successful response may not be correctly identified, resulting in the use of stale credentials and potential authentication failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C4 mentions the statusText check and recommends response.ok instead."
+  },
+  {
+   "comment": "The `jsforce.Connection` is created using stale `credentialKey.access_token` and `credentialKey.instance_url` after a token refresh, which can lead to authentication failures and incorrect data access. Ensure that the connection is established using the refreshed token values instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C4 mentions that jsforce.Connection is built with the stale access_token and instance_url."
+  },
+  {
+   "comment": "The `appCredentialWebhookRequestBodySchema.parse` function can throw on invalid payloads, resulting in 500 Internal Server Errors instead of the expected 400 Bad Request responses. This can lead to confusion for clients and hinder proper error handling.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    9
+   ],
+   "confidence": 0.8,
+   "reasoning": "C9 notes that parse throws a 500 on a malformed body and recommends safeParse with a 400 response."
+  }
+ ],
+ "candidates": [
+  "packages/app-store/googlecalendar/lib/CalendarService.ts:86 - With sync enabled, `res.data` is undefined on the fetch Response, so the Google refresh crashes.. When sync is on, `refreshOAuthTokens` returns a WHATWG fetch `Response`, while the non-sync path returns the googleapis/gaxios response that has `.data`. A fetch `Response` has no `.data`, so `token` is undefined and `token.access_token` throws a TypeError. Every Google token refresh for synced users fails. Fix: in the sync path of `refreshOAuthTokens`, check `response.ok` and return parsed JSON, and have every caller handle the same shape.",
+  "packages/app-store/googlecalendar/lib/CalendarService.ts:97 - Google credential key is overwritten with the safeParse result object instead of the token data.. `parseRefreshTokenResponse` returns the zod `SafeParseReturn` (`{ success, data }`). The old code used `googleCredentialSchema.parse()`, which returns the data itself. Now `{ key }` writes `{ success: true, data: {...} }` into `credential.key` on every Google token refresh, whether or not sync is enabled. The next read of the credential no longer has `access_token`/`refresh_token` at the top level, so the Google integration breaks. Fix: use `const key = parseRefreshTokenResponse(...).data`.",
+  "packages/app-store/hubspot/lib/CalendarService.ts:177 - With sync enabled, HubSpot saves a raw fetch Response as the credential.. In sync mode `refreshOAuthTokens` returns a fetch `Response`, not a HubSpot `TokenResponseIF`. `hubspotRefreshToken.expiresIn` is undefined, so `expiryDate` becomes NaN, and the `Response` object (not the token JSON) is written to `credential.key`. The HubSpot credential is corrupted on the first refresh. Fix: parse the sync response's JSON and map it to the HubSpot token shape before using it.",
+  "packages/app-store/salesforce/lib/CalendarService.ts:75 - Salesforce refreshes the token on every client creation, ignores sync, and keeps using the old access token.. `getClient` now always POSTs a refresh to login.salesforce.com, even when the token is still valid. It never goes through `refreshOAuthTokens`, so the self-hosted sync endpoint is never used. It also throws whenever `statusText !== \"OK\"`, and statusText can be empty, for example over HTTP/2. After saving the new token, the `jsforce.Connection` is still built with the stale `credentialKey.access_token`/`instance_url`. In sync mode the minimum schema also strips `instance_url` from the stored key. Fix: refresh only when needed, check `response.ok`, go through `refreshOAuthTokens`, and build the connection from the refreshed token.",
+  "packages/app-store/salesforce/lib/CalendarService.ts:96 - `prisma` is used but never imported in the Salesforce CalendarService.. The file's imports (lines 1-20) do not include `@calcom/prisma`, yet `getClient` now calls `prisma.credential.update`. The file fails type-checking and throws a ReferenceError at runtime when a Salesforce client is built. Fix: `import prisma from \"@calcom/prisma\";`.",
+  "packages/app-store/zoho-bigin/lib/CalendarService.ts:85 - Zoho Bigin sends the credential id as the user id, and reads `.data` from a fetch Response.. `credentialId` is passed where `refreshOAuthTokens` expects a userId. The sync endpoint receives `calcomUserId=<credential id>` and returns tokens for the wrong user, or for none. Separately, in sync mode the result is a fetch `Response`, so `tokenInfo.data.error` throws a TypeError. Fix: pass the credential's `userId`, and normalise the sync response into the shape the caller expects.",
+  "packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts:5 - The computed keys in `minimumTokenResponseSchema` do not validate an expiry field.. `z.string().toString()` evaluates to the literal string \"[object Object]\", so both computed keys are the same property. The schema ends up as `{ access_token, \"[object Object]\": unknown().optional() }`, which requires no numeric expiry. Because z.object strips unknown keys, it also removes `expires_in`/`expiry_date` from the parsed data. Callers that use `parsed.data` (Zoom, Office365, Salesforce) lose the expiry, so tokens look permanently expired or get NaN expiries. Fix: use `z.object({ access_token: z.string() }).passthrough()` and validate the expiry field explicitly.",
+  "packages/app-store/zohocrm/lib/CalendarService.ts:204 - With sync enabled, Zoho CRM reads `.data` from a fetch Response and throws.. In sync mode `refreshOAuthTokens` returns a fetch `Response`, which has no `.data`. `zohoCrmTokenInfo.data.error` therefore throws, and every Zoho CRM refresh fails for synced users. Fix: return parsed JSON in a consistent shape from `refreshOAuthTokens`, or adapt the caller.",
+  "apps/web/pages/api/webhook/app-credential.ts:24 - The webhook secret is checked with a non-constant-time comparison, and the endpoint accepts any HTTP method.. This endpoint lets a caller write OAuth credentials for any userId. The `!==` string comparison leaks timing information about the secret. The handler also accepts GET and any other method. Fix: compare with `crypto.timingSafeEqual` (after checking lengths and that the header is a single string), and reject requests that are not POST. A malformed body or a failed decrypt also throws a 500 from `parse`/`JSON.parse`; use `safeParse` and return 400.",
+  "packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts:25 - A placeholder `\"refresh_token\"` string replaces the real refresh token when the response omits one.. If the response has no `refresh_token` (always in sync mode, and allowed by providers such as Microsoft), the data gets the literal `\"refresh_token\"`. Office365 then spreads this into `o365AuthCredentials` and saves it, overwriting the stored real refresh token. If sync is later disabled, the credential cannot refresh. Fix: do not inject a placeholder; keep the existing refresh token when the response omits one.",
+  "packages/app-store/office365calendar/lib/CalendarService.ts:263 - An Office365 token-parse failure now throws, where before it was logged and the refresh continued.. The old code logged the zod error with the MS response and still saved the merged credentials. `parseRefreshTokenResponse` now throws a generic error, so the diagnostic logging is gone and any schema mismatch aborts calendar operations. The `tokenResponse.success &&` guard is now dead code. If throwing is intended, at least keep the logging of the zod error."
+ ]
+}

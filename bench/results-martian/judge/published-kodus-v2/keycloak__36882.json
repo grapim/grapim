@@ -1,0 +1,32 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "keycloak__36882",
+ "url": "https://github.com/keycloak/keycloak/pull/36882",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect method call for exit codes. The picocli.exit() method calls System.exit() directly, which is problematic:",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions picocli.exit() calling System.exit() directly."
+  },
+  {
+   "comment": "Need to add changelog/release notes documenting the exit code change and migration guidance",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    1,
+    2
+   ],
+   "confidence": 0.6,
+   "reasoning": "Both candidates flag the breaking exit-code change from 4 to 3 and that it isn't documented. That is the same issue behind the golden's request for changelog and migration guidance."
+  }
+ ],
+ "candidates": [
+  "RECREATE_UPGRADE_EXIT_CODE silently changed from 4 to 3 while FEATURE_DISABLED takes over code 4, breaking external scripts or CI pipelines that previously checked exit code 4 to detect recreate-required condition",
+  "The CompatibilityResult comment block documents picocli reserved codes 1 and 2 but does not acknowledge the breaking semantic shift for code 4→3"
+ ]
+}

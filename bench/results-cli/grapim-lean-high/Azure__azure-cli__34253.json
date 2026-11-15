@@ -1,0 +1,51 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "Azure__azure-cli__34253",
+ "url": "https://github.com/Azure/azure-cli/pull/34253",
+ "head_sha": "394d88c2773b00c93c914e44afcdfedb135c6d06",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:27:17.399Z",
+ "seconds": 21.244,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 4998,
+  "cacheRead": 3262,
+  "output": 1820,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 8262,
+   "outputTokens": 1820,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0620504
+}

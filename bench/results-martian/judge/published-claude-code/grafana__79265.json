@@ -1,0 +1,55 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions a race condition in the count check."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "C1 says auth fails, but only in passing. Its real concern is cache poisoning, not that blocking tagging breaks anonymous auth."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the misleading error when rowsAffected is 0."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the inconsistent time window."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same issue: the cache entry is set before the DB call, which lets later requests bypass the limit."
+  }
+ ],
+ "candidates": [
+  "tagDeviceUI() sets the local cache entry BEFORE the CreateOrUpdateDevice DB call. When the device limit is reached, the first request from a new device poisons the cache and fails auth, but the second request within 29 minutes hits the cache, returns nil (no error), and bypasses the device limit entirely. Fix by moving localCache.SetDefault after the successful DB write, or by clearing the cache entry when ErrDeviceLimitReached is returned.",
+  "pkg/server/wire.go lines 374-375 still register anonstore.ProvideAnonDBStore and wire.Bind for AnonStore, but ProvideAnonDBStore now requires (db.DB, int64) which wire cannot inject, and ProvideAnonymousDeviceService no longer accepts anonstore.AnonStore. Both lines and the anonstore import in wire.go must be removed for wire generation to succeed."
+ ]
+}

@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "astral-sh__uv__14738",
+ "url": "https://github.com/astral-sh/uv/pull/14738",
+ "head_sha": "bfcd9754884dde39031bdfa47bd236731ccb9577",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:16:30.438Z",
+ "seconds": 20.082,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "crates/uv/src/commands/project/version.rs",
+   "line": 342,
+   "end_line": 351,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The 'view uv's version' hint also shows on `--package`, bump and set-version calls.",
+   "body": "Both discovery paths add the hint for every `MissingPyprojectToml`. That includes the `--package` branch here and calls like `uv version 1.2.3`, `uv version --bump patch` or `--dry-run`. In those cases the user is clearly working on a project, not asking for uv's version, so telling them to run `uv self version` is misleading. Only add the hint when the call is a plain read, with no package, value or bump given. Leave the error unchanged in the `--package` branch."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 4913,
+  "cacheRead": 3262,
+  "output": 1727,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 8177,
+   "outputTokens": 1727,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14730",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0597654
+}

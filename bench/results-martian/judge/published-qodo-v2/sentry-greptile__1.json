@@ -1,0 +1,52 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "sentry-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The OptimizedCursorPaginator in organization_auditlogs.py attempts to use negative slice offsets on Django querysets, but Django querysets do not support negative slicing and will raise an AssertionError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.5,
+   "reasoning": "C1 flags the paginator change that allows negative offsets on prev cursors. That's the same root cause as G1's negative slicing, but C1 describes invalid Link cursors rather than the queryset AssertionError. I count it as a loose match."
+  },
+  {
+   "comment": "When requests are authenticated with API keys or org auth tokens (which have user_id=None), organization_context.member is None. Line 71 attempts to access organization_context.member.has_global_access without checking if member is None, causing an AttributeError crash when optimized_pagination=true is used, even though the request passed all permission checks with valid org:write scope.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 points to the same unguarded organization_context.member.has_global_access access when member is None. It names a different trigger (superusers rather than API keys), but the bug is the same."
+  },
+  {
+   "comment": "get_item_key assumes a numeric key, but the paginator is used with order_by=-datetime in the audit logs endpoint; calling math.floor/ceil on a datetime will raise a TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 identifies the same problem: numeric key handling breaks on -datetime ordering and raises a TypeError."
+  },
+  {
+   "comment": "Importing non-existent OptimizedCursorPaginator",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions importing a non-existent OptimizedCursorPaginator."
+  }
+ ],
+ "candidates": [
+  "BasePaginator now conditionally allows negative offsets for prev cursors, violating the invariant that offsets are non-negative, which can cause invalid Link cursors with negative offsets in headers",
+  "OrganizationAuditLogsEndpoint accesses organization_context.member.has_global_access without guarding for member=None, causing AttributeError for superusers without org membership",
+  "OptimizedCursorPaginator treats the key and cursor value as numeric, but audit logs use -datetime ordering with a DateTimeField, causing TypeError when computing cursor keys and incorrect queryset filtering"
+ ]
+}

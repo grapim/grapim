@@ -1,0 +1,33 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "cal.com__22345",
+ "url": "https://github.com/calcom/cal.com/pull/22345",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In getBaseConditions(), the else if (filterConditions) and final else branches are unreachable. This is because getAuthorizationConditions() always returns a non-null Prisma.Sql object, making authConditions always truthy, which means only the first two if/else if conditions are ever evaluated.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate points out that the getBaseConditions branches can never be reached."
+  },
+  {
+   "comment": "Fetching userIdsFromOrg only when teamsFromOrg.length > 0 can exclude org-level members for orgs without child teams; consider deriving from teamIds (which includes orgId) or removing the guard so org-only orgs still include member user bookings.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 flags the same teamsFromOrg.length > 0 guard, which leaves out org members when the org has no child teams."
+  }
+ ],
+ "candidates": [
+  "buildOrgAuthorizationCondition only fetches org user IDs when teamsFromOrg.length > 0, even though org membership is represented via Membership on the org team ID itself. If an org has no child teams, the SQL will include only team bookings and will omit the user-booking branch for org members, leading to incomplete org-scope visibility.",
+  "Tests deep-compare Prisma.sql objects, but org/team authorization SQL embeds teamIds/userIds arrays derived from findMany queries without orderBy. That ordering is not guaranteed, so the produced Prisma.sql.values can vary between runs even if the SQL is semantically equivalent, causing flaky tests.",
+  "The constructor accepts a looser InsightsBookingServicePublicOptions where teamId is optional even when scope is 'team', so invalid option shapes compile and are only caught by runtime safeParse. On validation failure the service silently sets options=null and returns 1=0 authorization, which can turn a caller bug into confusing 'no data' behavior.",
+  "The integration test suite removed the caching tests but the service still relies on cachedAuthConditions/cachedFilterConditions. This reduces regression protection around caching semantics."
+ ]
+}

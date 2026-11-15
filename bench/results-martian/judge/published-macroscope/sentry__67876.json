@@ -1,0 +1,39 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Null reference if github_authenticated_user state is missing",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate addresses a missing github_authenticated_user state causing a null reference."
+  },
+  {
+   "comment": "OAuth state uses pipeline.signature (static) instead of a per-request random value",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C2 is about a test's state value, not the static pipeline.signature being used as the OAuth state."
+  },
+  {
+   "comment": "The code attempts to access integration.metadata[sender][login] without checking for the existence of the sender key. This causes a KeyError for integrations where the sender metadata was not set during creation",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same KeyError on metadata['sender']['login']."
+  }
+ ],
+ "candidates": [
+  "Accessing `integration.metadata[\"sender\"][\"login\"]` on line 503 raises KeyError when the Integration was created without a \"sender\" key, since build_integration only adds \"sender\" conditionally, causing crashes for existing integrations or those created through code paths without \"sender\" in state.",
+  "The test `test_installation_not_found` passes for the wrong reason - it uses state=\"ddd023d87a913d5226e2a882c4c4cc05\" which mismatches the OAuth flow's established state, so the assertion passes due to state validation failure rather than the 404 on the installation endpoint. The correct state value should be used to actually test installation-not-found behavior."
+ ]
+}

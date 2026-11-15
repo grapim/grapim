@@ -1,0 +1,22 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "keycloak__36882",
+ "url": "https://github.com/keycloak/keycloak/pull/36882",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect method call for exit codes. The picocli.exit() method calls System.exit() directly, which is problematic:",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": []
+  },
+  {
+   "comment": "Need to add changelog/release notes documenting the exit code change and migration guidance",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": []
+  }
+ ],
+ "candidates": []
+}

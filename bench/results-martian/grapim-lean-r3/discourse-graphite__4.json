@@ -1,0 +1,128 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "head_sha": "4f8aed295a29954023b2849c060ef4fb299d1b5d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:37:01.078Z",
+ "seconds": 61.478,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/models/post.rb",
+   "line": 131,
+   "end_line": 133,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "raw_html posts skip all sanitization and are served as stored HTML on the forum origin.",
+   "body": "When `cook_method` is `raw_html`, `cook` returns `raw` as-is, so nothing passes through the sanitizer. That HTML comes from the RSS feed after `CGI.unescapeHTML`, or from a page fetched by `import_remote`. Any `<script>`, `onerror=`, `javascript:` href or iframe in the feed or page then runs on the forum's origin. It shows on the topic page and in the embed view, which prints it with `raw post.cooked`. Anyone who controls or compromises the source blog or feed gets stored XSS against forum users. Fix: run raw_html content through the same whitelist sanitizer the normal cook pipeline uses, and skip only the markdown step."
+  },
+  {
+   "path": "lib/tasks/disqus.thor",
+   "line": 148,
+   "end_line": 148,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Disqus import loses its `--category` option and the original thread dates.",
+   "body": "The hunk removes the `--category` option and the `category_id` lookup, and stops passing `created_at`. Imported topics now go to the default category and get the date of the import, not the original Disqus date. Anyone who runs the task with `-c` now gets an unknown-option error. Every thread is also fetched over HTTP, so one URL that is unreachable or returns 404 raises an error and stops the whole import. Nothing in the request asks to remove these features. Keep the category and created_at handling, and rescue fetch errors for each thread."
+  },
+  {
+   "path": "app/jobs/scheduled/poll_feed.rb",
+   "line": 35,
+   "end_line": 35,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`i.content.scrub` crashes on feed items that have no content element.",
+   "body": "SimpleRSS sets `content` only when the item has `<content>` or `<content:encoded>`. Plain RSS 2.0 items often have only `<description>`. For those items `i.content` is nil, the job raises NoMethodError and stops importing the rest of the feed. Because `retry: false` is set, this happens again every hour. Fix: fall back to `i.description` and skip the item when both are blank."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 11,
+   "end_line": 13,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "URL check uses a line anchor, and the URL is put into HTML without escaping.",
+   "body": "`url =~ /^https?:\\/\\//` uses `^`, which matches at the start of any line. A feed item link such as `\"javascript:alert(1)\\nhttp://x\"` passes the check. The URL is then put unescaped into `<a href='#{url}'>`, so a `'` in it breaks out of the attribute, and the result is rendered as raw HTML. Fix: anchor the pattern with `\\A`, parse the URL with `URI`, and HTML-escape `url` before building the link."
+  },
+  {
+   "path": "db/migrate/20131223171005_create_top_topics.rb",
+   "line": 3,
+   "end_line": 3,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "destructive_migration",
+   "title": "An existing migration is changed to `force: true`, which drops `top_topics` when it runs.",
+   "body": "This migration is unrelated to embedding. With `force: true`, any database where it runs again (or for the first time while a `top_topics` table already exists) silently drops the table and its data. Editing a migration that has already shipped also makes databases differ depending on when they were migrated. Revert this change. `force: true` in the new `create_topic_embeds` migration is risky in the same way."
+  },
+  {
+   "path": "app/assets/javascripts/embed.js",
+   "line": 17,
+   "end_line": 17,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "security",
+   "title": "The postMessage origin check is a substring match.",
+   "body": "`discourseUrl.indexOf(e.origin) === -1` also accepts any origin that is a prefix of `discourseUrl`. For example, `https://forum.example.co` is accepted when `discourseUrl` is `https://forum.example.com/`. A page on that origin can then resize the embed iframe. Compare `e.origin` exactly with the origin parsed from `discourseUrl`."
+  },
+  {
+   "path": "app/jobs/scheduled/poll_feed.rb",
+   "line": 29,
+   "end_line": 29,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "security",
+   "title": "`Kernel#open` on a value from a setting can run a shell command or read a local file.",
+   "body": "`open(SiteSetting.feed_polling_url)` treats a value starting with `|` as a shell command, and a plain path as a local file. Whoever can change this setting can run commands on the server. Use `URI.parse(url).open` or an HTTP client, and accept only http and https URLs. `import_remote` (`open(url)`) has the same problem when it is called from the Disqus import."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 22870,
+  "cacheRead": 3262,
+  "output": 5334,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 28,
+   "hunks": 36,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 6,
+   "inputTokens": 26134,
+   "outputTokens": 5334,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 27,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "Gemfile_rails4.lock",
+    "reason": "ignored by .grapim/review.json"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.22169039999999998
+}

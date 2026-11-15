@@ -1,0 +1,31 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "keycloak__32918",
+ "url": "https://github.com/keycloak/keycloak/pull/32918",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "InfinispanIdentityProviderStorageProvider.getForLogin() recursively calls session.identityProviders().getById() instead of idpDelegate.getById(), causing the cache lookup to re-enter the same caching layer.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C2 is about getForLogin, but it raises a missing invalidation check, not the recursive call to session.identityProviders().getById()."
+  },
+  {
+   "comment": "Cleanup reference uses incorrect alias - should be 'idp-alias-' + i instead of 'alias'.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out that the cleanup uses the literal \"alias\" instead of the real IDP alias."
+  }
+ ],
+ "candidates": [
+  "Test cleanup registration uses the literal string \"alias\" instead of the actual IDP alias (like \"idp-alias-0\", \"idp-alias-1\"), causing the test to not properly clean up created IDPs and potentially leading to test pollution",
+  "The getForLogin method only checks isInvalid(cacheKey) but doesn't check if the organizationId parameter itself is invalidated, unlike getByOrganization which checks both isInvalid(cacheKey) and isInvalid(orgId), causing stale cached IDP data to be returned when an organization is modified or deleted"
+ ]
+}

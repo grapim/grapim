@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__36880",
+ "url": "https://github.com/keycloak/keycloak/pull/36880",
+ "head_sha": "1950a511026d520a7329c7b6b9ee60a4af8f8b55",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:18:04.540Z",
+ "seconds": 39.609,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java",
+   "line": 147,
+   "end_line": 150,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "V2 now throws UnsupportedOperationException for legacy client operations that worked before.",
+   "body": "Before this change, `MgmtPermissionsV2.clients()` returned the V1 `ClientPermissions`. It now returns `ClientPermissionsV2`, where `canExchangeTo`, `isPermissionsEnabled`, `resource`, `getPermissions` and the `*Permission(client)` methods all throw `UnsupportedOperationException`. Any existing caller that reaches these with V2 enabled now gets a 500 instead of an answer. Examples: the legacy token-exchange provider calls `AdminPermissions.management(...).clients().canExchangeTo(...)`, and the client `management/permissions` admin endpoint calls `isPermissionsEnabled`. I could not see those callers, so please check them. For checks like `canExchangeTo`, return `false` (deny) instead of throwing. For the management endpoints, guard them with the V2 feature flag."
+  },
+  {
+   "path": "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java",
+   "line": 214,
+   "end_line": 222,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A missing all-clients type resource causes a null dereference.",
+   "body": "If no resource exists for the client, the code loads the \"Clients\" type resource and passes it straight to `findByResource(server, resource)`. Nothing checks it for null first. Realms whose admin-permissions resource server was set up before the `Clients` type was added to the schema may not have that type resource. In those realms, every client permission check by an admin without `manage-clients` would throw a NullPointerException (or fail inside the store) instead of being denied. Add `if (resource == null) return false;` before the policy lookup."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 45520,
+  "cacheRead": 3262,
+  "output": 3220,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 18,
+   "reviewedHunks": 17,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 48784,
+   "outputTokens": 3220,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.29266040000000004
+}

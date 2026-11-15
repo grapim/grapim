@@ -1,0 +1,31 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "cal.com__22345",
+ "url": "https://github.com/calcom/cal.com/pull/22345",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In getBaseConditions(), the else if (filterConditions) and final else branches are unreachable. This is because getAuthorizationConditions() always returns a non-null Prisma.Sql object, making authConditions always truthy, which means only the first two if/else if conditions are ever evaluated.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same issue: the branches can't be reached because authConditions is always truthy."
+  },
+  {
+   "comment": "Fetching userIdsFromOrg only when teamsFromOrg.length > 0 can exclude org-level members for orgs without child teams; consider deriving from teamIds (which includes orgId) or removing the guard so org-only orgs still include member user bookings.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.93,
+   "reasoning": "Neither candidate mentions the teamsFromOrg.length guard that leaves out org-level members."
+  }
+ ],
+ "candidates": [
+  "The `else if (filterConditions)` and `else` branches in `getBaseConditions` are unreachable because `getAuthorizationConditions()` always returns a `Prisma.Sql` object (never null or undefined), so `authConditions` is always truthy, making lines 76-80 dead code",
+  "The same `reduce` pattern for joining `Prisma.Sql` conditions with `OR` is duplicated in `buildOrgAuthorizationCondition` and `buildTeamAuthorizationCondition`, and a similar pattern with `AND` exists in `buildFilterConditions` - this repetition could be extracted into a helper function like `joinSqlConditions(conditions: Prisma.Sql[], operator: 'AND' | 'OR')`"
+ ]
+}

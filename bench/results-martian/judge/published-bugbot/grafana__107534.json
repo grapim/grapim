@@ -1,0 +1,20 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "grafana__107534",
+ "url": "https://github.com/grafana/grafana/pull/107534",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The applyTemplateVariables method is called with request.filters as the third parameter, but this parameter is not used in the corresponding test setup.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "G1 says the test setup doesn't cover the request.filters argument that's now passed to applyTemplateVariables. C1 describes a different problem: in the production code path, ad-hoc filters get applied twice, which produces duplicate labels. Both mention applyTemplateVariables and filters, but they point to different underlying issues, so C1 doesn't match."
+  }
+ ],
+ "candidates": [
+  "When shard splitting is used with ad-hoc filters, applyTemplateVariables is called twice on the same queries: first in runShardSplitQuery at the start, then again in runSplitQuery when the shard splitting logic delegates to it. Since the subRequest spreads the original request (preserving request.filters), ad-hoc filters get applied twice via addAdHocFilters, resulting in duplicate labels in the final query expression like {job=\"test\", namespace=\"default\", namespace=\"default\"}"
+ ]
+}

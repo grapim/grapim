@@ -1,0 +1,63 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "discourse-graphite__7",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/7",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In .topic-meta-data h5 a, the original code had color: scale-color($primary, $lightness: 30%) but was changed to dark-light-choose(scale-color($primary, $lightness: 70%), scale-color($secondary, $lightness: 30%)). The lightness for the light theme changed from 30% to 70%, which is a dramatic inversion",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same 30%→70% light-theme change in .topic-meta-data h5 a."
+  },
+  {
+   "comment": "This change for desktop/user.css changes $primary from 30% to 50% for the light theme; most other changes preserve the original $primary value and move the complement to $secondary for dark. Consider reviewing this (also applies to a similar .name change in the mobile variant).",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 flags the 50%/50% pair for .name in desktop/user.scss, which also applies to mobile."
+  },
+  {
+   "comment": "In topic-post.css the original code used $lightness: 70% but the replacement uses $lightness: 30% for the light theme. This makes the text significantly darker than intended.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.7,
+   "reasoning": "G3 is about topic-post.css going from 70% to 30%. C3 is about mobile/modal and no candidate covers this topic-post change."
+  },
+  {
+   "comment": "The light theme color for `.topic-meta-data h5 a` was changed from `scale-color($primary, $lightness: 30%)` to `scale-color($primary, $lightness: 70%)`, which may unintentionally reduce contrast and affect readability. This change should be reviewed to ensure it aligns with design intentions.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "Same issue as G1, so C1 matches."
+  },
+  {
+   "comment": "In mobile/user.scss line 497, the lightness value for dark themes should be inverted to 70% instead of being changed to 50%. This change may lead to unintended visual regressions in light themes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.75,
+   "reasoning": "C2 explicitly says the 50% problem also exists in mobile/user.scss."
+  }
+ ],
+ "candidates": [
+  "In desktop/topic-post.scss the light-theme value for .topic-meta-data h5 a was accidentally changed from a darker 30% shade to a much lighter 70% shade, which is inconsistent with the base topic-post author link styling and reduces contrast/readability in light theme",
+  "In desktop/user.scss, .group-member-info .name uses a 50%/50% pair which is less prominent than the base user name styling (30%/70%), and the same issue exists in mobile/user.scss",
+  "In mobile/modal.scss, .custom-message-length uses inverted light/dark lightness values (30%/70%) compared to desktop modal behavior (70%/30%), which is likely an accidental swap during conversion to dark-light-choose",
+  "Mobile topic-map h3 uses a 50%/50% pair while desktop uses a stronger 20%/80% pair for the same element, which is inconsistent and reduces emphasis relative to desktop"
+ ]
+}

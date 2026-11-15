@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Azure__azure-sdk-for-rust__5551",
+ "url": "https://github.com/Azure/azure-sdk-for-rust/pull/5551",
+ "head_sha": "0e1c2ddc6933568defe654b728d7f8e3d57eb96b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:12:38.493Z",
+ "seconds": 41.89,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "sdk/identity/azure_identity/src/custom_token_proxy.rs",
+   "line": 684,
+   "end_line": 684,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The test that a valid CA is accepted is now ignored, so nothing in CI checks valid-CA parsing.",
+   "body": "`accepts_inline_and_file_ca` used to parse an embedded `TEST_CA` through the real reqwest client factory on every run. It is now `#[ignore]` and reads CA material from AKS environment variables. Only the rejection cases (`rejects_*`) still run. A regression where the built-in client rejects every valid PEM, for example from rustls backend or feature changes like this one, would pass CI. Keep a non-ignored test that uses an embedded or generated certificate. The removed `TEST_CA` was a public localhost development certificate with no private key, so it was safe to keep in the repo."
+  },
+  {
+   "path": "sdk/identity/azure_identity/src/custom_token_proxy.rs",
+   "line": 803,
+   "end_line": 870,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "Offline real-TLS test for custom CA and SNI was replaced by a mock that skips the built-in reqwest client.",
+   "body": "The removed `sends_requests_with_custom_ca_and_sni` test ran under `client_certificate`. It started a local TLS server with a generated CA and checked the real `reqwest::Client` `TokenProxyClient` end to end: CA trust, the SNI name, the Host header and the rewritten path. The replacement injects `MockTokenProxyClient`, so the code at lines 281-317 is never exercised. `.tls_backend_rustls()`, `add_root_certificate`, `resolve_to_addrs` and `https_only` can now break without any CI signal. The only remaining real-TLS test is `#[ignore]` and needs a live AKS pod. This is the code path whose feature gating this PR changes. Keep the offline openssl-based test, gated on `all(feature = \"reqwest_rustls\", feature = \"client_certificate\")`, next to the mock test."
+  },
+  {
+   "path": "sdk/identity/test-resources-post.ps1",
+   "line": 38,
+   "end_line": 45,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Unrelated rewrite of the live-test provisioning script and Bicep outputs.",
+   "body": "Issue #5550 asks only to move `reqwest/rustls` from the `reqwest` feature to `reqwest_rustls` and to align the TokenProxyClient cfg. This hunk rewrites the identity post-provisioning script. It changes the parameter contract (`DeploymentOutputs` is now mandatory, `TenantId` is no longer mandatory, `Environment` has a default), adds a required `IDENTITY_DEPLOY_RESOURCES` Bicep output, and now runs `az account set` outside CI. It also adds readiness polling, prints environment exports and deletes the existing pod. Together with removing the `CI_HAS_DEPLOYED_RESOURCES` skips in the live tests, this changes when and how live CI runs and fails. Split these changes into their own PR so they can be reviewed against the test pipeline."
+  },
+  {
+   "path": "sdk/core/azure_core_test/Cargo.toml",
+   "line": 26,
+   "end_line": 26,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "azure_core_test now drops azure_identity's default features, which removes azure_core's default HTTP transport for its dependents.",
+   "body": "`azure_identity`'s defaults are `azure_core/default` and `reqwest_rustls`. `azure_core_test` itself depends on `azure_core` with `default-features = false`. With this line, a crate whose only path to azure_core's defaults was azure_core_test → azure_identity loses the reqwest transport and rustls. Live and record runs that build credentials or clients without an explicit transport could then fail at runtime. I could not check whether every consumer re-enables these features through feature unification. The linked issue does not ask for this change. Revert it, or explicitly enable the features azure_core_test needs, such as `features = [\"reqwest_rustls\"]`."
+  },
+  {
+   "path": "sdk/identity/azure_identity/src/managed_identity_credential.rs",
+   "line": 698,
+   "end_line": 698,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Out-of-scope change from skipping IMDS live tests to failing them.",
+   "body": "`run_imds_live_test` used to return `Ok(())` when `IDENTITY_IMDS_AVAILABLE` was unset. It now returns an error. Any other live IMDS test that calls this helper, such as user-assigned variants not marked `#[ignore]`, will now fail in live pipelines without IMDS instead of being skipped. The feature-flag issue does not ask for this. Either confirm that every caller is explicitly ignored or keep the skip."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 44042,
+  "cacheRead": 3262,
+  "output": 3891,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 25,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 47306,
+   "outputTokens": 3891,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #5550",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2986904
+}

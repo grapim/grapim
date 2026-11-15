@@ -1,0 +1,33 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies the missing UserModel argument."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C1 suggests passing context.getUser() but doesn't point out the null-user problem on the initial login page; no other candidate addresses it."
+  }
+ ],
+ "candidates": [
+  "isConditionalPasskeysEnabled() is called with no arguments but now requires a UserModel parameter, causing a compile error - should pass context.getUser() as the argument",
+  "findElement throws NoSuchElementException when element doesn't exist (doesn't return null), and catching generic Exception is too broad - should use Assert.assertThrows(NoSuchElementException.class, ...) instead",
+  "Same element absence check issue at lines 312-317 - try/catch pattern should be replaced with Assert.assertThrows(NoSuchElementException.class, ...)",
+  "Typo 'Succesful' should be 'Successful' at line 413"
+ ]
+}

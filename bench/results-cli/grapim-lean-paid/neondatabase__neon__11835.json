@@ -1,0 +1,102 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "neondatabase__neon__11835",
+ "url": "https://github.com/neondatabase/neon/pull/11835",
+ "head_sha": "000503b38a3a27009f9cad9ec8accaa8bf154bc2",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:11:08.918Z",
+ "seconds": 30.094,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 649,
+   "end_line": 651,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "fsync failure no longer aborts the process (maybe_fatal_err removed)",
+   "body": "The old code called `.maybe_fatal_err(\"delta_layer sync_all\")`, which aborts the pageserver when an fsync fails. After a failed fsync the kernel may have dropped the dirty pages, so retrying is unsafe. This change turns the failure into an ordinary `Other` error. Compaction or flush will retry and can later treat a layer file as durable when its data is not on disk.\n\nKeep the fatal handling and wrap the result afterwards, for example `file.sync_all().await.maybe_fatal_err(\"delta_layer sync_all\").map_err(|e| DeltaLayerWriterError::Other(e.into()))?`."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/image_layer.rs",
+   "line": 1073,
+   "end_line": 1075,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "fsync failure no longer aborts the process (maybe_fatal_err removed)",
+   "body": "The old code called `.maybe_fatal_err(\"image_layer sync_all\")`, which aborts on fsync failure. The new code downgrades this to a retryable `ImageLayerWriterError::Other`. Retrying after a failed fsync can make an image layer look durable when its data was lost. Keep `maybe_fatal_err` and convert the error to the typed error only afterwards."
+  },
+  {
+   "path": "pageserver/src/tenant/timeline.rs",
+   "line": 5241,
+   "end_line": 5243,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Typed Cancelled is flattened back into a generic error, so issue #11762 is not fixed",
+   "body": "Issue #11762 is about `create image layers: flush task cancelled` being logged as an ERROR and retried during shutdown. The new `Cancelled` variant is never mapped to a cancellation or shutdown error kind. Here it becomes `CreateImageLayersError::Other(anyhow!(\"flush task cancelled\"))`, and `compaction.rs` line 4304 does the same. The compaction loop therefore still logs `Compaction failed ... flush task cancelled` at ERROR and retries, exactly as before.\n\nMap `ImageLayerWriterError::Cancelled` to the cancellation variant of `CreateImageLayersError`, such as `Cancelled`, so shutdown is handled quietly."
+  },
+  {
+   "path": "pageserver/src/tenant/timeline/compaction.rs",
+   "line": 2153,
+   "end_line": 2158,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Compaction maps Cancelled to CompactionError::Other instead of a shutdown error",
+   "body": "Every compaction call site turns `DeltaLayerWriterError::Cancelled` and `ImageLayerWriterError::Cancelled` into `CompactionError::Other(anyhow!(\"flush task cancelled\"))`. This happens here and at lines 1580, 2217, 3711 and 3726. Compaction errors during shutdown are still reported as failures and retried, which is the behaviour the linked issue asks to remove.\n\nThe `e.to_string().contains(\"flush task cancelled\")` branches at lines 1552, 2240, 3750 and 3769 are no-ops: both branches build `CompactionError::Other`, and the matching branch throws away the original error chain. Map `Cancelled` to `CompactionError::ShuttingDown` or the equivalent cancellation variant, and drop the string matching."
+  },
+  {
+   "path": "pageserver/src/tenant/blob_io.rs",
+   "line": 250,
+   "end_line": 250,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Gate-closed (shutdown) error is classified as Other rather than Cancelled",
+   "body": "`gate.enter()` fails only when the timeline gate is closing, which means shutdown. Mapping that failure to `BlobWriterError::Other` means a writer created during shutdown still surfaces as a generic error instead of a cancellation. Map the `GateError` to `BlobWriterError::Cancelled`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 35330,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 3016,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 41,
+   "reviewedHunks": 41,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 38447,
+   "outputTokens": 3016,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #11762",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.20226339999999998
+}

@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__97529",
+ "url": "https://github.com/grafana/grafana/pull/97529",
+ "head_sha": "26fed312840cd76b766cbd2158e17a7e6c0ec548",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:24:02.593Z",
+ "seconds": 33.793,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/server/module_server_test.go",
+   "line": 35,
+   "end_line": 38,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The storage-server integration test is now skipped on Postgres instead of fixed.",
+   "body": "Before this change the test ran against Postgres in CI. Now it is skipped with a TODO, while the PR says it 'enhanced PostgreSQL integration test compatibility'. With sqlite also skipped, MySQL is the only database that still runs the startup path this PR changes. That path now does the Init and index build inside `NewResourceServer`, which is very likely why the test fails on Postgres. The failure may be a real startup regression, such as a timeout or a blocked constructor, rather than a CI quirk. Find out why it fails before turning the test off."
+  },
+  {
+   "path": "pkg/storage/unified/resource/server.go",
+   "line": 258,
+   "end_line": 262,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Removing per-request Init checks means a stopped server keeps serving requests.",
+   "body": "`Stop` still sets `s.initErr = fmt.Errorf(\"service is stopping\")` to turn away new work. Before this change every handler (Create, Update, Delete, Read, List, Watch, Search, History, Origin, IsHealthy, PutBlob, GetBlob) called `s.Init(ctx)`, which returned that error. That check is gone, so after `Stop` the server keeps accepting writes and new watches against a backend that has been cancelled, and `IsHealthy` keeps reporting SERVING. Keep a cheap per-request check that doesn't initialise anything, for example `if s.initErr != nil { return nil, s.initErr }`. A stopping flag or atomic would be better, because `initErr` is read and written without synchronisation."
+  },
+  {
+   "path": "pkg/storage/unified/search/bleve.go",
+   "line": 137,
+   "end_line": 139,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Narrower locking leaves cache readers such as TotalDocs racing with concurrent BuildIndex writes.",
+   "body": "The lock now covers only the map assignment. `TotalDocs` still loops over `b.cache` without taking `cacheMu`, and this PR now calls it from `search.init`. By then the event goroutine is already running, and `handleEvent` can reach `getOrCreateIndex` → `BuildIndex` for a new namespace and write to the map. A map write during an unlocked iteration is a fatal runtime error ('concurrent map iteration and map write'), not a recoverable panic. Also, nothing in `BuildIndex` itself stops two callers building the same key: two file-based builds would call `bleve.New` on the same directory, and the second one fails. Fix: take a read lock in `TotalDocs` and every other cache reader, and make sure each key is only built once, either in `getOrCreateIndex` or with a per-key lock."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 12151,
+  "cacheRead": 3262,
+  "output": 2342,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 19,
+   "reviewedHunks": 10,
+   "aiHunks": 0,
+   "skippedHunks": 9,
+   "inputTokens": 15415,
+   "outputTokens": 2342,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.10825539999999999
+}

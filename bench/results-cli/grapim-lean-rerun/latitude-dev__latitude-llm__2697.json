@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "latitude-dev__latitude-llm__2697",
+ "url": "https://github.com/latitude-dev/latitude-llm/pull/2697",
+ "head_sha": "8422f8d10a178795d0666b04be81662857e22c94",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:41:18.586Z",
+ "seconds": 20.952,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/domain/spans/src/otlp/claude-code.ts",
+   "line": 9,
+   "end_line": 14,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The model-name cleanup misses the `[1m]` suffix shown in the linked issue.",
+   "body": "The issue's example `llm_request` span has `model: \"claude-opus-4-6[1m]\"`, with a closing `]`. This looks like Claude Code's marker for the 1M-context variant, not an ANSI escape. Neither regex matches it: `ANSI_SGR_RE` needs a leading ESC character, and `/\\[[0-9;]*m$/` needs the string to end in `m`. So `gen_ai.request.model` becomes `claude-opus-4-6[1m]`, and model and pricing lookups will likely fail for those spans. The test only covers `\\u001b[1m`, which does not appear in the issue data. Fix: also strip a trailing `\\[[0-9;]*m\\]` (or `[1m]`), and add a test that uses the exact string from the issue."
+  },
+  {
+   "path": "packages/telemetry/typescript/src/sdk/span-filter.ts",
+   "line": 94,
+   "end_line": 95,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Any span with a `span.type` attribute now passes the LLM export filter.",
+   "body": "`span.type` is a common key outside Claude Code. For example, Datadog-style instrumentation sets it to `web`, `http`, `db` or `cache`. Because the check looks only at the key name, all of those non-LLM spans now count as GenAI spans and get exported by default. That undoes the smart filter's job of dropping generic HTTP and DB spans. Fix: match on the value as well, e.g. accept `span.type` only when it is `interaction` or `llm_request`. This is the same check the ingest side uses in `expandClaudeCodeSpanAttributes`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 11276,
+  "cacheRead": 3262,
+  "output": 1912,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 6,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 14540,
+   "outputTokens": 1912,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #2695",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.09528039999999999
+}

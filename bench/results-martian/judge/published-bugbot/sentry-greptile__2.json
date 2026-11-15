@@ -1,0 +1,52 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "OptimizedCursorPaginator's negative-offset branch in get_result() passes cursor.offset directly as start_offset to queryset slicing when enable_advanced_features is True and cursor.offset < 0.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same issue: when advanced features are enabled, the negative cursor offset is passed straight into queryset slicing."
+  },
+  {
+   "comment": "In BasePaginator.get_result(), when cursor.is_prev is True, it sets start_offset = offset without clamping, allowing negative offset values to be passed to queryset slicing.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G2 is about the missing clamp in BasePaginator's is_prev branch. C1 only covers the OptimizedCursorPaginator advanced-features path."
+  },
+  {
+   "comment": "OptimizedCursorPaginator.get_item_key uses floor/ceil on a datetime key (order_by='-datetime'), causing TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same TypeError from applying floor/ceil to a datetime key."
+  },
+  {
+   "comment": "Accessing .has_global_access on organization_context.member can raise an AttributeError when organization_context is None, particularly for non-superuser non-member users.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.8,
+   "reasoning": "C3 raises the same concern: an AttributeError from accessing .has_global_access without a null check, for non-superuser non-members."
+  }
+ ],
+ "candidates": [
+  "Code incorrectly claims Django ORM handles negative slicing automatically, but Django QuerySets raise AssertionError for negative indexing - when enable_advanced_features=True and cursor.offset < 0, the queryset slice with negative start_offset will crash",
+  "OptimizedCursorPaginator.get_item_key method applies math.floor() or math.ceil() directly to datetime attribute values without type conversion, causing TypeError when used with audit logs endpoint that orders by -datetime",
+  "Expression organization_context.member.has_global_access accesses member without null check - RpcUserOrganizationContext.member can be None when user doesn't have membership, causing AttributeError for non-superusers"
+ ]
+}

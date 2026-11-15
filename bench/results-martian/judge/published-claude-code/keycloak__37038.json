@@ -1,0 +1,33 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "keycloak__37038",
+ "url": "https://github.com/keycloak/keycloak/pull/37038",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In GroupPermissionsV2.canManage(), the permission fallback checks for both VIEW and MANAGE scopes (hasPermission(null, AdminPermissionsSchema.VIEW, AdminPermissionsSchema.MANAGE)), but canManage() should only grant access for MANAGE scope, not VIEW. This means users with only VIEW permission on groups can pass the canManage() check, granting them write access they should not have. The canView() method correctly checks both VIEW and MANAGE, but canManage() should only check MANAGE.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention that canManage() wrongly accepts VIEW scope."
+  },
+  {
+   "comment": "In getGroupIdsWithViewPermission, hasPermission is called with groupResource.getId() and the same groupResource.getId() is added to granted, but hasPermission resolves resources by name (treating the argument as a group id) and the GroupPermissionEvaluator contract says this method returns group IDs that are later used as UserModel.GROUPS and in getUsersCount group filters. This mismatch means per-group VIEW_MEMBERS/MANAGE_MEMBERS permissions may not yield the expected group IDs for filtering and counts, and evaluation may effectively only look at the type-level 'all-groups' resource; consider revisiting whether this should operate on the underlying group ids (resource names) instead so it aligns with the JPA queries and the interface contract.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    1,
+    3
+   ],
+   "confidence": 0.75,
+   "reasoning": "C1 names the same root cause: getId() is used where getName() (the group id) is needed. C3 describes the result: per-group VIEW_MEMBERS stops working, which breaks getUsersCount and the group filtering. C2 points to a different cause, a missing setType call."
+  }
+ ],
+ "candidates": [
+  "In GroupPermissionsV2.getGroupIdsWithViewPermission(), granted.add(groupResource.getId()) adds the authorization resource UUID instead of the group model ID - should be groupResource.getName()",
+  "AdminPermissionsSchema.getOrCreateResource() never calls resource.setType(resourceType) on individual group resources, so findByType(server, GROUPS_RESOURCE_TYPE, ...) cannot find them",
+  "Per-group VIEW_MEMBERS permissions are non-functional in V2, breaking getUsersCount and the DB-level group filtering optimization in user searches"
+ ]
+}

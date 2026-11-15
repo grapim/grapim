@@ -1,0 +1,31 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The magic number 50 for max_wait is used repeatedly throughout the tests. Consider extracting this as a named constant to improve maintainability.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the repeated magic number 50 used for max_wait in the tests."
+  },
+  {
+   "comment": "The test test_thread_queue_parallel_error_handling has a docstring that doesn't match the test implementation.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention that the docstring of test_thread_queue_parallel_error_handling doesn't match what the test does."
+  }
+ ],
+ "candidates": [
+  "FixedQueuePool is created on the factory and shared, but SimpleQueueProcessingStrategy.close/terminate unconditionally shuts it down. If the factory is reused to create another strategy (e.g., partition reassignment/rebalance), the next strategy may receive a dead pool with no workers, stalling processing and commits.",
+  "The queue pool uses unbounded queue.Queue() instances and submit() always enqueues, but the strategy docstring claims 'Natural backpressure when queues fill up'. Under slow processing this can grow memory without bound and increase end-to-end latency.",
+  "Offsets are committed from a dedicated background thread rather than from poll()/join() like other strategies in this repo. This increases the risk of race conditions with lifecycle events (shutdown/partition revocation) and makes commit behavior harder to reason about.",
+  "OffsetTracker.get_committable_offsets scans range(start, max_offset + 1) and keeps all in-flight offsets in sets. In worst cases with large gaps/high in-flight windows, this can become CPU/memory heavy and run every second in the commit loop."
+ ]
+}

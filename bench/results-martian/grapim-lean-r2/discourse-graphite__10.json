@@ -1,0 +1,150 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__10",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/10",
+ "head_sha": "d1c69189f3c90ecf56013a8da904da9bff9a8e19",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:33:45.875Z",
+ "seconds": 38.446,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "db/migrate/20150818190757_create_embeddable_hosts.rb",
+   "line": 9,
+   "end_line": 16,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Migration crashes when no embed_category row matches a category.",
+   "body": "`execute(...)[0]['id']` indexes a PG::Result. If the `embed_category` setting was never set, or its value doesn't match a category name, the result is empty, `[0]` raises IndexError and the migration aborts. That is the default case on most sites. The `uncategorized_category_id` lookup on line 15 has the same problem when that setting row is missing (it falls back to a default and may not be stored). Check `cmd_tuples`/`ntuples` before indexing, and fall back to a default when there is no row."
+  },
+  {
+   "path": "db/migrate/20150818190757_create_embeddable_hosts.rb",
+   "line": 22,
+   "end_line": 26,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "Existing hosts are copied unnormalized and interpolated straight into SQL.",
+   "body": "The old setting accepted values like `http://discourse.org` and `https://example.com/1234`; the old specs used exactly these. The migration copies them as-is, along with any trailing `\\r` or spaces from `split(\"\\n\")`. It skips the model's `before_validation` stripping. `record_for_host` compares against `uri.host`, so these migrated rows never match, and embedding stops working for those sites once the setting is deleted. The value is also interpolated into the SQL string, so a host containing a quote breaks the migration. Strip the scheme, path and whitespace, skip blank entries, and quote the value (e.g. `ActiveRecord::Base.connection.quote(h)`)."
+  },
+  {
+   "path": "app/controllers/admin/embeddable_hosts_controller.rb",
+   "line": 9,
+   "end_line": 17,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "update/destroy raise NoMethodError on an unknown id.",
+   "body": "`EmbeddableHost.where(id: params[:id]).first` returns nil for a missing id, for example a host another admin already deleted. `save_host(nil)` and `nil.destroy` then raise and return a 500 error. Use `find` (which gives a 404) or return `render_json_error`/404 when the record is nil. `params[:embeddable_host][:host]` also fails when the `embeddable_host` key is missing."
+  },
+  {
+   "path": "app/models/embeddable_host.rb",
+   "line": 5,
+   "end_line": 8,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "before_validation crashes when host is nil.",
+   "body": "`self.host.sub!` raises NoMethodError when `host` is nil. That happens with `EmbeddableHost.new` and no host, or a create/update request without `embeddable_host[:host]`. The result is a 500 error instead of a validation error. Guard the block with `if host.present?`, or use `self.host = host.to_s.sub(...)`."
+  },
+  {
+   "path": "app/models/embeddable_host.rb",
+   "line": 14,
+   "end_line": 17,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Host lookup fails for mixed-case referers and for hosts saved with a port.",
+   "body": "`where(\"lower(host) = ?\", host)` lowercases the stored column but not the argument. `URI(...).host` keeps the original case, so a referer like `http://EvilTrout.com/x` is rejected. The validation also explicitly allows a port (`example.com:8080`), which the callback does not strip. `uri.host` never includes the port, so such a record can never match. Downcase the argument, and either strip the port on save or compare it as well."
+  },
+  {
+   "path": "db/migrate/20150818190757_create_embeddable_hosts.rb",
+   "line": 31,
+   "end_line": 31,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "destructive_migration",
+   "title": "Irreversible deletion of site settings inside a reversible `change`.",
+   "body": "`change` deletes the `embeddable_hosts` and `embed_category` settings. On rollback only the table is dropped and the settings are not restored, so the configured hosts are lost for good. Use `up`/`down` and either restore the settings in `down` or raise `ActiveRecord::IrreversibleMigration`."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/models/store.js.es6",
+   "line": 196,
+   "end_line": 196,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Plural `_ids` hydration crashes on null and keeps unresolved entries.",
+   "body": "The new regex matches any key ending in `_ids`. `obj[k].map` throws when such a key is null (or not an array), which breaks the whole `find` for that model. `hydrated || []` never helps, because `map` always returns an array. IDs that `_lookupSubType` can't resolve become `undefined` entries in the array. Guard with `Array.isArray(obj[k])`, and filter out the undefined entries."
+  },
+  {
+   "path": "app/models/topic.rb",
+   "line": 869,
+   "end_line": 869,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "expandable_first_post? no longer depends on any embeddable host existing.",
+   "body": "Before this change, removing all embeddable hosts turned off first-post truncation. Now only `embed_truncate` and `has_topic_embed?` are checked. The updated spec \"is false if embeddable_host is blank\" still passes, but only because the topic it builds has no embed, so it no longer tests what its name says. If the old gating was intended, add `EmbeddableHost.exists?`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 24602,
+  "cacheRead": 3262,
+  "output": 3674,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 36,
+   "hunks": 40,
+   "reviewedHunks": 36,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 27866,
+   "outputTokens": 3674,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 32,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "app/models/site_setting.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/locales/server.en.yml",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/site_settings.yml",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "spec/models/site_setting_spec.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1971504
+}

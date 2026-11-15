@@ -1,0 +1,133 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "convex__agent__98",
+ "url": "https://github.com/convex/agent/pull/98",
+ "head_sha": "6b530179d6f474840664d705a7c6da1f245ee112",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:16:49.866Z",
+ "seconds": 36.449,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 73,
+   "end_line": 80,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "askHuman now auto-executes, so the human-in-the-loop flow no longer works.",
+   "body": "The old `tool({ parameters })` had no `execute`, so `generateText` stopped at the tool call and waited for a human. The new `createTool` handler returns `question` right away, so the SDK produces its own tool result and the model carries on. The human never gets to answer. When `humanResponseAsToolCall` later saves the human's answer, it is a second tool-result for the same `toolCallId`. Fix: define the tool without an execute/handler, for example `tool({ description, inputSchema: z.object({...}) })` from \"ai\", so the call is left for a human to resolve."
+  },
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 98,
+   "end_line": 98,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The PR says it removes type assertions, but it adds the exact assertion it claims to replace.",
+   "body": "The description says `(input as { question: string }).question` was replaced with runtime type checking. This line adds that same unchecked cast. The same change also adds many new `as any` casts: `chat as any` in every agent, `openai.embedding(...) as any`, `initialMessage as any` and `output: ... as any`. That is the opposite of \"Removed all type assertions\". The description also says all tools now use `tool` from \"ai\" with `inputSchema`, but the weather tools and askHuman were moved away from `tool`. Either remove the casts and fix the types underneath, or correct the description."
+  },
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 132,
+   "end_line": 132,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A raw string is passed as a v5 tool-result `output` and hidden behind `as any`.",
+   "body": "In AI SDK v5, a tool-result `output` must be a typed object such as `{ type: \"text\", value: string }`. Here `args.response`, a plain string, is cast with `as any`, so the type error that would catch this is hidden. The saved message is then malformed. Message validation or later conversion to model messages could reject it, or the model could get a wrong prompt. Use `output: { type: \"text\", value: args.response }`."
+  },
+  {
+   "path": "example/convex/files/addFile.ts",
+   "line": 34,
+   "end_line": 34,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Renaming a public action argument breaks existing callers.",
+   "body": "`uploadFile` now requires `mediaType` instead of `mimeType`. Any frontend still sending `mimeType` will fail Convex argument validation. The same applies to `askAboutImage` in autoSave.ts. I could not see whether the frontend was updated in this PR. If not, update the callers in the same change."
+  },
+  {
+   "path": "example/convex/modelsForDemo.ts",
+   "line": 3,
+   "end_line": 12,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The chat model is downgraded to the V1 type, cast with `as any`, and switched from the Chat API to `languageModel`.",
+   "body": "The type moves from `LanguageModelV2` back to `LanguageModelV1`, which goes against the goal of AI SDK v5 compatibility. The OpenAI model is forced in with `as any`, while the Groq branch (a V2 model) has no cast and will not type-check against V1. `openai.chat(...)` was also replaced with `openai.languageModel(...)`. In @ai-sdk/openai v2 that points at the Responses API instead of Chat Completions, which changes how requests are made without anyone asking for it. Keep `LanguageModelV2` and `openai.chat(\"gpt-4o-mini\")`, and drop the cast."
+  },
+  {
+   "path": "src/client/index.test.ts",
+   "line": 255,
+   "end_line": 256,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "The mock was renamed to MockLanguageModelV2 but still uses the V1 response shape.",
+   "body": "`MockLanguageModelV2` takes v5-shaped results: `content` arrays, `usage: { inputTokens, outputTokens, totalTokens }`, stream parts `{ type: \"text-delta\", id, delta }`, and no `defaultObjectGenerationMode`, `rawCall` or `logprobs`. The mock still returns `text`, `promptTokens`/`completionTokens` and `textDelta`. Under v5, generated text and streamed deltas will be empty or the test will fail to type-check. `LanguageModelV2` and `LanguageModelV2StreamPart` are also imported from \"ai\" instead of \"@ai-sdk/provider\". Update the mock to the V2 result format."
+  },
+  {
+   "path": "package-lock.json",
+   "line": 38,
+   "end_line": 38,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "The peer dependency on `ai` is now unbounded.",
+   "body": "`>=5.0.0-beta.29` also accepts `ai` 6.x and any later major version, which may not be compatible. The request does not cover this change, and it appears only in the lockfile. Keep `^5.0.0-beta.29`, or change package.json on purpose."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20689,
+  "cacheRead": 3262,
+  "output": 3508,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 21,
+   "hunks": 31,
+   "reviewedHunks": 31,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 23953,
+   "outputTokens": 3508,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "example/convex/usage_tracking/usageHandler.ts",
+    "line": 24,
+    "end_line": 26,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Usage tracking may always record 0 tokens if the handler receives internal `Usage` field names.",
+    "body": "The internal `vUsage` still uses `promptTokens`/`completionTokens`. If `UsageHandler` passes the internal `Usage` shape, which I could not confirm from here, then `args.usage.inputTokens` and `outputTokens` are undefined and `|| 0` silently records 0 for every call. That would break billing data with no error raised. Check the type of the handler's `usage` argument and read the matching fields. Use `??` rather than `||` so missing values are not hidden."
+   }
+  ]
+ },
+ "cost_usd": 0.1742654
+}

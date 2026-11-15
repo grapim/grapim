@@ -1,0 +1,72 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sympy__sympy__30393",
+ "url": "https://github.com/sympy/sympy/pull/30393",
+ "head_sha": "6a273d9be1e485d68af0d875e78750b53452abf4",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:06:25.132Z",
+ "seconds": 24.873,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "sympy/functions/special/error_functions.py",
+   "line": 2938,
+   "end_line": 2939,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Arguments are converted at `prec` only, so the guard bits never reach the inputs",
+   "body": "`hm` and `am` are rounded to `prec` bits before entering `workprec(prec + 10)`. The extra 10 bits therefore only help the quadrature, not the inputs.\n\nThe integrand is `exp(-h**2*(1+t**2)/2)`, so a relative error `ε` in `h` becomes a relative error of about `h**2 * ε` in the result:\n- `h = 6` loses about 5 bits.\n- `h = 40` loses about 10 bits.\n\nThis matters for irrational arguments such as `owens_t(-3*sqrt(2), sqrt(3))`. The returned `Float` claims `prec` bits, but the trailing bits are wrong. `Add`'s cancellation recovery trusts that claimed accuracy, which is exactly the situation this change targets. It can then report a wrong value for the cancelled difference instead of retrying.\n\nFix: convert the arguments with guard bits, scaled for large `|h|`. For example, compute `wp = prec + 10 + bitcount(|h|**2)`, then call `h._to_mpmath(wp)` and `a._to_mpmath(wp)` inside `workprec(wp)`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 3142,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 2117,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 1,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 6259,
+   "outputTokens": 2117,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 1,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "sympy/functions/special/error_functions.py",
+    "line": 2952,
+    "end_line": 2952,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "mpmath.quad error estimate is discarded, so inaccurate quadrature is returned as full precision",
+    "body": "The previous path went through `Integral.evalf`. That path inspects the quadrature error estimate and adjusts the precision it reports.\n\n`mpmath.quad` is called here without `error=True`, and the result is returned as if accurate to `prec` bits. Some arguments make tanh-sinh converge poorly:\n- complex `h`, where the integrand oscillates along the path;\n- very large `a` with small `h`, where the slow `1/(1+t^2)` tail stretches to `a`;\n- a sharply peaked integrand for large `|h|`.\n\nFor these, the result can carry fewer correct bits than claimed, with no signal to the caller. I did not run these cases.\n\nFix: call `mpmath.quad(..., error=True)` and, if the estimate exceeds the target, retry at higher precision or with a subdivided interval (e.g. `[0, 1, am]`). Alternatively, return a Float with the reduced precision."
+   }
+  ]
+ },
+ "cost_usd": 0.0555314
+}

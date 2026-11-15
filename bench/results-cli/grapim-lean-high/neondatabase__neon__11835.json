@@ -1,0 +1,133 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "neondatabase__neon__11835",
+ "url": "https://github.com/neondatabase/neon/pull/11835",
+ "head_sha": "000503b38a3a27009f9cad9ec8accaa8bf154bc2",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:22:54.850Z",
+ "seconds": 42.377,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 649,
+   "end_line": 651,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "Removing `maybe_fatal_err` means a failed fsync no longer aborts the process.",
+   "body": "The old code called `file.sync_all().await.maybe_fatal_err(\"delta_layer sync_all\")`, which aborts the process when fsync fails. After a failed fsync the kernel may already have thrown away the dirty pages, so continuing is unsafe. Now the failure becomes an ordinary `Other` error. Compaction or flush then retries, and a later fsync can succeed on a layer file whose data never reached disk, which can be uploaded as a corrupt layer. Keep `.maybe_fatal_err(\"delta_layer sync_all\")` and only then wrap the error in `DeltaLayerWriterError::Other`."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/image_layer.rs",
+   "line": 1073,
+   "end_line": 1075,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "Removing `maybe_fatal_err` means a failed image-layer fsync no longer aborts the process.",
+   "body": "This is the same problem as in the delta layer writer. `.maybe_fatal_err(\"image_layer sync_all\")` used to abort when fsync failed, and that was removed. The fsync failure is now a retryable `Other` error, so a later retry can create and upload an image layer whose data was lost from the page cache. Keep `.maybe_fatal_err(\"image_layer sync_all\")` and then map the error to `ImageLayerWriterError::Other`."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 507,
+   "end_line": 516,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "An LSN-ordering assertion is turned into an ordinary error.",
+   "body": "`assert!(self.lsn_range.start <= lsn, ...)` guarded an invariant: if it fails, the caller has a bug. It now returns `DeltaLayerWriterError::Other`, which compaction and flush treat as a normal failure and retry, so an ordering bug is hidden instead of stopping the process. The error message also lost its context and is now just `lsn_start=..., lsn=...`. Nothing in the request asks for this, since typing the cancellation error does not require it. Keep the assert."
+  },
+  {
+   "path": "pageserver/src/tenant/timeline.rs",
+   "line": 5237,
+   "end_line": 5247,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "`Cancelled` is turned back into an `Other` error, so issue #11762 is not fixed.",
+   "body": "Issue #11762 is about `create image layers: flush task cancelled` being logged at ERROR and retried during compaction. This change adds a typed `Cancelled` variant, but every caller converts it straight back into `CreateImageLayersError::Other(anyhow!(\"flush task cancelled\"))` (here, at line 5344, and in compaction.rs line 4300), or into `CompactionError::Other(...)` (compaction.rs lines 1580, 2153, 2217, 3711, 3726). When a timeline shuts down during image layer creation, the compaction loop still gets an `Other` error, logs `Compaction failed` at ERROR and retries, exactly as in the issue. Map `Cancelled` to the existing shutdown/cancel variants instead (`CreateImageLayersError::Cancelled`, `CompactionError::ShuttingDown`)."
+  },
+  {
+   "path": "pageserver/src/tenant/timeline/compaction.rs",
+   "line": 1552,
+   "end_line": 1558,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The string-matching check for cancellation builds the same error on both branches.",
+   "body": "Both branches return `CompactionError::Other`. The `contains(\"flush task cancelled\")` branch only swaps the original error for a new one with the same text and drops its context, so it never classifies cancellation. The same no-op pattern appears at lines 2240-2246, 3750-3756 and 3769-3775. Matching on error message text is also fragile. Use the typed error, or have `finish_with_discard_fn`/`ImageLayerWriter::new` return a typed error, and map cancellation to `CompactionError::ShuttingDown`."
+  },
+  {
+   "path": "pageserver/src/tenant/blob_io.rs",
+   "line": 250,
+   "end_line": 250,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A closed gate during shutdown is reported as `Other` instead of `Cancelled`.",
+   "body": "`gate.enter()` only fails when the timeline gate is closing, which means the timeline is shutting down. That is the same situation as the flush task being cancelled, but it is mapped to `BlobWriterError::Other`. Layer writers created during shutdown therefore still produce generic errors that get logged at ERROR, which is the symptom this change is meant to remove. Map `GateError` to `BlobWriterError::Cancelled`."
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/inmemory_layer.rs",
+   "line": 587,
+   "end_line": 605,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The new `InMemoryLayerError` has a `Cancelled` variant that nothing ever creates.",
+   "body": "`put_batch` writes to an `EphemeralFile` and does not use `BlobWriter`, yet it now returns `InMemoryLayerError`, and the `impl` block was split to make room for it. Nothing constructs `Cancelled`, and the only caller (timeline.rs line 7414) turns the error straight back into `anyhow`. This changes a shared signature without changing any behaviour. Either drop it or make it actually report cancellation."
+  },
+  {
+   "path": "pageserver/src/tenant/timeline/compaction.rs",
+   "line": 3711,
+   "end_line": 3716,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "The `failed to finish delta/image layer writer` error context was removed.",
+   "body": "The previous `.context(\"failed to finish delta layer writer\")` / `.context(\"failed to finish image layer writer\")` calls are gone here and at lines 3726, 3750 and 3769. Errors from these writers now reach the logs without saying which step failed. Add the context back on the `Other` path, for example `CompactionError::Other(err.context(\"failed to finish delta layer writer\"))`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 35928,
+  "cacheRead": 3262,
+  "output": 4351,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 41,
+   "reviewedHunks": 41,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 39192,
+   "outputTokens": 4351,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #11762",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2673204
+}

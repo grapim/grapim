@@ -1,0 +1,60 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "microsoft__PowerToys__47857",
+ "url": "https://github.com/microsoft/PowerToys/pull/47857",
+ "head_sha": "ea580dbd3714a5081a04a796ba4cef679f102840",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:00:54.354Z",
+ "seconds": 13.82,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+   "line": 59,
+   "end_line": 79,
+   "severity": "warning",
+   "category": "security",
+   "title": "Raw HTML img rewrite misses single-quoted/unquoted src and srcset.",
+   "body": "The regex only matches double-quoted `src=\"...\"`. Raw HTML like `<img src='C:/Windows/...'>`, unquoted src, or `srcset`/`<picture><source>` bypasses validation. Remote URLs are still blocked by the WebResourceRequested handler, so this is not an exfiltration path. The real effect is that the blocked-image callback and info bar are skipped for these forms. Match all quoting styles and srcset, or parse the HTML properly."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 95364,
+  "cacheWrite": 0,
+  "cacheRead": 4192,
+  "output": 447,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 22,
+   "hunks": 39,
+   "reviewedHunks": 39,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 99556,
+   "outputTokens": 447,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [
+   {
+    "path": "src/modules/previewpane/MarkdownPreviewHandler/TestFiles/images/test.png",
+    "reason": "binary file"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.39123440000000004
+}

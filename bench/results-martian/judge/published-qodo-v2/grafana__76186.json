@@ -1,0 +1,41 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "grafana__76186",
+ "url": "https://github.com/grafana/grafana/pull/76186",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The ContextualLoggerMiddleware methods (QueryData, CallResource, CheckHealth, CollectMetrics) panic when a nil request is received. This occurs because they directly access req.PluginContext (via the instrumentContext function) without first checking if req is nil. This is a regression, as previous middleware layers gracefully handled nil requests.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions a nil request causing a panic in ContextualLoggerMiddleware."
+  },
+  {
+   "comment": "The traceID is no longer logged for plugin requests. During a refactoring, the tracing import and the logic to extract and add traceID from the context to log parameters were removed from the LoggerMiddleware. The newly introduced ContextualLoggerMiddleware does not add this information, resulting in missing traceID in plugin request logs and impacting debugging and request tracing capabilities.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.55,
+   "reasoning": "C1 is about plugin request logs losing traceID after the refactor, which is the same symptom. Its explanation is narrower: it blames a missing contextual provider registration. The underlying concern, traceID missing from plugin request logs, is the same."
+  },
+  {
+   "comment": "The `TestLogger.FromContext` method returns a new `TestLogger` instance via `NewTestLogger()` instead of returning the receiver (f). This causes logs to be recorded on an un-referenced instance, leading to broken test assertions that expect logs to be recorded on the original logger.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same bug: TestLogger.FromContext returns a new instance instead of the receiver, which breaks assertions."
+  }
+ ],
+ "candidates": [
+  "Plugin request logs now rely on logger.FromContext(ctx) to include traceID, but the traceID contextual log provider is registered only when tracing.ProvideService is called. In tests or non-standard setups where spans exist but ProvideService wasn't invoked, plugin request logs can silently lose trace IDs.",
+  "TestLogger.FromContext returns a brand-new TestLogger, dropping the original logger's accumulated state and violating the Logger contract that the returned logger should include 'this logger's context plus the given context'. This breaks tests or code paths that log via logger.FromContext(ctx) because logs go to a different instance than the one under assertion."
+ ]
+}

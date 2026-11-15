@@ -1,0 +1,38 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "BlockedEmail.should_block_email? method has side effects during a read operation - it updates statistics even when just checking if an email should be blocked. This could cause race conditions in concurrent environments and makes the method name misleading.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions side effects in should_block_email?."
+  },
+  {
+   "comment": "The regex pattern @(#{domains}) in email_in_restriction_setting? method only matches domain suffixes, not full domains with proper boundary anchoring. An attacker can register evil.example.com to bypass a whitelist entry for example.com.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 points to the same missing anchor in the @(#{domains}) regex, which allows a whitelist bypass. The attack example is different (vaynermedia.com.evil.com vs. evil.example.com), but the underlying flaw is the same."
+  },
+  {
+   "comment": "The case-sensitive email lookup in `BlockedEmail.should_block?` creates a bypass risk, allowing 'User@Example.com' to bypass a block on 'user@example.com'. This can lead to unauthorized access to blocked users.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the case-sensitive email lookup."
+  }
+ ],
+ "candidates": [
+  "Whitelist bypass via unanchored regex - the regex `@(#{domains})` matches the whitelisted domain as a substring, so `user@vaynermedia.com.evil.com` passes a whitelist of `vaynermedia.com` because `@vaynermedia.com` appears as a substring. An attacker can register any domain like `vaynermedia.com.attacker.com` to bypass the whitelist. The regex should be anchored to the end of the string with `\\z`"
+ ]
+}

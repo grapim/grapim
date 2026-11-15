@@ -1,0 +1,44 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "grafana__90045",
+ "url": "https://github.com/grafana/grafana/pull/90045",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The context is being created with d.Log instead of the log variable that was initialized with additional context values (name, kind, method). This means those values won't be propagated to the logging context.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies the d.Log vs enriched log context bug."
+  },
+  {
+   "comment": "In DualWriterMode3's DeleteCollection method, when a storage operation fails, recordStorageDuration is incorrectly called with recordLegacyDuration instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "G2 concerns DeleteCollection storage failure calling recordLegacyDuration. C2 flags that same mix-up but in Update. C4 is in DeleteCollection but flags the reverse mix-up (recordStorageDuration for the legacy path). Neither points to the same location."
+  },
+  {
+   "comment": "Inconsistency: using name instead of options.Kind for metrics recording differs from other methods.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    3
+   ],
+   "confidence": 0.85,
+   "reasoning": "C3 flags passing name instead of options.Kind for metrics."
+  }
+ ],
+ "candidates": [
+  "Logger context bug in Delete: ctx = klog.NewContext(ctx, d.Log) uses the base logger instead of the enriched log variable",
+  "Update error path (line 129): calls recordLegacyDuration when storage fails — should be recordStorageDuration",
+  "Delete success path (line 106): passes name instead of options.Kind as the kind argument",
+  "DeleteCollection goroutine (line 166): calls recordStorageDuration for the legacy operation — should be recordLegacyDuration",
+  "Async goroutines derive child contexts from the request context, which may already be cancelled by the time the goroutine executes since the handler returns immediately after spawning the goroutine, causing legacy writes to fail silently"
+ ]
+}

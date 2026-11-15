@@ -1,0 +1,41 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "BlockedEmail.should_block_email? method has side effects during a read operation - it updates statistics even when just checking if an email should be blocked. This could cause race conditions in concurrent environments and makes the method name misleading.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.75,
+   "reasoning": "C1 points at the same code, should_block? updating match_count statistics, and the race condition it causes. The golden comment also calls out the side effect in a read method, which C1 touches on."
+  },
+  {
+   "comment": "The regex pattern @(#{domains}) in email_in_restriction_setting? method only matches domain suffixes, not full domains with proper boundary anchoring. An attacker can register evil.example.com to bypass a whitelist entry for example.com.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 identifies the same missing anchor in the @(#{domains}) regex that enables a whitelist bypass. Its example is a different domain shape, but the underlying flaw is the same."
+  },
+  {
+   "comment": "The case-sensitive email lookup in `BlockedEmail.should_block?` creates a bypass risk, allowing 'User@Example.com' to bypass a block on 'user@example.com'. This can lead to unauthorized access to blocked users.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the case-sensitive email lookup."
+  }
+ ],
+ "candidates": [
+  "BlockedEmail.should_block?(email) reads match_count, increments it in Ruby, then saves — if two requests race, one increment is lost because both read the same value before either saves. Should use increment!(:match_count) for atomic SQL update instead.",
+  "The regex @(#{domains}) lacks an end-of-string anchor, so user@allowed.com.malicious.org passes whitelist validation when only allowed.com is whitelisted. The pattern matches @allowed.com as a substring anywhere in the domain. Need to add \\z to anchor to the end of the email address."
+ ]
+}

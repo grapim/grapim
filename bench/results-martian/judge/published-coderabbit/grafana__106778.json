@@ -1,0 +1,36 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same missing key prop on GrafanaRuleListItem."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G2 is about SilenceGrafanaRuleDrawer needing a ruler rule, so 'Silence notifications' does nothing when only promRule is passed. C3 describes a similar promRule-only problem, but it is about the delete and pause items being gated, not the silence drawer. No candidate covers the silence issue."
+  }
+ ],
+ "candidates": [
+  "Missing key prop on GrafanaRuleListItem in FilterView.tsx line 157 inside rules.map() function",
+  "Type signature mismatch: handleDelete expects RulerRuleDTO but call sites pass EditableRuleIdentifier",
+  "Delete and pause menu items are gated by rulerRule presence even though abilities are computed with OR logic from both ruler and Grafana sources, causing regression in promRule-only scenarios where delete/pause won't appear",
+  "useIsRuleEditable triggers featureDiscoveryApi.endpoints.discoverDsFeatures.useQuery() call before checking if rule is undefined, causing unnecessary API calls",
+  "useCanSilence invokes hooks before its early return when rule is undefined",
+  "promResponse.data.groups.at(0)?.rules.map() will throw runtime error if groups is empty because calling .map() on undefined crashes - needs optional chaining on .map()",
+  "isProvisionedPromRule accesses promRule.provenance without proper type narrowing since PromRuleDTO doesn't include provenance property and prometheusRuleType.grafana.rule() is not a type predicate"
+ ]
+}

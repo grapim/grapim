@@ -1,0 +1,980 @@
+{
+  "about": "Hand-written ground truth. head_sha is the commit the human reviewed (before the fix commits). Each issue: path and line on head_sha (RIGHT side), category, what is wrong, and the evidence (the review comment or revert). bench/collect.mjs build turns this into prs.json.",
+  "prs": [
+    {
+      "repo": "cli/cli",
+      "number": 15009,
+      "agent": "copilot",
+      "head_sha": "e8022e837d4d422370059c3ea954d13e11ebeeaf",
+      "issues": [
+        {
+          "path": "pkg/cmd/auth/status/status.go",
+          "line": 401,
+          "end_line": 403,
+          "category": "intent_mismatch",
+          "description": "The underlying error is printed only when stderr is a TTY (opts.IO.IsStderrTTY()), so `gh auth status` behaves differently for TTY and non-TTY output, and the error line is rendered outside authEntry.String instead of like the other entry lines. Fixed by moving it into authEntry.String for both modes.",
+          "evidence_url": "https://github.com/cli/cli/pull/15009#discussion_r4523565956",
+          "confidence": "medium",
+          "fix_commit": "942c1f88e95df8a026170ca90add8b074ee80416"
+        }
+      ]
+    },
+    {
+      "repo": "Tyrrrz/LightBulb",
+      "number": 474,
+      "agent": "copilot",
+      "head_sha": "354d65d206d90e5681bfa27d1f20eb6788efb465",
+      "issues": [
+        {
+          "path": "LightBulb/Views/MainView.axaml.cs",
+          "line": 19,
+          "category": "correctness",
+          "description": "IsOpen is only written from the window's visibility (one-way, window -> view model); setting IsOpen from the tray Show/Hide item no longer opens or hides the window. The binding must also go the other way.",
+          "evidence_url": "https://github.com/Tyrrrz/LightBulb/pull/474#discussion_r4492787025",
+          "confidence": "high",
+          "fix_commit": "0603c3eb76363f17ad91cc47ac8f3a5f7623dae0"
+        }
+      ]
+    },
+    {
+      "repo": "apache/airflow",
+      "number": 69812,
+      "agent": "claude-code",
+      "head_sha": "179d16901ac7ae712828f83cc4b86319e300d3e0",
+      "issues": [
+        {
+          "path": "providers/openai/src/airflow/providers/openai/operators/openai.py",
+          "line": 155,
+          "category": "correctness",
+          "description": "The structured output is returned via model_dump() in python mode, so a model with a plain enum.Enum (or other non-JSON) field yields live Python objects that fail at XCom push with a serialization TypeError after the paid API call. The fix commit switched to model_dump(mode=\"json\").",
+          "evidence_url": "https://github.com/apache/airflow/pull/69812#discussion_r3574140533",
+          "fix_commit": "a56f7041001c44ac51c348d4501a49d3417da2d9",
+          "confidence": "high"
+        },
+        {
+          "path": "providers/openai/src/airflow/providers/openai/operators/openai.py",
+          "line": 149,
+          "category": "correctness",
+          "description": "The `output_parsed is None` check claims to cover truncated responses, but on truncated JSON responses.parse() raises pydantic.ValidationError inside parse_response before `parsed` exists, so users get a raw traceback with no response id and the intended error never fires. The fix commit wraps the parse_response call in try/except ValidationError and re-raises a shaped ValueError.",
+          "evidence_url": "https://github.com/apache/airflow/pull/69812#discussion_r3574140539",
+          "fix_commit": "a56f7041001c44ac51c348d4501a49d3417da2d9",
+          "confidence": "high"
+        }
+      ],
+      "notes": "The branch was later rewritten; the reviewed head 179d16901 and the fix commit a56f70410 ('Address kaxil review: JSON-mode dump, wrap ValidationError, richer refusal') are from the pre-rewrite history and no longer appear in the PR commit list, but both still resolve on GitHub.",
+      "annotated_in": "result-claude.json"
+    },
+    {
+      "repo": "grafana/grafana",
+      "number": 129096,
+      "agent": "claude-code",
+      "head_sha": "a61abddf0637163b35c78609dbed893b2a8c2bac",
+      "issues": [
+        {
+          "path": "public/app/features/provisioning/utils/mermaid.ts",
+          "line": 25,
+          "category": "correctness",
+          "description": "loadMermaid caches the import('mermaid') promise in a module variable; if the dynamic import rejects once (chunk-load failure after a deploy, flaky network) the rejected promise stays cached forever and every later README render fails with no retry. The fix commit clears mermaidPromise on rejection.",
+          "evidence_url": "https://github.com/grafana/grafana/pull/129096#discussion_r3835350299",
+          "fix_commit": "11ec2e83342d629a7707e087d56b54a948227390",
+          "confidence": "high"
+        }
+      ],
+      "notes": "Head a61abddf0 is a merge-from-main commit on the PR branch; the reviewed code is the PR's mermaid feature. The version bump landed inside a later merge commit (74333d535a), hence medium confidence for that issue.",
+      "annotated_in": "result-claude.json"
+    },
+    {
+      "repo": "sympy/sympy",
+      "number": 30393,
+      "agent": "claude-code",
+      "head_sha": "6a273d9be1e485d68af0d875e78750b53452abf4",
+      "issues": [
+        {
+          "path": "sympy/functions/special/error_functions.py",
+          "line": 5,
+          "end_line": 6,
+          "category": "correctness",
+          "description": "owens_t._eval_evalf imports mpmath directly and evaluates under `with workprec(prec + 10)` with mpmath.quad/exp/pi, which mutates mpmath's global precision (shared, not thread-safe state) instead of using a local context from sympy.external.mpmath. The fix commit drops the direct import and uses `local_workprec(...) as ctx` with ctx.exp/ctx.quad/ctx.pi.",
+          "evidence_url": "https://github.com/sympy/sympy/pull/30393#discussion_r3918897133",
+          "fix_commit": "9af0b73992df995533e5e38c1ffc5ac576e03243",
+          "confidence": "high"
+        }
+      ],
+      "notes": "The comment is anchored on the import lines; the global-precision use itself is the `with workprec(prec + 10):` block in _eval_evalf (around line 2948 at head).",
+      "annotated_in": "result-claude.json"
+    },
+    {
+      "repo": "sympy/sympy",
+      "number": 30558,
+      "agent": "claude-code",
+      "head_sha": "5ec12657c2f417aecd088f907ff505b56a37e529",
+      "issues": [
+        {
+          "path": "sympy/integrals/integrals.py",
+          "line": 122,
+          "category": "correctness",
+          "description": "_atan_floor_correction adds floor terms without checking that the tan/cot argument is real, so complex arguments get a meaningless correction (e.g. atan(tan(I*x)) + pi*floor((I*x + pi/2)/pi)). The fix commit returns None unless both coeff and the argument are extended_real.",
+          "evidence_url": "https://github.com/sympy/sympy/pull/30558#discussion_r4125685206",
+          "fix_commit": "bbd0c5768629868821189d34e95d07b69f932653",
+          "confidence": "high"
+        },
+        {
+          "path": "sympy/integrals/integrals.py",
+          "line": 135,
+          "end_line": 137,
+          "category": "correctness",
+          "description": "The coefficient is only rejected when is_extended_real is False, so when its realness is unknown sign(coeff) is applied anyway and an unjustified floor term is added. The fix commit requires coeff.is_extended_real to be True.",
+          "evidence_url": "https://github.com/sympy/sympy/pull/30558#discussion_r4125636088",
+          "fix_commit": "bbd0c5768629868821189d34e95d07b69f932653",
+          "confidence": "medium"
+        },
+        {
+          "path": "sympy/integrals/integrals.py",
+          "line": 42,
+          "category": "correctness",
+          "description": "_add_atan_floor_terms corrects jumps along the real axis but is applied whether or not the integration variable is real (e.g. indefinite integrals over a plain Symbol). The fix commit returns the antiderivative unchanged unless x.is_extended_real, so only real-variable (definite) integrals get the correction.",
+          "evidence_url": "https://github.com/sympy/sympy/pull/30558#discussion_r4125663685",
+          "fix_commit": "bbd0c5768629868821189d34e95d07b69f932653",
+          "confidence": "medium"
+        }
+      ],
+      "annotated_in": "result-claude.json"
+    },
+    {
+      "repo": "oven-sh/bun",
+      "number": 25462,
+      "agent": "claude-code",
+      "head_sha": "7cdf07e36e3785afa797f5ef753f478dbfb3ea31",
+      "issues": [
+        {
+          "path": "src/ast/P.zig",
+          "line": 2683,
+          "category": "correctness",
+          "description": "Importing any name other than `feature` from \"bun:bundle\" only emits a warning and the binding silently becomes undefined, although the module does not exist at runtime. The fix commit turns it into a build error (\"bun:bundle\" has no export named ...).",
+          "evidence_url": "https://github.com/oven-sh/bun/pull/25462#discussion_r2608960521",
+          "fix_commit": "21d93e97fa31ea3eb7c083663230fcfff5aef691",
+          "confidence": "high"
+        }
+      ],
+      "annotated_in": "result-claude.json"
+    },
+    {
+      "repo": "tldraw/tldraw",
+      "number": 11465,
+      "agent": "claude-code",
+      "head_sha": "db9e4a4a5d9c4b9cde9b88aace71b21f8dd4f43c",
+      "issues": [
+        {
+          "path": "apps/dotcom/client/src/tla/components/TlaEditor/TlaCommentByline.tsx",
+          "line": 36,
+          "category": "security",
+          "description": "The agent byline is read from comment.meta.mcpAgent, which is client-writable and never checked by the comment authorizers, so any user can forge a comment that appears to come from an agent or relabel their own. The fix commit adds a server-side comment authorizer that vetoes client writes that add or change meta.mcpAgent.",
+          "evidence_url": "https://github.com/tldraw/tldraw/pull/11465#discussion_r4566365768",
+          "fix_commit": "cd6e7f0d11b8add10db8553ad696dd00f3cb175d",
+          "confidence": "high"
+        },
+        {
+          "path": "apps/dotcom/client/src/tla/components/TlaEditor/TlaCommentByline.tsx",
+          "line": 61,
+          "category": "correctness",
+          "description": "The agent name (up to 40 chars, chosen by the agent) and the '/ owner' suffix share one ellipsized span, so a long agent name truncates away the real author. The fix commit truncates only the agent name and keeps the owner suffix from shrinking.",
+          "evidence_url": "https://github.com/tldraw/tldraw/pull/11465#discussion_r4566365779",
+          "fix_commit": "6d2047c0f54871c5a8606c723b39a91936268bff",
+          "confidence": "high"
+        },
+        {
+          "path": "packages/commenting/src/canvas/thread-view.tsx",
+          "line": 429,
+          "category": "correctness",
+          "description": "After an edit, focus is handed back with focus({ focusVisible: false }), so keyboard users who end an edit with Escape/Enter land on a transparent actions button with no focus ring (accessibility regression). The fix commit tracks whether the edit ended from the keyboard and sets focusVisible accordingly.",
+          "evidence_url": "https://github.com/tldraw/tldraw/pull/11465#discussion_r4566365829",
+          "fix_commit": "6d2047c0f54871c5a8606c723b39a91936268bff",
+          "confidence": "high"
+        },
+        {
+          "path": "apps/dotcom/client/src/tla/components/TlaEditor/TlaCommentByline.tsx",
+          "line": 41,
+          "category": "correctness",
+          "description": "meta.mcpAgent survives edits, so a comment the owner rewrites by hand is still attributed to the agent. The fix commit registers a before-change store handler that drops the agent byline when the user edits the comment.",
+          "evidence_url": "https://github.com/tldraw/tldraw/pull/11465#discussion_r4566365791",
+          "fix_commit": "23954a743b2d313af0bf06e7c8b8ddf2b6aa0a39",
+          "confidence": "medium"
+        }
+      ],
+      "annotated_in": "result-claude.json"
+    },
+    {
+      "repo": "dotnet/runtime",
+      "number": 136630,
+      "agent": "claude-code",
+      "head_sha": "6e82b808011c721e141f21f4c59a5c9727178c16",
+      "issues": [
+        {
+          "path": "src/libraries/System.Diagnostics.Process/src/System/Diagnostics/Process.Linux.cs",
+          "line": 185,
+          "category": "correctness",
+          "description": "The new HandleCount directory enumeration throws Win32Exception for errors other than EACCES/EPERM, whereas the previous Directory.GetFiles path threw IOException (e.g. for EMFILE), silently changing the exception contract. The fix commit throws IOException with the path (and maps EBADF to UnauthorizedAccessException).",
+          "evidence_url": "https://github.com/dotnet/runtime/pull/136630#discussion_r4563966915",
+          "fix_commit": "58cf1c2b165936bd638569265539c2dc906877b3",
+          "confidence": "high"
+        },
+        {
+          "path": "src/libraries/System.Diagnostics.Process/tests/ProcessTests.Unix.cs",
+          "line": 1313,
+          "category": "correctness",
+          "description": "The test asserts that enumerating Path.GetTempPath() yields an entry, which fails (and holds no directory descriptor) when the temp directory is empty. The fix commit enumerates AppContext.BaseDirectory, which always contains files.",
+          "evidence_url": "https://github.com/dotnet/runtime/pull/136630#discussion_r4564064646",
+          "fix_commit": "58cf1c2b165936bd638569265539c2dc906877b3",
+          "confidence": "medium"
+        }
+      ],
+      "annotated_in": "result-claude.json"
+    },
+    {
+      "repo": "ray-project/ray",
+      "number": 67579,
+      "agent": "claude-code",
+      "head_sha": "f10d77ba50dfba2802fc601273b802d4130d2a48",
+      "issues": [
+        {
+          "path": "python/ray/data/_internal/tensor_extensions/arrow.py",
+          "line": 1019,
+          "end_line": 1046,
+          "category": "correctness",
+          "description": "Null rows now hold no values in the tensor storage, but the null-free fast path of to_numpy still computes the data offset as self.offset * items_per_row, so a null-free slice taken after a null row silently reads shifted rows (from_numpy([t0, None, t2, t3])[2:3].to_numpy() returns t3). The fix commit uses the absolute first list offset (storage.offsets[0]) as the buffer offset.",
+          "evidence_url": "https://github.com/ray-project/ray/pull/67579#pullrequestreview-5720685648",
+          "fix_commit": "4576963fb89aca1809c6b5e51d6edd10a2d2085f",
+          "confidence": "high"
+        }
+      ],
+      "notes": "Issue comes from a review body (no inline anchor). Lines 1019-1020 are the PR-added null_count gate that sends null-free slices to the fast path; line 1046 is the offset computation the fix changed. The same review also reported that under ARROW_NATIVE None rows read back as zeros (fixed in the same commit); omitted because it has no single clear anchor.",
+      "annotated_in": "result-claude.json"
+    },
+    {
+      "repo": "microsoft/PowerToys",
+      "number": 47857,
+      "agent": "claude-code",
+      "head_sha": "ea580dbd3714a5081a04a796ba4cef679f102840",
+      "issues": [
+        {
+          "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+          "line": 59,
+          "end_line": 79,
+          "category": "security",
+          "description": "The raw-HTML <img> rewrite regex only matches double-quoted src=\"...\", so single-quoted or unquoted src values (remote http or data: URLs) bypass the local-image validation and blocking entirely. The fix commit matches double-quoted, single-quoted and unquoted src values.",
+          "evidence_url": "https://github.com/microsoft/PowerToys/pull/47857#discussion_r3636906079",
+          "fix_commit": "295635af350bd10884d600f3cdfde6d310c9e2b3",
+          "confidence": "high"
+        }
+      ],
+      "annotated_in": "result-claude.json"
+    },
+    {
+      "repo": "elastic/kibana",
+      "number": 255866,
+      "agent": "claude-code",
+      "head_sha": "a6802508b578eef72844226f3145fd58515a742d",
+      "issues": [
+        {
+          "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+          "line": 53,
+          "category": "security",
+          "description": "performEsql rejects user pipelines starting with a source command so the auto-generated FROM (with the saved-object type/security filter) cannot be replaced, but SOURCE_COMMAND_PATTERN (line 36) only lists FROM|ROW|SHOW|METRICS and misses TS, so a pipeline starting with TS slips past the check. The fix commit adds TS to the pattern and the error message.",
+          "evidence_url": "https://github.com/elastic/kibana/pull/255866#discussion_r3002270632",
+          "fix_commit": "7986bb174585adc1171b36a41d423a86483dd4a0",
+          "confidence": "medium"
+        }
+      ],
+      "notes": "Head a6802508b is a merge-from-main commit on the PR branch. Medium confidence: the reviewer's comment is terse; the fix commit ('Review feedback: block TS source command') confirms it.",
+      "annotated_in": "result-claude.json"
+    },
+    {
+      "repo": "home-assistant/core",
+      "number": 150950,
+      "agent": "copilot",
+      "head_sha": "f04fe301f84bcf46687442f8ac8c558343b25753",
+      "issues": [
+        {
+          "path": "homeassistant/components/logbook/__init__.py",
+          "line": 118,
+          "end_line": 118,
+          "category": "correctness",
+          "description": "The rename of user-facing strings also changed the second argument of frontend.async_register_built_in_panel from \"logbook\" to \"Activity\", but that argument is a lookup key (sidebar title translation key), not display text, so the panel lookup breaks. The fix commit restored \"logbook\".",
+          "evidence_url": "https://github.com/home-assistant/core/pull/150950#discussion_r2288535418",
+          "fix_commit": "773fc70c28b05d434d25f3de23909b1da5d46c31",
+          "confidence": "high"
+        }
+      ],
+      "notes": "Other comments on this head are wording suggestions for strings.json and are not included.",
+      "annotated_in": "result-copilot.json"
+    },
+    {
+      "repo": "microsoft/autogen",
+      "number": 6747,
+      "agent": "copilot",
+      "head_sha": "39aa458aa8e694910792e1504f09f263c5c5d923",
+      "issues": [
+        {
+          "path": "python/packages/autogen-agentchat/src/autogen_agentchat/teams/_group_chat/_graph/_digraph_group_chat.py",
+          "line": 494,
+          "end_line": 496,
+          "category": "correctness",
+          "description": "_apply_termination_condition resets the graph execution state whenever any termination condition fires, so a GraphFlow stopped by e.g. MaxMessageTermination cannot be resumed where it left off; the state should only reset when the graph naturally completes (stop agent selected). The fix commit removed the reset here and moved it to when _DIGRAPH_STOP_AGENT_NAME runs.",
+          "evidence_url": "https://github.com/microsoft/autogen/pull/6747#discussion_r2187965892",
+          "fix_commit": "08e297bb248fdf3f3a46b989796abec344cca914",
+          "confidence": "high"
+        }
+      ],
+      "annotated_in": "result-copilot.json"
+    },
+    {
+      "repo": "microsoft/autogen",
+      "number": 7054,
+      "agent": "copilot",
+      "head_sha": "1921f6253f1e64c324be890d96fc9aa9a21d1d8b",
+      "issues": [
+        {
+          "path": "python/packages/autogen-ext/src/autogen_ext/models/openai/config/__init__.py",
+          "line": 103,
+          "end_line": 103,
+          "category": "intent_mismatch",
+          "description": "The PR adds reasoning_effort for GPT-5 models but the pydantic config model types it as Literal[\"low\", \"medium\", \"high\"], so the GPT-5 value \"minimal\" is rejected by validation. The fix commit added \"minimal\" to the Literal.",
+          "evidence_url": "https://github.com/microsoft/autogen/pull/7054#discussion_r2384104746",
+          "fix_commit": "b6bf024cde9adb0a6186f25ad17cd4243b5eede0",
+          "confidence": "high"
+        },
+        {
+          "path": "python/packages/autogen-ext/src/autogen_ext/models/openai/config/__init__.py",
+          "line": 53,
+          "end_line": 53,
+          "category": "intent_mismatch",
+          "description": "Same omission in the CreateArguments TypedDict: reasoning_effort is Optional[Literal[\"low\", \"medium\", \"high\"]] and does not allow GPT-5's \"minimal\". Fixed in the same commit.",
+          "evidence_url": "https://github.com/microsoft/autogen/pull/7054#discussion_r2384104703",
+          "fix_commit": "b6bf024cde9adb0a6186f25ad17cd4243b5eede0",
+          "confidence": "high"
+        }
+      ],
+      "annotated_in": "result-copilot.json"
+    },
+    {
+      "repo": "Azure/azure-sdk-for-python",
+      "number": 43269,
+      "agent": "copilot",
+      "head_sha": "292ff19b5024bac6e7c6af0bc0884aea409a88a3",
+      "issues": [
+        {
+          "path": "sdk/cosmos/azure-cosmos/azure/cosmos/cosmos_client.py",
+          "line": 395,
+          "end_line": 398,
+          "category": "correctness",
+          "description": "create_database now raises TypeError for any positional argument after id and only reads populate_query_metrics/offer_throughput from kwargs, breaking existing callers that pass them positionally (breaking API change). Reviewer commented on the deleted lines (LEFT side); these are the replacement new-side lines. The fix commit restored args[1]/args[2] handling.",
+          "evidence_url": "https://github.com/Azure/azure-sdk-for-python/pull/43269#discussion_r2412130929",
+          "fix_commit": "c33bee36beb47b85e820c935e907cc07cf4c0847",
+          "confidence": "high"
+        },
+        {
+          "path": "sdk/cosmos/azure-cosmos/azure/cosmos/cosmos_client.py",
+          "line": 535,
+          "end_line": 538,
+          "category": "correctness",
+          "description": "Same breaking change in create_database_if_not_exists: positional populate_query_metrics/offer_throughput now raise TypeError. Comment was on the deleted lines; new-side replacement lines used. Restored in the fix commit.",
+          "evidence_url": "https://github.com/Azure/azure-sdk-for-python/pull/43269#discussion_r2412132595",
+          "fix_commit": "c33bee36beb47b85e820c935e907cc07cf4c0847",
+          "confidence": "high"
+        }
+      ],
+      "notes": "Docstring suggestions on the same head are excluded.",
+      "annotated_in": "result-copilot.json"
+    },
+    {
+      "repo": "astral-sh/uv",
+      "number": 14738,
+      "agent": "copilot",
+      "head_sha": "bfcd9754884dde39031bdfa47bd236731ccb9577",
+      "issues": [
+        {
+          "path": "crates/uv/src/commands/project/version.rs",
+          "line": 363,
+          "end_line": 370,
+          "category": "correctness",
+          "description": "The 'use `uv self version`' hint is appended to every MissingPyprojectToml error, including when the user explicitly passed --project (as the version_get_fallback_missing_strict test snapshot shows), where the hint is misleading. The fix commit threads an explicit_project flag and suppresses the hint in that case. Reviewer comment is anchored on the test snapshot (tests/it/version.rs:1686).",
+          "evidence_url": "https://github.com/astral-sh/uv/pull/14738#discussion_r2216693306",
+          "fix_commit": "0c66f2dea3b9dde70cf06700504bc71cd2b614bc",
+          "confidence": "medium"
+        }
+      ],
+      "notes": "Duplicate-code and hint-styling comments excluded.",
+      "annotated_in": "result-copilot.json"
+    },
+    {
+      "repo": "microsoft/TypeScript",
+      "number": 63038,
+      "agent": "copilot",
+      "head_sha": "4e968bbc21ac7efa07a8a499e6317ab880a88170",
+      "issues": [
+        {
+          "path": "src/compiler/checker.ts",
+          "line": 3827,
+          "end_line": 3830,
+          "category": "correctness",
+          "description": "The referenced project's module kind is computed as referencedOptions.module ?? ModuleKind.CommonJS, ignoring the real default (which depends on target, e.g. ES2015+ targets default to ES modules), so synthetic-default eligibility is wrong when module is unset. The fix commit uses getEmitModuleKind(referencedOptions).",
+          "evidence_url": "https://github.com/microsoft/TypeScript/pull/63038#discussion_r2718485676",
+          "fix_commit": "d392ebdbb8bd078705d9ac8120174091fb8620ae",
+          "confidence": "high"
+        }
+      ],
+      "annotated_in": "result-copilot.json"
+    },
+    {
+      "repo": "Azure/azure-sdk-for-rust",
+      "number": 5551,
+      "agent": "copilot",
+      "head_sha": "0e1c2ddc6933568defe654b728d7f8e3d57eb96b",
+      "issues": [
+        {
+          "path": "sdk/identity/azure_identity/src/managed_identity_credential.rs",
+          "line": 800,
+          "end_line": 803,
+          "category": "weakened_check",
+          "description": "imds_system_assigned_live was changed from #[recorded::test(live)] to #[tokio::test] + #[ignore], which disables it in the weekly live pipeline (msi_image sets IDENTITY_IMDS_AVAILABLE specifically to run it, and CI runs cargo test without --ignored). The fix commit restored #[recorded::test(live)] with an early return when IDENTITY_IMDS_AVAILABLE is unset.",
+          "evidence_url": "https://github.com/Azure/azure-sdk-for-rust/pull/5551#discussion_r4483945408",
+          "fix_commit": "345e06fc646b3129e093a500d4ed05c4e835dcda",
+          "confidence": "high"
+        },
+        {
+          "path": "sdk/identity/test-resources-post.ps1",
+          "line": 77,
+          "end_line": 96,
+          "category": "correctness",
+          "description": "Wait-IdentityEndpoint only catches HttpRequestException/TaskCanceledException, but in PowerShell 7 Invoke-WebRequest -TimeoutSec throws TimeoutException/WebException, so with ErrorActionPreference=Stop the first request timeout aborts the script instead of polling until the deadline (observed failing the live pipeline); HTTP 500 bodies are also discarded. The fix commit adds those exception types, a longer per-request budget, and includes the response body.",
+          "evidence_url": "https://github.com/Azure/azure-sdk-for-rust/pull/5551#discussion_r4483945400",
+          "fix_commit": "345e06fc646b3129e093a500d4ed05c4e835dcda",
+          "confidence": "high"
+        },
+        {
+          "path": "sdk/identity/test-resources.bicep",
+          "line": 129,
+          "end_line": 129,
+          "category": "other",
+          "description": "New Bicep output IDENTITY_DEPLOY_RESOURCES is not in the non-secret output list, so the pipeline registers it as a secret and masks the literal string \"true\" across later job logs. The fix commit removed the output and detects deployment via IDENTITY_ACR_NAME instead.",
+          "evidence_url": "https://github.com/Azure/azure-sdk-for-rust/pull/5551#discussion_r4483945418",
+          "fix_commit": "345e06fc646b3129e093a500d4ed05c4e835dcda",
+          "confidence": "medium"
+        }
+      ],
+      "notes": "Review comments were posted by a human reviewer but generated with an AI assistant; all three were applied in the fix commit. The feature-gating coverage suggestion on custom_token_proxy.rs is excluded.",
+      "annotated_in": "result-copilot.json"
+    },
+    {
+      "repo": "mlflow/mlflow",
+      "number": 15839,
+      "agent": "copilot",
+      "head_sha": "f6af1ed172cdadb3d74c105682c4c88797b6c684",
+      "issues": [
+        {
+          "path": "mlflow/tracing/utils/__init__.py",
+          "line": 45,
+          "end_line": 46,
+          "category": "correctness",
+          "description": "capture_function_input_args drops any argument named `cls` from the captured trace inputs, so a regular function or method with a legitimate `cls` parameter loses that input. Reviewer asked to limit it to actual classmethods; the final fix only removes `cls` when it is the first bound argument and is a type.",
+          "evidence_url": "https://github.com/mlflow/mlflow/pull/15839#discussion_r2106067922",
+          "fix_commit": "4b7ddcd744555d26e0c96605bc39f19c8a326464",
+          "confidence": "medium"
+        }
+      ],
+      "notes": "Intermediate fix bb050dbc7 added an is_classmethod parameter; 4b7ddcd74 is the version the reviewer accepted.",
+      "annotated_in": "result-copilot.json"
+    },
+    {
+      "repo": "dotnet/runtime",
+      "number": 126318,
+      "agent": "copilot",
+      "head_sha": "d6f01d1f04079e04bd1ba8dacefb2cf086a7c656",
+      "issues": [
+        {
+          "path": "src/native/libs/System.Native/pal_process.c",
+          "line": 545,
+          "end_line": 548,
+          "category": "correctness",
+          "description": "The Linux fallback that sets CLOEXEC via syscall(__NR_close_range) is guarded by HAVE_CLOSE_RANGE_SYSCALL, which is never detected when building against the official glibc 2.27 headers (CI log shows __NR_close_range not found), so in shipped builds neither branch is compiled and handle-inheritance restriction is silently not enforced. The fix commit defines __NR_close_range locally and uses the syscall path on all Linux builds.",
+          "evidence_url": "https://github.com/dotnet/runtime/pull/126318#discussion_r3011997492",
+          "fix_commit": "a94ee2b76916c2615090dadcc8694fca02b71071",
+          "confidence": "high"
+        },
+        {
+          "path": "src/libraries/Common/src/Interop/Windows/Kernel32/Interop.CreateProcess.cs",
+          "line": 65,
+          "end_line": 71,
+          "category": "correctness",
+          "description": "LPPROC_THREAD_ATTRIBUTE_LIST is a struct wrapping an IntPtr that is passed by value to InitializeProcThreadAttributeList/UpdateProcThreadAttribute/DeleteProcThreadAttributeList where native code expects a pointer; it is not safe to assume a pointer-wrapping struct is passed the same way as a pointer. The fix commit replaced it with void* in STARTUPINFOEX and all P/Invoke signatures.",
+          "evidence_url": "https://github.com/dotnet/runtime/pull/126318#discussion_r3011942072",
+          "fix_commit": "b6db80d2ead00c1a81e9dc121d7a86679d4fe2dd",
+          "confidence": "medium"
+        }
+      ],
+      "notes": "Head commit d6f01d1f0 was pushed by a human maintainer ('minor pedantic changes') on top of agent-written code; both flagged lines were written by the agent. PR is ~1228 changed lines.",
+      "annotated_in": "result-copilot.json"
+    },
+    {
+      "repo": "dotnet/efcore",
+      "number": 36986,
+      "agent": "copilot",
+      "head_sha": "e36862c085326391bea6331b97983dff9c15a932",
+      "issues": [
+        {
+          "path": "src/EFCore/Query/Internal/NullCheckRemovingExpressionVisitor.cs",
+          "line": 137,
+          "end_line": 141,
+          "category": "correctness",
+          "description": "TryOptimizeQueryableNullCheck folds any `x == null` / `x != null` to a constant whenever x's type is assignable to IQueryable, so a captured variable that really is null (e.g. `ids = flag ? db.Items.Select(...) : null`) gets its null check removed and the query is translated wrongly. The final (squashed) fix only folds the check for MethodCallExpression/QueryRootExpression operands and adds tests for the conditional-null case.",
+          "evidence_url": "https://github.com/dotnet/efcore/pull/36986#discussion_r2436677053",
+          "fix_commit": "6a8d257d82f33c8c4b3b7a6c897e54b99e6a32c3",
+          "confidence": "high"
+        }
+      ],
+      "notes": "The PR branch was squashed; fix_commit is the final single commit (parent = base), so compare head vs that commit for the fix.",
+      "annotated_in": "result-copilot.json"
+    },
+    {
+      "repo": "microsoft/vscode",
+      "number": 275955,
+      "agent": "copilot",
+      "head_sha": "78d21e258e812314b44c11760e91d0e599a259f9",
+      "issues": [
+        {
+          "path": "src/vs/platform/quickinput/browser/quickInputBox.ts",
+          "line": 107,
+          "end_line": 136,
+          "category": "scope",
+          "description": "Leftover changes from an earlier, ineffective fix attempt rewrite the ariaLabel/setAttribute/removeAttribute setters in the shared QuickInputBox to skip DOM updates when values are unchanged; the actual fix is in quickInputController.ts and the reviewer asked to undo this file entirely. The fix commit reverted the file to its original state.",
+          "evidence_url": "https://github.com/microsoft/vscode/pull/275955#discussion_r2516253227",
+          "fix_commit": "e214764db884dee56cabd8d94b1ea148a5ef8638",
+          "confidence": "medium"
+        }
+      ],
+      "annotated_in": "result-copilot.json"
+    },
+    {
+      "repo": "MetaMask/metamask-mobile",
+      "number": 10635,
+      "agent": "devin",
+      "head_sha": "ab8940404cbc6924af30e133b9e924a1a7626275",
+      "issues": [
+        {
+          "path": "app/components/Views/confirmations/SendFlow/Confirm/index.js",
+          "line": 403,
+          "end_line": 403,
+          "category": "correctness",
+          "description": "To silence a SonarCloud 'redundant await' warning the agent removed `await` from fetchEstimatedMultiLayerL1Fee, which is async, so `result` becomes a Promise instead of the L1 fee and the fee math downstream breaks. Fix commit 126d848 restores the await.",
+          "evidence_url": "https://github.com/MetaMask/metamask-mobile/pull/10635#discussion_r1718951711",
+          "fix_commit": "126d848bf1665b526b10e5793103130d32e482d2",
+          "confidence": "high"
+        },
+        {
+          "path": "app/components/Views/confirmations/components/TransactionReview/index.js",
+          "line": 294,
+          "end_line": 294,
+          "category": "correctness",
+          "description": "Same mistake as in SendFlow/Confirm: `await` dropped from the async fetchEstimatedMultiLayerL1Fee call, so the multi-layer L1 fee is a pending Promise rather than a value. Fix commit 126d848 restores the await.",
+          "evidence_url": "https://github.com/MetaMask/metamask-mobile/pull/10635#discussion_r1718958637",
+          "fix_commit": "126d848bf1665b526b10e5793103130d32e482d2",
+          "confidence": "high"
+        },
+        {
+          "path": "app/components/Views/confirmations/components/PersonalSign/PersonalSign.tsx",
+          "line": 159,
+          "end_line": 159,
+          "category": "correctness",
+          "description": "`await onConfirm()` was changed to a bare `onConfirm()`, so the signature-approved notification and SIGNATURE_APPROVED metric fire before (and even if) the async confirmation completes or fails. Fix commit 126d848 restores the await and types onConfirm as returning Promise<void>.",
+          "evidence_url": "https://github.com/MetaMask/metamask-mobile/pull/10635#discussion_r1718958177",
+          "fix_commit": "126d848bf1665b526b10e5793103130d32e482d2",
+          "confidence": "high"
+        }
+      ],
+      "notes": "Devin PR fixing SonarCloud findings; the reviewer caught that several 'redundant await' removals were on real promises.",
+      "annotated_in": "result-others.json"
+    },
+    {
+      "repo": "MetaMask/metamask-mobile",
+      "number": 31075,
+      "agent": "cursor",
+      "head_sha": "ef18288a8c8935af936a6f50993936771e772b23",
+      "issues": [
+        {
+          "path": "app/components/UI/Ramp/Views/NativeFlow/components/PhoneField/phoneCountry.ts",
+          "line": 42,
+          "end_line": 50,
+          "category": "correctness",
+          "description": "findCountryByPhonePrefix returns the first country whose dialing prefix matches, so countries sharing a code (US and Canada on +1) resolve arbitrarily and a prefilled US number can be shown as Canada. Fix commit d6cbbc6 collects all longest-prefix matches and prefers the fallbackCountry among ties.",
+          "evidence_url": "https://github.com/MetaMask/metamask-mobile/pull/31075#discussion_r3397529345",
+          "fix_commit": "d6cbbc6b7751fd776db86d95d73a8e1dd71aa641",
+          "confidence": "high"
+        },
+        {
+          "path": "locales/languages/de.json",
+          "line": 777,
+          "end_line": 781,
+          "category": "scope",
+          "description": "The agent hand-wrote new phone_country_modal strings into de.json (and the other non-English locale files), while the project only adds new keys to en.json and translates separately. Fix commit d6cbbc6 removes the block from de.json and all other non-English locale files.",
+          "evidence_url": "https://github.com/MetaMask/metamask-mobile/pull/31075#discussion_r3397508437",
+          "fix_commit": "d6cbbc6b7751fd776db86d95d73a8e1dd71aa641",
+          "confidence": "medium"
+        }
+      ],
+      "notes": "A later review on 97b7cc115 found a second real bug (pasting a full international number double-prefixes it, fixed in 4890b59/fa90211); not included because issues must share one head commit.",
+      "annotated_in": "result-others.json"
+    },
+    {
+      "repo": "mastra-ai/mastra",
+      "number": 15815,
+      "agent": "devin",
+      "head_sha": "012c8603ed0837f26723a2b6b18674167f2ae530",
+      "issues": [
+        {
+          "path": "packages/core/src/processors/runner.ts",
+          "line": 66,
+          "end_line": 71,
+          "category": "correctness",
+          "description": "When a processor's PROCESSOR_RUN span is hidden (observability: false, or dropped by the cloud exporter for 'errors-only'), createProcessorObservabilityContext falls back to the parent tracing context, so spans created inside the processor (e.g. an inner AGENT_RUN and its LLM_GENERATION) are reparented to the outer agent run and the trace becomes misleading while still not reducing the expensive child events. The maintainer revoked approval; fix commit 4c76e4f (force-pushed rewrite) drops the processor span hiding entirely and keeps only the cloud default reductions.",
+          "evidence_url": "https://github.com/mastra-ai/mastra/pull/15815#pullrequestreview-4195424332",
+          "fix_commit": "4c76e4f482fb6a89dfe21eae6e152c5eb900cb85",
+          "confidence": "medium"
+        }
+      ],
+      "notes": "Branch was force-pushed; the reviewed head 012c8603 is no longer in the PR commit list but is fetchable. The fix removes the feature rather than repairing it.",
+      "annotated_in": "result-others.json"
+    },
+    {
+      "repo": "neondatabase/neon",
+      "number": 11835,
+      "agent": "devin",
+      "head_sha": "000503b38a3a27009f9cad9ec8accaa8bf154bc2",
+      "issues": [
+        {
+          "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+          "line": 649,
+          "end_line": 651,
+          "category": "correctness",
+          "description": "The agent replaced `.maybe_fatal_err(\"delta_layer sync_all\")` on the layer file fsync with a plain map_err into DeltaLayerWriterError::Other, so an fsync failure is no longer treated as fatal and the pageserver can continue after a failed durability write (same mistake elsewhere in the PR). Fix commit 486d9f0 restores maybe_fatal_err.",
+          "evidence_url": "https://github.com/neondatabase/neon/pull/11835#discussion_r2076089471",
+          "fix_commit": "486d9f0c4dae6b17c1dcee5ec94ea7cdad531248",
+          "confidence": "high"
+        },
+        {
+          "path": "pageserver/src/tenant/blob_io.rs",
+          "line": 250,
+          "end_line": 250,
+          "category": "correctness",
+          "description": "Failing to enter the gate (timeline shutting down) is mapped to BlobWriterError::Other instead of BlobWriterError::Cancelled, so shutdown is reported as a generic error. Fix commit 486d9f0 maps it to Cancelled.",
+          "evidence_url": "https://github.com/neondatabase/neon/pull/11835#discussion_r2076083051",
+          "fix_commit": "486d9f0c4dae6b17c1dcee5ec94ea7cdad531248",
+          "confidence": "high"
+        },
+        {
+          "path": "pageserver/src/tenant/timeline/compaction.rs",
+          "line": 2241,
+          "end_line": 2242,
+          "category": "correctness",
+          "description": "Cancellation is detected by string-matching the error message (`e.to_string().contains(\"flush task cancelled\")`), which is brittle and misclassifies errors if the text changes. Fix commit 486d9f0 matches on the typed ImageLayerWriterError/DeltaLayerWriterError::Cancelled variants instead.",
+          "evidence_url": "https://github.com/neondatabase/neon/pull/11835#discussion_r2076091589",
+          "fix_commit": "486d9f0c4dae6b17c1dcee5ec94ea7cdad531248",
+          "confidence": "high"
+        },
+        {
+          "path": "pageserver/src/tenant/timeline/compaction.rs",
+          "line": 2218,
+          "end_line": 2219,
+          "category": "correctness",
+          "description": "DeltaLayerWriterError::Cancelled is converted into CompactionError::Other(anyhow!(\"flush task cancelled\")), so a cancelled compaction is surfaced as a real compaction failure. Fix commit 486d9f0 adds and uses a CompactionError::Cancelled variant.",
+          "evidence_url": "https://github.com/neondatabase/neon/pull/11835#discussion_r2076091985",
+          "fix_commit": "486d9f0c4dae6b17c1dcee5ec94ea7cdad531248",
+          "confidence": "high"
+        },
+        {
+          "path": "pageserver/src/tenant/timeline/detach_ancestor.rs",
+          "line": 821,
+          "end_line": 822,
+          "category": "correctness",
+          "description": "In detach_ancestor a cancelled delta layer write becomes Error::Prepare(...) rather than Error::ShuttingDown, so shutdown during detach is reported as a prepare failure. Fix commit 486d9f0 maps it to Error::ShuttingDown.",
+          "evidence_url": "https://github.com/neondatabase/neon/pull/11835#discussion_r2076092539",
+          "fix_commit": "486d9f0c4dae6b17c1dcee5ec94ea7cdad531248",
+          "confidence": "high"
+        }
+      ],
+      "notes": "PR was later closed and superseded by #11853, but the fix commit is in this PR and addresses each point.",
+      "annotated_in": "result-others2.json"
+    },
+    {
+      "repo": "convex/agent",
+      "number": 98,
+      "agent": "devin",
+      "head_sha": "6b530179d6f474840664d705a7c6da1f245ee112",
+      "issues": [
+        {
+          "path": "example/convex/chat/human.ts",
+          "line": 75,
+          "end_line": 80,
+          "category": "correctness",
+          "description": "The askHuman tool was converted to createTool with a handler that just returns the question, so the tool now auto-executes and the human-in-the-loop flow (tool call left pending for a human answer) no longer works. Fix commit d446349 goes back to the AI SDK `tool` with only an inputSchema and no handler.",
+          "evidence_url": "https://github.com/convex/agent/pull/98#discussion_r2248499561",
+          "fix_commit": "d446349e16d0d205e3a142b898b1881088859f05",
+          "confidence": "high"
+        },
+        {
+          "path": "src/validators.ts",
+          "line": 254,
+          "end_line": 254,
+          "category": "correctness",
+          "description": "vLanguageModelV1CallWarning was replaced by a V2 validator, so warnings stored in the old V1 shape no longer validate. Fix commit 4c44160 keeps the V1 validator and accepts a union of V1 and V2.",
+          "evidence_url": "https://github.com/convex/agent/pull/98#discussion_r2248502567",
+          "fix_commit": "4c441600e37e54ed5e3a93b72c2402a5e001b9b6",
+          "confidence": "medium"
+        },
+        {
+          "path": "example/convex/agents/weather.ts",
+          "line": 11,
+          "end_line": 11,
+          "category": "weakened_check",
+          "description": "Type errors from the AI SDK v5 upgrade are silenced with `chat: chat as any` here and in several other agents instead of being fixed. Fix commit 4c44160 removes these casts from the agent definitions.",
+          "evidence_url": "https://github.com/convex/agent/pull/98#discussion_r2248500013",
+          "fix_commit": "4c441600e37e54ed5e3a93b72c2402a5e001b9b6",
+          "confidence": "medium"
+        }
+      ],
+      "notes": "Closed PR. Some `as any` casts remain in modelsForDemo.ts after the fix.",
+      "annotated_in": "result-others2.json"
+    },
+    {
+      "repo": "alchemy-run/alchemy-async",
+      "number": 250,
+      "agent": "devin",
+      "head_sha": "768c3f7bf1df594ef6ffaf218a8aa5047717f15e",
+      "issues": [
+        {
+          "path": "alchemy/src/cloudflare/wrangler.json.ts",
+          "line": 559,
+          "end_line": 560,
+          "category": "correctness",
+          "description": "The secrets_store binding branch is a no-op comment and the secrets_store_secrets array is never written, so the generated wrangler.json is missing the Secrets Store bindings. Fix commit 5cbabe2 pushes each secret into secretsStoreSecrets and sets spec.secrets_store_secrets.",
+          "evidence_url": "https://github.com/alchemy-run/alchemy-async/pull/250#discussion_r2123411358",
+          "fix_commit": "5cbabe20c6fd41efb324482f2a687ea4bc2cd8d6",
+          "confidence": "high"
+        },
+        {
+          "path": "alchemy/src/test/vitest.ts",
+          "line": 188,
+          "end_line": 198,
+          "category": "scope",
+          "description": "Unrelated edits to the shared test harness alchemy/src/test/vitest.ts that the feature did not need; the reviewer asked to take the file from main. Fix commit 5cbabe2 restores it (after an intermediate commit had wrongly deleted it).",
+          "evidence_url": "https://github.com/alchemy-run/alchemy-async/pull/250#discussion_r2123410051",
+          "fix_commit": "5cbabe20c6fd41efb324482f2a687ea4bc2cd8d6",
+          "confidence": "medium"
+        }
+      ],
+      "notes": "Closed PR, +1104 lines.",
+      "annotated_in": "result-others2.json"
+    },
+    {
+      "repo": "box/box-ui-elements",
+      "number": 3948,
+      "agent": "devin",
+      "head_sha": "4c2a6c6da7f10b00bfddc88c9f4b345bb1dac43a",
+      "issues": [
+        {
+          "path": "src/elements/common/breadcrumbs/index.js",
+          "line": null,
+          "category": "scope",
+          "description": "The Flow entry point index.js exporting Breadcrumbs and InlineBreadcrumbs was deleted (replaced by an index.ts with different exports), breaking existing imports. Fix commit 7b74be6 restores index.js.",
+          "evidence_url": "https://github.com/box/box-ui-elements/pull/3948#discussion_r1968315144",
+          "fix_commit": "7b74be63f5bb092b0f399f9f22f05abb5ea4f020",
+          "confidence": "high"
+        },
+        {
+          "path": "scripts/jest/jest-setup.ts",
+          "line": 1,
+          "end_line": 1,
+          "category": "scope",
+          "description": "The repo-wide Jest setup was cut down to a single import, removing the setImmediate override and other global polyfills the whole test suite relies on, in a change meant to touch only breadcrumbs. Restored across 7b74be6, 87f7ac9, 46c7771 and 755faf8.",
+          "evidence_url": "https://github.com/box/box-ui-elements/pull/3948#discussion_r1968251640",
+          "fix_commit": "755faf837cef982ddeef60e536369ca637deb353",
+          "confidence": "medium"
+        },
+        {
+          "path": "tsconfig.json",
+          "line": 17,
+          "end_line": 17,
+          "category": "scope",
+          "description": "Project tsconfig was changed to include a new src/test-utils/jest.d.ts, an unrelated build-config change. Fix commit 2cfdaa4 restores tsconfig.json.",
+          "evidence_url": "https://github.com/box/box-ui-elements/pull/3948#discussion_r1968314252",
+          "fix_commit": "2cfdaa422301d3940b09416b808167085c758ce6",
+          "confidence": "high"
+        }
+      ],
+      "notes": "Closed PR; Flow-to-TypeScript conversion of breadcrumbs. Many other comments on this head were style and were left out.",
+      "annotated_in": "result-others2.json"
+    },
+    {
+      "repo": "latitude-dev/latitude-llm",
+      "number": 2697,
+      "agent": "cursor",
+      "head_sha": "8422f8d10a178795d0666b04be81662857e22c94",
+      "issues": [
+        {
+          "path": "packages/telemetry/typescript/src/sdk/span-filter.ts",
+          "line": 94,
+          "end_line": 95,
+          "category": "scope",
+          "description": "The change was meant to normalize Claude Code spans on ingestion (domain/spans) but also changed the public telemetry SDK span filter to export Claude Code-specific keys (span.type, user_prompt, llm_request.context). Fix commit 6c6da00 (force-pushed) drops the span-filter and its test changes, keeping only domain/spans.",
+          "evidence_url": "https://github.com/latitude-dev/latitude-llm/pull/2697#discussion_r3064090749",
+          "fix_commit": "6c6da005238d74d432189a4889934966715bb82d",
+          "confidence": "high"
+        }
+      ],
+      "notes": "Branch was force-pushed; reviewed head 8422f8d1 is fetchable but not in the PR commit list.",
+      "annotated_in": "result-others2.json"
+    },
+    {
+      "repo": "mattermost/desktop",
+      "number": 4098,
+      "agent": "cursor",
+      "head_sha": "a9b9845076de36f4b6ee3ed617125600398302f8",
+      "issues": [
+        {
+          "path": "src/common/Validator.ts",
+          "line": 434,
+          "end_line": 435,
+          "category": "correctness",
+          "description": "The PR caps desktop source thumbnails at 400x400, but the IPC validation schema still accepts dimensions up to 4096, so the validator and the enforced bound disagree and oversized requests pass validation. Fix commit 2bbf189 sets the schema max to MAX_DESKTOP_SOURCE_THUMBNAIL_DIMENSION (400) and tests 401/4096 as rejected.",
+          "evidence_url": "https://github.com/mattermost/desktop/pull/4098#discussion_r4553068295",
+          "fix_commit": "2bbf1897900c02597efd851672d4fe2be2e9c7f3",
+          "confidence": "medium"
+        }
+      ],
+      "annotated_in": "result-others2.json"
+    },
+    {
+      "repo": "Infisical/infisical",
+      "number": 5687,
+      "agent": "devin",
+      "head_sha": "98b67bb64cdbe9f2d67529791c1882295dc1012f",
+      "issues": [
+        {
+          "path": "backend/src/server/plugins/auth/inject-identity.ts",
+          "line": 246,
+          "end_line": 249,
+          "category": "correctness",
+          "description": "The fire-and-forget PostHog enrichment is called inside the auth hook with no error handling (identifyIdentity is a synchronous function at this head), so any throw from it fails the whole authenticated request. Fix commit 4c3fe24 makes identifyIdentity async and attaches a .catch() that logs the error.",
+          "evidence_url": "https://github.com/Infisical/infisical/pull/5687#discussion_r2933931742",
+          "fix_commit": "4c3fe24ffdef0fe2d0fe5edc9c278e55407bc064",
+          "confidence": "medium"
+        }
+      ],
+      "notes": "Head is a merge commit from main into the branch. Closed PR (rejected later for design reasons).",
+      "annotated_in": "result-others2.json"
+    },
+    {
+      "repo": "vellum-ai/vellum-assistant",
+      "number": 14086,
+      "agent": "devin",
+      "head_sha": "990547566409d0983ca6e619b628339c9dd46131",
+      "issues": [
+        {
+          "path": "clients/macos/vellum-assistant/App/AppDelegate+AuthLifecycle.swift",
+          "line": 18,
+          "end_line": 19,
+          "category": "weakened_check",
+          "description": "To make a flaky e2e test pass, the agent added a hasAssistants flag that lets the app skip the auth gate (proceedToApp) whenever the lockfile lists assistants, even with no session and no API key, hiding the real cfprefsd race. Fix commit 4bfd42a removes the bypass and fixes the test fixture instead.",
+          "evidence_url": "https://github.com/vellum-ai/vellum-assistant/pull/14086#discussion_r2906854317",
+          "fix_commit": "4bfd42ab16c4127f7e0ec47fdec8fb4cdb4362a6",
+          "confidence": "medium"
+        }
+      ],
+      "notes": "Closed PR. The flag is threaded from AppDelegate.swift (startAuthenticatedFlow(hasAssistants:)).",
+      "annotated_in": "result-others2.json"
+    },
+    {
+      "repo": "microsoft/TypeScript",
+      "number": 65022,
+      "agent": "claude-code",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    },
+    {
+      "repo": "immich-app/immich",
+      "number": 32240,
+      "agent": "claude-code",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    },
+    {
+      "repo": "cline/cline",
+      "number": 10990,
+      "agent": "codex",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    },
+    {
+      "repo": "PostHog/posthog",
+      "number": 109279,
+      "agent": "codex",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    },
+    {
+      "repo": "mastra-ai/mastra",
+      "number": 14950,
+      "agent": "copilot",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    },
+    {
+      "repo": "microsoft/semantic-kernel",
+      "number": 14563,
+      "agent": "claude-code",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    },
+    {
+      "repo": "langchain-ai/langchainjs",
+      "number": 12214,
+      "agent": "claude-code",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    },
+    {
+      "repo": "airbytehq/airbyte",
+      "number": 92988,
+      "agent": "devin",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    },
+    {
+      "repo": "MetaMask/metamask-extension",
+      "number": 45572,
+      "agent": "claude-code",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    },
+    {
+      "repo": "Azure/azure-cli",
+      "number": 34253,
+      "agent": "claude-code",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    },
+    {
+      "repo": "fern-api/fern",
+      "number": 18863,
+      "agent": "devin",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    },
+    {
+      "repo": "oss-review-toolkit/ort",
+      "number": 12748,
+      "agent": "copilot",
+      "issues": [],
+      "notes": "clean: merged, approved by a maintainer, no human review comments or fix commits after review, no later PR found referencing it (search)."
+    }
+  ]
+}

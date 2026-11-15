@@ -1,0 +1,49 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The updateManyByCredentialId call uses an empty data object, which prevents Prisma's @updatedAt decorator from updating the updatedAt timestamp. This results in inaccurate cache status tracking, as the timestamp isn't updated when the cache is refreshed. To fix this, explicitly set the updatedAt field.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.7,
+   "reasoning": "C1 flags the same updateManyByCredentialId call with empty data {} and its dependence on @updatedAt. It treats this as a maintainability problem rather than a bug, but it points at the same code issue."
+  },
+  {
+   "comment": "logic: macOS-specific sed syntax with empty string after -i flag will fail on Linux systems",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the macOS-specific sed -i syntax."
+  },
+  {
+   "comment": "Throwing a generic Error for authentication failures results in a 500 response in tRPC. Instead, it should return a structured TRPCError with an appropriate code, such as FORBIDDEN, to accurately reflect the error type.",
+   "severity": "High",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the generic Error that should be a TRPCError."
+  },
+  {
+   "comment": "Date is formatted with hardcoded 'en-US' locale instead of using the user's locale from useLocale, which can lead to incorrect date representation for users in different locales.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the hardcoded en-US locale used for date formatting."
+  }
+ ],
+ "candidates": [
+  "The updateManyByCredentialId method is called with empty data {} relying on Prisma @updatedAt to auto-touch the timestamp, which could be confusing to future maintainers",
+  "Multi-layer feature (17 files, DB migration, new data-deletion endpoint, UI component replacement) was developed without end-to-end testing against a real Google Calendar integration",
+  "No tests were added for the new tRPC endpoint or repository method",
+  "The conditional rendering logic in CredentialActionsDropdown changes behavior for delegation credentials - they now render nothing or a cache-only dropdown if cache exists, which should be verified as intentional"
+ ]
+}

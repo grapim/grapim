@@ -1,0 +1,30 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Consider adding try-catch around the await to handle import failures gracefully",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "G1 asks for a try-catch around an await on a dynamic import. C1 is about forEach callbacks that are async and never awaited, which is a different issue."
+  },
+  {
+   "comment": "The code uses forEach with async callbacks, which causes asynchronous operations (e.g., calendar/video event deletions, payment refunds) to run concurrently without being awaited. This 'fire-and-forget' behavior leads to unhandled promise rejections, race conditions, and incomplete cleanup, as surrounding try-catch blocks cannot properly handle errors from these unawaited promises. Replace forEach with for...of loops or Promise.all() with map() to ensure proper sequential execution and error handling.",
+   "severity": "Critical",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.92,
+   "reasoning": "C1 flags forEach with async callbacks that are never awaited, so the try-catch can't catch their errors. That is the same issue as G2."
+  }
+ ],
+ "candidates": [
+  "bookingRefsFiltered.forEach(async (bookingRef) => ...) fires async operations but does not await them, causing the try-catch block to be unable to catch errors from async callbacks since forEach returns immediately"
+ ]
+}

@@ -1,0 +1,77 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A null reference occurs in GoogleCalendarService.createEvent() and updateEvent() when mainHostDestinationCalendar is destructured from evt.destinationCalendar but evt.destinationCalendar is null or an empty array, causing mainHostDestinationCalendar to be undefined.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.5,
+   "reasoning": "C1 identifies mainHostDestinationCalendar being undefined when destinationCalendar is null/empty causing crash, though it points at EventManager rather than GoogleCalendarService. Same root issue."
+  },
+  {
+   "comment": "The optional chaining on mainHostDestinationCalendar?.integration is redundant since you already check mainHostDestinationCalendar in the ternary condition.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate flags redundant optional chaining; C1 actually asks for more optional chaining."
+  },
+  {
+   "comment": "Logic error: when externalCalendarId is provided, you're searching for a calendar where externalId === externalCalendarId, but this will always fail since you're looking for a calendar that matches itself. Should likely find by credentialId or use different logic.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.85,
+   "reasoning": "C3 describes the find comparing externalId against externalCalendarId that can never match (same bug as updateEvent)."
+  },
+  {
+   "comment": "Logic inversion in organization creation: The slug property is now conditionally set when IS_TEAM_BILLING_ENABLED is true, instead of when it's false as originally intended. This change, combined with requestedSlug still being set when IS_TEAM_BILLING_ENABLED is true, results in both properties being set when billing is enabled, and neither when disabled",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 identifies the inverted IS_TEAM_BILLING_ENABLED slug condition."
+  },
+  {
+   "comment": "The Calendar interface now requires createEvent(event, credentialId), but some implementations (e.g., Lark/Office365) still declare createEvent(event) only—this breaks the interface contract (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C7 discusses Office365/Lark using wrong calendar id, not the interface signature mismatch for credentialId parameter."
+  },
+  {
+   "comment": "The `credential` may be undefined when passed to `updateEvent` if `reference.credentialId` is set but the credential is not found. This can lead to a runtime error when `updateEvent` is called with an undefined credential, which should be handled to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate addresses undefined credential passed to updateEvent."
+  }
+ ],
+ "candidates": [
+  "packages/core/EventManager.ts:118 - Crash when the location is Google Meet and there is no destination calendar.. `mainHostDestinationCalendar` is `undefined` when `evt.destinationCalendar` is null or empty. `mainHostDestinationCalendar.integration` has no optional chaining, so it throws a TypeError whenever `evt.location === MeetLocationType`. The old code fell back to Cal Video here; now booking creation throws. Use `mainHostDestinationCalendar?.integration`.",
+  "packages/trpc/server/routers/viewer/organizations/create.handler.ts:151 - The organization slug condition is inverted, which is unrelated to this PR.. Before, the slug was set directly only when team billing was disabled; with billing enabled it was stored as `requestedSlug` until payment. Now the slug is set immediately when billing is enabled, so payment is bypassed for claiming it. When billing is disabled the organization is created with no slug at all. The calendar PR does not cover this change. Revert it to `...(!IS_TEAM_BILLING_ENABLED ? { slug } : {})`.",
+  "packages/app-store/googlecalendar/lib/CalendarService.ts:315 - deleteEvent fallback can never match and always falls through to \"primary\".. This has the same bug as updateEvent: the `find` only runs when `externalCalendarId` is falsy, and then it compares against that falsy value, so it returns undefined. Deletes for references without an `externalCalendarId` now target the `primary` calendar instead of the configured destination calendar. The event stays in the real calendar, or the delete returns 404. Use the first destination calendar's externalId as the fallback.",
+  "packages/core/EventManager.ts:169 - Video references lose their credentialId.. Before, non-calendar results (video) stored `result.credentialId`. Now `credentialId` is `undefined` whenever `!isCalendarType`. Cancellation looks for `bookingVideoReference.credentialId` to pick the right video credential, so new video references fall back to the less precise legacy path or are not deleted. Keep `result.credentialId` for both branches.",
+  "packages/features/bookings/lib/handleNewBooking.ts:1063 - Collective hosts' calendars are dropped when the organizer has no destination calendar.. When neither the event type nor the organizer has a destination calendar, `evt.destinationCalendar` is `null`, so `evt.destinationCalendar?.push(...teamDestinationCalendars)` does nothing. The other hosts' destination calendars are silently lost and they get no calendar event. Initialise with `[]` (this also matches the `[]` default used elsewhere and in the updated webhook e2e expectation, which this `null` contradicts) and then push.",
+  "packages/app-store/googlecalendar/lib/CalendarService.ts:147 - A destination calendar without a credentialId now writes to \"primary\" instead of its externalId.. The target calendar is now chosen only by `credentialId`. A destination calendar row with no `credentialId` (legacy rows, or the `else` branch in `createAllCalendarEvents`) never matches, so the event lands in `primary` instead of the user's chosen calendar. Before, `destinationCalendar.externalId` was used. If no entry matches by credentialId, fall back to the main destination's `externalId`.",
+  "packages/app-store/office365calendar/lib/CalendarService.ts:73 - Office365 (and similarly Lark/CalDAV) use the main host's calendar id with every host's credential.. `createAllCalendarEvents` now calls `createEvent` once per host destination, each time with that host's credential. This service always takes `destinationCalendar[0].externalId` (the main host's), so a second host's call posts to `/me/calendars/<main host calendar id>` with the second host's token. That returns 404, and the failure is swallowed. Lark and the generic CalDAV service (which filters on the main host's externalId and so matches no calendars) behave the same way. Collective multi-host invites therefore only work for Google, which is what the PR sets out to fix. Pick the destination entry whose `credentialId` matches the current credential, as the Google service does.",
+  "packages/core/EventManager.ts:208 - updateLocation references lose externalCalendarId.. `externalCalendarId` now comes from `result.externalId`. That field is only set by `CalendarManager.createEvent`; the update results returned by `updateAllCalendarEvents` do not set it (see the updateEvent shown in CalendarManager). References recreated after a location change are therefore saved with `externalCalendarId: undefined`, and later update and cancel calls go to the wrong (primary) calendar. Carry over the original reference's `externalCalendarId`.",
+  "packages/core/EventManager.ts:375 - References for legacy destinations without a credentialId get no externalCalendarId.. In the branch without a `credentialId`, `createEvent(c, event)` is called without `destination.externalId`. The resulting reference stores `externalCalendarId: undefined`, whereas before it stored the destination's externalId. Because of the Google fallback bug, later updates and deletes on these bookings then hit an undefined calendar or `primary`. Pass `destination.externalId` here as well.",
+  "packages/features/bookings/lib/handleCancelBooking.ts:444 - Recurring cancellation repeats once per reference and still deletes only the first reference per booking.. The recurring branch now sits inside the loop over references. For a collective booking with N calendar references, it runs the full delete over all of the organizer's credentials N times, causing duplicate and failing deletes. It also still uses `updBooking.references.find(...)`, so other hosts' events in the recurring series are never deleted. Run the recurring deletion once and iterate over every `_calendar` reference of each booking, using each reference's own credential.",
+  "packages/features/bookings/lib/handleNewBooking.ts:731 - The dynamic-user query no longer selects organization.. The `organization: { select: { slug } }` selection was removed from the query for dynamic group users. The request does not cover this, and code later in the booking flow that reads `user.organization` (for example org-aware URLs) gets `undefined` for dynamic bookings. Restore the selection.",
+  "packages/features/bookings/lib/handleNewBooking.ts:757 - The new try/catch turns errors into generic HTTP errors and exposes Prisma messages.. Any error from loading users becomes a 500 \"Unable to load users\", including the deliberate empty-list validation, which is a client error. Prisma known-request errors become a 400 whose message is the raw Prisma message, exposing internal details. The request does not cover this change. Drop the wrapper, or throw a 400 for the validation error with a non-internal message."
+ ]
+}

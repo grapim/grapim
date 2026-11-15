@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "immich-app__immich__32240",
+ "url": "https://github.com/immich-app/immich/pull/32240",
+ "head_sha": "4e89904e255e00310d7661f6d45212a5a6e56d85",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:42:01.494Z",
+ "seconds": 18.591,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 10174,
+  "cacheRead": 6524,
+  "output": 1679,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16702,
+   "outputTokens": 1679,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #32083",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "server/test/medium/specs/workflow/workflow-core-plugin.spec.ts",
+    "line": 112,
+    "end_line": 112,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "New uses of `Kysely`, `DB` and `AssetRepository` come with no added imports.",
+    "body": "The change declares `let db: Kysely<DB>` and calls `ctx.get(AssetRepository)`, but neither hunk adds an import. The line counts (+36 -1) match only the lines shown, so no import was changed anywhere in the file. If the file did not already import `Kysely` from 'kysely', `DB` from the schema, and `AssetRepository`, the spec fails type-checking or fails at runtime with a ReferenceError for `AssetRepository`. I could not see the file's existing imports. If any are missing, add them."
+   },
+   {
+    "path": "server/test/medium/specs/workflow/workflow-core-plugin.spec.ts",
+    "line": 776,
+    "end_line": 782,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Changing `order` one row at a time can hit a uniqueness constraint on (workflowId, order).",
+    "body": "`createWorkflow` most likely gives the action order 0 and the filter order 1. The loop then updates each row on its own. If the action row comes back first, setting it to 1 while the filter still holds 1 leaves two steps with the same order for a moment. If `workflow_step` has a unique index on (workflowId, order), that update throws and the test fails before it checks the fix. I could not see the schema. To avoid the clash, first move the rows to non-overlapping values (for example, set the action to 99), or update both rows in one statement with a CASE expression."
+   }
+  ]
+ },
+ "cost_usd": 0.08577080000000001
+}

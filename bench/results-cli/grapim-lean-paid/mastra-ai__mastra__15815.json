@@ -1,0 +1,112 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "mastra-ai__mastra__15815",
+ "url": "https://github.com/mastra-ai/mastra/pull/15815",
+ "head_sha": "012c8603ed0837f26723a2b6b18674167f2ae530",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:10:49.502Z",
+ "seconds": 30.711,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "observability/mastra/src/config.ts",
+   "line": 123,
+   "end_line": 129,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "`metrics.autoExtract` controls are added even though the description says they were removed.",
+   "body": "The description says metrics auto-extract controls were dropped from this PR. The diff still adds `metrics.autoExtract` to the config type, zod schema and core types.\n\nIt also adds a new early-return branch in `emitSpanEnded` (base.ts) that skips `emitAutoExtractedMetrics`. This behaviour and public config surface are not part of the request."
+  },
+  {
+   "path": "observability/mastra/src/exporters/cloud.ts",
+   "line": 20,
+   "end_line": 27,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "A public `signalFilters` config is added even though the description says signal filter infrastructure was removed.",
+   "body": "Only the default MODEL_CHUNK drop was asked for. This adds a public per-signal filter API (spans/logs/metrics/scores/feedback) to `CloudExporterConfig`, plus hooks in every `on*Event` handler.\n\nOnce published, users will depend on this API, but the description says the design is deferred. A hard-coded MODEL_CHUNK check in `_exportTracingEvent` is enough for the request."
+  },
+  {
+   "path": "packages/core/src/processors/index.ts",
+   "line": 325,
+   "end_line": 333,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The PR still ships the processor observability API its description says was removed.",
+   "body": "The description says processor observability work was removed and deferred to a follow-up design. The diff still adds a public `Processor.observability` option (`false` / `'errors-only'`).\n\nIt also rewires span creation in every legacy runner path and both workflow executors, and the changeset (line 8) advertises it.\n\nThis is a new public API on shared core code that the stated request (MODEL_CHUNK drop and `warn` log default) does not cover. Either remove it, or update the request and changeset to cover it."
+  },
+  {
+   "path": "packages/core/src/processors/runner.ts",
+   "line": 62,
+   "end_line": 66,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "TripWire aborts in the legacy runner no longer mark processor spans as errors.",
+   "body": "Previously every legacy runner path called `processorSpan.error({ error, endSpan: true, ... })` on a TripWire, so blocked requests showed as ERROR in traces (the removed comment said exactly that). They now go through `span.end({ attributes })`, so the span ends as a success with no `errorInfo`.\n\nAll exporters (default storage, Langfuse, OTEL, etc.) and any error-rate dashboards or alerts will no longer see guardrail blocks as errors. This is a user-visible change unrelated to the requested volume reduction.\n\nIf you want the cloud filter to keep tripwires, keep `error()` and add `processorOutcome` as an attribute alongside it."
+  },
+  {
+   "path": "packages/playground/src/pages/traces/index.tsx",
+   "line": 38,
+   "end_line": 41,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Import reordering in the playground that the description says was removed.",
+   "body": "The description says playground import churn was removed from this PR. These import reorders, along with the matching ones in `traces/trace/index.tsx`, are unrelated to the request and should be dropped."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 49649,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 2893,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 58,
+   "reviewedHunks": 58,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 52766,
+   "outputTokens": 2893,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "observability/mastra/src/exporters/cloud.ts",
+    "line": 56,
+    "end_line": 63,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Dropping successful errors-only processor spans can leave their child spans orphaned in cloud.",
+    "body": "`'errors-only'` processors still create a span, and processor-internal work (agent or LLM calls) nests under it via `createProcessorObservabilityContext`.\n\nThe cloud filter drops only the PROCESSOR_RUN span itself, so the children are still uploaded with a `parentSpanId` that never arrives. That can produce broken trees or orphaned spans in the cloud UI.\n\nI could not check how the cloud backend handles a missing parent. Consider dropping the descendants too, or re-parenting them."
+   }
+  ]
+ },
+ "cost_usd": 0.2570794
+}

@@ -1,0 +1,30 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The enableSqlExpressions function has flawed logic that always returns false, effectively disabling SQL expressions unconditionally:",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same issue: enableSqlExpressions always returns false."
+  },
+  {
+   "comment": "The DB methods NewInMemoryDB().RunCommands, DB.QueryFramesInto, and DB.TablesList in pkg/expr/sql/db.go return hardcoded 'not implemented' errors after removing the go-duck dependency.",
+   "severity": "High",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the hardcoded 'not implemented' DB methods."
+  }
+ ],
+ "candidates": [
+  "The enableSqlExpressions function always returns false regardless of the feature flag state. The variable enabled is set to the negation of IsEnabledGlobally, and then both the if enabled branch and the fallthrough return false. The logic is inverted and broken - it should return h.features.IsEnabledGlobally(featuremgmt.FlagSqlExpressions) directly if the intent is to respect the feature flag."
+ ]
+}

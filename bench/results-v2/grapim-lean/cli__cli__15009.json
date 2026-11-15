@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cli__cli__15009",
+ "url": "https://github.com/cli/cli/pull/15009",
+ "head_sha": "e8022e837d4d422370059c3ea954d13e11ebeeaf",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:05:28.375Z",
+ "seconds": 14.673,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 401,
+   "end_line": 403,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Rate-limit and server failures are still reported as an invalid token, with re-auth advice.",
+   "body": "Linked issue #14053 asks `gh auth status` to tell a 401 apart from other failures such as 403 rate limits, 5xx errors and network errors. For those other failures it should stop printing \"The token in … is invalid.\" and the `gh auth refresh` hint.\n\nThis change keeps both for every non-timeout error and only adds an `- Error: …` line below them. The new tests lock that in: the 503 case and the 403/GraphQL rate-limit cases still expect \"The token in GH_TOKEN is invalid.\" and the refresh/logout advice. Following that advice while rate limited makes things worse, which is the exact harm the issue reports.\n\nThe extra line is also shown only when stderr is a TTY, so CI and agent logs, where the issue's rate-limit scenario usually happens, still get no hint of the real cause.\n\nFix: classify 401 separately from other HTTP and network errors in `buildEntry`. Render something like \"Could not verify token: <err>\" for non-401 failures, without the re-auth hint."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 11209,
+  "cacheWrite": 3117,
+  "cacheRead": 0,
+  "output": 1072,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 14326,
+   "outputTokens": 1072,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14053",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.081861
+}

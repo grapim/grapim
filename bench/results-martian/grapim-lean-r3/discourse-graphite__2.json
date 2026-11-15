@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "head_sha": "6669a2d94d76eea3b99b8c476d12b1eb66726b07",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:38:07.656Z",
+ "seconds": 29.333,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/controllers/topics_controller.rb",
+   "line": 105,
+   "end_line": 113,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Unsubscribe crashes when the user has no TopicUser row.",
+   "body": "`TopicUser.find_by` returns nil when the user has no row for this topic. That happens when the user was notified by a mention or a group message without ever visiting the topic, or when a logged-in user opens a link someone forwarded to them. The next line, `tu.notification_level`, then raises NoMethodError and the request fails with a 500. Fix: use `TopicUser.change(...)` or `find_or_initialize_by`, and treat a nil level as regular."
+  },
+  {
+   "path": "config/locales/server.en.yml",
+   "line": 1852,
+   "end_line": 1855,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Shared `unsubscribe_link` string now requires `unsubscribe_url`, but only post notification emails pass it.",
+   "body": "`MessageBuilder#html_part` (and probably the text body) calls `I18n.t('unsubscribe_link', template_args)` for every email with `add_unsubscribe_link: true`. Only `UserNotifications#send_notification_email` now passes `unsubscribe_url`. Other senders that set `add_unsubscribe_link`, such as the digest email, will hit a missing interpolation argument. That either raises I18n::MissingInterpolationArgument or shows a broken link. They would also show a \"this particular topic\" line that makes no sense in a digest. The spec had to add `unsubscribe_url` to pass, which points to the same problem. Fix: use a separate key for the per-topic line, and add it only when `@template_args[:unsubscribe_url]` is present. I could not see the other callers to confirm which ones set `add_unsubscribe_link`."
+  },
+  {
+   "path": "app/controllers/topics_controller.rb",
+   "line": 98,
+   "end_line": 116,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "A GET request changes notification state with no CSRF protection.",
+   "body": "`unsubscribe` is routed as GET (config/routes.rb) and saves a new notification level on every request. GET requests skip CSRF checks, so any third-party page can embed `<img src=\"https://forum/t/x/123/unsubscribe\">` and mute or downgrade topics for whoever is logged in. Mail link scanners that prefetch URLs can also unsubscribe users who never clicked. Repeat visits keep lowering the level (watching → regular → muted). Fix: make the GET only show a confirmation page, and do the change through a POST/PUT from the page, or protect the link with a per-user signed token."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18538,
+  "cacheRead": 3262,
+  "output": 2654,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 18,
+   "hunks": 26,
+   "reviewedHunks": 25,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 21802,
+   "outputTokens": 2654,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 18,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1464304
+}

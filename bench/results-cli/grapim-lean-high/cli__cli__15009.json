@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "cli__cli__15009",
+ "url": "https://github.com/cli/cli/pull/15009",
+ "head_sha": "e8022e837d4d422370059c3ea954d13e11ebeeaf",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:05:46.179Z",
+ "seconds": 30.03,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 401,
+   "end_line": 403,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Rate-limit and server errors are still reported as an invalid token with re-auth advice.",
+   "body": "Issue #14053 asks `gh auth status` to treat a 401 differently from other failures. Only a 401 should produce \"The token … is invalid\" and the `gh auth refresh` hint. A 403 rate limit, a 5xx or a network failure should instead say something like \"Could not verify token: …\".\n\nThis change only adds a `- Error: …` line, and only when stderr is a TTY. It keeps the misleading verdict and the hint. The new tests confirm it: `Test_statusRun_errorDiagnostic` expects a 403 \"API rate limit exceeded\" and a 503 to still print \"The token in GH_TOKEN is invalid.\", and the 503 case in hunk 6 keeps \"To re-authenticate, run: gh auth refresh\".\n\nBecause of the `IsStderrTTY()` check, the issue's own example (a CI job or agent loop, where stderr is usually not a TTY) gets no extra information at all.\n\n**Fix:** add the status-code-aware classification the issue asks for. A non-401 failure should get its own state and message, without the re-auth hint. Or, if this PR is only meant as a partial step, don't link it as closing the issue."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 11856,
+  "cacheRead": 3262,
+  "output": 2534,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 15120,
+   "outputTokens": 2534,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14053",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1106204
+}

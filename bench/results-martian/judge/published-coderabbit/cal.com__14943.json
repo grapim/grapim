@@ -1,0 +1,35 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block).",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same non-atomic retryCount + 1 race condition."
+  },
+  {
+   "comment": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out the same missing SMS method filter in the deleteMany OR clause, which deletes non-SMS reminders."
+  }
+ ],
+ "candidates": [
+  "Using JavaScript-level addition (reminder.retryCount + 1) instead of Prisma's atomic increment operator creates race conditions when two scheduler instances run concurrently, causing one failure to be lost and weakening the delete after two failures logic",
+  "The second OR branch in the deleteMany query is missing a method guard, so it will delete any WorkflowReminder with retryCount > 1, not just SMS reminders - the cleanup should be scoped to SMS only",
+  "The Twilio provider API call and database persistence are in a single try-catch, so if Twilio accepts the SMS but the database update fails, the error is treated as a send failure causing duplicate SMS on retry",
+  "After multiple database failures, the reminder row may be deleted leaving orphaned jobs on Twilio with no database reference"
+ ]
+}

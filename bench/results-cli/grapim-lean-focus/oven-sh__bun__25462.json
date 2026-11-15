@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "oven-sh__bun__25462",
+ "url": "https://github.com/oven-sh/bun/pull/25462",
+ "head_sha": "7cdf07e36e3785afa797f5ef753f478dbfb3ea31",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:30:35.838Z",
+ "seconds": 34.751,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/ast/P.zig",
+   "line": 2664,
+   "end_line": 2687,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Other bindings from \"bun:bundle\" are dropped without being declared, so using them throws a ReferenceError at runtime.",
+   "body": "Only the `feature` specifier gets a declared symbol. The whole import is then replaced with `S.Empty`, and three kinds of binding are left without any declaration: other named specifiers, a default import (`import b from \"bun:bundle\"`), and a namespace import (`import * as b from \"bun:bundle\"`). Any use of them, such as `b.feature(\"X\")`, compiles to a reference to an unbound global and throws `ReferenceError` at runtime. The warning on line 2683 says the name \"will be undefined\", which is not what happens. Default and star imports get no diagnostic at all. Fix: report an error for `stmt.default_name`, `stmt.star_name_loc` and unknown specifiers. If they really should evaluate to `undefined`, declare their refs and bind them to `undefined`."
+  },
+  {
+   "path": "src/runtime.zig",
+   "line": 214,
+   "end_line": 216,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Feature flags are not part of the runtime transpiler cache key, so cached output can be stale.",
+   "body": "`bundler_feature_flags` is added to `Runtime.Features`, but it is not in `hash_fields_for_runtime_transpiler`, and nothing else in the hash uses the flag set. `bun run` and `bun test` use the RuntimeTranspilerCache for large enough source files. So if you run `bun run --feature=X big.ts` and then `bun run big.ts`, the second run can load the cached output where `feature(\"X\")` was already turned into `true`. That gives the wrong branch.\n\nFix: mix the sorted set of enabled flags into the cache hash, or turn the cache off when any flag is set. A file that imports `bun:bundle` could also skip the cache."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 36052,
+  "cacheRead": 6524,
+  "output": 4777,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 35,
+   "reviewedHunks": 35,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 42580,
+   "outputTokens": 4777,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 3
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/ast/visitExpr.zig",
+    "line": 1693,
+    "end_line": 1693,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`feature()` results may be served stale from the runtime transpiler cache.",
+    "body": "With `bun run --feature=X`, `feature()` is folded to `true` or `false` in the transpiled output. If the runtime transpiler cache key (the hashed `RuntimeFeatures` fields in runtime.zig, which I could not see) does not include the set of feature flags, a later run with different `--feature` flags reuses the old output. That cache is used for large files. The code inside the feature check then runs, or is skipped, against what the user asked for. Fix: add the enabled flag names to the runtime cache hash, or turn off the cache when `bun:bundle` is imported."
+   },
+   {
+    "path": "src/bundler/bundle_v2.zig",
+    "line": 1840,
+    "end_line": 1840,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The transpiler keeps a pointer into the JS config's `features` set, which may not live as long as the bundle.",
+    "body": "`transpiler.options.bundler_feature_flags = &config.features;` stores the address of a `StringSet` owned by the `Bun.build` config. If `config` here is a by-value copy, or the config is deinitialized (line 817 frees `self.features`) while parse tasks on worker threads still read `bundler_feature_flags`, those lookups read freed memory. I could not see whether `config` points into the long-lived completion task. Fix: confirm the pointer is stable for the whole bundle, or copy the set into the transpiler's allocator."
+   },
+   {
+    "path": "src/options.zig",
+    "line": 1912,
+    "end_line": 1918,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Freeing the shared flag set in BundleOptions.deinit can cause a double free or leave a dangling pointer.",
+    "body": "The `StringSet` is held only by pointer, and `BundleOptions` is copied by value in several places. For example, bundle_v2 builds extra client/SSR transpilers from the main transpiler's options, and each parse copies the pointer into `opts.features`. If more than one `Transpiler` that holds the same copied pointer gets deinit-ed, the set is freed twice. Also, any parse still running after the first deinit reads freed memory.\n\nI could not see every place that copies or deinits these options, so this may not happen in practice. Fix: give the set one clear owner, such as the CLI context or the JSBundler config, or reset the pointer to the empty set after the copy is made."
+   }
+  ]
+ },
+ "cost_usd": 0.2771208
+}

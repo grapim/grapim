@@ -1,0 +1,24 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The include_website_name method is missing the required ? suffix. Rails serializers expect include_ methods to end with ? for conditional attribute inclusion, a convention followed by other methods in this serializer. Without it, the website_name attribute may not be conditionally included as intended. Additionally, the '.' << website_host string concatenation should be replaced with '.' + website_host or '.#{website_host}' to avoid mutating string literals, which can lead to issues.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same missing ? suffix on include_website_name, which is the main issue in the golden comment."
+  }
+ ],
+ "candidates": [
+  "The method `include_website_name` is missing the required `?` suffix. Active Model Serializers uses `include_#{attribute}?` convention to conditionally include attributes. Without the `?`, this method won't be called as a conditional, and `website_name` will always be serialized (potentially as `null` when no website is set) instead of being omitted when `website` is not present.",
+  "The `website_name` attribute bypasses trust level protection since it's not in the `untrusted_attributes` list, while the `website` attribute is protected. This means the user's website domain can be exposed even when `website` itself is intentionally hidden for privacy reasons.",
+  "The `website_name` method repeatedly performs the same expensive operations: `URI(website.to_s)` is parsed four times, `website_host.split('.')` is called three times, and `discourse_host.split('.')` is called three times. These values could be computed once and stored in local variables."
+ ]
+}

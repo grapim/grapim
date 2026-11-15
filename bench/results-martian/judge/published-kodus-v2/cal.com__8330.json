@@ -1,0 +1,34 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "cal.com__8330",
+ "url": "https://github.com/calcom/cal.com/pull/8330",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect end time calculation using slotStartTime instead of slotEndTime",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out that the end time is computed from slotStartTime when it should use slotEndTime."
+  },
+  {
+   "comment": "Using === for dayjs object comparison will always return false as it compares object references, not values. Use .isSame() method instead: dayjs(date.start).add(utcOffset, 'minutes').isSame(dayjs(date.end).add(utcOffset, minutes))",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.96,
+   "reasoning": "C2 points out that comparing two dayjs objects with === always returns false."
+  }
+ ],
+ "candidates": [
+  "Copy-paste error: 'end' is computed from slotStartTime instead of slotEndTime, making 'end' always equal to 'start' - the working-hours boundary check only validates the slot's start minute, never its end, allowing bookings that overflow past working hours",
+  "Reference equality (===) on two distinct dayjs objects always evaluates to false - dayjs creates separate objects, so the condition to detect full-day-off date overrides never triggers, allowing bookings on days the organizer marked unavailable",
+  "Array.find() short-circuits on the first match - when multiple date overrides exist on the same day, a slot covered by a later override is incorrectly rejected because it falls outside the first override found"
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "keycloak__40940",
+ "url": "https://github.com/keycloak/keycloak/pull/40940",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returning null from getSubGroupsCount() violates the GroupModel contract (Javadoc says it never returns null) and may lead to NPEs in callers that expect a non-null count.",
+   "severity": "Critical",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C3 mentions the null check in getSubGroupsCount, but its complaint is that the other methods handle null inconsistently. It never says that returning null breaks the non-null contract or could cause NPEs in callers."
+  },
+  {
+   "comment": "The reader thread isn’t waited for; flipping deletedAll to true and asserting immediately can race and miss exceptions added just after the flag change, making this test flaky.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same race: the test asserts right after setting deletedAll and never waits for the reader thread to finish."
+  }
+ ],
+ "candidates": [
+  "Test createMultiDeleteMultiReadMulti has a race condition: after calling deletedAll.set(true), it immediately asserts caughtExceptions is empty without waiting for the reader thread to terminate, so exceptions thrown after the assertion runs will not be detected",
+  "Test createMultiDeleteMultiReadMulti lacks synchronization to ensure the reader thread has actually started before deletions begin, meaning all groups could be deleted before the first read occurs and the test might not exercise concurrent access scenarios",
+  "Inconsistent null handling: getSubGroupsCount() has a null check for modelSupplier.get(), but three getSubGroupsStream overloads use the identical call pattern without null checks, creating inconsistent handling of the same concurrent access scenario"
+ ]
+}

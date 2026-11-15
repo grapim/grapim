@@ -1,0 +1,54 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions a race condition in the concurrent count check."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C1 is about the cache bypass, not about anonymous auth failing when the limit is reached."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers rowsAffected==0 being misread as the limit being reached."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the inconsistent time window."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same issue: the cache entry is set before CreateOrUpdateDevice runs, so later requests can bypass the limit."
+  }
+ ],
+ "candidates": [
+  "When CreateOrUpdateDevice returns ErrDeviceLimitReached, the local cache entry set at line 88 remains even though the device was not stored. On the next request with the same device ID (within the 29-minute TTL), the cache hit at line 83 returns nil without checking the database, allowing the request to succeed and bypassing the device limit enforcement."
+ ]
+}

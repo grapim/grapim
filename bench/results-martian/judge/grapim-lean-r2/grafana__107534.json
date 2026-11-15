@@ -1,0 +1,16 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "grafana__107534",
+ "url": "https://github.com/grafana/grafana/pull/107534",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The applyTemplateVariables method is called with request.filters as the third parameter, but this parameter is not used in the corresponding test setup.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": []
+  }
+ ],
+ "candidates": []
+}

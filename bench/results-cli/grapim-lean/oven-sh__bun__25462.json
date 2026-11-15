@@ -1,0 +1,92 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "oven-sh__bun__25462",
+ "url": "https://github.com/oven-sh/bun/pull/25462",
+ "head_sha": "7cdf07e36e3785afa797f5ef753f478dbfb3ea31",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:07:18.237Z",
+ "seconds": 41.635,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/ast/P.zig",
+   "line": 2664,
+   "end_line": 2687,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Other imports from \"bun:bundle\" are silently dropped and fail at runtime.",
+   "body": "The whole import statement becomes `S.Empty`, and only the `feature` specifier gets a declared symbol. `import * as b from \"bun:bundle\"` and default imports get no diagnostic at all. Other named specifiers only get a warning that says the value \"will be undefined\". In both cases the local name is never declared, so using it throws a `ReferenceError` at runtime (or resolves to an unrelated global) rather than being `undefined`. A second `feature` alias, which is reported as an error, is also left undeclared. Fix: report namespace, default and unknown specifiers as errors, or declare those bindings and assign them `undefined`."
+  },
+  {
+   "path": "src/bundler/bundle_v2.zig",
+   "line": 1840,
+   "end_line": 1840,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`BundleOptions.deinit` can free a StringSet it did not allocate.",
+   "body": "`transpiler.options.bundler_feature_flags` now points at `config.features`, which is a field inside the JSBundler config, not a separate heap allocation. The new `BundleOptions.deinit` frees any pointer that isn't the static empty set: it calls `deinit()` on it and then `allocator.destroy()`. If this transpiler is ever deinitialized, that is an invalid free of an embedded field. `config.deinit` then calls `features.deinit()` a second time. I could not see whether this transpiler's `deinit` actually runs. Fix: clone the set into its own allocation, or record whether the options own the set and only free it in that case."
+  },
+  {
+   "path": "src/runtime.zig",
+   "line": 214,
+   "end_line": 216,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The runtime transpiler cache key ignores which feature flags are enabled.",
+   "body": "`bundler_feature_flags` now changes the transpiled output: `feature(\"X\")` becomes `true` or `false`. It is not added to `hash_fields_for_runtime_transpiler`, and nothing else in the diff puts the flag set into the cache key. Trigger: run `bun run index.ts` on a file large enough to be cached, then run `bun run --feature=X index.ts`. The second run can reuse the cached output from the first and print the disabled branch. Fix: hash the sorted flag names into the cache key, or skip the runtime transpiler cache when any flags are set."
+  },
+  {
+   "path": "src/cli/build_command.zig",
+   "line": 85,
+   "end_line": 85,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "performance",
+   "title": "The feature-flag set is built twice and the first copy leaks.",
+   "body": "`BundleOptions.fromApi` already builds the set from `transform.feature_flags`, which is `ctx.args.feature_flags` here. This line builds a second set and overwrites the pointer, so the first set is never freed. Drop this line, since `fromApi` already sets the field."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 32787,
+  "cacheRead": 3262,
+  "output": 3579,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 35,
+   "reviewedHunks": 35,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 36051,
+   "outputTokens": 3579,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2361754
+}

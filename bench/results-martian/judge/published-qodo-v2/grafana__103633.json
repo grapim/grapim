@@ -1,0 +1,42 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The Check operation exhibits asymmetric cache trust logic: cached permission grants are trusted and returned immediately, but cached denials from the same permission cache are ignored, leading to a fresh database lookup. This allows stale cached grants to provide access to revoked resources, posing a security risk. ",
+   "severity": "High",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G1 is about cached grants being trusted while cached denials are ignored, so stale grants can still give access. C3 is about the reverse problem: stale denials delaying newly granted access. That is a different issue."
+  },
+  {
+   "comment": "The test comment says the cached permissions 'allow access', but the map stores false for dashboards:uid:dash1, so checkPermission will still treat this scope as not allowed.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same thing: the test comment says the cache allows access, but the map stores false."
+  },
+  {
+   "comment": "The cache key construction in `userPermDenialCacheKey` uses simple string concatenation with underscores, which can lead to ambiguous keys and collision risks when any component contains underscores or is empty. This could result in incorrect denial cache hits, affecting user permissions.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same problem: building the key by joining parts with underscores can produce colliding keys."
+  }
+ ],
+ "candidates": [
+  "The new denial-cache precedence test claims permCache allows access but actually sets the permission to false, so it would deny even if permDenialCache were ignored, potentially masking regressions",
+  "The denial-cache key concatenates components with '_' delimiters even though Grafana UIDs can contain underscores, allowing different (name,parent) pairs to map to the same key and cause incorrect authorization denials for unrelated resources",
+  "A denial-cache hit returns an immediate deny without re-checking cached permissions or re-querying the DB, which can delay newly granted access to a resource until the denial TTL expires"
+ ]
+}

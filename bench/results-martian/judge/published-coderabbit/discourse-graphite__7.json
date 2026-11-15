@@ -1,0 +1,53 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "discourse-graphite__7",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/7",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In .topic-meta-data h5 a, the original code had color: scale-color($primary, $lightness: 30%) but was changed to dark-light-choose(scale-color($primary, $lightness: 70%), scale-color($secondary, $lightness: 30%)). The lightness for the light theme changed from 30% to 70%, which is a dramatic inversion",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate addresses the h5 a lightness change."
+  },
+  {
+   "comment": "This change for desktop/user.css changes $primary from 30% to 50% for the light theme; most other changes preserve the original $primary value and move the complement to $secondary for dark. Consider reviewing this (also applies to a similar .name change in the mobile variant).",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the user.css lightness change."
+  },
+  {
+   "comment": "In topic-post.css the original code used $lightness: 70% but the replacement uses $lightness: 30% for the light theme. This makes the text significantly darker than intended.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the topic-post lightness inversion."
+  },
+  {
+   "comment": "The light theme color for `.topic-meta-data h5 a` was changed from `scale-color($primary, $lightness: 30%)` to `scale-color($primary, $lightness: 70%)`, which may unintentionally reduce contrast and affect readability. This change should be reviewed to ensure it aligns with design intentions.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate addresses this change."
+  },
+  {
+   "comment": "In mobile/user.scss line 497, the lightness value for dark themes should be inverted to 70% instead of being changed to 50%. This change may lead to unintended visual regressions in light themes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the mobile/user.scss change."
+  }
+ ],
+ "candidates": [
+  "Inconsistent theme handling: #file-uploading uses scale-color($secondary, $lightness: 50%) while sibling #draft-status was updated to use dark-light-choose, which may cause visibility issues for #file-uploading text in dark themes",
+  ".wmd-input text color uses darken($primary, 40%) which was not updated - darkening an already dark primary color could cause readability issues in some theme configurations"
+ ]
+}

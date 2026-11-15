@@ -1,0 +1,104 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "head_sha": "bbd8c507cdf56f6b884373809e0b24abd4a2353d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:32:07.808Z",
+ "seconds": 33.637,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+   "line": 108,
+   "end_line": 118,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Counting and inserting are separate steps, so concurrent new devices can exceed the limit.",
+   "body": "`CreateOrUpdateDevice` reads `CountDevices` and then, as a separate statement with no transaction or lock, runs the upsert. When several new devices arrive at about the same time while the count is `limit-1`, each one sees `count < limit` and inserts. The limit is then exceeded by up to the number of concurrent requests. Fix: do the count and the insert atomically, in one transaction with suitable locking or a conditional `INSERT ... SELECT ... WHERE (SELECT COUNT(*) ...) < ?`."
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/client.go",
+   "line": 44,
+   "end_line": 50,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "performance",
+   "title": "Device tagging now runs synchronously on every anonymous request, and its panic guard is gone.",
+   "body": "Before this change, `TagDevice` ran in a background goroutine. It had its own 2-minute timeout and a `recover()`. Now it runs inline in `Authenticate`, so every anonymous request that misses the local cache waits on DB writes. When a limit is set, it also waits on a `COUNT` over `anon_device` first. Slow or locked DB writes (common on SQLite) now add latency to every anonymous request or fail it. A panic in the tagging path is no longer recovered. It now propagates up the request path instead of only being logged. It is also tied to the request context, so a client disconnect cancels the write. Fix: only the limit check needs to block, so keep the rest of the tagging async, or at least keep the timeout and panic recovery."
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/client.go",
+   "line": 45,
+   "end_line": 45,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The device limit can be bypassed by retrying, if the local cache is filled before the store write.",
+   "body": "`tagDeviceUI` (not shown) appears to check `localCache` and mark the device as tagged before it calls `CreateOrUpdateDevice`. If so, the first request from a new device over the limit gets `ErrDeviceLimitReached` and is rejected. Every later request from that device in the next 29 minutes then hits the cache, returns nil, and is authenticated, so the limit is only enforced once. Fix: set the cache entry only after `CreateOrUpdateDevice` succeeds, or skip caching when the error is `ErrDeviceLimitReached`."
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+   "line": 83,
+   "end_line": 85,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The closure changes the captured `args` slice, so a retried session would prepend the query twice.",
+   "body": "`args = append([]interface{}{query}, args...)` reassigns the outer `args` inside the `WithDbSession` callback. If `WithDbSession` runs the callback again (for example its retry on a SQLite 'database is locked' error), the second run prepends `query` again. `Exec` then receives the query string as a bind parameter, and the update fails or runs with the wrong arguments. Fix: build the slice in a local variable inside the closure, or build it once outside the closure."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17169,
+  "cacheRead": 3262,
+  "output": 3243,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 11,
+   "hunks": 19,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 20433,
+   "outputTokens": 3243,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+    "line": 52,
+    "end_line": 53,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "An `int64` parameter on `ProvideAnonDBStore` may break wire injection if it is still registered as a provider.",
+    "body": "`ProvideAnonDBStore` now takes a plain `deviceLimit int64`. The service now builds its own store instead of receiving an injected `AnonStore`. If `ProvideAnonDBStore` is still listed in the wire sets (wire.go is not shown), wire has no provider for `int64` and code generation or the build fails. If it was removed from the wire sets instead, any other consumer of the injected `AnonStore` loses its provider. Check the wire sets. Passing `*setting.Cfg` would keep it injectable."
+   }
+  ]
+ },
+ "cost_usd": 0.15136539999999998
+}

@@ -1,0 +1,63 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The exported function TwoFactor handles backup codes and is in BackupCode.tsx. Inconsistent naming.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 flags the same mismatch: the component exported from BackupCode.tsx is named TwoFactor."
+  },
+  {
+   "comment": "Error message mentions 'backup code login' but this is a disable endpoint, not login",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the wrong 'backup code login' error message in the disable endpoint."
+  },
+  {
+   "comment": "Backup code validation is case-sensitive due to the use of indexOf(). This causes validation to fail if a user enters uppercase hex characters, as backup codes should be case-insensitive for a better user experience.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions that backup code validation is case-sensitive."
+  },
+  {
+   "comment": "Because backupCodes are decrypted and mutated in memory before being written back, two concurrent login requests using the same backupCode could both pass this check and update, so a single backup code may effectively be accepted more than once if used concurrently, weakening the intended one-time-use semantics.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 describes the same race: two parallel requests can both pass the check, so one backup code can be used more than once."
+  },
+  {
+   "comment": "Object URL for backup codes is not revoked on component unmount, leading to a potential memory leak. This can cause increased memory usage over time, especially if the component is mounted and unmounted frequently.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions that the object URL is never revoked."
+  }
+ ],
+ "candidates": [
+  "Component exported from BackupCode.tsx is named TwoFactor instead of BackupCode, making DevTools, stack traces, and search results point to the wrong component during auth debugging",
+  "Backup code validation reads full plaintext list, checks in memory, then writes back updated encrypted array - this leaves backup codes recoverable at rest and opens a TOCTOU window where two parallel requests can both pass the lookup before either write null",
+  "locator.isChecked() returns a Promise<boolean>, so expect(locator.isChecked()).toBeTruthy() only asserts that a Promise object exists, not its resolved value - should use data-state attribute check instead",
+  "Migration timestamp 20230804153419 is older than existing migrations like 20230828094603, causing Prisma migration-order drift across environments",
+  "Password visibility toggle button has tabIndex={-1} which removes it from keyboard navigation, causing accessibility regression for keyboard-only users",
+  "SSO users still can't authenticate with backup codes because guards only exempt totpCode - a Google/SAML user submitting backupCode will hit ThirdPartyIdentityProviderEnabled or IncorrectEmailPassword before the backup-code branch runs",
+  "When totpEmail is present the login page switches to ExternalTotpFooter, so SAML/Google users never see the new backup-code entry point and can still be locked out after losing their authenticator",
+  "Test suite doesn't cover login-with-backup-code, disable-via-backup-code, or sequential reuse failure, so the recovery path can regress without CI noticing"
+ ]
+}

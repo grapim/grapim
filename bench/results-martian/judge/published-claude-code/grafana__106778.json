@@ -1,0 +1,35 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same missing key prop on GrafanaRuleListItem."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same problem: the silence drawer never renders without a ruler rule, so clicking the menu item does nothing."
+  }
+ ],
+ "candidates": [
+  "Missing key prop on GrafanaRuleListItem in FilterView.tsx (line 157) - the key variable is destructured from ruleWithOrigin but was dropped when GrafanaRuleLoader was replaced with GrafanaRuleListItem, causing React reconciliation issues when the filtered list changes",
+  "The 'Silence notifications' menu item is shown in the list view but clicking it does nothing because the SilenceGrafanaRuleDrawer in RuleActionsButtons.V2.tsx is guarded by rulerRuleType.grafana.alertingRule(rule) which is always false when rule (rulerRule) is undefined - the drawer guard needs to be updated to work with promRule when rulerRule is not available",
+  "The new GrafanaRuleListItem component omits the returnTo query parameter when building the view URL (line 40), unlike the deleted GrafanaRuleLoader and sibling DataSourceRuleListItem which both use createReturnTo() - this breaks back-navigation UX from the rule detail view back to the list",
+  "The refactored useAllAlertRuleAbilities now delegates to useAllRulerRuleAbilities which hardcodes isFederated = false instead of checking isFederatedRuleGroup(rule.group) - this means federated Mimir rule groups will no longer be correctly identified as immutable, potentially allowing edit/delete actions on rules that should be read-only"
+ ]
+}

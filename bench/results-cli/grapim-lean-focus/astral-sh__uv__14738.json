@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "astral-sh__uv__14738",
+ "url": "https://github.com/astral-sh/uv/pull/14738",
+ "head_sha": "bfcd9754884dde39031bdfa47bd236731ccb9577",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:34:21.457Z",
+ "seconds": 21.997,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 4895,
+  "cacheRead": 3262,
+  "output": 1801,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 8159,
+   "outputTokens": 1801,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14730",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "crates/uv/src/commands/project/version.rs",
+    "line": 342,
+    "end_line": 371,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Typed `WorkspaceError::MissingPyprojectToml` is replaced by a plain string error, so callers can no longer detect it.",
+    "body": "Before this change the `WorkspaceError` reached callers through `?`, so `anyhow::Error::downcast_ref::<WorkspaceError>()` could find it. Now `anyhow!(\"{}\\n\\nhint: ...\", err)` creates a new string error. Any caller that branches on `MissingPyprojectToml` will stop matching it, for example a fallback or strictness check in the `uv version` dispatch. I could not see the callers of `project_version`/`find_target`, so I can't confirm that any of them downcast. To keep the error type, wrap it instead, e.g. `anyhow::Error::from(err).context(...)`, or put the hint in a typed error or in the dispatch layer. The same `map_err` block also appears twice and could be moved into one helper."
+   }
+  ]
+ },
+ "cost_usd": 0.0611554
+}

@@ -1,0 +1,34 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "grafana__97529",
+ "url": "https://github.com/grafana/grafana/pull/97529",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A race condition in BuildIndex allows multiple goroutines to concurrently build the same expensive index for the same key. This is caused by moving the b.cacheMu lock from protecting the entire function to only protecting the final cache assignment. ",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions duplicate concurrent index builds caused by narrowing the lock scope in BuildIndex."
+  },
+  {
+   "comment": "Calling s.search.TotalDocs() here may race with concurrent index creation: TotalDocs iterates b.cache without synchronization, and the event watcher goroutine started just above could trigger BuildIndex writes concurrently, potentially causing a concurrent map read/write panic.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 points out that TotalDocs iterates b.cache without a lock while BuildIndex writes to it, which can cause a concurrent map panic. This is the same issue as G2."
+  }
+ ],
+ "candidates": [
+  "TotalDocs() in bleve.go iterates b.cache without holding b.cacheMu.RLock(), while BuildIndex() writes to b.cache under cacheMu.Lock() - concurrent map iteration and map write is undefined behavior that can cause a fatal runtime panic",
+  "When Init() fails in NewResourceServer(), the function returns (nil, err) without calling cancel(), leaking the context created at line 229 and any goroutines spawned during partial initialization",
+  "The error is logged twice with identical message 'error initializing resource server' - once at line 260 (new) and once inside Init() at line 314 (existing)",
+  "In searchSupport.init() when initWorkers > 1, the errgroup goroutines concurrently write to the shared err variable (line 190 uses = instead of :=) - if one goroutine sets err=someError and another sets err=nil, the error is silently lost",
+  "In searchSupport.init() when initWorkers > 1, totalBatchesIndexed++ (line 189) is a non-atomic increment from multiple concurrent goroutines, causing a data race"
+ ]
+}

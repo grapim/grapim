@@ -1,0 +1,94 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__22345",
+ "url": "https://github.com/calcom/cal.com/pull/22345",
+ "head_sha": "da09bc0808e7c6df1bc10e00d5acf764d94c7cc7",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:40:07.668Z",
+ "seconds": 27.009,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/lib/server/service/__tests__/insightsBooking.integration-test.ts",
+   "line": 429,
+   "end_line": 431,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The caching tests were deleted instead of updated.",
+   "body": "The whole `describe(\"Caching\")` block was removed: \"should cache authorization conditions\" and \"should cache filter conditions\". The service still caches `cachedAuthConditions` and `cachedFilterConditions`, so that behaviour now has no test coverage. The tests did not need to go. They only needed their expected values switched to `Prisma.sql` the same way as the other tests. Restore them with Prisma.sql expectations."
+  },
+  {
+   "path": "packages/lib/server/service/insightsBooking.ts",
+   "line": 72,
+   "end_line": 80,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "getBaseConditions can return a top-level OR without outer parentheses.",
+   "body": "When there are no filters, `getBaseConditions()` returns the auth condition as is. For org and team scope that is `(A) AND (B) OR (C) AND (D)`, with no outer parentheses. The same happens with a lone eventTypeId filter, which yields `(\"eventTypeId\" = x) OR (\"eventParentId\" = x)`. Callers are expected to embed the value in a larger WHERE clause. If one writes `WHERE ${base} AND \"createdAt\" >= ${start}`, AND binds tighter than OR, so the extra predicate applies only to the last OR branch. The query then returns rows outside the date range, status filter or similar. I could not see the callers to confirm one composes this way. Fix: wrap every returned fragment, e.g. return `Prisma.sql\\`(${authConditions})\\`` and wrap the reduced OR/AND results, so the value is always safe to embed."
+  },
+  {
+   "path": "packages/lib/server/service/insightsBooking.ts",
+   "line": 29,
+   "end_line": 34,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "The looser constructor type drops compile-time checking of options.",
+   "body": "The constructor now takes `InsightsBookingServicePublicOptions` (where `teamId` is optional) instead of the discriminated union. So `{ scope: \"team\" }` without a `teamId` now type-checks. At runtime the zod parse then fails, and the service quietly returns `1=0`, meaning no data, instead of the mistake being caught at compile time. Consider keeping `InsightsBookingServiceOptions` as the parameter type."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 14170,
+  "cacheRead": 3262,
+  "output": 2460,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 17434,
+   "outputTokens": 2460,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/lib/server/service/insightsBooking.ts",
+    "line": 68,
+    "end_line": 68,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "findMany was removed from the public API.",
+    "body": "`findMany(findManyArgs)` was replaced by `getBaseConditions()`, which has a different return type. Any existing caller of `InsightsBookingService.findMany` (for example the insights tRPC router) will fail to compile or break at runtime unless it is updated in this PR. I could not see the other files or callers, so please confirm that every caller was migrated to `$queryRaw` with `getBaseConditions()`."
+   }
+  ]
+ },
+ "cost_usd": 0.1207104
+}

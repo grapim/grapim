@@ -1,0 +1,41 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Null reference if github_authenticated_user state is missing",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate addresses a null github_authenticated_user state. C2 is about the check being skipped, which is a different issue."
+  },
+  {
+   "comment": "OAuth state uses pipeline.signature (static) instead of a per-request random value",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate says that pipeline.signature is static and should be a random value. C1 only mentions the signature in the context of test coverage."
+  },
+  {
+   "comment": "The code attempts to access integration.metadata[sender][login] without checking for the existence of the sender key. This causes a KeyError for integrations where the sender metadata was not set during creation",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 points to the same KeyError on the sender metadata."
+  }
+ ],
+ "candidates": [
+  "tests/sentry/integrations/github/test_integration.py:388 - `test_installation_not_found` now only tests a state mismatch, not a missing installation.. The test now sends `state=ddd023d87a913d5226e2a882c4c4cc05`, which differs from the pipeline signature used everywhere else in this file. The request is therefore rejected in `OAuthLoginView` on the state check and never reaches the installation lookup that returns 404. The assertion was also changed from \"The GitHub installation could not be found.\" to the generic \"Invalid installation request.\". As a result the not-found path has no test coverage any more. Fix: use the valid state so the flow reaches `build_integration`, and assert the original not-found message again. Test the state mismatch in a separate test.",
+  "src/sentry/integrations/github/integration.py:500 - GitHub user check is skipped when no Integration row exists yet.. The installer-vs-authenticated-user comparison only runs on the path where an `Integration` already exists. When `Integration.objects.get(external_id=installation_id)` raises `DoesNotExist` (line ~481), the view calls `pipeline.next_step()` without comparing `github_authenticated_user` to anyone. Two cases reach this path: the installation webhook has not arrived yet, or it failed. In either case a user can supply a victim's `installation_id` and finish the install without the check this PR adds. I could not see whether `build_integration` checks the installer itself. Fix: run the user check on that path too. One way is to fetch the installation's sender or account from the GitHub API and compare it to the OAuth login. Otherwise, fail closed when the user cannot be verified.",
+  "src/sentry/integrations/github/integration.py:501 - `integration.metadata[\"sender\"][\"login\"]` raises KeyError for integrations without sender metadata.. Integrations created through the pipeline's `build_integration` store metadata like `access_token`, `icon`, `domain_name` and `account_type`. Only the installation webhook adds `sender`. If an older integration like that has no remaining `OrganizationIntegration` and someone reinstalls it, this lookup raises `KeyError` and the setup view returns a 500 instead of the error page. Fix: use `integration.metadata.get(\"sender\", {}).get(\"login\")` and call `error(...)` when it is missing or does not match.",
+  "src/sentry/integrations/github/integration.py:423 - A network error on the token exchange is not handled.. `safe_urlopen` is called outside the `try` block. A connection error or timeout reaching GitHub's access-token endpoint raises out of the view as a 500, instead of showing the \"Invalid installation request\" page that every other failure on this path shows. Fix: move the `safe_urlopen` call inside the `try`, or catch its exceptions and return `error(request, self.active_organization)`."
+ ]
+}

@@ -1,0 +1,42 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "grafana__90045",
+ "url": "https://github.com/grafana/grafana/pull/90045",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The context is being created with d.Log instead of the log variable that was initialized with additional context values (name, kind, method). This means those values won't be propagated to the logging context.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: the context is built with d.Log instead of the enriched log variable."
+  },
+  {
+   "comment": "In DualWriterMode3's DeleteCollection method, when a storage operation fails, recordStorageDuration is incorrectly called with recordLegacyDuration instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "C3 describes the same kind of mistake (recordLegacyDuration called on a storage error), but it places it in the Create path, not in DeleteCollection, so it is a different location."
+  },
+  {
+   "comment": "Inconsistency: using name instead of options.Kind for metrics recording differs from other methods.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 points out the same problem: metrics are recorded with name instead of options.Kind."
+  }
+ ],
+ "candidates": [
+  "`klog.NewContext(ctx, d.Log)` on line 97 uses the base logger instead of the enriched `log` variable created on line 96, so downstream code using `klog.FromContext(ctx)` won't have the enriched log context",
+  "On line 106, `d.recordStorageDuration` uses `name` as the third argument instead of `options.Kind`, causing metrics to be recorded with incorrect labels when the delete succeeds",
+  "When `d.Storage.Create` returns an error (line 42), `d.recordLegacyDuration` is called instead of `d.recordStorageDuration`, causing storage errors to be recorded as legacy duration metrics"
+ ]
+}

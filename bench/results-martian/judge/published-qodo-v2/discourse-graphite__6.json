@@ -1,0 +1,24 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The include_website_name method is missing the required ? suffix. Rails serializers expect include_ methods to end with ? for conditional attribute inclusion, a convention followed by other methods in this serializer. Without it, the website_name attribute may not be conditionally included as intended. Additionally, the '.' << website_host string concatenation should be replaced with '.' + website_host or '.#{website_host}' to avoid mutating string literals, which can lead to issues.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out that include_website_name is missing the '?' suffix, which is the main issue in the golden comment. The golden also mentions string mutation, but C1 still matches the core problem. C2 and C3 raise different concerns."
+  }
+ ],
+ "candidates": [
+  "include_website_name method is missing the required '?' convention used elsewhere for conditional include hooks, so it won't properly act as a conditional include",
+  "website_name is serialized without the TL0-anonymous 'untrusted attributes' restriction, so anonymous users may see a TL0 user's website text even when website is intentionally hidden",
+  "The template renders website link based on model.website_name while the href uses model.website, which can produce a broken/empty link if website is hidden but website_name is exposed"
+ ]
+}

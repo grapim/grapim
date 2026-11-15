@@ -1,0 +1,814 @@
+{
+ "grapim-noprov": {
+  "ran": 23,
+  "missing": 0,
+  "failed": 0,
+  "skipped": 0,
+  "foundStrict": 5,
+  "tpStrict": 5,
+  "recallStrict": 0.20833333333333334,
+  "precisionStrict": 0.4166666666666667,
+  "issues": 24,
+  "found": 6,
+  "findings": 12,
+  "tp": 5,
+  "recall": 0.25,
+  "precision": 0.4166666666666667,
+  "f1": 0.3125,
+  "commentsPerPr": 0.5217391304347826,
+  "cleanPrs": 8,
+  "cleanFindingsPerPr": 0,
+  "cleanPrsFlagged": 0,
+  "costPerPr": 0.07238921739130434,
+  "costTotal": 1.664952,
+  "secondsPerPr": 4.8740000000000006,
+  "secondsMedian": 3.755,
+  "byCategory": {
+   "correctness": {
+    "issues": 20,
+    "found": 6
+   },
+   "scope": {
+    "issues": 3,
+    "found": 0
+   },
+   "weakened_check": {
+    "issues": 1,
+    "found": 0
+   }
+  },
+  "per": [
+   {
+    "id": "apache__airflow__69812",
+    "found": [
+     false,
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 2,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "sympy__sympy__30558",
+    "found": [
+     false,
+     false,
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 3,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "dotnet__runtime__136630",
+    "found": [
+     false,
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 2,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "ray-project__ray__67579",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "home-assistant__core__150950",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "microsoft__autogen__6747",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "Azure__azure-sdk-for-python__43269",
+    "found": [
+     true,
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 0,
+      "issue": 1,
+      "how": "category"
+     }
+    ],
+    "issues": 2,
+    "findings": 1,
+    "foundCount": 2,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__TypeScript__63038",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "mlflow__mlflow__15839",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "dotnet__efcore__36986",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-mobile__10635",
+    "found": [
+     true,
+     true,
+     true
+    ],
+    "tp": [
+     true,
+     true,
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 1,
+      "issue": 1,
+      "how": "line"
+     },
+     {
+      "finding": 2,
+      "issue": 2,
+      "how": "line"
+     }
+    ],
+    "issues": 3,
+    "findings": 4,
+    "foundCount": 3,
+    "tpCount": 3
+   },
+   {
+    "id": "box__box-ui-elements__3948",
+    "found": [
+     false,
+     false,
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 3,
+    "findings": 3,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "mattermost__desktop__4098",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "Infisical__infisical__5687",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "vellum-ai__vellum-assistant__14086",
+    "found": [
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 1,
+    "findings": 3,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "cline__cline__10990",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "PostHog__posthog__109279",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "mastra-ai__mastra__14950",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "microsoft__semantic-kernel__14563",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "langchain-ai__langchainjs__12214",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "airbytehq__airbyte__92988",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "fern-api__fern__18863",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "oss-review-toolkit__ort__12748",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   }
+  ]
+ },
+ "pr-agent": {
+  "ran": 23,
+  "missing": 0,
+  "failed": 0,
+  "skipped": 0,
+  "foundStrict": 13,
+  "tpStrict": 14,
+  "recallStrict": 0.5416666666666666,
+  "precisionStrict": 0.45161290322580644,
+  "issues": 24,
+  "found": 14,
+  "findings": 31,
+  "tp": 14,
+  "recall": 0.5833333333333334,
+  "precision": 0.45161290322580644,
+  "f1": 0.509090909090909,
+  "commentsPerPr": 1.3478260869565217,
+  "cleanPrs": 8,
+  "cleanFindingsPerPr": 0.875,
+  "cleanPrsFlagged": 4,
+  "costPerPr": 0.06670330434782609,
+  "costTotal": 1.534176,
+  "secondsPerPr": 38.71008695652174,
+  "secondsMedian": 28.265,
+  "byCategory": {
+   "correctness": {
+    "issues": 20,
+    "found": 12
+   },
+   "scope": {
+    "issues": 3,
+    "found": 1
+   },
+   "weakened_check": {
+    "issues": 1,
+    "found": 1
+   }
+  },
+  "per": [
+   {
+    "id": "apache__airflow__69812",
+    "found": [
+     true,
+     true
+    ],
+    "tp": [
+     true,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 0,
+      "issue": 1,
+      "how": "line"
+     },
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 1,
+      "issue": 1,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 2,
+    "foundCount": 2,
+    "tpCount": 2
+   },
+   {
+    "id": "sympy__sympy__30558",
+    "found": [
+     false,
+     false,
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 3,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "dotnet__runtime__136630",
+    "found": [
+     true,
+     false
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "ray-project__ray__67579",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "home-assistant__core__150950",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__autogen__6747",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "Azure__azure-sdk-for-python__43269",
+    "found": [
+     true,
+     true
+    ],
+    "tp": [
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 0,
+      "issue": 1,
+      "how": "category"
+     }
+    ],
+    "issues": 2,
+    "findings": 3,
+    "foundCount": 2,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__TypeScript__63038",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 3,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "mlflow__mlflow__15839",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "dotnet__efcore__36986",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-mobile__10635",
+    "found": [
+     true,
+     false,
+     true
+    ],
+    "tp": [
+     true,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 2,
+      "issue": 2,
+      "how": "line"
+     }
+    ],
+    "issues": 3,
+    "findings": 3,
+    "foundCount": 2,
+    "tpCount": 2
+   },
+   {
+    "id": "box__box-ui-elements__3948",
+    "found": [
+     false,
+     true,
+     false
+    ],
+    "tp": [
+     true,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 1,
+      "how": "line"
+     }
+    ],
+    "issues": 3,
+    "findings": 4,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "mattermost__desktop__4098",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "Infisical__infisical__5687",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "vellum-ai__vellum-assistant__14086",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 4,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "cline__cline__10990",
+    "found": [],
+    "tp": [
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 2,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "PostHog__posthog__109279",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "mastra-ai__mastra__14950",
+    "found": [],
+    "tp": [
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 2,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "microsoft__semantic-kernel__14563",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "langchain-ai__langchainjs__12214",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "airbytehq__airbyte__92988",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "fern-api__fern__18863",
+    "found": [],
+    "tp": [
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 2,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "oss-review-toolkit__ort__12748",
+    "found": [],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   }
+  ]
+ }
+}

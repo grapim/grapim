@@ -1,0 +1,92 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "elastic__kibana__255866",
+ "url": "https://github.com/elastic/kibana/pull/255866",
+ "head_sha": "a6802508b578eef72844226f3145fd58515a742d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:15:52.039Z",
+ "seconds": 90.244,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 148,
+   "end_line": 150,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "`_source` is returned with raw encrypted attributes whenever the `_id` column is missing.",
+   "body": "`decryptSourceColumn` returns the response unchanged when the `_id` column is absent. This happens with `metadata: ['_source']`, or with `metadata: ['_id','_source']` plus `| DROP _id` / `| KEEP _source`. `stripEncryptedColumns` only nulls `<type>.<attr>` columns and never touches the `_source` object, so encrypted attribute ciphertext (and attributes `find` would strip) goes back to the caller unchanged. The same happens when a row's `_id` is null or the pipeline renames `_source`. This breaks the stated guarantee that encrypted attributes are decrypted or stripped. Fix: when `_source` is present and decryption cannot be attempted, remove the type's encrypted attributes (`getEncryptedAttributes`) from `source[docType]`. Alternatively, reject queries that return `_source` without `_id`."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 173,
+   "end_line": 181,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The rebuilt saved object uses the raw ES `_id` and drops `namespace`, so `_source` decryption always fails.",
+   "body": "The ES|QL `_id` metadata column holds the raw document id. Its format is `<type>:<id>`, or `<namespace>:<type>:<id>` for single-namespace types in a non-default space. The code passes that value as `SavedObject.id`. Single-namespace documents also store `namespace` (singular) in `_source`, but only `namespaces` is copied here. The AAD that `decryptOrStripResponseAttributes` builds therefore never matches the one used at encryption time. Every row fails to decrypt, gets stripped, and logs a decryption error. The feature documented in the tutorial (\"Encrypted attributes are **decrypted** in `_source` using the same path as `find`\") never works. The unit tests miss this because they mock the extension. Fix: convert the raw id with the serializer (`serializer.rawToSavedObject` or by parsing the id), and pass `namespace` for single-namespace types before calling the extension."
+  },
+  {
+   "path": "tasks/prd.json",
+   "line": 1,
+   "end_line": 186,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The agent's working files (`tasks/prd.json`, `tasks/progress.txt`) are committed to the repository root.",
+   "body": "These are scratch files from an autonomous agent loop (\"Ralph Progress Log\", the user-story checklist with `passes` flags, branch names). They are not part of the feature and the request does not ask for them. They add a new top-level `tasks/` directory to Kibana and would ship with the source. Remove both files from the PR."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 36,
+   "end_line": 56,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "The pipeline is not required to start with `|`, so callers can add indices to the generated FROM clause.",
+   "body": "The only check is a regex that rejects a leading source command. A pipeline such as `, .some-other-index* | LIMIT 10` or `, remote:* | ...` passes the check. It produces `FROM .kibana_x, .some-other-index* | ...`, which runs as `kibana_system` against indices the `type` parameter was meant to control. The namespace/type `filter` limits which documents match, but index resolution is no longer controlled by the system as the PR claims. Any document in another index that has matching `type`/`namespace(s)` fields is returned. Fix: require the trimmed pipeline to be empty or start with `|`. Better, parse it with the ES|QL parser and reject anything that is not a processing command."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 50943,
+  "cacheRead": 3262,
+  "output": 8579,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 25,
+   "hunks": 30,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 54207,
+   "outputTokens": 8579,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 25,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.42695540000000004
+}

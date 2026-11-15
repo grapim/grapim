@@ -1,0 +1,78 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Tyrrrz__LightBulb__474",
+ "url": "https://github.com/Tyrrrz/LightBulb/pull/474",
+ "head_sha": "354d65d206d90e5681bfa27d1f20eb6788efb465",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:05:57.032Z",
+ "seconds": 34.784,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "LightBulb/App.axaml.cs",
+   "line": 141,
+   "end_line": 141,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Tray \"Settings\" can try to open a second settings dialog when one is already open.",
+   "body": "Hiding the window now keeps its state, so a settings dialog stays open while the window is hidden. That is the scenario in #467. If the user hides the window while settings are open and then clicks tray \"Settings\", this runs `ShowSettingsCommand.Execute(null)` again. `AsyncRelayCommand.Execute` does not check `CanExecute`, so a second dialog is pushed onto a `DialogHost` that is already open. That usually throws (\"DialogHost is already open\") or stacks dialogs. The exception is rethrown on the UI thread through the command's await-and-throw path and can crash the app. Before this change the window was recreated each time, so no dialog could be open at that point. Fix: only run the command when it can run, e.g. `if (_mainViewModel.ShowSettingsCommand.CanExecute(null)) ...`, or when no dialog is open."
+  },
+  {
+   "path": "LightBulb/Views/MainView.axaml.cs",
+   "line": 22,
+   "end_line": 27,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The `--start-hidden` hide check runs on every `Loaded`, not only at startup.",
+   "body": "`Window_OnLoaded` checks `StartOptions.Current.IsInitiallyHidden`, and that option stays true for the whole process. If Avalonia raises `Loaded` again when a hidden window is shown (in some Avalonia versions a `Window` gets `Unloaded`/`Loaded` on `Hide`/`Show`), then with `--start-hidden` every tray click or hotkey `Toggle()` hides the window again right away, and the user can never open it. Even if `Loaded` fires only once, the lifetime shows the window first and this handler hides it afterwards, so it can flash on screen at startup. I couldn't confirm from here which Avalonia version this uses and how it raises `Loaded`. Fix: use a one-shot flag such as `_isFirstLoad` so the hide happens only on the first load, or skip showing the window at startup when starting hidden."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 8978,
+  "cacheRead": 3262,
+  "output": 3147,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 10,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 12242,
+   "outputTokens": 3147,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #467",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [
+   {
+    "path": "LightBulb/ViewModels/MainViewModel.cs",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1084904
+}

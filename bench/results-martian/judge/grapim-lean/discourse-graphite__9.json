@@ -1,0 +1,29 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__9",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The @loaded_locales instance variable in translate_accelerator.rb is lazily initialized and accessed by multiple concurrent threads without synchronization.",
+   "severity": "Low",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "Neither candidate raises thread safety or unsynchronized concurrent access to @loaded_locales. C1 is about fallback loading scope and C2 is about the cache key."
+  },
+  {
+   "comment": "Consider normalizing the input locale (e.g., to a symbol) when checking/loading here to avoid double-loading if the same locale is passed as a String vs Symbol (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "Neither candidate mentions normalizing String vs Symbol locales to avoid loading the same locale twice."
+  }
+ ],
+ "candidates": [
+  "app/controllers/application_controller.rb:159 - Fallback locales are only loaded in the controller `set_locale`, not wherever translations are looked up.. `translate` in translate_accelerator only lazy-loads `config.locale`. The fallback chain (site default locale, then `:en`) gets loaded only by `I18n.fallbacks.ensure_loaded!` in `ApplicationController#set_locale`. Code that sets `I18n.locale` somewhere else never loads that chain, for example Sidekiq jobs, mailers, rake tasks, or anything that translates before this before_action runs. In those places a key missing from the user's locale returns \"translation missing\" instead of the fallback, and the LRU cache in `translate` then keeps that wrong result. Fix: load the fallback locales inside `translate` itself, e.g. `I18n.fallbacks[config.locale].each { |l| ensure_loaded!(l) }` instead of loading only `config.locale`.",
+  "config/initializers/i18n.rb:17 - The fallback chain depends on `SiteSetting.default_locale`, but the translate cache key doesn't include it.. The fallback list is built from `SiteSetting.default_locale` each time it is read. The translate accelerator caches results under `\"#{key}#{config.locale}#{backend.object_id}\"`, which leaves the fallback chain out. Suppose a user's locale is missing a key and the value came from the site default locale. If an admin then changes `default_locale`, the cache keeps returning the old locale's string until the entry is evicted or the process restarts. Fix: add the default locale (or the whole fallback chain) to the cache key, or clear `@cache` when `default_locale` changes."
+ ]
+}

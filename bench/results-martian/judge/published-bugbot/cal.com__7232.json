@@ -1,0 +1,39 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Asynchronous functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called without await inside forEach loops. This occurs during booking rescheduling/cancellation, and workflow/workflow step deletion/updates. Consequently, scheduled workflow reminders may not be reliably cancelled, potentially leaving them active.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "Neither candidate mentions the missing await in forEach loops."
+  },
+  {
+   "comment": "When immediateDelete is true, the deleteScheduledEmailReminder function cancels the SendGrid email but fails to delete the corresponding WorkflowReminder record from the database. This creates orphaned database entries and is inconsistent with the immediateDelete: false path, which marks the record as cancelled. The SendGrid DELETE API call is also omitted in this path.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    1
+   ],
+   "confidence": 0.92,
+   "reasoning": "C1 describes the same thing: with immediateDelete true, the function cancels the email in SendGrid but leaves the WorkflowReminder record in the database as an orphan."
+  },
+  {
+   "comment": "The 'cancelled' field is nullable, which can lead to existing records having null values instead of a default of false. This can cause incorrect behavior in the application when checking the cancellation status of reminders.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "Neither candidate raises the nullable 'cancelled' field or the missing default value."
+  }
+ ],
+ "candidates": [
+  "When deleteScheduledEmailReminder is called with immediateDelete: true and a valid referenceId, the function cancels the email via SendGrid API but returns immediately without deleting the WorkflowReminder record from the database, creating orphaned database records that won't be cleaned up by the cron job since they aren't marked as cancelled: true",
+  "The remindersToCancel query finds all reminders with cancelled: true but doesn't filter by method: WorkflowMethods.EMAIL, which is inconsistent with other queries in the file and could cause the code to incorrectly call SendGrid with a Twilio reference ID if an SMS reminder has cancelled: true, causing API errors"
+ ]
+}

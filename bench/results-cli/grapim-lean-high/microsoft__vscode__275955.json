@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "microsoft__vscode__275955",
+ "url": "https://github.com/microsoft/vscode/pull/275955",
+ "head_sha": "78d21e258e812314b44c11760e91d0e599a259f9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:20:34.885Z",
+ "seconds": 34.786,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 218,
+   "end_line": 218,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The ctrlCmd guard stops screen reader announcements when the list is navigated with Ctrl held.",
+   "body": "Several quick picks are navigated while Ctrl/Cmd is held down: Ctrl+Tab in the editor switcher, and Ctrl+P pressed repeatedly in Quick Open. In both, `this.keyMods.ctrlCmd` is true each time list focus changes. With this guard, `aria-activedescendant` is never set to the newly focused item. Worse, the `onKeyDown` handler has just removed it on the Tab/P keydown. So screen reader users hear nothing, or a stale item, as they move through the list. Nothing re-syncs the attribute when Ctrl is released, so it stays wrong until the next focus change. Gating on held modifiers is the wrong signal. Skip the remove/set cycle only for keydown events whose key is itself a modifier, and keep updating the active descendant on real focus changes."
+  },
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 259,
+   "end_line": 259,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The same ctrlCmd guard in the tree handler blocks active-descendant updates during Ctrl-held navigation.",
+   "body": "This repeats the list handler's problem. If tree focus changes while Ctrl/Cmd is held (Ctrl-held navigation, Ctrl+click), `aria-activedescendant` is not updated. The keydown handler may already have removed it, so the focused tree item is not announced and nothing restores the attribute when Ctrl is released. Use the same fix as in the list handler."
+  },
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 313,
+   "end_line": 313,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "A Ctrl keydown still removes aria-activedescendant, so the reported re-announcement is not fixed.",
+   "body": "The issue is that pressing Ctrl to silence speech makes the screen reader announce the input's prompt again. That happens because this `onKeyDown` handler removes `aria-activedescendant` on every key, including a bare Ctrl. Focus then falls back to the input, which is read with its aria-label/placeholder. This hunk only changes a comment. The handler still removes the attribute for Ctrl/Shift/Alt/Meta, and the new `ctrlCmd` guards elsewhere do not affect this path. The PR description says modifier keys are excluded here, but the code does not do that. Skip the removal when `e.keyCode` is `KeyCode.Ctrl`, `KeyCode.Shift`, `KeyCode.Alt` or `KeyCode.Meta`."
+  },
+  {
+   "path": "src/vs/platform/quickinput/test/browser/quickinput.test.ts",
+   "line": 283,
+   "end_line": 299,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The new test only asserts `assert.ok(true)`, so it verifies nothing.",
+   "body": "This test sets the placeholder twice and then asserts `true`. It would pass even if the aria-label deduplication were broken or the attribute were never set. It also does not cover the ctrl/aria-activedescendant behaviour this PR changes. To make it a real check, assert the input element's `aria-label` after each placeholder change, and check that `aria-activedescendant` survives a modifier-only keydown."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 7548,
+  "cacheRead": 3262,
+  "output": 3228,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 10812,
+   "outputTokens": 3228,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #271032",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1029604
+}

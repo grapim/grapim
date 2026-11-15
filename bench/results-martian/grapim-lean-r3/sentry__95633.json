@@ -1,0 +1,123 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "head_sha": "9966ec5a13e331659c3ea00981f9b11b0faf821f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:26:12.943Z",
+ "seconds": 48.257,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/result_consumer.py",
+   "line": 131,
+   "end_line": 137,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "The factory builds one queue pool and shuts it down on the first rebalance, so every later message is dropped but still committed.",
+   "body": "The factory creates `queue_pool` once in `__init__`, and every strategy from `create_with_partitions` shares it. When partitions are revoked, arroyo calls `close()`/`join()` on the strategy, which calls `queue_pool.shutdown()`. That stops all worker threads and shuts down every queue.\n\nOn the next assignment, the new `SimpleQueueProcessingStrategy` gets the same dead pool. `work_queue.put` then raises `queue.ShutDown`. The broad `except` in `submit` catches it and marks the offset complete, so each message is skipped and its offset is committed. After the first rebalance the consumer silently drops all uptime results.\n\nThe offset tracker also keeps stale outstanding offsets for revoked partitions. Those offsets can block commits for that partition forever.\n\nFix: create the pool and its `OffsetTracker` in `create_with_partitions`, one per strategy. Alternatively, have the strategy's `close` leave the shared pool running and let only `factory.shutdown()` stop it."
+  },
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 184,
+   "end_line": 186,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "performance",
+   "title": "The queues are unbounded, so there is no backpressure despite the docstring's claim.",
+   "body": "`queue.Queue()` is created without `maxsize`, so `submit` never blocks or raises `MessageRejected`. If one group or worker is slow, the consumer keeps reading from Kafka and piling items into memory without limit. That can end in OOM, and it makes the redelivery window after a crash grow with the backlog. The strategy docstring promises \"Natural backpressure when queues fill up\", which does not happen.\n\nFix: bound the queues, or track the total number of outstanding items, and raise `MessageRejected` from `submit` once the limit is reached."
+  },
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 335,
+   "end_line": 345,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`close`/`join` stop the commit thread before the work is drained and never make a final commit.",
+   "body": "`close()` sets `shutdown_event` and joins the commit thread first, then shuts down the pool. Items that finish after that point, and items still queued, are never committed. Workers also check `self.shutdown = True` and stop pulling more items. Every rebalance or restart therefore re-delivers up to about a second of finished work plus everything still queued.\n\nFix: in `join`, wait for the queues to drain within the timeout, then compute and commit the final contiguous offsets on the calling thread before tearing down."
+  },
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 273,
+   "end_line": 291,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The arroyo `commit` callback is called from a background thread.",
+   "body": "`_commit_loop` runs on its own thread and calls `commit_function`, which calls arroyo's `Commit`. Arroyo expects strategies to call commit from the processing thread, inside `submit`/`poll`/`join`. The `StreamProcessor` stores the offsets in internal state and flushes them in `_run_once` without a lock. Calling it from another thread can race with the main loop, and a commit can also arrive after revocation, for partitions this consumer no longer owns.\n\nFix: work out the committable offsets in `poll()`, and in `join()` for a final commit, and call `commit` there on the main thread. Drop the separate commit thread."
+  },
+  {
+   "path": "tests/sentry/uptime/consumers/test_results_consumer.py",
+   "line": 1921,
+   "end_line": 1922,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "The error-handling test asserts that nothing was committed, the opposite of its docstring, and depends on timing.",
+   "body": "The docstring says errors should not block commits for other messages. The real behaviour is that offsets 100 and 101 both complete and offset 102 gets committed. The assertion instead requires that no commit has happened yet. It only passes if the 1-second commit loop has not fired before the check. With the DB work done to create results, that window can be passed, and then the test fails intermittently. Either way it never checks the behaviour it describes.\n\nFix: wait for the commit and assert `committed_offsets[test_partition] == 102`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 30076,
+  "cacheRead": 3262,
+  "output": 4198,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 33340,
+   "outputTokens": 4198,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "tests/sentry/remote_subscriptions/__init__.py",
+    "reason": "no content change"
+   },
+   {
+    "path": "tests/sentry/remote_subscriptions/consumers/__init__.py",
+    "reason": "no content change"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+    "line": 89,
+    "end_line": 93,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "A missing offset in a partition blocks commits for that partition forever.",
+    "body": "The commit scan stops at the first offset that was never added. Kafka offsets are not always contiguous: transactional control records and log compaction both leave gaps. If the uptime topic ever has gaps, no offset past the first gap is ever committed, and `all_offsets` grows without limit for that partition. The tests make this blocking deliberate. I could not check whether this topic can have gaps.\n\nFix: track the offsets that were actually received in order (for example, a deque per partition). Commit up to the highest completed prefix of that sequence instead of requiring offset+1 to exist."
+   }
+  ]
+ },
+ "cost_usd": 0.2350004
+}

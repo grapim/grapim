@@ -1,0 +1,102 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "elastic__kibana__255866",
+ "url": "https://github.com/elastic/kibana/pull/255866",
+ "head_sha": "a6802508b578eef72844226f3145fd58515a742d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:34:37.154Z",
+ "seconds": 48.944,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 173,
+   "end_line": 181,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "_source decryption builds the SavedObject from the raw ES `_id` and omits `namespace`, so the AAD never matches",
+   "body": "`rawId` is the Elasticsearch document `_id` from `METADATA _id`. For saved objects that value is the serialized raw id (`<type>:<id>`, or `<ns>:<type>:<id>` for single-namespace types outside the default space), not the saved object id. The reconstructed object also sets only `namespaces` and never `namespace`, which is what single-namespace types use for AAD. `decryptOrStripResponseAttributes` therefore rebuilds the AAD with the wrong descriptor, decryption fails, and encrypted attributes are always stripped. The documented \"decrypted in `_source`, same as find/search\" behaviour never works against real data; the unit test only passes because the extension is mocked. Fix: convert the raw id with the serializer (or `helpers.serializer.rawToSavedObject` on `{ _id, _source }`) so `id` and `namespace` are derived the same way `find` derives them."
+  },
+  {
+   "path": "tasks/prd.json",
+   "line": 1,
+   "end_line": 186,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The agent's task-tracking files are committed to the repository",
+   "body": "`tasks/prd.json` and `tasks/progress.txt` are the work log and PRD of an autonomous agent run (branch `ralph/esql-search-saved-objects`, \"Ralph Progress Log\"). They are not part of the feature, are not under any package, and would leave stray top-level files in Kibana. They are also already stale: they describe a `@kbn/esql-language` tagged-template approach that the code and docs do not use. Remove both files from the PR."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 36,
+   "end_line": 36,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "The pipeline is not required to start with `|`, so callers can extend the generated FROM clause",
+   "body": "The query is built as `${fromClause} ${pipeline}`, and the only validation rejects a pipeline that starts with FROM/ROW/SHOW/METRICS. A pipeline such as `, .some-other-index | LIMIT 100` (or one that adds its own METADATA list) is appended directly to `FROM <indices>`, adding indices that do not come from `getIndicesForTypes`. The query runs as `kibana_system`. The injected namespace/type `filter` still applies, but any document in another index that matches those fields can be read, which defeats the claim that index resolution is controlled by the system. Fix: require the trimmed pipeline to be empty or to start with `|`, e.g. `/^\\s*(\\|[\\s\\S]*)?$/`."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 145,
+   "end_line": 150,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Encrypted values leak when `_source` is returned without `_id`, or when columns are renamed or derived",
+   "body": "`decryptSourceColumn` returns the response unchanged when there is no `_id` column. So `metadata: ['_source']`, or a pipeline that drops `_id` (`| KEEP _source`), returns every `_source` document with its encrypted attributes as raw ciphertext; the unit test at line 410 even locks this in. `stripEncryptedColumns` only nulls columns whose name is exactly `<type>.<attr>`, so `| RENAME connector.secrets AS s`, `| EVAL s = connector.secrets` or `| STATS VALUES(connector.secrets)` also get past it. This contradicts the stated guarantee that encrypted attribute values are stripped. Fix: if `_source` is present without a usable `_id`, strip the encrypted attributes from `_source` instead of passing it through. Then either reject pipelines that reference encrypted attribute names, or document clearly that only exact column names are covered."
+  },
+  {
+   "path": "tasks/progress.txt",
+   "line": 1,
+   "end_line": 42,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Agent progress log committed alongside the feature",
+   "body": "This is the scratch log from the agent run, not product code or documentation. Delete it together with `tasks/prd.json`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 50837,
+  "cacheRead": 3262,
+  "output": 4504,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 25,
+   "hunks": 30,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 54101,
+   "outputTokens": 4504,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 25,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.34492540000000005
+}

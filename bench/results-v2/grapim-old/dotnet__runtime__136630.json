@@ -1,0 +1,45 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "dotnet__runtime__136630",
+ "url": "https://github.com/dotnet/runtime/pull/136630",
+ "head_sha": "6e82b808011c721e141f21f4c59a5c9727178c16",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T17:59:01.838Z",
+ "seconds": 3.646,
+ "status": "ok",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 10414,
+  "cacheWrite": 0,
+  "cacheRead": 2096,
+  "output": 10,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 12510,
+   "outputTokens": 10,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.0422752
+}

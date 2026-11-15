@@ -1,0 +1,34 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: debug logging left at Error level, which pollutes the logs."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out the same problem: the ticker went from 10 minutes to 1 minute, which raises database load."
+  }
+ ],
+ "candidates": [
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:534 - Debug logging left in at Error level, including every ID in each batch.. Each batch of every cleanup cycle logs two `r.log.Error` lines, and one of them includes the full `ids` slice. That slice can hold up to `AnnotationCleanupJobBatchSize` entries; the new test uses 32767. With the ticker now at one minute, healthy installations will see a steady stream of false error logs, possibly with tens of thousands of IDs per line. That fills logs and can trigger error-based alerting. The same pattern appears at lines 554/557 and 576/579. Remove these lines, or move them to Debug and log only the count. The `err` value logged after `fetchIDs` is always nil at that point anyway.",
+  "pkg/services/cleanup/cleanup.go:77 - All cleanup jobs now run every minute instead of every 10 minutes.. This change is about the MySQL deadlock in annotation cleanup. Changing the shared `CleanUpService` ticker from 10 minutes to 1 minute also makes every other cleanup job run 10 times as often: temp files, snapshots, dashboard versions, expired user invites, short URLs, and so on. That means more database load on every installation, and the request does not cover it. Revert to `time.Minute * 10`. If annotations really need a shorter interval, give them their own interval or setting.",
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:614 - One placeholder per ID can exceed the bind-parameter limit on Postgres and MySQL.. Before this change, the DELETE statements had no bind parameters, so any batch size worked. Now every database except SQLite gets one `?` per ID. Postgres and MySQL both cap a single statement at 65535 parameters. If `annotation_cleanup_job_batch_size` is set above 65535 on those databases, every cleanup DELETE fails and annotations stop being cleaned. Use the inlined integer list for any batch size above a safe limit on every database, since the IDs are int64 values read from the database and safe to inline. Alternatively, split `ids` into chunks of the parameter limit."
+ ]
+}

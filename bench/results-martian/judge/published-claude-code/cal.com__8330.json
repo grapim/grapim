@@ -1,0 +1,35 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "cal.com__8330",
+ "url": "https://github.com/calcom/cal.com/pull/8330",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect end time calculation using slotStartTime instead of slotEndTime",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same bug: the end time is computed from slotStartTime when it should use slotEndTime."
+  },
+  {
+   "comment": "Using === for dayjs object comparison will always return false as it compares object references, not values. Use .isSame() method instead: dayjs(date.start).add(utcOffset, 'minutes').isSame(dayjs(date.end).add(utcOffset, minutes))",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out the same problem: comparing dayjs objects with === checks references, not values, so it should use .isSame()."
+  }
+ ],
+ "candidates": [
+  "Line 142 computes end from slotStartTime instead of slotEndTime, making start and end identical. This means the working hours boundary check end > workingHour.endTime only validates the slot start, not the slot end — so a slot starting within working hours but extending past them will incorrectly be allowed.",
+  "Line 114 uses === to compare two dayjs objects, which is reference equality and will always be false -- zero-length overrides (blocked days) are never detected. Use .isSame() instead.",
+  "Line 123 uses strict isAfter for the end boundary but the start boundary (lines 117-120) uses isBefore || isSame; a slot starting exactly at the override end time passes the check and is incorrectly marked available. Add || slotStartTime.isSame(...) to line 123 for consistency.",
+  "When a slot falls within a date override window, checkIfIsAvailable returns true at line 134 without checking the busy array, allowing double bookings during date override periods. The fix: remove the early return true at line 134 and let execution fall through to the busy.every() check at line 153."
+ ]
+}

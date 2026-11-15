@@ -1,0 +1,57 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 says the Lithuanian file contains Italian text."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 says zh_CN uses Traditional Chinese characters."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the anchor sanitization logic."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the misspelled method name."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the HTML_TAGS modifiers."
+  }
+ ],
+ "candidates": [
+  "The totpStep1 and loginTotpStep1 keys in Lithuanian (_lt.properties) files contain Italian text instead of Lithuanian, which will display Italian text to Lithuanian-speaking users on the TOTP setup page",
+  "The totpStep1 key in the Simplified Chinese (zh_CN) file uses Traditional Chinese characters (手機, 應用程式) instead of Simplified Chinese (手机, 应用程序), displaying incorrect character variants to Mainland China users"
+ ]
+}

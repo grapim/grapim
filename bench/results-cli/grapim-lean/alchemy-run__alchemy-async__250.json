@@ -1,0 +1,154 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "alchemy-run__alchemy-async__250",
+ "url": "https://github.com/alchemy-run/alchemy-async/pull/250",
+ "head_sha": "768c3f7bf1df594ef6ffaf218a8aa5047717f15e",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:17:38.013Z",
+ "seconds": 44.959,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 208,
+   "end_line": 208,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Redeploying POSTs every existing secret again, which probably fails on duplicate names.",
+   "body": "In the update phase, the code deletes only the secrets that were removed, then calls `insertSecrets` with every secret, including ones that already exist. That calls the create endpoint (`POST .../secrets`) for names already in the store. A normal redeploy with unchanged secrets will likely fail with a duplicate-name error, and changed values are never updated through the PATCH endpoint. Adopting a store that already holds those secrets (line 239) hits the same problem. The existing test only passes because it renames every secret. Fix: compare against `listSecrets`, create only new names, and update existing ones through the per-secret edit endpoint."
+  },
+  {
+   "path": "alchemy/src/cloudflare/worker-metadata.ts",
+   "line": 389,
+   "end_line": 395,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Secrets Store binding metadata has the wrong type and binds a secret that doesn't exist.",
+   "body": "Cloudflare binds Secrets Store secrets one at a time, with type `secrets_store_secret`, a `store_id` and the name of one secret in that store. This code sends `type: \"secrets_store\"` and sets `secret_name` to the binding name (for example `SECRETS`), which is not a secret in the store. Deploying a Worker with `bindings: { SECRETS: store }` will either be rejected by the script upload API or bind a missing secret. Fix: use `secrets_store_secret` and require the caller to name the secret, either with a per-secret binding object or by expanding `store.secrets` into one binding per secret. The `WorkerBindingSecretsStore` type in bindings.ts has the same wrong `type` literal."
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 196,
+   "end_line": 196,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Changing `name` on update is silently ignored.",
+   "body": "In the update phase, the code never compares `props.name` with `this.output.name`. It keeps the old store but returns the new `name` in state, so the state no longer matches the real store in Cloudflare. Fix: when the name changes, replace or recreate the store, or throw an error."
+  },
+  {
+   "path": "alchemy/src/cloudflare/wrangler.json.ts",
+   "line": 559,
+   "end_line": 560,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Secrets Store bindings are silently left out of wrangler.json.",
+   "body": "The comment says these bindings go into a `secrets_store_secrets` array, but the branch does nothing and no such array is written. Generated wrangler.json, local dev and type generation will be missing the binding. Fix: push `{binding, store_id, secret_name}` entries into `spec.secrets_store_secrets`."
+  },
+  {
+   "path": "alchemy/src/test/vitest.ts",
+   "line": 188,
+   "end_line": 198,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Unrelated change to the shared test helper drops the describe-block prefix from scope names.",
+   "body": "Before this change, each test scope was named `<describe>/<test>`; now it is just the test name. Tests with the same name in different `describe` blocks of the same file now share a scope and state, so their resources can collide or be destroyed by each other. The issue doesn't ask for this. Fix: revert this hunk."
+  },
+  {
+   "path": "alchemy/test/cloudflare/secrets-store.test.ts",
+   "line": 33,
+   "end_line": 33,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "Assertion compares the ID with itself, so it can never fail.",
+   "body": "`expect(secretsStore.id).toEqual(secretsStore.id)` passes even if the update created a different store. Save the first ID and compare the updated store's ID against it."
+  },
+  {
+   "path": "alchemy/src/cloudflare/bound.ts",
+   "line": 76,
+   "end_line": 84,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The runtime type promises a store-level `get(secretName)` that Workers don't provide.",
+   "body": "A Secrets Store binding in a Worker is a single secret whose `get()` takes no arguments. Typing it as `get(secretName: keyof S)` lets user code like `env.SECRETS.get(\"API_KEY\")` type-check even though it does not do what the type says at runtime. Fix: model the binding as one secret with `get(): Promise<string>` and bind each secret separately."
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 334,
+   "end_line": 334,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Secrets are created with empty `scopes`, so Workers can't read them.",
+   "body": "Cloudflare uses `scopes` to decide which services may use a secret (for example `[\"workers\"]`). With `scopes: []`, the secrets this resource creates are not usable from a Worker binding, which is the main thing the issue asks for. Fix: default to `[\"workers\"]` or make scopes configurable."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18584,
+  "cacheRead": 3262,
+  "output": 4369,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21848,
+   "outputTokens": 4369,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #244",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "alchemy/src/cloudflare/secrets-store.ts",
+    "line": 166,
+    "end_line": 171,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Calling `bind()` during deploy may throw or return undefined.",
+    "body": "`SecretsStore()` calls `bind(store)` and reads `binding.get` while running in the deploy/provisioning process, not inside a Worker. If `bind` throws or returns undefined outside the Worker runtime, every `SecretsStore(...)` call fails. I could not check `runtime/bind.ts` from here. Fix: return the resource directly, as other Cloudflare resources do."
+   },
+   {
+    "path": "alchemy/src/cloudflare/secrets-store.ts",
+    "line": 361,
+    "end_line": 365,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Bulk delete probably sends secret names where the API expects secret IDs.",
+    "body": "`listSecrets` returns only names, and `deleteSecrets` sends that array of names as the body of the bulk DELETE. Cloudflare's bulk-delete endpoint takes secret IDs. If so, removing a secret from `props.secrets` will either fail or leave the secret in place. I could not confirm the exact API contract from here. Fix: have `listSecrets` return `{id, name}` and delete by ID. `listSecrets` and `findSecretsStoreByName` also read only the first page of results."
+   }
+  ]
+ },
+ "cost_usd": 0.1809604
+}

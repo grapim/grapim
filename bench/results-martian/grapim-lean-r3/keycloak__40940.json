@@ -1,0 +1,79 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__40940",
+ "url": "https://github.com/keycloak/keycloak/pull/40940",
+ "head_sha": "4def149a50c4b9b2c24fbb753ac60fe4f4df0cac",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:20:17.801Z",
+ "seconds": 29.397,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java",
+   "line": 139,
+   "end_line": 157,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Reader thread is never joined, so the assertion can miss exceptions and the thread can loop forever.",
+   "body": "The test sets `deletedAll` and then checks `caughtExceptions` straight away. It never waits for the reader thread. A request that is still running when the flag flips, which is the window most likely to hit a deleted group, can add its exception after `assertThat` has already passed, so the test can miss the NPE it is meant to catch. If any `remove()` call throws, `deletedAll.set(true)` never runs and the reader thread keeps calling the admin API with no end, still running after the test and realm cleanup finish. Keep the `Thread` reference, put the deletes in `try { ... } finally { deletedAll.set(true); }`, and call `thread.join()` before the assertion. Making it a daemon thread would also help."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 5950,
+  "cacheRead": 3262,
+  "output": 1471,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 5,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 9214,
+   "outputTokens": 1471,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "services/src/main/java/org/keycloak/utils/GroupUtils.java",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/GroupAdapter.java",
+    "line": 274,
+    "end_line": 275,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "getSubGroupsCount can now return null, and a caller that unboxes it would throw an NPE.",
+    "body": "When the group was deleted at the same time, `getSubGroupsCount()` now returns a null `Long` where it used to fail inside the adapter. Any caller that unboxes the result, such as `group.getSubGroupsCount() > 0` or assigning it to a `long`, then throws an NPE in a different place, so the fix only moves the crash. I could not see the callers, including what was removed from `GroupUtils`. Check that every caller handles null, or skip deleted groups before calling this method."
+   }
+  ]
+ },
+ "cost_usd": 0.0598304
+}

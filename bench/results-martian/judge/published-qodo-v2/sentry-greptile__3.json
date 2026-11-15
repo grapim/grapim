@@ -1,0 +1,42 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In _set_sample_rate_from_error_sampling(), the check `if client_sample_rate:` treats 0.0 as falsy, so a sample_rate of 0.0 is silently skipped and never set on normalized_data.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the 0.0 falsy check."
+  },
+  {
+   "comment": "Using Python’s built-in hash() to build cache keys is non-deterministic across processes (hash randomization), so keys won’t match across workers and invalidate_upsampling_cache may fail to delete them. Use a deterministic serialization of project_ids for the cache key.",
+   "severity": "Low",
+   "category": "data",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same hash() non-determinism cache key issue."
+  },
+  {
+   "comment": "The upsampling eligibility check passes the outer dataset instead of the actual dataset used by scoped_dataset. In paths where the query ultimately runs against discover (e.g., dashboard split) while the original dataset is metrics, upsampling may be skipped even when all projects are allowlisted.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.93,
+   "reasoning": "C2 describes the eligibility check using the outer dataset instead of scoped_dataset."
+  }
+ ],
+ "candidates": [
+  "The upsampling eligibility cache key uses Python's built-in hash() on project IDs, which is process-salted and not stable across workers, reducing cache hit rate and making invalidate_upsampling_cache unreliable across processes",
+  "Upsampling eligibility is computed using the outer dataset module, even when _get_event_stats is invoked with a different scoped_dataset (e.g. widget split paths), which can incorrectly enable/disable the transformation for the dataset actually being queried",
+  "upsampled_count() aggregates sum(sample_weight), but the ingestion logic derives/stores sample_rate for client error sampling - if events don't actually contain sample_weight, queries will fail or return incorrect results"
+ ]
+}

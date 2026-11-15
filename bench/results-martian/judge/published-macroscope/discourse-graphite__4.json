@@ -1,0 +1,83 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The PollFeed job calls open(SiteSetting.feed_polling_url) without validating the URL, allowing an attacker who controls the feed_polling_url site setting to make the server fetch arbitrary internal or external URLs.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "G1 is about SSRF in the PollFeed job, which opens SiteSetting.feed_polling_url without checking it. C1 points to Kernel#open in TopicEmbed.import_remote and frames the risk as command injection. Both involve an unchecked open(), but the code location and the attack described are different."
+  },
+  {
+   "comment": "The current origin validation using indexOf is insufficient and can be bypassed. An attacker could use a malicious domain like evil-discourseUrl.com to pass this check.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the indexOf origin check being bypassable."
+  },
+  {
+   "comment": "postMessage targetOrigin should be the origin (scheme+host+port), not the full referrer URL; using the full URL will cause the message to be dropped and prevent resizing.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the postMessage targetOrigin problem."
+  },
+  {
+   "comment": "The code sets X-Frame-Options: ALLOWALL which completely disables clickjacking protection. The referer validation can be bypassed (referer headers are easily spoofed), and the fallback to empty string for nil referer masks validation failures.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions X-Frame-Options ALLOWALL or the bypassable referer check."
+  },
+  {
+   "comment": "The TopicEmbed.import method is susceptible to a NoMethodError if the contents parameter is nil when attempting to append a string, and an XSS vulnerability due to unescaped url interpolation in the generated HTML.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions nil contents or the unescaped url in the HTML built by TopicEmbed.import."
+  },
+  {
+   "comment": "The ERB block closes with end if, which is invalid Ruby/ERB and will raise at render; it should just be end to close the if block.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the invalid 'end if' in the ERB template."
+  },
+  {
+   "comment": "Calling `i.content.scrub` assumes that `i.content` is always populated. However, many RSS feeds do not provide a `content` field, leading to a potential nil pointer exception when `i.content` is nil. A fallback to `description` should be implemented to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 describes the same bug: i.content can be nil, so calling scrub crashes, and it should fall back to description."
+  },
+  {
+   "comment": "An unescaped request header (request.referer) is interpolated into JavaScript without proper escaping, which can lead to XSS vulnerabilities if the referer contains malicious content. This issue can allow attackers to execute arbitrary scripts in the context of the application.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the referer being inserted into JavaScript without escaping (XSS)."
+  }
+ ],
+ "candidates": [
+  "`import_remote` passes user-controlled `url` directly to `Kernel#open` on line 48 before any validation occurs, allowing shell command injection via malicious URLs like `|ls` through `open-uri`'s command injection feature",
+  "`i.content` is `nil` for RSS items that lack a `<content>` element, causing `NoMethodError: undefined method 'scrub' for nil:NilClass` and crashing the job - should fall back to `i.description`",
+  "The new `TopicEmbed.import_remote` call drops `created_at: Date.parse(t[:created_at])`, so all imported topics receive the current timestamp instead of preserving the original Disqus thread creation date",
+  "In `retrieved_recently?`, `$redis.setnx` and `$redis.expire` execute as two separate commands - if the process crashes between them, the key persists indefinitely without TTL, permanently blocking retrieval for that URL",
+  "`TopicEmbed.import_remote` calls `open(url).read` which throws unhandled network exceptions (`OpenURI::HTTPError`, `SocketError`, `Timeout::Error`, `Errno::ECONNREFUSED`) when the Disqus URL is inaccessible, crashing the entire import task mid-operation",
+  "Adding `force: true` to `create_table` will silently DROP the existing `top_topics` table and all its data if the table already exists, destroying production data on accidental re-runs"
+ ]
+}

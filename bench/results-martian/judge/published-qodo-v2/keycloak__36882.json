@@ -1,0 +1,28 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "keycloak__36882",
+ "url": "https://github.com/keycloak/keycloak/pull/36882",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect method call for exit codes. The picocli.exit() method calls System.exit() directly, which is problematic:",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 is about the documented exit codes not matching the real ones. It doesn't mention picocli.exit() calling System.exit()."
+  },
+  {
+   "comment": "Need to add changelog/release notes documenting the exit code change and migration guidance",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "C1 points out an error in the existing documentation. It doesn't say a changelog or release notes are missing."
+  }
+ ],
+ "candidates": [
+  "Exit code documentation mismatch: The update-compatibility guide documents exit code 1 as covering cases where the metadata file is missing/corrupted, but the implementation throws PropertyException for missing/unreadable files, which Picocli maps to exit code 2 (usage error). This causes automation using the documented exit code meanings to mis-handle file-not-found/unreadable-metadata failures."
+ ]
+}

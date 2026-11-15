@@ -1,0 +1,67 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Tyrrrz__LightBulb__474",
+ "url": "https://github.com/Tyrrrz/LightBulb/pull/474",
+ "head_sha": "354d65d206d90e5681bfa27d1f20eb6788efb465",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:05:56.801Z",
+ "seconds": 44.89,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "LightBulb/Views/MainView.axaml.cs",
+   "line": 22,
+   "end_line": 27,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "With `--start-hidden`, the window now appears on screen and is hidden only after it loads.",
+   "body": "Before this change, `--start-hidden` never created or showed the window; the backend was initialized directly. Now `desktop.MainWindow` is always set, so the classic desktop lifetime shows it at startup. It is hidden only in the `Loaded` handler, which runs after the window has been shown and laid out.\n\nAt autostart, which is the main use of `--start-hidden`, the main window can briefly flash on screen and take focus before disappearing.\n\nFix: don't let the lifetime show the window when starting hidden. For example, skip assigning `MainWindow` until it is first shown, or set `ShowActivated=false` and `Opacity=0` before `Show`. Alternatively, hide it in an earlier hook such as `Opened` instead of `Loaded`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 8273,
+  "cacheWrite": 3117,
+  "cacheRead": 0,
+  "output": 4005,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 10,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 11390,
+   "outputTokens": 4005,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #467",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [
+   {
+    "path": "LightBulb/ViewModels/MainViewModel.cs",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.128777
+}

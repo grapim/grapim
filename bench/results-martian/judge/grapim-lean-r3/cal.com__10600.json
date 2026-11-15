@@ -1,0 +1,59 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The exported function TwoFactor handles backup codes and is in BackupCode.tsx. Inconsistent naming.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the TwoFactor function name in BackupCode.tsx."
+  },
+  {
+   "comment": "Error message mentions 'backup code login' but this is a disable endpoint, not login",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C6 is about the disable endpoint, but it covers a type crash, not a misleading error message."
+  },
+  {
+   "comment": "Backup code validation is case-sensitive due to the use of indexOf(). This causes validation to fail if a user enters uppercase hex characters, as backup codes should be case-insensitive for a better user experience.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises case sensitivity in backup code matching."
+  },
+  {
+   "comment": "Because backupCodes are decrypted and mutated in memory before being written back, two concurrent login requests using the same backupCode could both pass this check and update, so a single backup code may effectively be accepted more than once if used concurrently, weakening the intended one-time-use semantics.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same race condition that lets one backup code be used more than once."
+  },
+  {
+   "comment": "Object URL for backup codes is not revoked on component unmount, leading to a potential memory leak. This can cause increased memory usage over time, especially if the component is mounted and unmounted frequently.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C3 is about the download button submitting the form, not about revoking the object URL."
+  }
+ ],
+ "candidates": [
+  "packages/features/auth/lib/next-auth-options.ts:139 - A backup code can be used more than once by sending requests at the same time.. Login reads `user.backupCodes`, decrypts them, finds the matching code, then writes the list back with that entry set to null. Nothing locks the row and the write does not check the stored value. If two sign-in requests with the same backup code arrive together, both read the old list, both find the code, and both sign in. Each also writes its own copy back, so one request can also bring back a code that another request had just used up.\n\nFix: make the consume step atomic. Either run it in a transaction that locks the row (`SELECT ... FOR UPDATE`), or make the update conditional on the old value (`updateMany({ where: { id, backupCodes: user.backupCodes }, ... })`) and reject the login when 0 rows change.",
+  "apps/web/components/settings/EnableTwoFactorModal.tsx:135 - Closing the dialog on the backup-codes step skips onEnable and leaves the modal stuck on that step.. Once the TOTP code is accepted, 2FA is already enabled on the server, but `onEnable()` now runs only from the new Close button. If the user dismisses the dialog with Escape or by clicking the overlay (`onOpenChange`), the parent is never told 2FA was enabled, so the settings switch stays unchecked. `resetState()` also never runs, so `step` stays `DisplayBackupCodes` and reopening the modal shows the old codes with no password step. Fix: when the dialog closes on this step, call `onEnable()` and `resetState()`, or block dismissal until Close is clicked.",
+  "apps/web/components/settings/EnableTwoFactorModal.tsx:283 - The Download button sits inside the enable form and probably submits it.. The Close and Copy buttons call `e.preventDefault()` because they sit inside `<Form handleSubmit={handleEnable}>`. That suggests these buttons submit the form by default. The Download `Button` is wrapped in an `<a>` and does not prevent this, so clicking it likely also submits the form. That calls `TwoFactorAuthAPI.enable` again after 2FA is already enabled, and the failed call can show a 'something went wrong' error on the backup-codes screen. Nesting a button inside a link is also invalid interactive markup. Fix: render the link styled as a button (e.g. `Button href=... download`), or give the button `type=\"button\"`.",
+  "apps/web/playwright/login.2fa.e2e.ts:50 - The first 2FA test never closes the new backup-codes screen and relies on an assertion it admits always passes.. The PR says it fixes the setup test for the new backup-code screen, but this test goes straight from `fillOtp` to checking the switch without clicking `backup-codes-close`. So `onEnable` never runs and the switch is not checked at that point. The test still passes only because `expect(locator.isChecked()).toBeTruthy()` checks an un-awaited Promise, as the new FIXME notes. Fix: click `backup-codes-close`, then assert with `await expect(locator).toBeChecked()`, as the second test does.",
+  "packages/ui/components/form/inputs/Input.tsx:49 - tabIndex={-1} takes the show-password toggle out of the tab order in a shared component.. `PasswordField` is used across the app. With `tabIndex={-1}`, keyboard users can no longer reach the button that shows or hides the password, on every password field and not just the 2FA modals. The request covers backup codes, not this shared accessibility change. Fix: revert it, or handle focus order only inside the 2FA modal.",
+  "apps/web/pages/api/auth/two-factor/totp/disable.ts:61 - A backup code that is not a string crashes the disable endpoint with a 500.. `req.body.backupCode` is taken from the client and never type-checked. A JSON body such as `{\"backupCode\": 123}` or `{\"backupCode\": [\"a\"]}` makes `.replaceAll` throw, so the request ends in an unhandled 500 instead of a 400. Fix: check `typeof req.body.backupCode === \"string\"` before using it, and return `IncorrectBackupCode` when it is not."
+ ]
+}

@@ -1,0 +1,50 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returns wrong provider (default keystore instead of BouncyCastle)",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "G1 says a method returns the default keystore provider when it should return BouncyCastle. C1 is about choosing a CryptoProvider by classpath order when two providers tie, which is a different issue."
+  },
+  {
+   "comment": "Dead code exists where ASN1Encoder instances are created and written to, but their results are immediately discarded. The actual encoding is performed by new ASN1Encoder instances created in the subsequent return statement, rendering the earlier operations useless.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 points out the same unused ASN1Encoder write calls whose results are thrown away."
+  },
+  {
+   "comment": "When length starts at -1 from indefinite-length encoding, the arithmetic 'length = length - bytes.length' will behave unexpectedly, potentially leading to incorrect processing of encoded data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the length arithmetic going wrong when indefinite-length encoding sets the length to -1."
+  },
+  {
+   "comment": "Abstract order() method on CryptoProvider may break backward compatibility with existing implementations",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 raises the same concern: the new abstract order() method breaks existing CryptoProvider implementations."
+  }
+ ],
+ "candidates": [
+  "common/src/main/java/org/keycloak/common/crypto/CryptoIntegration.java:57 - Removing the multiple-provider check lets the provider be chosen silently by classpath order when providers tie.. The old code failed fast when more than one `CryptoProvider` was on the classpath. Now the providers are sorted by `order()` and the first one wins. `DefaultCryptoProvider`, `WildFlyElytronProvider` and `FIPS1402Provider` all return 200, and the sort is stable, so when two of them are present the winner is whichever `ServiceLoader` finds first. The only trace is a debug log.\n\nTrigger: a FIPS deployment that also has `keycloak-crypto-default` on its classpath by mistake used to refuse to start. Now it can quietly run with the non-FIPS BouncyCastle provider.\n\nFix: keep throwing when the top two providers have the same `order()`, so ties stay an error. Only the lower-priority authz-client provider should be skipped quietly.",
+  "common/src/main/java/org/keycloak/common/crypto/CryptoProvider.java:44 - Adding the abstract `order()` method to a public SPI breaks existing implementations.. `CryptoProvider` is a ServiceLoader SPI in `common`. Adding `int order()` with no body means any implementation that is not updated in this PR no longer compiles. That includes custom or third-party providers, and any test providers in other modules, which I could not check from here. An already-compiled implementation fails at runtime with `AbstractMethodError` when `detectProvider` sorts the list.\n\nFix: make it `default int order() { return 0; }` (or a similar baseline) and let the bundled providers override it.",
+  "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java:114 - Two encoder calls build values that are never used.. `ASN1Encoder.create().write(rBigInteger)` and `ASN1Encoder.create().write(sBigInteger)` build encoders and throw them away. The real encoding happens again inside `writeDerSeq` below. These two lines look like leftovers and should be removed."
+ ]
+}

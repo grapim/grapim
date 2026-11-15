@@ -1,0 +1,13 @@
+{
+ "tool": "claude-action",
+ "pr_id": "dotnet__runtime__126318",
+ "url": "https://github.com/dotnet/runtime/pull/126318",
+ "head_sha": "d6f01d1f04079e04bd1ba8dacefb2cf086a7c656",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:38:01.052Z",
+ "seconds": 900.914,
+ "status": "error",
+ "note": "Error: git worktree add --detach: Preparing worktree (detached HEAD d6f01d1f)\nUpdating files:   0% (1/57242)\rUpdating files:   0% (3/57242)\rUpdating files:   0% (388/57242)\rUpdating files:   1% (573/57242)\rUpdating files:   1% (671/57242)\rUpdating files:   1% (1059/57242)\rUpdating files:   2% (1145/57242)\rUpdating files:   2% (1380/57242)\rUpdating files:   2% (1636/57242)\rUpdating files:   3% (1718/57242)\rUpdating files:   3% (193\n    at git (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:38:11)\n    at worktree (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:119:3)\n    at Object.claudeAction [as claude-action] (file:///C:/Users/OS/Desktop/commons/bench/lib/adapters.mjs:275:16)\n    at file:///C:/Users/OS/Desktop/commons/bench/run.mjs:186:33\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:69:30\n    at async Promise.all (index 0)\n    at async pool (file:///C:/Users/OS/Desktop/commons/bench/run.mjs:68:3)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:162:1",
+ "cost_usd": 0
+}

@@ -1,0 +1,133 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "alchemy-run__alchemy-async__250",
+ "url": "https://github.com/alchemy-run/alchemy-async/pull/250",
+ "head_sha": "768c3f7bf1df594ef6ffaf218a8aa5047717f15e",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:40:56.706Z",
+ "seconds": 34.35,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "alchemy/src/cloudflare/worker-metadata.ts",
+   "line": 389,
+   "end_line": 395,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Secrets Store binding uses the binding name as the secret name, so it points at a secret that does not exist.",
+   "body": "A Cloudflare `secrets_store` binding is tied to one secret, given by `store_id` plus `secret_name`. This sets `secret_name: bindingName`. With `bindings: { SECRETS: store }`, the Worker is bound to a secret called `SECRETS`, which is not one of the store's secrets (e.g. `API_KEY`). Deploying fails, or the binding resolves to nothing. The runtime `get()` on this binding also takes no arguments, while `bound.ts` types it as `get(secretName)`, as the doc example does. Fix: bind one secret per binding, for example a `store.binding(\"API_KEY\")` helper or a `{ store, secretName }` binding object. Then type the bound value as `{ get(): Promise<string> }`."
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 208,
+   "end_line": 208,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Update and adopt re-create secrets that already exist, so a normal redeploy fails and new values are never applied.",
+   "body": "In the update phase, only secrets missing from props are deleted. Then `insertSecrets` POSTs every secret in props to the create endpoint again, including ones that already exist. Any redeploy that keeps a secret, even with the same value, sends a create for an existing name. Cloudflare's create endpoint rejects duplicates, so the update throws. A changed value is never written through PATCH. The adopt path at line 239 has the same problem when the adopted store already holds secrets with those names. Fix: diff against the existing secrets. PATCH existing ones by secret id and POST only new names."
+  },
+  {
+   "path": "alchemy/src/cloudflare/wrangler.json.ts",
+   "line": 559,
+   "end_line": 560,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The `secrets_store` branch is empty, so the binding is left out of the generated wrangler.json.",
+   "body": "The comment says these bindings are \"handled via secrets_store_secrets array\", but no such array is filled or written to `spec`. A Worker that uses a SecretsStore binding gets a wrangler.json without it, which breaks local dev and type generation. Fix: collect `{ binding, store_id, secret_name }` entries and set `spec.secrets_store_secrets`."
+  },
+  {
+   "path": "alchemy/src/test/vitest.ts",
+   "line": 188,
+   "end_line": 198,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "An unrelated change to the shared test harness drops the describe-block name from test scope names.",
+   "body": "Each test's scope used to be named `<describe>/<test>`. Now it is just the test name. Tests with the same name in different `describe` blocks of one file now share a scope and its state, so resources can collide and be adopted or destroyed by the wrong test. The Secrets Store request does not cover this change, and every test suite uses this code. Revert it."
+  },
+  {
+   "path": "alchemy/src/cloudflare/bound.ts",
+   "line": 76,
+   "end_line": 84,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The bound type says `get(secretName)`, which does not match the Cloudflare Secrets Store runtime API.",
+   "body": "Cloudflare's runtime type for a Secrets Store binding is `SecretsStoreSecret` with `get(): Promise<string>`, bound to one secret. This type tells users to call `env.SECRETS.get(\"API_KEY\")` as if the binding were a whole store. That compiles, but at runtime the argument is ignored or rejected. Fix: type it as `{ get(): Promise<string> }` and change the binding model to match."
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 192,
+   "end_line": 196,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Changing `name` on update is silently ignored.",
+   "body": "In the update phase, the code reuses the old `storeId` and returns the new `name` in state, but never renames or replaces the remote store. Changing `name` leaves the real store with its old name while state reports the new one. A later adoption by name then finds the wrong store. Fix: when `name` differs from `this.output.name`, either call `this.replace()` or update the store."
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 200,
+   "end_line": 205,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Bulk delete is sent secret names, but the endpoint expects secret IDs.",
+   "body": "`listSecrets` returns only `secret.name`, and `deleteSecrets` sends those names as the DELETE body. Cloudflare's bulk-delete endpoint for store secrets takes secret IDs. Removing a secret from props then either fails the update or silently leaves the secret in the store. Fix: have `listSecrets` return `{id, name}` and pass the IDs of the secrets to remove. Also, neither list call pages through results, so secrets past the first page are never considered."
+  },
+  {
+   "path": "alchemy/test/cloudflare/secrets-store.test.ts",
+   "line": 33,
+   "end_line": 33,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The assertion compares a value with itself, so it always passes.",
+   "body": "`expect(secretsStore.id).toEqual(secretsStore.id)` cannot fail, so the test never checks that the update kept the same store. Save the id from the first call and compare it with the id after the update."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18631,
+  "cacheRead": 3262,
+  "output": 3283,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21895,
+   "outputTokens": 3283,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #244",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1594754
+}

@@ -1,0 +1,61 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Azure__azure-cli__34253",
+ "url": "https://github.com/Azure/azure-cli/pull/34253",
+ "head_sha": "394d88c2773b00c93c914e44afcdfedb135c6d06",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:12:12.007Z",
+ "seconds": 11.337,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/azure-cli/azure/cli/command_modules/containerapp/_utils.py",
+   "line": 983,
+   "end_line": 983,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A null identity entry is rewritten to `{}`, turning a removal into an assignment.",
+   "body": "`clean_null_values(properties) or {}` maps every entry to at least `{}`, including entries whose value is `null`. In ARM managed-identity PATCH semantics, `\"<id>\": null` means \"unassign this identity\", while `{}` means \"assign it\".\n\nTrigger: a manifest passed to `update --yaml` that lists one identity as `null` and keeps another.\n- Before this change, the null entry was dropped. The map sent no longer contained that identity, so it was effectively removed.\n- Now it is sent as `{}`, so the identity the user meant to remove stays assigned (or gets assigned).\n\nOnly `{}` (or dicts that clean to `{}`) should be kept. Drop entries whose original value is `None`, for example:\n`{i: clean_null_values(p) or {} for i, p in value.items() if p is not None}`.\nAlternatively, pass `None` through unchanged if sending explicit removals is wanted."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4357,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 995,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 7474,
+   "outputTokens": 995,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0379514
+}

@@ -1,0 +1,47 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The updateManyByCredentialId call uses an empty data object, which prevents Prisma's @updatedAt decorator from updating the updatedAt timestamp. This results in inaccurate cache status tracking, as the timestamp isn't updated when the cache is refreshed. To fix this, explicitly set the updatedAt field.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "G1 says the empty data object stops @updatedAt from updating at all. C2 says timestamps get refreshed on the wrong set of calendars, which is a different problem."
+  },
+  {
+   "comment": "logic: macOS-specific sed syntax with empty string after -i flag will fail on Linux systems",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points to the same issue: the macOS-specific `sed -i ''` syntax fails on Linux."
+  },
+  {
+   "comment": "Throwing a generic Error for authentication failures results in a 500 response in tRPC. Instead, it should return a structured TRPCError with an appropriate code, such as FORBIDDEN, to accurately reflect the error type.",
+   "severity": "High",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the generic Error versus TRPCError problem."
+  },
+  {
+   "comment": "Date is formatted with hardcoded 'en-US' locale instead of using the user's locale from useLocale, which can lead to incorrect date representation for users in different locales.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the hardcoded 'en-US' locale."
+  }
+ ],
+ "candidates": [
+  "The sed -i '' command uses macOS-specific syntax that fails on Linux - Linux interprets the empty string as a filename rather than a backup suffix, causing the command to error out instead of updating the ENV_FILE",
+  "fetchAvailabilityAndSetCache updates updatedAt on all calendars under the credential but only fetches availability for the selectedCalendars subset, causing wrong calendars to have their timestamps refreshed - for example when called from unwatchCalendar, the just-unwatched calendar's updatedAt is bumped even though its availability wasn't fetched"
+ ]
+}

@@ -1,0 +1,113 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "elastic__kibana__255866",
+ "url": "https://github.com/elastic/kibana/pull/255866",
+ "head_sha": "a6802508b578eef72844226f3145fd58515a742d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:11:17.468Z",
+ "seconds": 59.615,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 173,
+   "end_line": 181,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "_source decryption uses the raw ES `_id` and the wrong namespace, so the AAD never matches.",
+   "body": "`rawId` is the Elasticsearch document `_id` from `METADATA _id`. In the saved objects index that id carries a prefix (`<type>:<id>`, and `<namespace>:<type>:<id>` for single-namespace types). It is not the saved object id. Also, single-namespace documents store `namespace` rather than `namespaces`, so `source.namespaces` is undefined and the descriptor namespace is lost. Both the id and the namespace go into the AAD. As a result, `decryptOrStripResponseAttributes` hits an AAD mismatch on every row: each row's encrypted attributes are stripped instead of decrypted, and a decryption error is logged per row. The documented decrypt path never works, and the unit test only passes because it mocks the extension. Fix: convert the raw document first, using the serializer (`rawToSavedObject`) or the same helpers that `find`/`search` use, so the real id and namespaces are recovered before decrypting."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 145,
+   "end_line": 150,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Requesting `_source` without `_id` returns encrypted attributes untouched.",
+   "body": "With `metadata: ['_source']` (no `_id`), `decryptSourceColumn` returns early. `stripEncryptedColumns` only checks `<type>.<attr>` columns, so the `_source` objects reach the caller with the raw encrypted attribute values inside. The integration with `find`/`search` never exposes those values this way. Fix: when `_source` is present but decryption can't run, remove the encrypted attributes from `_source` (use `getEncryptedAttributes` to find them), or require `_id` whenever `_source` is requested."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 231,
+   "end_line": 242,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Encrypted column masking only matches exact column names, so renaming gets past it.",
+   "body": "Columns are nulled only when the name is exactly `<type>.<attr>`. A pipeline like `| EVAL s = connector.secrets` or `| RENAME connector.secrets AS s` returns the encrypted value under a different name, and it passes through unmasked. The tutorial and JSDoc promise that encrypted scalar columns are \"always\" nulled, which does not hold. Fix: reject pipelines that reference encrypted attribute fields, or trace columns back to their source fields with the ES|QL parser, rather than matching output names."
+  },
+  {
+   "path": "tasks/prd.json",
+   "line": 1,
+   "end_line": 186,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The agent's working files (`tasks/prd.json`, `tasks/progress.txt`) are committed to the repo.",
+   "body": "These are scratch files from the agent's own loop: a PRD with `passes` flags and a progress log with local notes. They are not part of the feature, and nothing in the request asks for them. Merging them adds a top-level `tasks/` directory to the Kibana repo. Remove both files from the PR."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 36,
+   "end_line": 114,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "The pipeline check doesn't stop changes to the generated `FROM` clause or lookups against other indices.",
+   "body": "The only check is a regex for a leading `FROM|ROW|SHOW|METRICS`. The pipeline is then joined with a plain `${fromClause} ${pipeline}`. A pipeline such as `, other-index METADATA _source | ...` therefore adds more indices to the `FROM` that runs with kibana_system privileges, which goes against the claim that index resolution is controlled by `type`. Commands later in the pipeline (`LOOKUP JOIN <index>`, `ENRICH`) read data that the namespace/type `filter` does not cover. The newer `TS` source command is also missing from the pattern. Fix: require the pipeline to start with `|` once trimmed. Better still, parse the full query and reject source commands, extra `FROM` targets and `LOOKUP JOIN`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 50732,
+  "cacheRead": 3262,
+  "output": 5615,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 25,
+   "hunks": 30,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 53996,
+   "outputTokens": 5615,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 25,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+    "line": 21,
+    "end_line": 21,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`esql` is imported from `@elastic/esql`, which may not be a dependency of this package.",
+    "body": "The PR description says it uses `@kbn/esql-language`, but the import is `@elastic/esql`. If that package is not declared as a dependency of this core package (and in its tsconfig `kbn_references`), the build and runtime import will fail, and every `esql()` call breaks. I couldn't confirm the dependency setup from here. Fix: import from the declared Kibana package, or add the dependency explicitly."
+   }
+  ]
+ },
+ "cost_usd": 0.3666204
+}

@@ -1,0 +1,2716 @@
+{
+ "grapim-lean-paid": {
+  "ran": 23,
+  "missing": 0,
+  "failed": 0,
+  "skipped": 0,
+  "foundStrict": 15,
+  "tpStrict": 16,
+  "recallStrict": 0.4411764705882353,
+  "precisionStrict": 0.2909090909090909,
+  "issues": 34,
+  "found": 18,
+  "findings": 55,
+  "tp": 21,
+  "recall": 0.5294117647058824,
+  "precision": 0.38181818181818183,
+  "f1": 0.44366197183098594,
+  "commentsPerPr": 2.391304347826087,
+  "cleanPrs": 4,
+  "cleanFindingsPerPr": 0.5,
+  "cleanPrsFlagged": 2,
+  "costPerPr": 0.1417509913043478,
+  "costTotal": 3.260272799999999,
+  "secondsPerPr": 29.64269565217391,
+  "secondsMedian": 25.164,
+  "byCategory": {
+   "intent_mismatch": {
+    "issues": 3,
+    "found": 3
+   },
+   "correctness": {
+    "issues": 21,
+    "found": 11
+   },
+   "security": {
+    "issues": 3,
+    "found": 2
+   },
+   "weakened_check": {
+    "issues": 2,
+    "found": 0
+   },
+   "other": {
+    "issues": 1,
+    "found": 0
+   },
+   "scope": {
+    "issues": 4,
+    "found": 2
+   }
+  },
+  "per": [
+   {
+    "id": "cli__cli__15009",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "Tyrrrz__LightBulb__474",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "grafana__grafana__129096",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "sympy__sympy__30393",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "oven-sh__bun__25462",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 3,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "tldraw__tldraw__11465",
+    "found": [
+     false,
+     false,
+     true,
+     false
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 2,
+      "how": "line"
+     }
+    ],
+    "issues": 4,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__PowerToys__47857",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 4,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "elastic__kibana__255866",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false,
+     true,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "category"
+     },
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 4,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 1,
+    "findings": 5,
+    "foundCount": 1,
+    "tpCount": 3
+   },
+   {
+    "id": "microsoft__autogen__7054",
+    "found": [
+     true,
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 0,
+      "issue": 1,
+      "how": "category"
+     }
+    ],
+    "issues": 2,
+    "findings": 1,
+    "foundCount": 2,
+    "tpCount": 1
+   },
+   {
+    "id": "astral-sh__uv__14738",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "Azure__azure-sdk-for-rust__5551",
+    "found": [
+     false,
+     false,
+     false
+    ],
+    "tp": [
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 3,
+    "findings": 2,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "dotnet__runtime__126318",
+    "found": [
+     true,
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 4,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 2,
+    "findings": 5,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__vscode__275955",
+    "found": [
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 1,
+    "findings": 3,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-mobile__31075",
+    "found": [
+     false,
+     false
+    ],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 2,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "mastra-ai__mastra__15815",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 3,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 5,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "neondatabase__neon__11835",
+    "found": [
+     true,
+     true,
+     false,
+     false,
+     false
+    ],
+    "tp": [
+     true,
+     false,
+     false,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 4,
+      "issue": 1,
+      "how": "line"
+     }
+    ],
+    "issues": 5,
+    "findings": 5,
+    "foundCount": 2,
+    "tpCount": 2
+   },
+   {
+    "id": "convex__agent__98",
+    "found": [
+     true,
+     false,
+     false
+    ],
+    "tp": [
+     true,
+     false,
+     true,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 3,
+    "findings": 6,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "alchemy-run__alchemy-async__250",
+    "found": [
+     true,
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     true,
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 3,
+      "issue": 1,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 6,
+    "foundCount": 2,
+    "tpCount": 2
+   },
+   {
+    "id": "latitude-dev__latitude-llm__2697",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__TypeScript__65022",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "immich-app__immich__32240",
+    "found": [],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-extension__45572",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "Azure__azure-cli__34253",
+    "found": [],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   }
+  ]
+ },
+ "grapim-lean": {
+  "ran": 23,
+  "missing": 0,
+  "failed": 0,
+  "skipped": 0,
+  "foundStrict": 15,
+  "tpStrict": 16,
+  "recallStrict": 0.4411764705882353,
+  "precisionStrict": 0.22535211267605634,
+  "issues": 34,
+  "found": 19,
+  "findings": 71,
+  "tp": 21,
+  "recall": 0.5588235294117647,
+  "precision": 0.29577464788732394,
+  "f1": 0.38681531749878817,
+  "commentsPerPr": 3.0869565217391304,
+  "cleanPrs": 4,
+  "cleanFindingsPerPr": 0.25,
+  "cleanPrsFlagged": 1,
+  "costPerPr": 0.17053292173913046,
+  "costTotal": 3.9222572000000007,
+  "secondsPerPr": 34.21965217391305,
+  "secondsMedian": 32.335,
+  "byCategory": {
+   "intent_mismatch": {
+    "issues": 3,
+    "found": 3
+   },
+   "correctness": {
+    "issues": 21,
+    "found": 12
+   },
+   "security": {
+    "issues": 3,
+    "found": 2
+   },
+   "weakened_check": {
+    "issues": 2,
+    "found": 0
+   },
+   "other": {
+    "issues": 1,
+    "found": 0
+   },
+   "scope": {
+    "issues": 4,
+    "found": 2
+   }
+  },
+  "per": [
+   {
+    "id": "cli__cli__15009",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "Tyrrrz__LightBulb__474",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "grafana__grafana__129096",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "sympy__sympy__30393",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "oven-sh__bun__25462",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 4,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "tldraw__tldraw__11465",
+    "found": [
+     false,
+     false,
+     false,
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 4,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "microsoft__PowerToys__47857",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     true,
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 5,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "elastic__kibana__255866",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     true,
+     true,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "category"
+     },
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "category"
+     },
+     {
+      "finding": 4,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 5,
+    "foundCount": 1,
+    "tpCount": 3
+   },
+   {
+    "id": "microsoft__autogen__7054",
+    "found": [
+     true,
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 0,
+      "issue": 1,
+      "how": "category"
+     }
+    ],
+    "issues": 2,
+    "findings": 1,
+    "foundCount": 2,
+    "tpCount": 1
+   },
+   {
+    "id": "astral-sh__uv__14738",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 1,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "Azure__azure-sdk-for-rust__5551",
+    "found": [
+     false,
+     false,
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 3,
+    "findings": 5,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "dotnet__runtime__126318",
+    "found": [
+     false,
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 2,
+    "findings": 6,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "microsoft__vscode__275955",
+    "found": [
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 1,
+    "findings": 3,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-mobile__31075",
+    "found": [
+     true,
+     false
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "mastra-ai__mastra__15815",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     true,
+     false,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 3,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 8,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "neondatabase__neon__11835",
+    "found": [
+     true,
+     false,
+     true,
+     true,
+     false
+    ],
+    "tp": [
+     true,
+     false,
+     false,
+     false,
+     false,
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 5,
+      "issue": 2,
+      "how": "line"
+     },
+     {
+      "finding": 5,
+      "issue": 3,
+      "how": "category"
+     }
+    ],
+    "issues": 5,
+    "findings": 8,
+    "foundCount": 3,
+    "tpCount": 2
+   },
+   {
+    "id": "convex__agent__98",
+    "found": [
+     true,
+     false,
+     false
+    ],
+    "tp": [
+     true,
+     false,
+     true,
+     false,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 3,
+    "findings": 7,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "alchemy-run__alchemy-async__250",
+    "found": [
+     true,
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     true,
+     true,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 3,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 4,
+      "issue": 1,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 8,
+    "foundCount": 2,
+    "tpCount": 2
+   },
+   {
+    "id": "latitude-dev__latitude-llm__2697",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__TypeScript__65022",
+    "found": [],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "immich-app__immich__32240",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-extension__45572",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "Azure__azure-cli__34253",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   }
+  ]
+ },
+ "grapim-lean-rerun": {
+  "ran": 23,
+  "missing": 0,
+  "failed": 0,
+  "skipped": 0,
+  "foundStrict": 15,
+  "tpStrict": 15,
+  "recallStrict": 0.4411764705882353,
+  "precisionStrict": 0.23809523809523808,
+  "issues": 34,
+  "found": 20,
+  "findings": 63,
+  "tp": 20,
+  "recall": 0.5882352941176471,
+  "precision": 0.31746031746031744,
+  "f1": 0.41237113402061853,
+  "commentsPerPr": 2.739130434782609,
+  "cleanPrs": 4,
+  "cleanFindingsPerPr": 0.5,
+  "cleanPrsFlagged": 2,
+  "costPerPr": 0.17072954782608699,
+  "costTotal": 3.9267796000000006,
+  "secondsPerPr": 34.31,
+  "secondsMedian": 30.481,
+  "byCategory": {
+   "intent_mismatch": {
+    "issues": 3,
+    "found": 3
+   },
+   "correctness": {
+    "issues": 21,
+    "found": 12
+   },
+   "security": {
+    "issues": 3,
+    "found": 2
+   },
+   "weakened_check": {
+    "issues": 2,
+    "found": 1
+   },
+   "other": {
+    "issues": 1,
+    "found": 0
+   },
+   "scope": {
+    "issues": 4,
+    "found": 2
+   }
+  },
+  "per": [
+   {
+    "id": "cli__cli__15009",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "Tyrrrz__LightBulb__474",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "grafana__grafana__129096",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "sympy__sympy__30393",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "oven-sh__bun__25462",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 3,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "tldraw__tldraw__11465",
+    "found": [
+     false,
+     false,
+     true,
+     false
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 2,
+      "how": "line"
+     }
+    ],
+    "issues": 4,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__PowerToys__47857",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 4,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "elastic__kibana__255866",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     true,
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "category"
+     },
+     {
+      "finding": 3,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 1,
+    "findings": 5,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "microsoft__autogen__7054",
+    "found": [
+     true,
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 0,
+      "issue": 1,
+      "how": "category"
+     }
+    ],
+    "issues": 2,
+    "findings": 1,
+    "foundCount": 2,
+    "tpCount": 1
+   },
+   {
+    "id": "astral-sh__uv__14738",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "Azure__azure-sdk-for-rust__5551",
+    "found": [
+     true,
+     false,
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 3,
+    "findings": 4,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "dotnet__runtime__126318",
+    "found": [
+     true,
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 4,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 2,
+    "findings": 5,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__vscode__275955",
+    "found": [
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 1,
+    "findings": 3,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-mobile__31075",
+    "found": [
+     false,
+     false
+    ],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 2,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "mastra-ai__mastra__15815",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 3,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 6,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "neondatabase__neon__11835",
+    "found": [
+     true,
+     true,
+     true,
+     true,
+     false
+    ],
+    "tp": [
+     true,
+     false,
+     false,
+     false,
+     true,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 4,
+      "issue": 2,
+      "how": "category"
+     },
+     {
+      "finding": 4,
+      "issue": 3,
+      "how": "category"
+     },
+     {
+      "finding": 6,
+      "issue": 1,
+      "how": "line"
+     }
+    ],
+    "issues": 5,
+    "findings": 7,
+    "foundCount": 4,
+    "tpCount": 3
+   },
+   {
+    "id": "convex__agent__98",
+    "found": [
+     true,
+     false,
+     false
+    ],
+    "tp": [
+     true,
+     false,
+     false,
+     false,
+     false,
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 5,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 3,
+    "findings": 8,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "alchemy-run__alchemy-async__250",
+    "found": [
+     true,
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     true,
+     true,
+     false,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 3,
+      "issue": 1,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 8,
+    "foundCount": 2,
+    "tpCount": 2
+   },
+   {
+    "id": "latitude-dev__latitude-llm__2697",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__TypeScript__65022",
+    "found": [],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "immich-app__immich__32240",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-extension__45572",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "Azure__azure-cli__34253",
+    "found": [],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   }
+  ]
+ },
+ "grapim-lean-x2": {
+  "ran": 23,
+  "missing": 0,
+  "failed": 0,
+  "skipped": 0,
+  "foundStrict": 15,
+  "tpStrict": 17,
+  "recallStrict": 0.4411764705882353,
+  "precisionStrict": 0.20481927710843373,
+  "issues": 34,
+  "found": 20,
+  "findings": 83,
+  "tp": 25,
+  "recall": 0.5882352941176471,
+  "precision": 0.30120481927710846,
+  "f1": 0.398406374501992,
+  "commentsPerPr": 3.608695652173913,
+  "cleanPrs": 4,
+  "cleanFindingsPerPr": 0.25,
+  "cleanPrsFlagged": 1,
+  "costPerPr": 0.2332821217391304,
+  "costTotal": 5.3654888,
+  "secondsPerPr": 65.687,
+  "secondsMedian": 63.833,
+  "byCategory": {
+   "intent_mismatch": {
+    "issues": 3,
+    "found": 2
+   },
+   "correctness": {
+    "issues": 21,
+    "found": 13
+   },
+   "security": {
+    "issues": 3,
+    "found": 2
+   },
+   "weakened_check": {
+    "issues": 2,
+    "found": 1
+   },
+   "other": {
+    "issues": 1,
+    "found": 0
+   },
+   "scope": {
+    "issues": 4,
+    "found": 2
+   }
+  },
+  "per": [
+   {
+    "id": "cli__cli__15009",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "Tyrrrz__LightBulb__474",
+    "found": [
+     false
+    ],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "grafana__grafana__129096",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "sympy__sympy__30393",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "category"
+     },
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 1,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "oven-sh__bun__25462",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 3,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "tldraw__tldraw__11465",
+    "found": [
+     false,
+     false,
+     true,
+     false
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 2,
+      "how": "line"
+     }
+    ],
+    "issues": 4,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__PowerToys__47857",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false,
+     false,
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 3,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 6,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "elastic__kibana__255866",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     true,
+     false,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "category"
+     },
+     {
+      "finding": 4,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 1,
+    "findings": 5,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "microsoft__autogen__7054",
+    "found": [
+     true,
+     false
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "astral-sh__uv__14738",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "Azure__azure-sdk-for-rust__5551",
+    "found": [
+     true,
+     false,
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 4,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 3,
+    "findings": 5,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "dotnet__runtime__126318",
+    "found": [
+     true,
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     false,
+     true,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 4,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 2,
+    "findings": 7,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__vscode__275955",
+    "found": [
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 1,
+    "findings": 4,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-mobile__31075",
+    "found": [
+     true,
+     false
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "mastra-ai__mastra__15815",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 7,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "neondatabase__neon__11835",
+    "found": [
+     true,
+     false,
+     true,
+     true,
+     false
+    ],
+    "tp": [
+     true,
+     false,
+     false,
+     false,
+     false,
+     true,
+     false,
+     false,
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 5,
+      "issue": 2,
+      "how": "line"
+     },
+     {
+      "finding": 5,
+      "issue": 3,
+      "how": "category"
+     },
+     {
+      "finding": 8,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 5,
+    "findings": 10,
+    "foundCount": 3,
+    "tpCount": 3
+   },
+   {
+    "id": "convex__agent__98",
+    "found": [
+     true,
+     false,
+     false
+    ],
+    "tp": [
+     true,
+     true,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 3,
+    "findings": 12,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "alchemy-run__alchemy-async__250",
+    "found": [
+     true,
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     false,
+     true,
+     true,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 3,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 4,
+      "issue": 1,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 11,
+    "foundCount": 2,
+    "tpCount": 2
+   },
+   {
+    "id": "latitude-dev__latitude-llm__2697",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__TypeScript__65022",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "immich-app__immich__32240",
+    "found": [],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-extension__45572",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "Azure__azure-cli__34253",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   }
+  ]
+ },
+ "pr-agent": {
+  "ran": 23,
+  "missing": 0,
+  "failed": 0,
+  "skipped": 0,
+  "foundStrict": 12,
+  "tpStrict": 12,
+  "recallStrict": 0.35294117647058826,
+  "precisionStrict": 0.26666666666666666,
+  "issues": 34,
+  "found": 15,
+  "findings": 45,
+  "tp": 15,
+  "recall": 0.4411764705882353,
+  "precision": 0.3333333333333333,
+  "f1": 0.37974683544303794,
+  "commentsPerPr": 1.9565217391304348,
+  "cleanPrs": 4,
+  "cleanFindingsPerPr": 0.5,
+  "cleanPrsFlagged": 2,
+  "costPerPr": 0.09393252173913044,
+  "costTotal": 2.160448,
+  "secondsPerPr": 37.45539130434782,
+  "secondsMedian": 32.944,
+  "byCategory": {
+   "intent_mismatch": {
+    "issues": 3,
+    "found": 2
+   },
+   "correctness": {
+    "issues": 21,
+    "found": 9
+   },
+   "security": {
+    "issues": 3,
+    "found": 2
+   },
+   "weakened_check": {
+    "issues": 2,
+    "found": 0
+   },
+   "other": {
+    "issues": 1,
+    "found": 0
+   },
+   "scope": {
+    "issues": 4,
+    "found": 2
+   }
+  },
+  "per": [
+   {
+    "id": "cli__cli__15009",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "Tyrrrz__LightBulb__474",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "grafana__grafana__129096",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "sympy__sympy__30393",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "oven-sh__bun__25462",
+    "found": [
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 1,
+    "findings": 3,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "tldraw__tldraw__11465",
+    "found": [
+     false,
+     false,
+     true,
+     false
+    ],
+    "tp": [
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 1,
+      "issue": 2,
+      "how": "line"
+     }
+    ],
+    "issues": 4,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__PowerToys__47857",
+    "found": [
+     true
+    ],
+    "tp": [
+     true,
+     false,
+     false,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 4,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "elastic__kibana__255866",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 4,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__autogen__7054",
+    "found": [
+     false,
+     true
+    ],
+    "tp": [
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 1,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "astral-sh__uv__14738",
+    "found": [
+     false
+    ],
+    "tp": [],
+    "pairs": [],
+    "issues": 1,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "Azure__azure-sdk-for-rust__5551",
+    "found": [
+     false,
+     false,
+     false
+    ],
+    "tp": [
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 3,
+    "findings": 2,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "dotnet__runtime__126318",
+    "found": [
+     false,
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 2,
+    "findings": 3,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "microsoft__vscode__275955",
+    "found": [
+     false
+    ],
+    "tp": [
+     false,
+     false,
+     false
+    ],
+    "pairs": [],
+    "issues": 1,
+    "findings": 3,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-mobile__31075",
+    "found": [
+     true,
+     false
+    ],
+    "tp": [
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 2,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "mastra-ai__mastra__15815",
+    "found": [
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 2,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 3,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "neondatabase__neon__11835",
+    "found": [
+     true,
+     false,
+     true,
+     true,
+     false
+    ],
+    "tp": [
+     true,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 2,
+      "issue": 2,
+      "how": "category"
+     },
+     {
+      "finding": 2,
+      "issue": 3,
+      "how": "category"
+     }
+    ],
+    "issues": 5,
+    "findings": 3,
+    "foundCount": 3,
+    "tpCount": 2
+   },
+   {
+    "id": "convex__agent__98",
+    "found": [
+     true,
+     false,
+     false
+    ],
+    "tp": [
+     true,
+     true,
+     false
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     },
+     {
+      "finding": 1,
+      "issue": 0,
+      "how": "category"
+     }
+    ],
+    "issues": 3,
+    "findings": 3,
+    "foundCount": 1,
+    "tpCount": 2
+   },
+   {
+    "id": "alchemy-run__alchemy-async__250",
+    "found": [
+     false,
+     true
+    ],
+    "tp": [
+     false,
+     false,
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 2,
+      "issue": 1,
+      "how": "line"
+     }
+    ],
+    "issues": 2,
+    "findings": 3,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "latitude-dev__latitude-llm__2697",
+    "found": [
+     true
+    ],
+    "tp": [
+     true
+    ],
+    "pairs": [
+     {
+      "finding": 0,
+      "issue": 0,
+      "how": "line"
+     }
+    ],
+    "issues": 1,
+    "findings": 1,
+    "foundCount": 1,
+    "tpCount": 1
+   },
+   {
+    "id": "microsoft__TypeScript__65022",
+    "found": [],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "immich-app__immich__32240",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "MetaMask__metamask-extension__45572",
+    "found": [],
+    "tp": [],
+    "pairs": [],
+    "issues": 0,
+    "findings": 0,
+    "foundCount": 0,
+    "tpCount": 0
+   },
+   {
+    "id": "Azure__azure-cli__34253",
+    "found": [],
+    "tp": [
+     false
+    ],
+    "pairs": [],
+    "issues": 0,
+    "findings": 1,
+    "foundCount": 0,
+    "tpCount": 0
+   }
+  ]
+ }
+}

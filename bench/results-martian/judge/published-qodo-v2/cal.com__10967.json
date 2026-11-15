@@ -1,0 +1,70 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A null reference occurs in GoogleCalendarService.createEvent() and updateEvent() when mainHostDestinationCalendar is destructured from evt.destinationCalendar but evt.destinationCalendar is null or an empty array, causing mainHostDestinationCalendar to be undefined.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.5,
+   "reasoning": "C1 describes the same failure: mainHostDestinationCalendar is undefined when destinationCalendar is null or empty, and the code then dereferences it. However, C1 places it in EventManager.create(), while the golden comment is about GoogleCalendarService. The root cause is the same, so this is a weak match."
+  },
+  {
+   "comment": "The optional chaining on mainHostDestinationCalendar?.integration is redundant since you already check mainHostDestinationCalendar in the ternary condition.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate points out that the optional chaining is redundant."
+  },
+  {
+   "comment": "Logic error: when externalCalendarId is provided, you're searching for a calendar where externalId === externalCalendarId, but this will always fail since you're looking for a calendar that matches itself. Should likely find by credentialId or use different logic.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.55,
+   "reasoning": "C5 flags the same flawed lookup (externalId === externalCalendarId) in updateEvent. It focuses on the falsy case, but it is the same problematic logic."
+  },
+  {
+   "comment": "Logic inversion in organization creation: The slug property is now conditionally set when IS_TEAM_BILLING_ENABLED is true, instead of when it's false as originally intended. This change, combined with requestedSlug still being set when IS_TEAM_BILLING_ENABLED is true, results in both properties being set when billing is enabled, and neither when disabled",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the inverted IS_TEAM_BILLING_ENABLED slug logic."
+  },
+  {
+   "comment": "The Calendar interface now requires createEvent(event, credentialId), but some implementations (e.g., Lark/Office365) still declare createEvent(event) only—this breaks the interface contract (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the mismatch with the Calendar interface signature."
+  },
+  {
+   "comment": "The `credential` may be undefined when passed to `updateEvent` if `reference.credentialId` is set but the credential is not found. This can lead to a runtime error when `updateEvent` is called with an undefined credential, which should be handled to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 is the same issue: an undefined credential is passed to updateEvent."
+  }
+ ],
+ "candidates": [
+  "EventManager.create() dereferences mainHostDestinationCalendar.integration even when destinationCalendar is null/empty, which will throw and break booking flows when destinationCalendar is an empty array",
+  "updateAllCalendarEvents() pushes updateEvent(credential, ...) even if credential lookup fails, which can crash when CalendarManager.updateEvent dereferences credential.* with undefined credential",
+  "EventManager.create() drops credentialId for non-calendar (video) results, so video booking references won't include the video credential id, causing video meetings to leak on cancel/reschedule",
+  "For collective events, evt.destinationCalendar is set to null when organizer has no destination calendar, then evt.destinationCalendar?.push(...) becomes a no-op, preventing adding other hosts' destination calendars",
+  "GoogleCalendarService.updateEvent computes selectedCalendar by searching for calendar with externalId === externalCalendarId even when externalCalendarId is falsy, resulting in calendarId: undefined being passed to Google API"
+ ]
+}

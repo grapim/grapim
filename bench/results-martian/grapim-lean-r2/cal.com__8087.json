@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "head_sha": "820d7fa87e0c824c5dee8082a33efadb1a2566f7",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:44:19.884Z",
+ "seconds": 29.548,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/app-store/index.ts",
+   "line": 3,
+   "end_line": 30,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Every app module is still loaded when this file loads, so nothing is deferred.",
+   "body": "Each `import(\"./x\")` call inside the object literal runs as soon as `index.ts` is evaluated. Importing `appStore` anywhere still starts loading all 28 app packages at once. The PR says it defers module loading, but this code does not. It also means a module that fails to load (for example, an app whose top-level code throws because an env var is missing) produces an unhandled promise rejection at startup, even when that app is never used. To defer loading, store loader functions instead (`applecalendar: () => import(\"./applecalendar\")`) and have each caller do `await appStore[key]?.()`."
+  },
+  {
+   "path": "packages/app-store/vital/lib/reschedule.ts",
+   "line": 125,
+   "end_line": 128,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The async `forEach` callback moves `getCalendar` errors outside the try/catch, so they become unhandled rejections.",
+   "body": "`forEach(async ...)` throws away the promise each callback returns. Before this change, `getCalendar` ran synchronously inside the `try`, so an exception (for example, a `CalendarService` constructor rejecting a bad credential key) was caught and logged. Now it rejects a promise nobody awaits. On Node 15+ an unhandled rejection crashes the process by default. The deletes also now run after the surrounding code has moved on. Fix: `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => { ... }))` inside the `try`."
+  },
+  {
+   "path": "packages/app-store/wipemycalother/lib/reschedule.ts",
+   "line": 125,
+   "end_line": 128,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The async `forEach` callback moves `getCalendar` errors outside the try/catch, so they become unhandled rejections.",
+   "body": "Same issue as in the vital reschedule: the promises from `forEach(async ...)` are discarded. A throw from `getCalendar` or the calendar constructor used to be caught by the surrounding `try`/`catch`. Now it is an unhandled rejection, which can crash the Node process, and the deletes finish at an unknown later time. Fix: use `await Promise.all(bookingRefsFiltered.map(async ...))` inside the `try`."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings.tsx",
+   "line": 553,
+   "end_line": 556,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Calendar and video deletes for the rescheduled booking are now fire-and-forget, and their errors are unhandled.",
+   "body": "Making the callback `async` inside `forEach` means nobody awaits the calendar/video deletes. A rejection from `getCalendar` (or from `deleteEvent`/`deleteMeeting`) becomes an unhandled promise rejection, which can crash the server process on modern Node instead of surfacing to the tRPC caller. The mutation can also return before the old calendar events are removed. Fix: use `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => { ... }))`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17875,
+  "cacheRead": 3262,
+  "output": 2748,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 23,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21139,
+   "outputTokens": 2748,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1449954
+}

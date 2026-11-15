@@ -1,0 +1,164 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "neondatabase__neon__11835",
+ "url": "https://github.com/neondatabase/neon/pull/11835",
+ "head_sha": "000503b38a3a27009f9cad9ec8accaa8bf154bc2",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:14:39.396Z",
+ "seconds": 71.301,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 649,
+   "end_line": 651,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "fsync failure no longer aborts the process: `maybe_fatal_err` removed.",
+   "body": "Before this change, a failed `sync_all` on a new delta layer went through `.maybe_fatal_err(\"delta_layer sync_all\")`, which aborts the pageserver. That matters because after a failed fsync the kernel may already have dropped the dirty pages, so retrying is unsafe. Now the failure becomes an ordinary `Other` error, and compaction or flush retries it. A later fsync can succeed even though the data never reached disk, and that layer can then be uploaded or relied on (silent data loss). The request does not ask for this. Keep the fatal handling, for example `file.sync_all().await.maybe_fatal_err(\"delta_layer sync_all\").map_err(|e| DeltaLayerWriterError::Other(e.into()))?`.",
+   "raised": 2
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/image_layer.rs",
+   "line": 1073,
+   "end_line": 1075,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "Image layer fsync failure no longer aborts: `maybe_fatal_err` removed.",
+   "body": "This has the same problem as the delta layer writer. `.maybe_fatal_err(\"image_layer sync_all\")` used to abort the process when fsync failed. Now the failure is mapped to a retryable `ImageLayerWriterError::Other`, so a retry can report success for an image layer whose data was lost after the failed fsync. Restore `maybe_fatal_err` before mapping the error.",
+   "raised": 2
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 507,
+   "end_line": 516,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "An LSN-order invariant assertion was downgraded to a recoverable error.",
+   "body": "`assert!(self.lsn_range.start <= lsn, ...)` used to panic when a value was written below the layer's LSN range, which is a logic bug. Now it returns `Other` and the caller can retry or carry on. This loosens an invariant check the request did not ask to change. Restore the `assert!`.",
+   "raised": 2
+  },
+  {
+   "path": "pageserver/src/tenant/timeline.rs",
+   "line": 5240,
+   "end_line": 5247,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "`Cancelled` is turned back into `CreateImageLayersError::Other`, so issue #11762 is not fixed.",
+   "body": "The issue is that `create image layers: flush task cancelled` gets logged at ERROR level and retried by the compaction loop. Here the new typed `ImageLayerWriterError::Cancelled` is mapped to `CreateImageLayersError::Other(anyhow!(\"flush task cancelled\"))`. That is the same generic error as before, so compaction still logs it as a failure and retries. Map it to `CreateImageLayersError::Cancelled` instead. The same applies at line 5348 and in `compaction.rs` around line 4305.",
+   "raised": 2
+  },
+  {
+   "path": "pageserver/src/tenant/timeline/compaction.rs",
+   "line": 2153,
+   "end_line": 2158,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Every compaction path maps cancellation to `CompactionError::Other`, keeping the ERROR log and retry.",
+   "body": "Every new mapping in this file turns `DeltaLayerWriterError::Cancelled` and `ImageLayerWriterError::Cancelled` into `CompactionError::Other(anyhow!(\"flush task cancelled\"))`. The string-matching branches at lines 1552, 2240, 3750 and 3769 do the same: both branches produce `Other`, so they are no-ops. The compaction loop still treats a shutdown-time cancellation as a failure, which is exactly the behaviour #11762 reports. Map cancellation to `CompactionError::ShuttingDown` and remove the `to_string().contains(...)` checks.",
+   "raised": 1
+  },
+  {
+   "path": "pageserver/src/tenant/timeline/compaction.rs",
+   "line": 2240,
+   "end_line": 2246,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Errors are classified by string matching, and the result is the same `Other` either way",
+   "body": "Here and at 1552, 3750 and 3769 the code checks `e.to_string().contains(\"flush task cancelled\")`. Both branches return `CompactionError::Other`, so the check does nothing except drop the original error chain when it matches. String matching is also fragile: any error whose message includes that text would be misread as a cancellation. At line 2240 `e` is already the typed `DeltaLayerWriterError`, so match on its variants and return a real shutdown error. These sites also drop the `.context(\"failed to finish ... layer writer\")` the old code added.",
+   "raised": 1
+  },
+  {
+   "path": "pageserver/src/tenant/timeline/compaction.rs",
+   "line": 4303,
+   "end_line": 4308,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Image layer finish cancellation is mapped to `CreateImageLayersError::Other` instead of `Cancelled`.",
+   "body": "`ImageLayerWriterError::Cancelled` becomes `CreateImageLayersError::Other`, so callers cannot tell a shutdown from a real failure. This is the error path the issue log shows. Use `CreateImageLayersError::Cancelled`.",
+   "raised": 1
+  },
+  {
+   "path": "pageserver/src/tenant/timeline/compaction.rs",
+   "line": 3711,
+   "end_line": 3716,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Error context \"failed to finish delta layer writer\" was dropped.",
+   "body": "The old `.context(\"failed to finish delta layer writer\")` and `.context(\"failed to finish image layer writer\")` calls are gone here and at lines 3726 and 3750–3775, so errors in logs no longer say which step failed. Add the context back on the `Other` branch.",
+   "raised": 1
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/delta_layer.rs",
+   "line": 618,
+   "end_line": 623,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`.context()` replaced by message formatting, which loses the io error source",
+   "body": "`anyhow!(\"...: {}\", e)` turns the io error into a string, so callers can no longer downcast it to `std::io::Error` (for example to recognise ENOSPC). The same happens in image_layer.rs at 1045. Use `DeltaLayerWriterError::Other(anyhow::Error::new(e).context(\"get file metadata to determine size\"))`.",
+   "raised": 1
+  },
+  {
+   "path": "pageserver/src/tenant/storage_layer/inmemory_layer.rs",
+   "line": 587,
+   "end_line": 605,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "`InMemoryLayerError::Cancelled` is never constructed; the new type does nothing.",
+   "body": "`put_batch` writes to an `EphemeralFile`, not to a `BlobWriter`, and only ever returns `Other`. `timeline.rs` then immediately converts the error back to anyhow. This new public error type and the split `impl` block are outside the BlobWriter scope and change nothing. Remove them or actually produce `Cancelled`.",
+   "raised": 1
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 35929,
+  "cacheRead": 42453,
+  "output": 6489,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 41,
+   "reviewedHunks": 41,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 78386,
+   "outputTokens": 6489,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #11762",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.3179316
+}

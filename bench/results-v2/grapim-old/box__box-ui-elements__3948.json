@@ -1,0 +1,104 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "box__box-ui-elements__3948",
+ "url": "https://github.com/box/box-ui-elements/pull/3948",
+ "head_sha": "4c2a6c6da7f10b00bfddc88c9f4b345bb1dac43a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:11:31.689Z",
+ "seconds": 11.09,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/elements/common/breadcrumbs/Breadcrumbs.tsx",
+   "line": 16,
+   "end_line": 35,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Rewrite drops rootId handling, the delimiters and the visible intermediate crumbs.",
+   "body": "`rootId` is declared but ignored. The last crumb is always `isLast`, so no delimiter is ever rendered and the `delimiter` prop has no effect. All crumbs except the last are always hidden in a dropdown, even when there are only two. That changes the existing breadcrumb behaviour for every consumer, including InlineBreadcrumbs. Restore the previous rendering logic: show the root and the last crumbs with delimiters, and only collapse the middle crumbs."
+  },
+  {
+   "path": "src/elements/common/breadcrumbs/__tests__/Breadcrumbs.test.tsx",
+   "line": 29,
+   "end_line": 30,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Test expects \"Folder 1\" as a button, but the dropdown hides the earlier crumbs.",
+   "body": "With crumbs `[All Files, Folder 1]`, the last crumb (`Folder 1`) renders as a TextButton and `All Files` moves into the closed dropdown. The assertions here hold, but the first test's premise is then inconsistent with how the component collapses crumbs. Nothing tests that the hidden crumbs are reachable. More importantly, the component drops every intermediate crumb from the visible path, which is the regression flagged on Breadcrumbs.tsx."
+  },
+  {
+   "path": "src/test-utils/testing-library.js",
+   "line": 1,
+   "end_line": 50,
+   "severity": "warning",
+   "category": "other",
+   "title": "Compiled tsc output is committed next to the source test utility.",
+   "body": "This is generated CommonJS output, probably from running `tsc` without `noEmit`. It sits beside `testing-library.tsx`, and Jest may resolve `.js` first, so the compiled copy would shadow the source and go stale when the source changes. Delete the file and keep `noEmit` set."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 20966,
+  "cacheWrite": 0,
+  "cacheRead": 2096,
+  "output": 696,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 17,
+   "hunks": 24,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 11,
+   "inputTokens": 23062,
+   "outputTokens": 696,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [
+   {
+    "path": "scripts/jest/jest-setup.ts",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "src/elements/common/breadcrumbs/BreadcrumbDelimiter.js",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "src/elements/common/breadcrumbs/BreadcrumbDropdown.js",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "src/elements/common/breadcrumbs/Breadcrumbs.js",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "src/elements/common/breadcrumbs/__tests__/Breadcrumbs.test.js",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "src/elements/common/breadcrumbs/index.js",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "yarn.lock",
+    "reason": "ignored by .grapim/review.json"
+   }
+  ],
+  "deletedTests": [
+   "src/elements/common/breadcrumbs/__tests__/Breadcrumbs.test.js"
+  ],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.09820319999999999
+}

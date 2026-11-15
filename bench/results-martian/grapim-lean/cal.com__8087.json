@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "head_sha": "820d7fa87e0c824c5dee8082a33efadb1a2566f7",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:13:53.002Z",
+ "seconds": 29.808,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/app-store/index.ts",
+   "line": 3,
+   "end_line": 30,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "`import()` runs as soon as the module loads, so no app loading is deferred.",
+   "body": "Each property is set to `import(\"./x\")`, which starts loading that module immediately. Any file that imports `appStore` still loads all 28 app packages at startup, so the stated goal of deferring module loading is not met. These promises also have no rejection handler until some caller awaits that key. If an app module fails to load and nobody awaits it, the result is an unhandled rejection, which can crash Node. Fix: store loader functions instead (`applecalendar: () => import(\"./applecalendar\")`) and have callers call `await appStore[key]?.()`."
+  },
+  {
+   "path": "packages/app-store/vital/lib/reschedule.ts",
+   "line": 125,
+   "end_line": 128,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The async `forEach` callback moves `getCalendar` errors outside the try/catch.",
+   "body": "Before this change, a synchronous throw from `getCalendar` (for example, a CalendarService constructor that rejects a bad credential) was caught by the surrounding try/catch and logged. Now each callback is async and `forEach` drops the promises it returns. Those errors become unhandled rejections, and the code goes on before any deletion has finished. Fix: use `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => ...))` or a `for...of` loop inside the try."
+  },
+  {
+   "path": "packages/app-store/wipemycalother/lib/reschedule.ts",
+   "line": 125,
+   "end_line": 128,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The async `forEach` callback moves `getCalendar` errors outside the try/catch.",
+   "body": "The callback is now async and `forEach` ignores the promises it returns. A rejection from `getCalendar` (for example, a calendar service constructor that throws) is no longer caught by the surrounding try/catch. It becomes an unhandled rejection, and the reschedule does not wait for the deletions. Fix: use `await Promise.all(bookingRefsFiltered.map(async ...))` or a `for...of` loop with `await`."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings.tsx",
+   "line": 553,
+   "end_line": 556,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The async `forEach` callback drops the promises, and rejections go unhandled.",
+   "body": "`bookingRefsFiltered.forEach(async ...)` throws away the promise from each callback. Any rejection from `await getCalendar(...)`, which used to be a synchronous throw that propagated to the caller, now surfaces as an unhandled rejection instead of failing the request. The mutation also returns before the calendar and video deletions finish. Fix: replace it with `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => ...))`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17873,
+  "cacheRead": 3262,
+  "output": 2457,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 23,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21137,
+   "outputTokens": 2457,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1391654
+}

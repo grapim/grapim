@@ -1,0 +1,142 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "convex__agent__98",
+ "url": "https://github.com/convex/agent/pull/98",
+ "head_sha": "6b530179d6f474840664d705a7c6da1f245ee112",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:11:27.853Z",
+ "seconds": 37.117,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 73,
+   "end_line": 73,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "askHuman now auto-executes, so the model answers its own question and the human-in-the-loop flow breaks.",
+   "body": "The old `tool({ parameters })` had no `execute`, so generation stopped at the `askHuman` call and waited for a human to supply the tool result via `humanResponseAsToolCall`.\n\nThe new `createTool` has a `handler` that returns `question`. The SDK now produces a tool result right away: the question echoed back as the \"human\" answer. With multiple steps the model continues on that fake answer.\n\nWhen the human later responds, `humanResponseAsToolCall` saves a second `tool-result` for the same `toolCallId`. The thread then holds duplicate or conflicting results.\n\nFix: keep this as a tool with no execute. Use `tool({ description, inputSchema: z.object(...) })` from \"ai\", with no `execute`."
+  },
+  {
+   "path": "example/convex/modelsForDemo.ts",
+   "line": 3,
+   "end_line": 11,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Chat model is retyped as `LanguageModelV1` and forced with `as any`, contrary to the v5 migration and the 'remove type assertions' goal.",
+   "body": "AI SDK v5 providers return `LanguageModelV2`. The change downgrades the declared type to `LanguageModelV1` and then casts `openai.languageModel(...) as any` to make it compile.\n\nThat in turn forces `chat: chat as any` in every agent (fashion, simple, story, weather, addFile, rateLimiting, agentAsTool) and `as any` in threads.ts and the rag files. The PR states it removes all `as any` assertions; it adds them throughout and hides real type mismatches.\n\nFix: keep `LanguageModelV2`, remove the casts, and fix any genuine incompatibilities they hide."
+  },
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 132,
+   "end_line": 132,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Tool result `output` is a raw string hidden behind `as any`, not the v5 output shape.",
+   "body": "In AI SDK v5, a `tool-result` part's `output` must be a typed object such as `{ type: \"text\", value: string }`. Passing the bare `args.response` string and casting with `as any` silences the type error but stores an invalid part.\n\nSaving it, or later converting it back into model messages, will either fail validation or send malformed tool results to the provider.\n\nFix: use `output: { type: \"text\", value: args.response }` and drop the cast."
+  },
+  {
+   "path": "package-lock.json",
+   "line": 38,
+   "end_line": 38,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "The `ai` peer dependency range is widened to unbounded `>=5.0.0-beta.29`.",
+   "body": "`>=` accepts any future major version (ai v6, v7, ...), which this library has not been built or tested against. Installs with breaking majors would be allowed silently.\n\nThe example-directory fix does not call for changing the published peer range.\n\nFix: restore `^5.0.0-beta.29` or use `^5.0.0`."
+  },
+  {
+   "path": "src/client/index.test.ts",
+   "line": 255,
+   "end_line": 256,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "MockLanguageModelV2 is fed V1-shaped responses, so tests don't exercise real behaviour.",
+   "body": "The mock is now `MockLanguageModelV2`, but `doGenerate` and `doStream` still return V1 shapes:\n- `text` instead of a `content` array\n- `textDelta` instead of `delta`\n- usage with `promptTokens`/`completionTokens` instead of `inputTokens`/`outputTokens`\n- `defaultObjectGenerationMode` and `logprobs`\n\nUnder V2 the generated text is empty and usage is undefined, so assertions on output either fail or silently test nothing.\n\nAlso, `LanguageModelV2` and `LanguageModelV2StreamPart` are exported from `@ai-sdk/provider`, not \"ai\".\n\nFix: update the mock results to the V2 shapes."
+  },
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 96,
+   "end_line": 96,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Tool call input is still read through a type assertion, not checked at runtime.",
+   "body": "The PR says `(input as { question: string }).question` was replaced with runtime type checking, but this line is exactly that cast.\n\nIf the input is malformed, `question` is `undefined` and flows on unchecked.\n\nFix: validate it, e.g. `z.object({ question: z.string() }).parse(tc.input)`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 19799,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 3894,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 21,
+   "hunks": 31,
+   "reviewedHunks": 31,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 22916,
+   "outputTokens": 3894,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 3
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "example/convex/files/addFile.ts",
+    "line": 34,
+    "end_line": 34,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Renaming the public action arg `mimeType` to `mediaType` breaks clients that still send `mimeType`.",
+    "body": "`uploadFile` and `askAboutImage` (autoSave.ts) are public actions. Convex argument validation rejects calls that pass `mimeType` or omit `mediaType`.\n\nAny frontend code calling these with the old field will start failing. I could not see whether the example UI was updated in this PR."
+   },
+   {
+    "path": "example/convex/usage_tracking/usageHandler.ts",
+    "line": 23,
+    "end_line": 29,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Usage mapping reads `inputTokens`/`outputTokens`, which may not exist on the usage passed in.",
+    "body": "`vUsage` and the internal schema still use `promptTokens`/`completionTokens`. If the `UsageHandler` receives the internal `Usage` shape, then `args.usage.inputTokens` and `args.usage.outputTokens` are `undefined`. The `|| 0` fallback then records 0 prompt and completion tokens for every call, silently corrupting billing data.\n\nI could not see the `UsageHandler` type or where it is called, so I could not confirm which shape it gets. Verify the type, and drop the `|| 0` defaults so a mismatch fails loudly instead of recording zeros."
+   },
+   {
+    "path": "src/client/index.ts",
+    "line": 197,
+    "end_line": 198,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "scope",
+    "title": "Removing `NoInfer` from `stopWhen` lets it influence inference of `AgentTools`.",
+    "body": "`NoInfer` kept `stopWhen` from driving inference of the agent's tool type. Without it, a `stopWhen` condition typed for other tools can widen or alter the inferred `AgentTools`, weakening type checks for library users.\n\nThis public-API typing change is outside the example-directory fix. If `NoInfer` is unavailable in some TypeScript version, prefer a local `NoInfer` helper."
+   }
+  ]
+ },
+ "cost_usd": 0.1576994
+}

@@ -1,0 +1,67 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": " The findMembers() call is now asynchronous and unhandled. The controller may not have member data immediately available, creating a race condition.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate raises the race condition from the unhandled async findMembers() call."
+  },
+  {
+   "comment": "In the next action, capping the next offset at user_count can produce an empty page (e.g., total equal to limit results in offset == total, showing 2/2 with no members). This can cause confusing UX on the last page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.7,
+   "reasoning": "C1 says that clicking next sets the offset to min(50, 50) = 50, which loads an empty page shown as '2/2'. That is the same issue as G2."
+  },
+  {
+   "comment": "The remove_member test uses xhr :put to call the remove_member action, but the route defines delete 'members' => 'groups#remove_member' requiring DELETE method.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the test using PUT when the route expects DELETE."
+  },
+  {
+   "comment": "The `totalPages` calculation using `Math.floor(user_count / limit) + 1` produces an extra page when `user_count` is an exact multiple of `limit`, leading to incorrect pagination. For example, with 100 users and a limit of 50, it reports 3 pages instead of 2, allowing navigation to an empty page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same off-by-one in totalPages when user_count is an exact multiple of limit."
+  },
+  {
+   "comment": "Expected to return a value at the end of function - code paths without explicit returns will return undefined",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the missing return value."
+  },
+  {
+   "comment": "The route provides the group's ID in params[:id], but the code attempts to read it from params[:group_id], causing the action to fail. This results in a broken feature when trying to access group memberships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the code reading params[:group_id] when the route provides params[:id]."
+  }
+ ],
+ "candidates": [
+  "app/assets/javascripts/admin/controllers/admin-group.js.es6:11 - totalPages counts one page too many when user_count is an exact multiple of limit.. `Math.floor(user_count / limit) + 1` returns 2 for 50 members with a limit of 50 (and 3 for 100). In that case `showingLast` is false on the real last page. Clicking next sets offset to `min(50, 50) = 50` and loads an empty page that shows as \"2/2\". Use `Math.ceil(this.get('user_count') / this.get('limit'))` instead.",
+  "app/assets/javascripts/discourse/templates/group/members.hbs:6 - The public group members page now shows only the first 50 members, with no way to see the rest.. `/groups/:name/members` now returns at most `limit` (default 50) members for every group. Before, non-automatic groups returned all of their members. The public route calls `model.findMembers()` once, and this template has no previous/next controls (only the admin template has them). So any group with more than 50 members is silently cut off on the public page. Add pagination here as well, or fetch every page.",
+  "app/controllers/admin/groups_controller.rb:71 - add_members probably fails when a username already belongs to the group.. `group.add(user)` runs for every username, including users who are already members. The client never clears the input (see the TODO in `addMembers`), so clicking Add a second time, or listing an existing member, re-adds that user. That likely breaks the GroupUser uniqueness rule and gives an exception or a 500. The client's `addMembers` has no error handler, so the failure is silent. Skip users who are already members (`next if group.users.include?(user)`) and clear `usernames` on the client after a successful add.",
+  "app/controllers/groups_controller.rb:22 - limit and offset are not validated, so a negative value causes a 500 error.. `limit=-1` or `offset=-5` goes straight into SQL, and PostgreSQL rejects a negative LIMIT or OFFSET, so this public endpoint returns a 500. `limit=0` also returns `meta.limit = 0`, and the admin controller then divides by zero in `currentPage`. Clamp both values, for example `limit = [[limit, 1].max, 200].min` and `offset = [offset, 0].max`."
+ ]
+}

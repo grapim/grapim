@@ -1,0 +1,72 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "head_sha": "f3317b329b4eb8fd96f99dd86525bc4a22d20248",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:29:16.523Z",
+ "seconds": 13.446,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/expr/reader.go",
+   "line": 194,
+   "end_line": 200,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "enableSqlExpressions checks the feature flag but always returns false anyway.",
+   "body": "`enableSqlExpressions` reads `FlagSqlExpressions`, but both branches return `false`, so the flag has no effect. That disabling is what this PR is for. The problem is that the code reads as if the flag still turns SQL expressions on, which could mislead whoever edits it next. It also calls `h.features` for nothing, and that would panic if a reader were ever built with nil features. Fix: return `false` directly, with a comment pointing to CVE-2024-9264, or drop the helper and reject `QueryTypeSQL` outright."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 16766,
+  "cacheRead": 3262,
+  "output": 834,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 24,
+   "reviewedHunks": 9,
+   "aiHunks": 0,
+   "skippedHunks": 15,
+   "inputTokens": 20030,
+   "outputTokens": 834,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "go.mod",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "go.sum",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1011704
+}

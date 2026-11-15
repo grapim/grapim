@@ -1,0 +1,86 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "oven-sh__bun__25462",
+ "url": "https://github.com/oven-sh/bun/pull/25462",
+ "head_sha": "7cdf07e36e3785afa797f5ef753f478dbfb3ea31",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:59:38.849Z",
+ "seconds": 82.002,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/bundler/bundle_v2.zig",
+   "line": 1839,
+   "end_line": 1840,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "BundleOptions.deinit will try to free `&config.features`, a field embedded in the config struct.",
+   "body": "After this change `transpiler.options.bundler_feature_flags` points at `config.features`. That set lives inside `JSBundler.Config`; it was never allocated with `allocator.create`. The new `BundleOptions.deinit` frees any pointer that is not the static empty set. It calls `.deinit()` on it and then `allocator.destroy(...)`. So if this transpiler's options are ever deinitialised, it destroys an interior pointer, which is undefined behaviour or a crash. `Config.deinit` also calls `self.features.deinit()`, so the set is freed twice. I could not see whether this transpiler's `deinit` runs on the JS API path. Fix: store ownership explicitly, e.g. an `owns_bundler_feature_flags` bool, or copy the set into a heap allocation owned by the options.",
+   "raised": 2
+  },
+  {
+   "path": "src/runtime.zig",
+   "line": 214,
+   "end_line": 233,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The runtime transpiler cache key does not include the feature flags, so `bun run --feature` can get stale output.",
+   "body": "`bundler_feature_flags` changes the transpiled output, but it is not in `hash_fields_for_runtime_transpiler`, and nothing else shown hashes the flag set. Trigger: run a file large enough to be cached, first without `--feature=X`. Then `bun run --feature=X` (or `bun test --feature=X`) can load the cached transpilation where `feature(\"X\")` was already replaced with `false`, and the reverse also happens. Fix: hash the sorted flag names into the cache key, or turn the runtime transpiler cache off when the flag set is not empty.",
+   "raised": 2
+  },
+  {
+   "path": "src/ast/P.zig",
+   "line": 2664,
+   "end_line": 2688,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Default and namespace imports from \"bun:bundle\" are removed silently and leave unbound identifiers.",
+   "body": "For `bun:bundle`, the statement is always replaced with `S.Empty`. Only named items are inspected. `import * as bundle from \"bun:bundle\"` and `import b from \"bun:bundle\"` are dropped with no error or warning, and their bindings are never declared. So `bundle.feature(\"X\")` compiles to a reference to an undeclared global and throws a ReferenceError at runtime. Unknown named specifiers have the same problem: the warning says they \"will be undefined\", but they are never declared either, so using them also throws a ReferenceError. Fix: report an error when `stmt.star_name_loc` or `stmt.default_name` is set, and report an error (not a warning) for unknown specifiers, or declare them and bind them to `undefined`.",
+   "raised": 1
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 32787,
+  "cacheRead": 39311,
+  "output": 7395,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 35,
+   "reviewedHunks": 35,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 72102,
+   "outputTokens": 7395,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.31971320000000003
+}

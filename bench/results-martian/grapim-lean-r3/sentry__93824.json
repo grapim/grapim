@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__93824",
+ "url": "https://github.com/getsentry/sentry/pull/93824",
+ "head_sha": "3162ad68a5c87666788b27a44eb31235025091a9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:21:42.468Z",
+ "seconds": 38.2,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/spans/consumers/process/flusher.py",
+   "line": 253,
+   "end_line": 257,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Unhealthy flusher processes are never killed before a replacement is started.",
+   "body": "`self.mp_context.Process` builds a `SpawnProcess`. `SpawnProcess` inherits from `multiprocessing.process.BaseProcess`, not from `multiprocessing.Process` (the default context's `Process` class), so `isinstance(process, multiprocessing.Process)` is always False here. The old code called `self.process.kill()` with no condition. Now a process that hangs (no progress for `max-unhealthy-seconds`) keeps running while `_create_process_for_shards` starts a new one for the same shards. Two flushers then work on the same Redis shards, which can produce duplicate segments, and a leaked process piles up on every restart. Fix: check for `multiprocessing.process.BaseProcess` instead, or check `hasattr(process, \"kill\")`, so threads used in tests are still skipped."
+  },
+  {
+   "path": "src/sentry/spans/consumers/process/flusher.py",
+   "line": 337,
+   "end_line": 347,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "join() stops before terminating the remaining processes once the deadline passes.",
+   "body": "When the deadline runs out while join() is waiting on one process, the next loop iteration hits `break` before reaching `terminate()`. Every later process is left running, even if it is hung. The old code always terminated its process after the wait. The same faulty `isinstance(process, multiprocessing.Process)` check also means `terminate()` is never actually called for spawned processes. Fix: wait while time remains, but always run the terminate step for every process (check for `BaseProcess` or use `hasattr(process, \"terminate\")`), even after the deadline."
+  },
+  {
+   "path": "src/sentry/spans/consumers/process/flusher.py",
+   "line": 199,
+   "end_line": 199,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The wait_produce metric uses the tag key `shards`, while sibling metrics use `shard`.",
+   "body": "`spans.buffer.flusher.produce` and `segment_size_bytes` are tagged `shard`, but `wait_produce` is tagged `shards`. Dashboards that filter or group these metrics by one key will miss this one. Use the same tag key everywhere."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 13580,
+  "cacheRead": 3262,
+  "output": 2695,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 10,
+   "reviewedHunks": 10,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16844,
+   "outputTokens": 2695,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 6,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1224604
+}

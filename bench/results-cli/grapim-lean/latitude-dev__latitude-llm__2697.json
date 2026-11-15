@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "latitude-dev__latitude-llm__2697",
+ "url": "https://github.com/latitude-dev/latitude-llm/pull/2697",
+ "head_sha": "8422f8d10a178795d0666b04be81662857e22c94",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:18:04.957Z",
+ "seconds": 23.72,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/domain/spans/src/otlp/claude-code.ts",
+   "line": 9,
+   "end_line": 14,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The real Claude Code model suffix `[1m]` is not removed, so the model name stays non-canonical.",
+   "body": "The linked issue's actual payload has `\"model\": \"claude-opus-4-6[1m]\"`, a literal `[1m]` that marks the 1M-context variant. It is not an ANSI escape. `ANSI_SGR_RE` needs a leading ESC character, and `/\\[[0-9;]*m$/` only matches when the string ends in `m`, so neither removes `[1m]`. As a result, `gen_ai.request.model` becomes `claude-opus-4-6[1m]`, and model and pricing lookups that expect `claude-opus-4-6` probably miss it, leaving cost empty. I could not see the pricing lookup to confirm this. The test only covers an invented `\\u001b[1m` form. Also strip a trailing `\\[[^\\]]*\\]`, or keep the variant in a separate attribute, and add the real shape to the fixture."
+  },
+  {
+   "path": "packages/telemetry/typescript/src/sdk/span-filter.ts",
+   "line": 95,
+   "end_line": 95,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Any span with a `span.type` attribute now passes the LLM export filter, whatever its value.",
+   "body": "The check returns true whenever the key `span.type` is present and never looks at its value. `span.type` is a common generic attribute. Datadog-style and other instrumentations set it to values like `web`, `http`, `db` or `cache`. When those libraries run alongside the SDK, their HTTP and DB spans are now treated as LLM spans and exported by the default smart filter, which is exactly the noise this filter exists to drop. Only match `span.type` when its value is a Claude Code type (for example `interaction`, `llm_request` or `tool`), or rely on the more specific `user_prompt` and `llm_request.context` keys."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 11262,
+  "cacheRead": 3262,
+  "output": 2059,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 6,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 14526,
+   "outputTokens": 2059,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #2695",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0981504
+}

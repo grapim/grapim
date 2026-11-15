@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__76186",
+ "url": "https://github.com/grafana/grafana/pull/76186",
+ "head_sha": "303cdc2caf256aa5df660611120c2e3f7392365d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:32:56.922Z",
+ "seconds": 22.107,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/plugins/log/fake.go",
+   "line": 46,
+   "end_line": 48,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "TestLogger.FromContext returns a new logger, so logs written through it are never recorded.",
+   "body": "`LoggerMiddleware.logRequest` now logs with `m.logger.FromContext(ctx).Info(...)`. With a `TestLogger`, that call goes to a new `NewTestLogger()` instance, so the `InfoLogs.Calls`, `Message` and `Ctx` fields on the logger the test passed in never change. Tests that check what a middleware logged will see zero calls, and passing tests can no longer show the logging works. Return the receiver instead (`return f`) so calls made through the contextual logger are still recorded."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17191,
+  "cacheRead": 3262,
+  "output": 1371,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 20455,
+   "outputTokens": 1371,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1140354
+}

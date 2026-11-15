@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "head_sha": "79d11c4890cc4792e3dc3535af59e4e5f7a2739d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:19:42.680Z",
+ "seconds": 47.25,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "common/src/main/java/org/keycloak/common/crypto/CryptoIntegration.java",
+   "line": 57,
+   "end_line": 70,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Ties at order 200 now resolve silently, so FIPS and non-FIPS providers can be mixed.",
+   "body": "Before this change, finding more than one provider threw an error, which stopped a FIPS deployment from running with the non-FIPS provider. Now `DefaultCryptoProvider`, `WildFlyElytronProvider` and `FIPS1402Provider` all return 200. The stable sort keeps them in ServiceLoader (classpath) order, and the first one wins with only a debug log. If both `keycloak-crypto-default` and `keycloak-crypto-fips1402` end up on the classpath (for example through a packaging mistake), a FIPS deployment can quietly run on plain BouncyCastle. Fix: keep throwing when the top two providers have the same order, so only a lower-priority fallback such as the authz-client provider is skipped silently."
+  },
+  {
+   "path": "common/src/main/java/org/keycloak/common/crypto/CryptoProvider.java",
+   "line": 44,
+   "end_line": 44,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "New abstract `order()` breaks every existing CryptoProvider implementation outside this change.",
+   "body": "`CryptoProvider` is a public SPI in keycloak-common. Adding a method with no body means any custom or downstream implementation, including the copy in the keycloak-client repository this is meant to sync with and any test providers not shown here, stops compiling. Already-compiled ones throw `AbstractMethodError` when `detectProvider` sorts them. Make it `default int order() { return 0; }` (or some other neutral value) so existing implementations keep working."
+  },
+  {
+   "path": "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java",
+   "line": 114,
+   "end_line": 115,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Two unused ASN1Encoder instances are built and thrown away.",
+   "body": "`ASN1Encoder.create().write(rBigInteger)` and `ASN1Encoder.create().write(sBigInteger)` build encoders whose results are never used. The encoders actually used are built again on lines 119-120. Delete these two lines."
+  },
+  {
+   "path": "authz/client/src/test/java/org/keycloak/authorization/client/test/ECDSAAlgorithmTest.java",
+   "line": 42,
+   "end_line": 42,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "Every ES test signs with the default P-256 key, so ES384 and ES512 are never tested with their real curves.",
+   "body": "`KeyPairGenerator.getInstance(\"EC\").genKeyPair()` uses the JDK default curve (P-256) for all three tests. For ES512, r and s are then only about 32 bytes, padded out to 66. The real P-521 case, where the integers are 66 bytes and the DER sequence needs a long-form length (more than 127 bytes), never reaches the new ASN1Encoder/ASN1Decoder code. Generate a key for each algorithm with `initialize(new ECGenParameterSpec(\"secp256r1\"/\"secp384r1\"/\"secp521r1\"))`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20908,
+  "cacheRead": 3262,
+  "output": 3712,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 24172,
+   "outputTokens": 3712,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1794404
+}

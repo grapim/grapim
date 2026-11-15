@@ -1,0 +1,54 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "sentry__77754",
+ "url": "https://github.com/getsentry/sentry/pull/77754",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The AssignmentSource dataclass uses queued: datetime = timezone.now() as a default field value, which evaluates timezone.now() once at class definition time and shares that single datetime instance across all objects.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points to the same problem: the timezone.now() default is evaluated once when the class is defined."
+  },
+  {
+   "comment": "The method name has a typo: test_from_dict_inalid_data should be test_from_dict_invalid_data.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    2
+   ],
+   "confidence": 0.98,
+   "reasoning": "C2 flags the same typo in the method name."
+  },
+  {
+   "comment": "Method name says 'empty_array' but tests empty dict - consider renaming to 'test_from_dict_empty_dict' for clarity.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 makes the same rename suggestion, empty_array to empty_dict."
+  },
+  {
+   "comment": "to_dict() returns a datetime for queued; if this dict is passed in task kwargs (e.g., via apply_async), JSON serialization may fail depending on the serializer, which can cause enqueue errors.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mentions JSON serialization of the datetime returned by to_dict()."
+  }
+ ],
+ "candidates": [
+  "timezone.now() is evaluated at class definition time for the queued field default, causing all instances to share the same timestamp instead of capturing current time per instance",
+  "Test method name 'test_from_dict_inalid_data' is a typo - should be 'test_from_dict_invalid_data'",
+  "Test method name 'test_from_dict_empty_array' is a typo - should be 'test_from_dict_empty_dict' since the test uses an empty dict",
+  "Ruff flags both parameters (attribute, sync_source) as unused in the default should_sync implementation, which may cause CI lint failures",
+  "ExampleIntegration.sync_status_outbound method lacks **kwargs and will raise TypeError when called with the new assignment_source parameter"
+ ]
+}

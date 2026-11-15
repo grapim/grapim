@@ -1,0 +1,30 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "sentry__80528",
+ "url": "https://github.com/getsentry/sentry/pull/80528",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The function modifies the config variable to include display values but then returns the original monitor.config instead of the modified version.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out that the modified config is built but the original monitor.config is returned, which is the same issue as G1."
+  },
+  {
+   "comment": "The code fetches MonitorCheckIn objects by ID when the required data already exists in previous_checkins. This creates an unnecessary database query.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the extra database query that fetches MonitorCheckIn objects already present in previous_checkins."
+  }
+ ],
+ "candidates": [
+  "get_monitor_environment_context() creates a modified copy of monitor.config (including replacing schedule_type with its display string) but returns the original unmodified config instead, causing schedule_type to be emitted as an integer (e.g. 1/2) in issue occurrence event contexts rather than 'crontab'/'interval'"
+ ]
+}

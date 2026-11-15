@@ -1,0 +1,31 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The enableSqlExpressions function has flawed logic that always returns false, effectively disabling SQL expressions unconditionally:",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 points out that enableSqlExpressions returns false in both branches, which is the same issue as G1."
+  },
+  {
+   "comment": "The DB methods NewInMemoryDB().RunCommands, DB.QueryFramesInto, and DB.TablesList in pkg/expr/sql/db.go return hardcoded 'not implemented' errors after removing the go-duck dependency.",
+   "severity": "High",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "Neither candidate mentions the DB methods that return hardcoded 'not implemented' errors."
+  }
+ ],
+ "candidates": [
+  "The enableSqlExpressions function always returns false in both branches, making the feature flag check and negation dead code - the function body should be simplified to just return false to avoid confusing future maintainers who might misinterpret the inverted flag logic",
+  "The enableSqlExpressions security check only guards the ReadQuery code path used when FlagExpressionParser is enabled, but in default configuration buildCMDNode calls UnmarshalSQLCommand directly for TypeSQL, completely bypassing this check - the security gate should be added to the TypeSQL case in buildCMDNode or within UnmarshalSQLCommand"
+ ]
+}

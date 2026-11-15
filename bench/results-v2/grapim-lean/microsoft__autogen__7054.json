@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "microsoft__autogen__7054",
+ "url": "https://github.com/microsoft/autogen/pull/7054",
+ "head_sha": "1921f6253f1e64c324be890d96fc9aa9a21d1d8b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:08:36.443Z",
+ "seconds": 7.749,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "python/packages/autogen-ext/src/autogen_ext/models/openai/config/__init__.py",
+   "line": 103,
+   "end_line": 103,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "`reasoning_effort` rejects \"minimal\", a value GPT-5 supports.",
+   "body": "The linked issue asks for `reasoning_effort` to work with GPT-5 models. GPT-5 accepts `\"minimal\"`, and the PR description says the Literal includes it. Both the Pydantic field here and the `CreateArguments` TypedDict (line 53) allow only `\"low\" | \"medium\" | \"high\"`.\n\nA config such as `{\"reasoning_effort\": \"minimal\"}` loaded through `ChatCompletionClient.load_component` raises a `ValidationError`. Constructing the client directly with that value is a type error.\n\nFix: add `\"minimal\"` to both Literals, and to the valid values in `test_reasoning_effort_validation`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 6422,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 752,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 9539,
+   "outputTokens": 752,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #7053",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0413514
+}

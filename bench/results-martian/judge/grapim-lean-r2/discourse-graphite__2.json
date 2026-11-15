@@ -1,0 +1,32 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "logic: Potential nil pointer exception - if no TopicUser record exists, tu will be nil and calling methods on it will crash",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out that the TopicUser lookup can return nil, which causes a NoMethodError."
+  },
+  {
+   "comment": "Typo in property name: 'stopNotificiationsText' should be 'stopNotificationsText' (missing 'n' in 'Notifications')",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the stopNotificiationsText typo."
+  }
+ ],
+ "candidates": [
+  "app/controllers/topics_controller.rb:105 - Unsubscribe crashes when the user has no TopicUser row.. `TopicUser.find_by(...)` returns nil when the user has no topic_users row for this topic. That can happen when the email came from a mention, a group or category notification, or mailing-list mode for a topic they never opened. `tu.notification_level` then raises NoMethodError and the unsubscribe link returns a 500. Fix: handle the missing row, for example with `TopicUser.change(current_user.id, topic_id, notification_level: ...)`, which creates the row when it is missing. Using `TopicUser.change` also publishes the MessageBus notification_level_change event, which the direct `tu.save!` skips.",
+  "config/locales/server.en.yml:1852 - `unsubscribe_link` now needs `%{unsubscribe_url}`, which other senders do not pass.. MessageBuilder renders `I18n.t('unsubscribe_link', template_args)` for every email with `add_unsubscribe_link: true`. Only the post notification path now passes `unsubscribe_url`. Other emails that set `add_unsubscribe_link: true`, such as the digest email, will hit a missing interpolation argument. That either raises `I18n::MissingInterpolationArgument` and the email is not sent, or the email shows a literal `%{unsubscribe_url}` and a wrong \"this particular topic\" line. The spec had to add `unsubscribe_url` to keep passing, which shows the same failure. I did not see the digest call site itself. Fix: use a separate key for the topic sentence and add it only when `unsubscribe_url` is present.",
+  "app/controllers/topics_controller.rb:98 - A GET request changes notification state and lowers it again on every load.. The `unsubscribe` action is a plain GET with no CSRF token, and it changes persistent state. Any third-party page can add `<img src=\"https://forum/t/x/123/unsubscribe\">` and mute topics for a logged-in visitor. Email link scanners and prefetchers will also trigger it. Each request also lowers the level one more step (watching → regular → muted), so reloading the page or loading it twice mutes a topic the user only meant to stop watching. Fix: render a confirmation page on GET and make the change on a POST/PUT with a CSRF token, or use a signed per-user token. At minimum, set a fixed target level so repeat requests change nothing."
+ ]
+}

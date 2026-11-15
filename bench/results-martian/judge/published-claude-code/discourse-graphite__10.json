@@ -1,0 +1,77 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "discourse-graphite__10",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/10",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The EmbeddableHost model's before_validation callback calls self.host.sub! to strip http://, https://, and path segments, but if self.host is nil, this raises NoMethodError.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions nil host sub! crash."
+  },
+  {
+   "comment": "The update and destroy methods in Admin::EmbeddableHostsController do not validate the existence of the EmbeddableHost record retrieved by ID. If EmbeddableHost.where(id: params[:id]).first returns nil (i.e., the host does not exist), attempting to call methods on the nil object (e.g., save_host or destroy) will result in a NoMethodError.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate addresses nil record in update/destroy."
+  },
+  {
+   "comment": "record_for_host compares lower(host) = ? but does not normalize the parameter’s case, so mixed‑case referer hosts may fail to match even though comparison intends to be case‑insensitive.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers case normalization in record_for_host."
+  },
+  {
+   "comment": "Because this migration inserts embeddable_hosts rows with raw SQL, any existing embeddable_hosts values that include http:// or /https:// or path segments won’t go through the EmbeddableHost model’s normalization, so the new host lookup (which compares only the bare host) may fail for migrated data. Consider ensuring that migrated hosts are normalized to the same format as newly created EmbeddableHost records so existing embedding configurations keep working.",
+   "severity": "High",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate about normalization of migrated host data."
+  },
+  {
+   "comment": "The contents of `category_fabricator.rb` and `embeddable_host_fabricator.rb` have been swapped, resulting in the loss of original category fabricators and potentially causing errors in fabricator usage.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies swapped fabricator files."
+  },
+  {
+   "comment": "The SQL query in the `app/controllers/admin/embeddable_hosts_controller.rb` file uses string interpolation (`'#{h}'`) to insert values, which is vulnerable to SQL injection. It should use parameter binding or proper quoting to prevent this security vulnerability.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.7,
+   "reasoning": "C2 flags the same '#{h}' SQL interpolation injection risk; golden misattributes file but same issue."
+  },
+  {
+   "comment": "The migration accesses execute(...)[0]['id'] without checking if the query returned any rows, which causes a crash when no embed_category setting exists. This can lead to a broken feature when attempting to edit category/host relationships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate about missing embed_category row check in migration."
+  }
+ ],
+ "candidates": [
+  "Fabricator files appear swapped: category_fabricator.rb contains the embeddable_host fabricator and embeddable_host_fabricator.rb contains category fabricators",
+  "Migration at db/migrate/20150818190757_create_embeddable_hosts.rb uses string interpolation in raw SQL: VALUES ('#{h}', ...) which is unparameterized and a SQL injection risk",
+  "Migration uses force: true which will drop the table if it already exists, potentially causing data loss on re-run",
+  "embedding_controller.rb update action is a no-op - it re-renders without saving anything",
+  "rest.js.es6 type.replace('_', '-') only replaces the first underscore, not all occurrences, which could be fragile for other types",
+  "Tests for the new controller are minimal - only checks inheritance with no integration tests for CRUD actions"
+ ]
+}

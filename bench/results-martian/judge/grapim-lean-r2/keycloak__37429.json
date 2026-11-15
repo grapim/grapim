@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    1,
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 and C2 both flag Italian text in the Lithuanian properties files, which is the same issue."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    7
+   ],
+   "confidence": 0.95,
+   "reasoning": "C7 flags Traditional Chinese in the zh_CN totpStep1 value."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate covers the anchor sanitization consuming English matcher groups without checking them. C6 only concerns the error message content."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the method name typo."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions declaring HTML_TAGS as private static final."
+  }
+ ],
+ "candidates": [
+  "themes/src/main/resources-community/theme/base/account/messages/messages_lt.properties:101 - Lithuanian totpStep1 replaced with Italian text.. The Lithuanian account message is now `Installa una delle seguenti applicazioni sul tuo cellulare:`, which is Italian. Lithuanian users will see an Italian sentence in the TOTP setup. Use a Lithuanian translation, for example `Įdiekite vieną iš šių programėlių savo mobiliajame telefone:`.",
+  "themes/src/main/resources-community/theme/base/login/messages/messages_lt.properties:71 - Lithuanian loginTotpStep1 replaced with Italian text.. `loginTotpStep1` in the Lithuanian login bundle is now the Italian sentence `Installa una delle seguenti applicazioni sul tuo cellulare:`. Lithuanian users will see Italian on the OTP setup page. Replace it with a Lithuanian translation.",
+  "js/apps/account-ui/maven-resources/theme/keycloak.v3/account/messages/messages_en.properties:188 - The account UI bundle now uses MessageFormat placeholders instead of i18next `{{n}}` interpolation.. The JS apps format messages with i18next, which expects the `{{0}}` placeholders this line used before. With `{0}` and `{2,choice,...}`, the account console may show the raw placeholders and the choice pattern instead of the values whenever this validation error appears. I could not see how the account UI formats this key; that is the one fact that could prevent the problem. Unless that code uses Java-style MessageFormat, keep `{{0}}`/`{{1}}`/`{{2}}` and use i18next plurals rather than a ChoiceFormat.",
+  "js/apps/admin-ui/maven-resources/theme/keycloak.v2/admin/messages/messages_en.properties:3138 - The admin UI bundle now uses MessageFormat placeholders instead of i18next `{{n}}` interpolation.. This file uses i18next `{{name}}` interpolation elsewhere (for example `{{error}}` and `{{fieldName}}`). Changing this key to `{0}` and `{2,choice,0#values|1#value|1<values}` means i18next will likely show the placeholders and the choice syntax literally instead of the attribute name and limits. Keep `{{0}}`-style placeholders here, and use i18next pluralization if plural forms are needed.",
+  "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java:74 - Guessing the English file name crashes the verifier when no matching `_en` file exists.. The English file path is built by replacing `_[a-zA-Z-_]*\\.properties` with `_en.properties`. A bundle whose base name contains an underscore and has no locale, such as the old fixture `duplicate_keys.properties` (which had to be renamed), maps to a file that does not exist (`duplicate_en.properties`). The same happens for any theme with no English counterpart at the derived path. In those cases the code throws an unchecked `RuntimeException` that aborts the whole Maven run, and it is not reported as a `MojoExecutionException` or as a message. Handle a missing English bundle gracefully, for example by treating the English text as empty or adding a message, and throw `MojoExecutionException` for read errors.",
+  "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java:157 - The anchor mismatch message leaves out the key and the file.. `Didn't find anchor tag ... in original string` does not say which key or file failed, even though the `Illegal HTML` message does. When this fails across dozens of bundles, nobody can tell where the problem is. Add the key and file name, as the other message does.",
+  "themes/src/main/resources-community/theme/base/account/messages/messages_zh_CN.properties:112 - Traditional Chinese text in the Simplified Chinese bundle.. The new `totpStep1=在您的手機上安裝以下應用程式之一：` uses Traditional characters (手機, 應用程式), but this is the zh_CN bundle. Use Simplified Chinese, for example `在您的手机上安装以下应用程序之一：`."
+ ]
+}

@@ -1,0 +1,104 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "head_sha": "820d7fa87e0c824c5dee8082a33efadb1a2566f7",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:44:33.420Z",
+ "seconds": 30.225,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/app-store/index.ts",
+   "line": 3,
+   "end_line": 30,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "`import()` calls in the object literal run eagerly, so app loading is not deferred.",
+   "body": "Each `import(\"./x\")` runs as soon as `index.ts` is evaluated. Any module that imports `appStore` still starts loading all 28 app packages right away, so the PR does not defer loading as its description claims. There is also a new failure mode: if one app module fails to load, its promise rejects while nothing is awaiting it. Node reports that as an unhandled rejection, which can crash the process on Node ≥15. Under the old static imports the same failure was a plain load error. To get real lazy loading, store thunks instead (`applecalendar: () => import(\"./applecalendar\")`) and call them at the lookup sites (`await appStore[name]?.()`)."
+  },
+  {
+   "path": "packages/app-store/vital/lib/reschedule.ts",
+   "line": 125,
+   "end_line": 128,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`forEach(async …)` drops the deletions, so the try/catch no longer catches their errors and nothing waits for them.",
+   "body": "Before this change, `getCalendar` ran synchronously, so any error it threw (for example from the `CalendarService` constructor) was caught by the surrounding try/catch. Now the callback is async: the error becomes a rejected promise that `forEach` throws away, which Node reports as an unhandled rejection. Also, `deleteEvent` now starts only after an `await`, so the handler can finish and send its response before the old calendar events are deleted. On serverless runtimes that can freeze work after the response, those deletions may never run. Fix: `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => { ... }))` inside the try."
+  },
+  {
+   "path": "packages/app-store/wipemycalother/lib/reschedule.ts",
+   "line": 125,
+   "end_line": 128,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`forEach(async …)` drops the deletions, so the try/catch no longer catches their errors and nothing waits for them.",
+   "body": "This is the same problem as in `vital/lib/reschedule.ts`. Errors from `getCalendar` used to be thrown synchronously and caught by the try/catch; now they become unhandled rejections. The deletions also start only after an `await`, so the reschedule can finish before they run. Fix: replace the `forEach` with `await Promise.all(bookingRefsFiltered.map(async ...))`."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings.tsx",
+   "line": 553,
+   "end_line": 556,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`forEach(async …)` means nothing waits for the calendar and video deletions during reschedule.",
+   "body": "The async callback's promise is thrown away. Calendar deletion now starts only after `await getCalendar(...)`, so the tRPC mutation can return before the old events are deleted (or even before the deletion starts). Any error from `getCalendar` or `deleteEvent` becomes an unhandled rejection. Use `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => ...))`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18035,
+  "cacheRead": 3262,
+  "output": 2877,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 23,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21299,
+   "outputTokens": 2877,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/core/CalendarManager.ts",
+    "line": 31,
+    "end_line": 31,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`getCalendarCredentials` now returns calendar promises; some are dropped and other callers may treat them as calendars.",
+    "body": "`getCalendar(credential)` now returns a Promise, and it is created for every credential, even when `app.variant !== \"calendar\"` causes the entry to be thrown away. If that promise rejects (for example, the constructor throws on a bad key), the rejection is unhandled. Any caller outside this file that reads `item.calendar` without awaiting it now gets a Promise that is always truthy, not a `Calendar` or `null`. I could not see those callers. Fix: call `getCalendar` only inside the `variant === \"calendar\"` branch, or make `getCalendarCredentials` async and resolve the calendars with `Promise.all`."
+   }
+  ]
+ },
+ "cost_usd": 0.1483754
+}

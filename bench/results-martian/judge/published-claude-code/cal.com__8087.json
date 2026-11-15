@@ -1,0 +1,33 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Consider adding try-catch around the await to handle import failures gracefully",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mention handling failures of a dynamic import or adding a try-catch around it."
+  },
+  {
+   "comment": "The code uses forEach with async callbacks, which causes asynchronous operations (e.g., calendar/video event deletions, payment refunds) to run concurrently without being awaited. This 'fire-and-forget' behavior leads to unhandled promise rejections, race conditions, and incomplete cleanup, as surrounding try-catch blocks cannot properly handle errors from these unawaited promises. Replace forEach with for...of loops or Promise.all() with map() to ensure proper sequential execution and error handling.",
+   "severity": "Critical",
+   "category": "concurrency",
+   "matches": [
+    1,
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 points out that forEach(async ...) drops the returned promises. C1 points out that errors from those callbacks become unhandled rejections. Both are the same issue as the golden comment. C3 is a different bug: it pushes a resolved value instead of a promise into apiDeletes."
+  }
+ ],
+ "candidates": [
+  "Errors from async forEach callbacks become unhandled promise rejections which can crash Node.js process",
+  "Using forEach(async ...) in 4 locations causes returned promises to be silently discarded since Array.prototype.forEach does not await async callbacks",
+  "In handleCancelBooking.ts:458, apiDeletes.push(deletedEvent) pushes the resolved value rather than a Promise, so Promise.all(prismaPromises.concat(apiDeletes)) will not wait for the deletions"
+ ]
+}

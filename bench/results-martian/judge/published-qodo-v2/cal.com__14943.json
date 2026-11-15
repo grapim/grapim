@@ -1,0 +1,30 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block).",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the non-atomic retryCount increment or the race condition."
+  },
+  {
+   "comment": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: reminders with retryCount > 1 get deleted without a method=SMS filter, so non-SMS reminders can be removed."
+  }
+ ],
+ "candidates": [
+  "scheduleSMSReminders deletes any WorkflowReminder with retryCount > 1 without restricting to method=SMS (or scheduled=false), risking unintended deletion of non-SMS reminders"
+ ]
+}

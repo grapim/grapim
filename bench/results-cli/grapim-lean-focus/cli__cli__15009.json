@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "cli__cli__15009",
+ "url": "https://github.com/cli/cli/pull/15009",
+ "head_sha": "e8022e837d4d422370059c3ea954d13e11ebeeaf",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:28:13.911Z",
+ "seconds": 20.338,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 401,
+   "end_line": 403,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Rate-limit and server errors are still reported as an invalid token with re-auth advice.",
+   "body": "Issue #14053 asks for 401 (invalid or revoked token) to be told apart from other failures such as a 403 rate limit, a 5xx or a network error, so that those no longer print \"The token in … is invalid.\" and \"To re-authenticate, run: gh auth refresh\". This change keeps that wording and the hint for every error, and only adds an `Error:` line under them. The new tests lock this in: the 403 and 503 cases still expect \"The token in GH_TOKEN is invalid.\" (hunk 11), and the 503 case in hunk 6 still expects the `gh auth refresh` hint. A rate-limited user still gets told to run `gh auth refresh`, which the issue says makes things worse. Fix: when the error is not a 401, show a \"Could not verify token: <error>\" state and drop the re-auth and logout hints."
+  },
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 401,
+   "end_line": 401,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The new diagnostic only appears when stderr is a TTY, so the CI and agent case in the issue never sees it.",
+   "body": "The issue's reproduction is an agent or CI loop that uses up the rate limit. In those environments stderr is usually not a terminal, so `opts.IO.IsStderrTTY()` is false. The output then stays exactly as before: \"token is invalid\" with no underlying error. The non-TTY subtests in `Test_statusRun_errorDiagnostic` confirm that the error is left out. Writing the extra line in non-TTY mode as well would let the people who hit this see the real cause. At the least, the TTY gate should be justified against the request."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 11829,
+  "cacheRead": 3262,
+  "output": 1615,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 15093,
+   "outputTokens": 1615,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14053",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.09210539999999999
+}

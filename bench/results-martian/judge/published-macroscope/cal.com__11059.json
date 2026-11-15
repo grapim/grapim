@@ -1,0 +1,104 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "cal.com__11059",
+ "url": "https://github.com/calcom/cal.com/pull/11059",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The parseRefreshTokenResponse function incorrectly sets refresh_token to the hardcoded string 'refresh_token' when it's missing from the OAuth refresh token response. This invalidates the token, breaking subsequent token refreshes and causing authentication failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions the hardcoded 'refresh_token' string fallback. C1 is about undefined values in Lark, which is a different issue."
+  },
+  {
+   "comment": "The Zod schema in parseRefreshTokenResponse uses computed property keys [z.string().toString()] and [z.string().optional().toString()] in minimumTokenResponseSchema, which is invalid Zod syntax and will throw a runtime error.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 points out that the computed key [z.string().toString()] in the schema is invalid."
+  },
+  {
+   "comment": "parseRefreshTokenResponse returns a Zod safeParse result ({ success, data, error }), not the credential key object. Persisting that as key stores the wrapper instead of the token payload; we should store the parsed data or use schema parse.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 says the safeParse wrapper gets stored instead of the parsed data."
+  },
+  {
+   "comment": "When APP_CREDENTIAL_SHARING_ENABLED and CALCOM_CREDENTIAL_SYNC_ENDPOINT are set, the refreshFunction helper returns the fetch Response, but several callers (for example GoogleCalendarService.refreshAccessToken expecting res.data, and HubspotCalendarService.refreshAccessToken expecting a HubspotToken) assume it returns the integration-specific token object. That mismatch will cause runtime errors in the sync-enabled path unless the return type or those call sites are adjusted.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    4
+   ],
+   "confidence": 0.8,
+   "reasoning": "C4 says the fetch Response is returned in the sync-enabled path while callers expect token data."
+  },
+  {
+   "comment": "When the sync endpoint path is used, res is a fetch Response and has no .data; res?.data will be undefined and token.access_token will throw at runtime. This relies on a consistent return shape from refreshOAuthTokens, which isn’t guaranteed currently.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.9,
+   "reasoning": "C4 says res.data is undefined, so reading access_token fails."
+  },
+  {
+   "comment": "The `refreshOAuthTokens` function is passed `credentialId` instead of `userId`, which breaks the credential sync functionality by causing incorrect user lookups. This issue can lead to failures in syncing user credentials, impacting user experience.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions credentialId being passed where userId is expected."
+  },
+  {
+   "comment": "The Salesforce integration checks `response.statusText` instead of `response.ok` when handling OAuth token refresh responses. This can lead to unreliable behavior, as a successful response may not be correctly identified, resulting in the use of stale credentials and potential authentication failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the statusText vs ok check."
+  },
+  {
+   "comment": "The `jsforce.Connection` is created using stale `credentialKey.access_token` and `credentialKey.instance_url` after a token refresh, which can lead to authentication failures and incorrect data access. Ensure that the connection is established using the refreshed token values instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.95,
+   "reasoning": "C5 describes the jsforce connection being built from stale token values."
+  },
+  {
+   "comment": "The `appCredentialWebhookRequestBodySchema.parse` function can throw on invalid payloads, resulting in 500 Internal Server Errors instead of the expected 400 Bad Request responses. This can lead to confusion for clients and hinder proper error handling.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate covers a schema parse throw that returns 500 instead of 400. C10 is about decryption, not schema parsing."
+  }
+ ],
+ "candidates": [
+  "In packages/app-store/larkcalendar/lib/CalendarService.ts, when `APP_CREDENTIAL_SHARING_ENABLED` is true, the credential sync endpoint response doesn't contain the full `RefreshTokenResp` structure expected, causing `undefined` values to be stored for `refresh_token` and `refresh_expires_date`",
+  "`[z.string().toString()]` evaluates to a literal string like `\"ZodString\"`, not a dynamic pattern, so the schema only accepts a property literally named `ZodString` with a number value, causing most token responses to fail validation when `APP_CREDENTIAL_SHARING_ENABLED` is true",
+  "`parseRefreshTokenResponse` returns the full `SafeParseReturnType` (containing `{success, data}`) instead of just the parsed data, so the credential stored contains the wrapper object instead of the actual token fields, causing schema validation failures when retrieved",
+  "When `APP_CREDENTIAL_SHARING_ENABLED` is true, `refreshOAuthTokens` returns a raw `fetch` `Response` object, but the caller expects a `.data` property with `access_token`, causing \"Cannot read property 'access_token' of undefined\" errors",
+  "After refreshing the OAuth token, `getClient` stores the new credentials in the database but creates the `jsforce.Connection` using the old `credentialKey.instance_url` and `credentialKey.access_token` values instead of the refreshed values from `accessTokenParsed.data`",
+  "The `if (!accessTokenParsed.success)` check on line 92 in lib/CalendarService.ts is unreachable dead code because `parseRefreshTokenResponse` already throws when parsing fails, so the returned value always has `success: true`",
+  "The check at lines 108-109 `if (!parsedToken.success)` in packages/app-store/zoomvideo/lib/VideoApiAdapter.ts is unreachable dead code because `parseRefreshTokenResponse` already throws an error when `!refreshTokenResponse.success`",
+  "When `CALCOM_WEBHOOK_SECRET` is unset and the client omits the webhook header, the comparison `undefined !== undefined` evaluates to `false`, bypassing authentication entirely and allowing unauthenticated requests to create or update credentials for any user",
+  "`APP_CREDENTIAL_SHARING_ENABLED` returns the string value of `process.env.CALCOM_APP_CREDENTIAL_ENCRYPTION_KEY` when both env vars are set, or `undefined` otherwise, rather than a boolean, unlike `IS_STRIPE_ENABLED` which uses `!!` coercion",
+  "If `symmetricDecrypt` throws or returns non-JSON, the unhandled exception bubbles up as a 500 with potentially sensitive error details in the stack trace",
+  "When `CALCOM_APP_CREDENTIAL_ENCRYPTION_KEY` is unset, `symmetricDecrypt` receives an empty string fallback instead of failing fast with a clear configuration error"
+ ]
+}

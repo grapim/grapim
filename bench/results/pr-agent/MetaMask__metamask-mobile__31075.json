@@ -1,0 +1,77 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "MetaMask__metamask-mobile__31075",
+ "url": "https://github.com/MetaMask/metamask-mobile/pull/31075",
+ "head_sha": "ef18288a8c8935af936a6f50993936771e772b23",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:10:37.121Z",
+ "seconds": 37.309,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "app/components/UI/Ramp/Views/NativeFlow/components/PhoneField/phoneCountry.ts",
+   "line": 42,
+   "end_line": 51,
+   "severity": null,
+   "category": null,
+   "title": "Ambiguous prefix match",
+   "body": "When several countries share the same dialing prefix (e.g. `+1` for US/CA, `+7` for RU/KZ), the stable sort returns whichever comes first in `countries`. In `PhoneField`, this inferred country also overrides `fallbackCountry`.\n\nExample: a Canadian user with a prefilled `+1...` number would see the US flag, placeholder and template instead of their own region.\n\nFix: when `fallbackCountry` has the same prefix as the match, prefer `fallbackCountry`."
+  },
+  {
+   "path": "app/components/UI/Ramp/Views/NativeFlow/components/PhoneField/PhoneField.tsx",
+   "line": 60,
+   "end_line": 79,
+   "severity": null,
+   "category": null,
+   "title": "Late country resolution",
+   "body": "`defaultPhoneCountry` uses `fallbackCountry` until `countries` finishes loading. During that window, a prefilled number from another country (e.g. `+447...` with region PT) is shown as local digits `447...` under the `+351` prefix.\n\nIf the user edits the field before the countries load, `handleChangeText` emits `+351447...`, which corrupts the stored number.\n\nThis only happens while countries are still loading. Possible fixes:\n- skip stripping or prefixing until `countries` is available, or\n- keep the raw value unchanged when its prefix doesn't match `phoneCountry`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 26500,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 1979,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 3,
+    "relevant_tests": "Yes\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "app/components/UI/Ramp/Views/NativeFlow/components/PhoneField/phoneCountry.ts\n",
+      "issue_header": "Ambiguous prefix match\n",
+      "issue_content": "When several countries share the same dialing prefix (e.g. `+1` for US/CA, `+7` for RU/KZ), the stable sort returns whichever comes first in `countries`. In `PhoneField`, this inferred country also overrides `fallbackCountry`.\n\nExample: a Canadian user with a prefilled `+1...` number would see the US flag, placeholder and template instead of their own region.\n\nFix: when `fallbackCountry` has the same prefix as the match, prefer `fallbackCountry`.\n",
+      "start_line": 42,
+      "end_line": 51
+     },
+     {
+      "relevant_file": "app/components/UI/Ramp/Views/NativeFlow/components/PhoneField/PhoneField.tsx\n",
+      "issue_header": "Late country resolution\n",
+      "issue_content": "`defaultPhoneCountry` uses `fallbackCountry` until `countries` finishes loading. During that window, a prefilled number from another country (e.g. `+447...` with region PT) is shown as local digits `447...` under the `+351` prefix.\n\nIf the user edits the field before the countries load, `handleChangeText` emits `+351447...`, which corrupts the stored number.\n\nThis only happens while countries are still loading. Possible fixes:\n- skip stripping or prefixing until `countries` is available, or\n- keep the raw value unchanged when its prefix doesn't match `phoneCountry`.\n",
+      "start_line": 60,
+      "end_line": 79
+     }
+    ],
+    "security_concerns": "No\n"
+   },
+   "usage": {
+    "prompt_tokens": 26500,
+    "completion_tokens": 1979,
+    "total_tokens": 28479
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "\u001b[32m2026-11-15 02:10:12.669\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:10:12.685\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:10:13.119\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 3 🔵🔵🔵⚪⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>PR contains tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>No security concerns identified</strong></td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Ambiguous prefix match</strong><br>When several countries share the same dialing prefix (e.g. `+1` for US/CA, `+7` for RU/KZ), the stable sort returns whichever comes first in `countries`. In `PhoneField`, this inferred country also overrides `fallbackCountry`.\n\nExample: a Canadian user with a prefilled `+1...` number would see the US flag, placeholder and template instead of their own region.\n\nFix: when `fallbackCountry` has the same prefix as the match, prefer `fallbackCountry`.\n\n<strong>Late country resolution</strong><br>`defaultPhoneCountry` uses `fallbackCountry` until `countries` finishes loading. During that window, a prefilled number from another country (e.g. `+447...` with region PT) is shown as local digits `447...` under the `+351` prefix.\n\nIf the user edits the field before the countries load, `handleChangeText` emits `+351447...`, which corrupts the stored number.\n\nThis only happens while countries are still loading. Possible fixes:\n- skip stripping or prefixing until `countries` is available, or\n- keep the raw value unchanged when its prefix doesn't match `phoneCountry`.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.14558
+}

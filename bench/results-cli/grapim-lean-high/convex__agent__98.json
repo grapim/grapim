@@ -1,0 +1,152 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "convex__agent__98",
+ "url": "https://github.com/convex/agent/pull/98",
+ "head_sha": "6b530179d6f474840664d705a7c6da1f245ee112",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:23:56.881Z",
+ "seconds": 60.92,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 73,
+   "end_line": 73,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "askHuman now has a handler, so it runs on its own and the human is never asked.",
+   "body": "Before this change, `askHuman` was a `tool()` with no `execute`. The model's tool call stayed open until `addHumanResponse` saved a human's tool-result. The new `createTool` handler returns `question` right away, so the SDK writes a tool result immediately: the question echoed back as the answer. The model goes on as if a human had answered. When a human later calls `addHumanResponse` with the same `toolCallId`, a second, conflicting tool result is saved for that call. Fix: keep the tool without an executor (for example `tool({ description, inputSchema: z.object({...}) })` from `ai` v5) so the call stays open for a human."
+  },
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 98,
+   "end_line": 98,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "A new type assertion was added where the PR says it added a runtime check.",
+   "body": "The PR description says `(input as { question: string }).question` was replaced with proper runtime type checking. This line adds exactly that cast. If the model sends input without a string `question`, `undefined` reaches `supportRequests` and nothing catches it. Fix: validate the input, for example with `z.object({ question: z.string() }).safeParse(tc.input)`, or narrow the type through the typed tool call."
+  },
+  {
+   "path": "example/convex/modelsForDemo.ts",
+   "line": 3,
+   "end_line": 11,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "`chat` is typed as the v4 `LanguageModelV1`, and the mismatch is hidden with `as any` across the examples.",
+   "body": "This is meant to be an AI SDK v5 compatibility change, but `chat` is now declared as the old `LanguageModelV1` interface while the providers return V2 models. That forces `openai.languageModel(...) as any` here and `chat: chat as any` in every Agent (fashion, simple, story, weather, addFile, rateLimiting, agentAsTool). The groq branch on line 14 still assigns a V2 model to a V1 variable. This contradicts the stated goal of removing all type assertions. It also turns off type checking of the model passed to `Agent`, so a real incompatibility would no longer show up at compile time. Fix: keep `LanguageModelV2` (or `LanguageModel` from `ai`) and drop the casts."
+  },
+  {
+   "path": "src/client/index.test.ts",
+   "line": 255,
+   "end_line": 256,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The test mock was renamed to V2 but still returns V1-shaped results.",
+   "body": "`MockLanguageModelV2` is built with V1 options and payloads: `defaultObjectGenerationMode`, `usage: { completionTokens, promptTokens }`, `logprobs`, top-level `text`, and stream parts using `textDelta`. V2 expects `content: [{ type: \"text\", text }]`, `usage: { inputTokens, outputTokens, totalTokens }`, and `text-delta` parts with `id`/`delta`. Under v5, generate and stream tests get empty text and undefined usage. Either the tests fail, or they pass without checking the real behaviour. The `as LanguageModelV2StreamPart[]` cast also hides the shape mismatch. Rewrite the mock in the V2 format."
+  },
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 132,
+   "end_line": 132,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A raw string is passed as an AI SDK v5 tool-result `output`, with `as any` hiding the type error.",
+   "body": "In AI SDK v5, a tool-result part's `output` must be a structured value such as `{ type: \"text\", value }` or `{ type: \"json\", value }`. This passes the human's raw string and silences the type error with `as any`. The saved message then has an invalid shape. Depending on the message validator, which isn't shown here, it is either rejected or stored and later breaks prompt conversion or the provider call when the thread continues. Fix: `output: { type: \"text\", value: args.response }`."
+  },
+  {
+   "path": "example/convex/files/addFile.ts",
+   "line": 34,
+   "end_line": 34,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Renaming the public action argument `mimeType` to `mediaType` breaks existing callers.",
+   "body": "`uploadFile` is a public action with a validator. Any client still sending `mimeType` will fail argument validation, both for the missing `mediaType` and for the extra field. The same applies to `askAboutImage` in `autoSave.ts`. I could not see whether the frontend callers were updated in this PR. If not, uploads fail. Update the callers too, or keep the external argument name and map it to `mediaType` inside the handler."
+  },
+  {
+   "path": "example/convex/modelsForDemo.ts",
+   "line": 11,
+   "end_line": 11,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "The demo model moves from the Chat Completions API to the Responses API without being asked.",
+   "body": "In `@ai-sdk/openai` v2, `openai.chat(id)` uses Chat Completions, while `openai.languageModel(id)` is the default Responses API model. This silently changes the API that every example agent calls. That changes the provider metadata, server-side storage of responses, and how message history (item ids) is handled. The request only covers typing and v5 compatibility. Keep `openai.chat(\"gpt-4o-mini\")`, as `agentAsTool.ts` still does."
+  },
+  {
+   "path": "package-lock.json",
+   "line": 38,
+   "end_line": 38,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "The `ai` peer dependency range is widened to accept any future major version.",
+   "body": "Changing `^5.0.0-beta.29` to `>=5.0.0-beta.29` lets consumers install `ai` v6, v7 and later without a peer warning, even though the library is written against the v5 API. Breaking changes in a later major version would then fail at runtime in user apps. The change is also made only in the lockfile and the request does not cover it. Keep a bounded range such as `^5.0.0` or `^5.0.0-beta.29`."
+  },
+  {
+   "path": "src/client/index.ts",
+   "line": 197,
+   "end_line": 198,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Removing `NoInfer` lets `stopWhen` drive the inference of `AgentTools`.",
+   "body": "`NoInfer` stopped the `stopWhen` option from acting as an inference site for the agent's tool set. Without it, `stopWhen: stepCountIs(3)` (a `StopCondition<any>`) becomes a candidate. That can widen `AgentTools` to `any` or a generic `ToolSet`, which silently drops the typing of tool calls and results for every agent that sets `stopWhen`. This is a change to the core library's public types, and the request does not cover it. The same applies to `asTextAction` (lines 1883-1884). Restore `NoInfer`."
+  },
+  {
+   "path": "example/convex/rag/ragAsPrompt.ts",
+   "line": 6,
+   "end_line": 11,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "The RAG embedding model is now hardcoded to OpenAI with an `as any` cast.",
+   "body": "This used to reuse the shared `textEmbedding` from `modelsForDemo`. It now always builds `openai.embedding(...)` and casts it to `any`. Deployments configured another way (for example only GROQ_API_KEY) now hit a missing-OpenAI-key error at embedding time. The cast also hides any interface mismatch. Keep the shared model and fix its type instead."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20645,
+  "cacheRead": 3262,
+  "output": 6194,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 21,
+   "hunks": 31,
+   "reviewedHunks": 31,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 23909,
+   "outputTokens": 6194,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2277654
+}

@@ -1,0 +1,133 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "Azure__azure-sdk-for-rust__5551",
+ "url": "https://github.com/Azure/azure-sdk-for-rust/pull/5551",
+ "head_sha": "0e1c2ddc6933568defe654b728d7f8e3d57eb96b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:34:55.674Z",
+ "seconds": 31.794,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "sdk/identity/azure_identity/src/custom_token_proxy.rs",
+   "line": 686,
+   "end_line": 706,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The inline and file CA acceptance test now needs live AKS settings and is ignored.",
+   "body": "`accepts_inline_and_file_ca` used to run on every build with a fixed test certificate. Now it is `#[ignore]` and reads the CA from `AZURE_KUBERNETES_CA_*` environment variables, so normal CI no longer checks that a valid PEM CA is accepted by the built-in client, inline or from a file. Nothing in the feature-flag request calls for this. Bring back the embedded test CA, or generate one, so the positive path keeps running by default."
+  },
+  {
+   "path": "sdk/identity/azure_identity/src/custom_token_proxy.rs",
+   "line": 805,
+   "end_line": 805,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The self-contained TLS test of the built-in proxy client is replaced by a mock and an ignored live test.",
+   "body": "The removed `sends_requests_with_custom_ca_and_sni` started a local OpenSSL HTTPS server. It checked that the built-in `reqwest::Client` factory really trusted the custom CA, sent the configured SNI and kept the original `host` header. The new test swaps in `MockTokenProxyClient`, so it never runs the `reqwest_rustls` code (`tls_backend_rustls`, `add_root_certificate`, `resolve_to_addrs`). The only test that does run it now is `#[ignore]` and needs a real AKS cluster. A regression in CA loading or SNI in the built-in client would pass CI. The issue only asked to move feature gates, not to remove this test. Keep the local-server test, gated on `all(feature = \"reqwest_rustls\", feature = \"client_certificate\")`, next to the mock test."
+  },
+  {
+   "path": "sdk/identity/azure_identity/src/managed_identity_credential.rs",
+   "line": 800,
+   "end_line": 801,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The system-assigned IMDS live test was taken out of live runs, which the request does not cover.",
+   "body": "`imds_system_assigned_live` changed from `#[recorded::test(live)]` to `#[tokio::test]` with `#[ignore]`, so live pipelines no longer run it. The linked issue and the PR description only cover moving `reqwest/rustls` and the token proxy client behind `reqwest_rustls`. Changing managed identity live-test coverage is outside that scope. Move it to a separate PR or revert it."
+  },
+  {
+   "path": "sdk/identity/test-resources-post.ps1",
+   "line": 38,
+   "end_line": 38,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Rewrite of the live-test provisioning script is outside the scope of the feature-flag request.",
+   "body": "Issue #5550 and the PR description only ask to move `reqwest/rustls` from the `reqwest` feature to `reqwest_rustls` and to gate `TokenProxyClient` the same way. This hunk rewrites the shared identity post-provisioning script instead. It stops reading `$AdditionalParameters['deployResources']` and now decides from a new deployment output (`IDENTITY_DEPLOY_RESOURCES`, added in `test-resources.bicep`). It makes `TenantId` and `Environment` optional and runs `az account set` outside CI. It moves kubeconfig to a temp file, adds endpoint readiness probes that call the test app's API, and changes the pod manifest. These changes affect every identity live-test pipeline run, and nothing in the request covers them. Move the script and Bicep changes into their own PR so they can be reviewed and tested against the live pipeline on their own."
+  },
+  {
+   "path": "sdk/core/azure_core_test/Cargo.toml",
+   "line": 26,
+   "end_line": 26,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Unrequested change disables azure_identity default features for azure_core_test.",
+   "body": "The issue only asks to move `reqwest/rustls` from `reqwest` to `reqwest_rustls` inside azure_identity. Adding `default-features = false` here also drops `azure_core/default` and `reqwest_rustls`, both enabled through azure_identity, for every crate that uses azure_core_test. The workspace normally unifies features, but crates built on their own, or after other crates change their features, can lose the default Reqwest/rustls transport. Credentials such as `DeveloperToolsCredential`, used in record/live mode, would then fail with no HTTP client. I couldn't check what azure_core_test needs from azure_identity's defaults. Revert this line, or enable the features it relies on explicitly (for example `features = [\"reqwest_rustls\"]`)."
+  },
+  {
+   "path": "sdk/identity/azure_identity/CONTRIBUTING.md",
+   "line": 1,
+   "end_line": 190,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "New live-test provisioning guide is unrelated to the feature-flag fix.",
+   "body": "Issue #5550 is a Cargo feature fix. This PR also adds a 190-line contributor guide covering live ACI/AKS provisioning, IMDS tests, identity-binding setup and recording policy. It goes with a large rewrite of `test-resources-post.ps1` and a change to `test-resources.bicep`. The guide describes behavior of test infrastructure that this PR rewrites without being asked to (readiness waits, the `IDENTITY_DEPLOY_RESOURCES` gating, published endpoint variables). That is a separate change, and it should be reviewed and merged on its own rather than alongside the feature-flag fix."
+  },
+  {
+   "path": "sdk/identity/azure_identity/src/managed_identity_credential.rs",
+   "line": 698,
+   "end_line": 698,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "IMDS live tests now fail instead of skipping when IMDS is unavailable.",
+   "body": "Before, `run_imds_live_test` printed a skip message and returned `Ok(())` when `IDENTITY_IMDS_AVAILABLE` was unset. Now `Env::default().var(...)?` returns an error. Any live-mode test that still calls this helper without `#[ignore]` (for example a user-assigned IMDS live test) will now fail in live pipelines that don't provision IMDS. I could not see every caller of the helper. This change to managed identity live tests has nothing to do with the reqwest/rustls feature split in the request. Revert it, or mark every caller `#[ignore]`."
+  },
+  {
+   "path": "eng/ignore-links.txt",
+   "line": 1,
+   "end_line": 1,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "Link check is silenced for a docs.rs link that is broken for current readers.",
+   "body": "The README now links to `docs.rs/azure_identity/latest/.../trait.TokenProxyClient.html`. `latest` on docs.rs resolves to the newest stable release (1.0.0), which has no `TokenProxyClient`, so readers get a 404 until a stable release ships it. Adding the URL to the ignore list hides the broken link instead of fixing it. The `#structfield.proxy_client` anchor has the same problem. Link to a version-pinned docs.rs URL or an intra-repo source link instead of ignoring the check."
+  }
+ ],
+ "usage": {
+  "requests": 3,
+  "input": 6,
+  "cacheWrite": 51039,
+  "cacheRead": 9786,
+  "output": 7376,
+  "models": {
+   "claude-opus-5-5": 3
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 25,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 60831,
+   "outputTokens": 7376,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 3,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #5550",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.4046962
+}

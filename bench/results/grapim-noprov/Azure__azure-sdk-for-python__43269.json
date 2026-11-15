@@ -1,0 +1,55 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "Azure__azure-sdk-for-python__43269",
+ "url": "https://github.com/Azure/azure-sdk-for-python/pull/43269",
+ "head_sha": "292ff19b5024bac6e7c6af0bc0884aea409a88a3",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:05:50.097Z",
+ "seconds": 8.063,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "sdk/cosmos/azure-cosmos/azure/cosmos/cosmos_client.py",
+   "line": 395,
+   "end_line": 398,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Positional offer_throughput now raises TypeError, breaking existing callers.",
+   "body": "Previously `create_database(id, populate_query_metrics, offer_throughput)` accepted positional args; now any second positional argument raises TypeError. Existing code calling `create_database('db', None, 400)` will break. Consider a deprecation path (warn and map args[1]/args[2]) before removing."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 21260,
+  "cacheWrite": 0,
+  "cacheRead": 2096,
+  "output": 206,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 32,
+   "reviewedHunks": 32,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 23356,
+   "outputTokens": 206,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 6,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.0895792
+}

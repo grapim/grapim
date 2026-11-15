@@ -1,0 +1,179 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "head_sha": "4f8aed295a29954023b2849c060ef4fb299d1b5d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:37:05.504Z",
+ "seconds": 70.276,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/models/post.rb",
+   "line": 133,
+   "end_line": 133,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "raw_html posts skip all sanitisation, so imported HTML is stored and served as cooked (stored XSS).",
+   "body": "When `cook_method` is `raw_html`, `cook` returns `raw` as it is. That raw HTML comes from external RSS/Atom feeds (`CGI.unescapeHTML` of item content) and from pages fetched by Readability. It is never sanitised and is shown on the main forum and with `raw post.cooked` in the embed view. A `<script>` or `onerror=` in a feed item, or on a page the embeddable host serves, runs in the forum's origin. The flag also stays on the post after it is edited, so anyone who can edit that post can inject HTML. Run the HTML through a whitelist sanitiser (for example `Sanitize` with a relaxed config) before returning it."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 13,
+   "end_line": 13,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "The feed URL is put into the href attribute without escaping.",
+   "body": "`url` comes from the feed item's link/id and is placed straight into `<a href='#{url}'>#{url}</a>`. The only check is that it matches `^https?://`, so a link such as `http://x/' onmouseover='alert(1)` breaks out of the attribute. Because raw_html posts are not sanitised, this becomes stored XSS. Escape it with `ERB::Util.html_escape(url)` for both the attribute and the text."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 64,
+   "end_line": 72,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Protocol-relative URLs are rewritten into broken same-host paths.",
+   "body": "`//cdn.example.com/img.png` starts with `/`, so it is rewritten to `http://host/cdn.example.com/img.png` because `sub(/^\\/+/, '')` strips both slashes. Every protocol-relative image or link in imported content breaks. Leave `//` URLs alone, or prefix them with the scheme only."
+  },
+  {
+   "path": "lib/topic_retriever.rb",
+   "line": 21,
+   "end_line": 33,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "The per-URL throttle lets anonymous clients create unlimited topics.",
+   "body": "The only throttle is keyed on the exact `embed_url`, and the only checks are a Referer header (which the client controls) and the host. An anonymous client can send `embed/best?embed_url=http://<host>/x?n=1`, `?n=2`, … with a forged Referer. Each request queues a job that fetches the remote page and creates a new topic as `embed_by_username`. That spams topics and makes the server fetch remote pages on demand. Add a global or per-IP rate limit, and/or normalise URLs (drop query strings and fragments) before throttling and importing."
+  },
+  {
+   "path": "Gemfile",
+   "line": 210,
+   "end_line": 211,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "New gems are added without updating Gemfile.lock.",
+   "body": "Only `Gemfile_rails4.lock` is changed. `Gemfile.lock` does not list `ruby-readability` or `simple-rss`, so `bundle install --deployment` / frozen installs fail for the default Gemfile. Regenerate `Gemfile.lock`."
+  },
+  {
+   "path": "app/jobs/scheduled/poll_feed.rb",
+   "line": 29,
+   "end_line": 29,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Kernel#open on a URL from a setting allows command execution.",
+   "body": "`open(SiteSetting.feed_polling_url)` uses `Kernel#open`. A value starting with `|` runs a shell command, so anyone who can change site settings gets a shell on the server. The handle is also never closed. Use `open-uri` explicitly (`URI.parse(url).open` after checking the scheme is http(s)) or an HTTP client. The same applies to `open(url)` in `TopicEmbed.import_remote`, which the Disqus importer now calls with links taken from the import file."
+  },
+  {
+   "path": "app/jobs/scheduled/poll_feed.rb",
+   "line": 35,
+   "end_line": 35,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Items without content (or Ruby versions older than 2.1) crash the poll.",
+   "body": "Plain RSS 2.0 items usually carry `description`, not `content`, so `i.content` is nil and `.scrub` raises NoMethodError. `String#scrub` also does not exist before Ruby 2.1. The whole job then aborts, and with `retry: false` nothing is imported. Fall back to `i.description`, and skip items with no content."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 32,
+   "end_line": 36,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The update path crashes when the embedded post was deleted.",
+   "body": "If the post linked to a TopicEmbed has been deleted (hard-deleted or not found by the default scope), `embed.post` is nil. `PostRevisor.new(nil).revise!` then raises NoMethodError. Each feed poll aborts at that item, so later items are never imported. Guard against a nil post: skip the item, or recreate the topic."
+  },
+  {
+   "path": "db/migrate/20131223171005_create_top_topics.rb",
+   "line": 3,
+   "end_line": 3,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "An existing migration is edited to force-drop the top_topics table.",
+   "body": "Adding `force: true` to an existing migration does nothing on databases that already ran it. Where it does run, it silently drops and recreates `top_topics`, along with any data in it. This has nothing to do with the embedding feature. Revert it."
+  },
+  {
+   "path": "lib/tasks/disqus.thor",
+   "line": 148,
+   "end_line": 148,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "The Disqus importer loses created_at and category, and fails on any unreachable link.",
+   "body": "The change drops the `--category` option and the `created_at` that each thread used to get. Imported topics now land in the default category with the current timestamp. It also does a live HTTP fetch of every thread link: one dead or erroring URL raises and aborts the whole import, which used to need no network. None of this was asked for. Keep `created_at` and category, and rescue fetch errors for each thread."
+  },
+  {
+   "path": "app/jobs/scheduled/poll_feed.rb",
+   "line": 20,
+   "end_line": 22,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "feed_key is computed but never used.",
+   "body": "`feed_key` looks meant for skipping feeds that have not changed (If-Modified-Since), but nothing reads it. As a result, every hourly poll re-parses and re-hashes every item. Either use it or remove it."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 22693,
+  "cacheRead": 3262,
+  "output": 6407,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 28,
+   "hunks": 36,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 6,
+   "inputTokens": 25957,
+   "outputTokens": 6407,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 27,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "Gemfile_rails4.lock",
+    "reason": "ignored by .grapim/review.json"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "lib/post_creator.rb",
+    "line": 216,
+    "end_line": 216,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "security",
+    "title": "cook_method is taken from the opts hash, which could come from request params.",
+    "body": "If any controller passes request params into `PostCreator` without filtering out `cook_method`, a normal user could send `cook_method=2` and publish unsanitised raw HTML (stored XSS). I could not see how PostsController builds the opts. Only set this from trusted internal callers, for example through a separate argument instead of the shared opts."
+   }
+  ]
+ },
+ "cost_usd": 0.2422654
+}

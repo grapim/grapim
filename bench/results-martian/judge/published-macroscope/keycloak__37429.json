@@ -1,0 +1,52 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.97,
+   "reasoning": "C1 is about how exceptions are handled. It does not mention the Italian text in the Lithuanian file."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.97,
+   "reasoning": "No candidate mentions the Traditional Chinese terms in the zh_CN file."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C1 is about wrapping exceptions, not about the logic that matches anchor groups."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.97,
+   "reasoning": "No candidate points out the misspelled method name."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.97,
+   "reasoning": "No candidate says HTML_TAGS should be declared private static final."
+  }
+ ],
+ "candidates": [
+  "verifySafeHtml() wraps I/O failures in RuntimeException instead of MojoExecutionException. When the derived _en.properties file is missing or unreadable, the raw exception escapes the catch (IOException e) in verify() and crashes the plugin instead of reporting a normal Maven error. Should propagate IOException to verify() or wrap in MojoExecutionException to match the method's declared exception type."
+ ]
+}

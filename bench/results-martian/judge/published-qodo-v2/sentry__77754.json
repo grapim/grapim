@@ -1,0 +1,47 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "sentry__77754",
+ "url": "https://github.com/getsentry/sentry/pull/77754",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The AssignmentSource dataclass uses queued: datetime = timezone.now() as a default field value, which evaluates timezone.now() once at class definition time and shares that single datetime instance across all objects.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same timezone.now() default evaluated once at class definition"
+  },
+  {
+   "comment": "The method name has a typo: test_from_dict_inalid_data should be test_from_dict_invalid_data.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the typo"
+  },
+  {
+   "comment": "Method name says 'empty_array' but tests empty dict - consider renaming to 'test_from_dict_empty_dict' for clarity.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the test naming"
+  },
+  {
+   "comment": "to_dict() returns a datetime for queued; if this dict is passed in task kwargs (e.g., via apply_async), JSON serialization may fail depending on the serializer, which can cause enqueue errors.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C2 is about integration_id type validation, not datetime JSON serialization"
+  }
+ ],
+ "candidates": [
+  "AssignmentSource.queued is set via timezone.now() at class definition time, so all instances share the same timestamp instead of getting unique timestamps when created",
+  "AssignmentSource.from_dict constructs the dataclass from unvalidated Any values; if integration_id arrives as a string instead of int, the equality check used to block sync cycles can silently fail"
+ ]
+}

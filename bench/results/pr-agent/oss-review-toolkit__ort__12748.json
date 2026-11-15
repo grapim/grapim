@@ -1,0 +1,61 @@
+{
+ "tool": "pr-agent",
+ "pr_id": "oss-review-toolkit__ort__12748",
+ "url": "https://github.com/oss-review-toolkit/ort/pull/12748",
+ "head_sha": "cc25182cd1176d3f0b0ba5d4cba97243cd18978c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:15:30.252Z",
+ "seconds": 18.749,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "plugins/reporters/web-app-template/src/pages/AppPage.test.tsx",
+   "line": 66,
+   "end_line": 88,
+   "severity": null,
+   "category": null,
+   "title": "Mock Leakage",
+   "body": "The `vi.spyOn` mocks on the `window.localStorage` getter and on `Storage.prototype.getItem`/`setItem` are never restored. There is no `afterEach(() => vi.restoreAllMocks())` in this file.\n\nThe `it.each` cases run in the order `access`, `read`, `write`. After the `access` case, the getter still throws. The next `beforeEach` then calls `window.localStorage.clear()`, which throws and fails the `read` test.\n\nEven if that call did not throw, the `read` and `write` cases would still be exercising the access-failure path instead of the operation they are meant to test.\n\nThis depends on the Vitest config: it is only harmless if `restoreMocks: true` is set globally, which is not visible in this diff. Add explicit mock restoration to make the tests order-independent."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4544,
+  "cacheWrite": 0,
+  "cacheRead": 0,
+  "output": 810,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "review": {
+   "review": {
+    "estimated_effort_to_review_[1-5]": 2,
+    "relevant_tests": "Yes\n",
+    "key_issues_to_review": [
+     {
+      "relevant_file": "plugins/reporters/web-app-template/src/pages/AppPage.test.tsx\n",
+      "issue_header": "Mock Leakage\n",
+      "issue_content": "The `vi.spyOn` mocks on the `window.localStorage` getter and on `Storage.prototype.getItem`/`setItem` are never restored. There is no `afterEach(() => vi.restoreAllMocks())` in this file.\n\nThe `it.each` cases run in the order `access`, `read`, `write`. After the `access` case, the getter still throws. The next `beforeEach` then calls `window.localStorage.clear()`, which throws and fails the `read` test.\n\nEven if that call did not throw, the `read` and `write` cases would still be exercising the access-failure path instead of the operation they are meant to test.\n\nThis depends on the Vitest config: it is only harmless if `restoreMocks: true` is set globally, which is not visible in this diff. Add explicit mock restoration to make the tests order-independent.\n",
+      "start_line": 66,
+      "end_line": 88
+     }
+    ],
+    "security_concerns": "No\n"
+   },
+   "usage": {
+    "prompt_tokens": 4544,
+    "completion_tokens": 810,
+    "total_tokens": 5354
+   },
+   "coverage": {
+    "files_not_reviewed": [],
+    "files_partially_reviewed": []
+   }
+  },
+  "stdout": "\u001b[32m2026-11-15 02:15:19.461\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:15:19.461\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.custom_merge_loader\u001b[0m:\u001b[36mload\u001b[0m:\u001b[36m67\u001b[0m - \u001b[33m\u001b[1mSettings file not found: C:\\Users\\OS\\AppData\\Local\\Temp\\claude\\83a280354eafb2a3\\acacf5c2-cad8-45d1-9cd3-dd8a06dcb198\\scratchpad\\pragent-venv\\Lib\\site-packages\\pr_agent\\settings_prod/.secrets.toml. Skipping it.\u001b[0m\r\n\u001b[32m2026-11-15 02:15:19.894\u001b[0m | \u001b[33m\u001b[1mWARNING \u001b[0m | \u001b[36mpr_agent.algo.repo_context\u001b[0m:\u001b[36m_provider_supports_repo_context\u001b[0m:\u001b[36m158\u001b[0m - \u001b[33m\u001b[1mrepo_context_files is configured, but PlainDiffGitProvider does not support repository file fetching; skipping repo context\u001b[0m\r\n## PR Reviewer Guide 🔍\n\nHere are some key observations to aid the review process:\n\n<table>\n<tr><td>⏱️&nbsp;<strong>Estimated effort to review</strong>: 2 🔵🔵⚪⚪⚪</td></tr>\n<tr><td>🧪&nbsp;<strong>PR contains tests</strong></td></tr>\n<tr><td>🔒&nbsp;<strong>No security concerns identified</strong></td></tr>\n<tr><td>⚡&nbsp;<strong>Recommended focus areas for review</strong><br><br>\n\n<strong>Mock Leakage</strong><br>The `vi.spyOn` mocks on the `window.localStorage` getter and on `Storage.prototype.getItem`/`setItem` are never restored. There is no `afterEach(() => vi.restoreAllMocks())` in this file.\n\nThe `it.each` cases run in the order `access`, `read`, `write`. After the `access` case, the getter still throws. The next `beforeEach` then calls `window.localStorage.clear()`, which throws and fails the `read` test.\n\nEven if that call did not throw, the `read` and `write` cases would still be exercising the access-failure path instead of the operation they are meant to test.\n\nThis depends on the Vitest config: it is only harmless if `restoreMocks: true` is set globally, which is not visible in this diff. Add explicit mock restoration to make the tests order-independent.\n\n</td></tr>\n</table>\n\n"
+ },
+ "cost_usd": 0.034376
+}

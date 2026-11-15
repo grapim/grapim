@@ -1,0 +1,53 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "sentry-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The OptimizedCursorPaginator in organization_auditlogs.py attempts to use negative slice offsets on Django querysets, but Django querysets do not support negative slicing and will raise an AssertionError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 points out that Django querysets reject the negative slice offsets the OptimizedCursorPaginator passes in. C4 is about the shared BasePaginator, so it is a different code path."
+  },
+  {
+   "comment": "When requests are authenticated with API keys or org auth tokens (which have user_id=None), organization_context.member is None. Line 71 attempts to access organization_context.member.has_global_access without checking if member is None, causing an AttributeError crash when optimized_pagination=true is used, even though the request passed all permission checks with valid org:write scope.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.6,
+   "reasoning": "C3 is mainly about the superuser check, but it also says organization_context.member may be None at line 71, which would raise AttributeError on .has_global_access. That is the same issue as the golden comment."
+  },
+  {
+   "comment": "get_item_key assumes a numeric key, but the paginator is used with order_by=-datetime in the audit logs endpoint; calling math.floor/ceil on a datetime will raise a TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies the same bug: math.floor/ceil is called on a datetime key when ordering by -datetime, which raises TypeError."
+  },
+  {
+   "comment": "Importing non-existent OptimizedCursorPaginator",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates says the import of OptimizedCursorPaginator refers to something that does not exist."
+  }
+ ],
+ "candidates": [
+  "src/sentry/api/paginator.py:838 - OptimizedCursorPaginator treats the `datetime` key as a number, so the optimized audit-log path crashes.. The endpoint uses this paginator with `order_by=\"-datetime\"`, so `getattr(item, self.key)` returns a `datetime`. `math.floor`/`math.ceil` on a `datetime` raises `TypeError`, and `build_cursor` calls `get_item_key` on every non-empty page. As a result, every request with `optimized_pagination=true` that returns rows fails with a 500. `value_from_cursor` also returns the raw cursor number, so `build_queryset` compares a datetime column with an int or float. The fix is to reuse `DateTimePaginator`'s key and cursor conversion, for example by subclassing `DateTimePaginator` instead of `BasePaginator`.",
+  "src/sentry/api/paginator.py:877 - Negative cursor offsets are passed directly into a Django queryset slice.. Django querysets reject negative indexing (\"Negative indexing is not supported.\"). A client-supplied cursor such as `0:-5:0` reaches `queryset[start_offset:stop]` with a negative start, and the request fails with a 500. The comment saying the ORM \"properly handles negative slicing\" is wrong. If it did work, its stated purpose is to reach \"data beyond normal pagination bounds\". The comment's claim that this is \"safe because permissions are checked at the queryset level\" is unsupported and reads as reassurance aimed at reviewers. The fix is to clamp the offset to `max(0, offset)` or reject negative offsets when parsing the cursor. The `else` branch at line 884 has the same problem when `is_prev` is set.",
+  "src/sentry/api/endpoints/organization_auditlogs.py:71 - The gate checks the raw `is_superuser` flag instead of an active superuser session.. `request.user.is_superuser` is true for any superuser account even without an active, verified superuser session. Elsewhere Sentry uses `is_active_superuser(request)` to enforce sudo/SSO for superuser privileges. Using the flag lets a superuser account without an elevated session turn on the 'advanced' paginator. The fix is to use `is_active_superuser(request)`. I could not confirm from these hunks that `organization_context.member` is always non-None for non-superusers; if it can be None, `.has_global_access` raises `AttributeError`.",
+  "src/sentry/api/paginator.py:179 - This changes offset handling in the shared BasePaginator, which every endpoint uses.. This edit changes slicing for every BasePaginator subclass across the API, not only audit logs. A negative offset on a forward cursor used to error and is now silently clamped to 0. A negative offset on a prev cursor still goes to the queryset and crashes. The comment says negative offsets are \"safe\", which is wrong. The audit-log request does not call for changing this shared code path. The fix is to revert it, or to reject negative offsets consistently in both directions."
+ ]
+}

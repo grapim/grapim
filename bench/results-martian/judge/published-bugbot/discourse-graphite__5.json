@@ -1,0 +1,38 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "discourse-graphite__5",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Mixing float: left with flexbox causes layout issues. Further this PR removes the float-based right alignment for .d-header .panel, which may cause the login panel in the non-Ember/noscript header (where .panel is nested inside .row and not a flex item) to stack under the title instead of remaining right-aligned.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.6,
+   "reasoning": "G1 is about mixing float with flexbox, which causes layout problems. C1 makes the same point: a float inside a flex container is ignored and the element loses its alignment. The location and the panel-alignment detail differ, but the core problem is the same."
+  },
+  {
+   "comment": "-ms-align-items never existed in any version of IE/Edge; the correct legacy property is -ms-flex-align.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the -ms-align-items prefix."
+  },
+  {
+   "comment": "-webkit-box-ordinal-group and -moz-box-ordinal-group require values starting from 1, not 0. If $val is 0, this will cause incorrect rendering in older browsers, leading to layout issues.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions box-ordinal-group starting at 1."
+  }
+ ],
+ "candidates": [
+  "The button element inside .small-action has float: right which is ignored after the parent becomes a flex container via @include flexbox(), causing the button to lose its right alignment. Should use margin-left: auto instead of float: right for proper flexbox alignment."
+ ]
+}

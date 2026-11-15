@@ -1,0 +1,23 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The include_website_name method is missing the required ? suffix. Rails serializers expect include_ methods to end with ? for conditional attribute inclusion, a convention followed by other methods in this serializer. Without it, the website_name attribute may not be conditionally included as intended. Additionally, the '.' << website_host string concatenation should be replaced with '.' + website_host or '.#{website_host}' to avoid mutating string literals, which can lead to issues.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.93,
+   "reasoning": "C2 finds the main problem in G1: `include_website_name` is missing the `?` suffix, so the serializer never calls it. C2 doesn't mention the string-mutation point, but the core issue is the same. C1 is about public-suffix domain matching, which is a separate issue."
+  }
+ ],
+ "candidates": [
+  "app/serializers/user_serializer.rb:144 - The same-parent check treats unrelated sites under a public suffix as the instance's own domain.. For hosts with the same number of labels (more than two), the code compares everything after the first label. So `foo.co.uk` against an instance at `forum.co.uk`, or `someone.github.io` against `forum.github.io`, counts as the same domain, and the full URL path is shown for an unrelated site. To fix this, compare against the registrable domain (public-suffix aware), or limit the match to `website_host` equal to the instance host or one of its parent domains.",
+  "app/serializers/user_serializer.rb:153 - `include_website_name` lacks the `?`, so the serializer never calls it.. ActiveModel::Serializers only checks `include_<attr>?` methods. Without the `?`, this method is never called, so `website_name` is always serialized, as `null` when there is no website. Rename it to `include_website_name?`."
+ ]
+}

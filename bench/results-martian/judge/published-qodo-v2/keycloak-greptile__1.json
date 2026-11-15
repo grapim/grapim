@@ -1,0 +1,34 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points to the same missing UserModel argument."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 raises the same problem: because user is null on the initial login page, conditional UI is never set up."
+  }
+ ],
+ "candidates": [
+  "UsernameForm.authenticate() calls isConditionalPasskeysEnabled() with no arguments, but the only available method requires a UserModel parameter, causing a compile-time error that will block the build",
+  "Conditional passkeys are only enabled when user != null, which prevents setting up conditional UI on initial login pages where context.getUser() is typically null, breaking discoverable-key passkey login that relies on the ID-less path",
+  "Some new UI tests assert absence of elements by catching Exception instead of NoSuchElementException, which can incorrectly treat unrelated WebDriver failures as 'element absent' and make tests pass when the page is actually broken/flaky"
+ ]
+}

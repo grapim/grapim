@@ -1,0 +1,38 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In _set_sample_rate_from_error_sampling(), the check `if client_sample_rate:` treats 0.0 as falsy, so a sample_rate of 0.0 is silently skipped and never set on normalized_data.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the falsy 0.0 sample_rate check."
+  },
+  {
+   "comment": "Using Python’s built-in hash() to build cache keys is non-deterministic across processes (hash randomization), so keys won’t match across workers and invalidate_upsampling_cache may fail to delete them. Use a deterministic serialization of project_ids for the cache key.",
+   "severity": "Low",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 says invalidate_upsampling_cache is dead code, but it says nothing about hash() being non-deterministic in cache keys."
+  },
+  {
+   "comment": "The upsampling eligibility check passes the outer dataset instead of the actual dataset used by scoped_dataset. In paths where the query ultimately runs against discover (e.g., dashboard split) while the original dataset is metrics, upsampling may be skipped even when all projects are allowlisted.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C2 is about an unused organization parameter, not about the eligibility check being passed the wrong dataset."
+  }
+ ],
+ "candidates": [
+  "The `invalidate_upsampling_cache` function is defined but never called anywhere in the codebase, creating dead code that could mislead future developers",
+  "The `_are_all_projects_error_upsampled` function accepts an `organization` parameter that is never used in the function body, making it misleading and potentially indicating incomplete implementation",
+  "The `_is_error_focused_query` function uses a simple substring check that doesn't account for negation - queries like `!event.type:error` will incorrectly return True because the substring is present, causing upsampling transformation to be incorrectly applied to non-error events"
+ ]
+}

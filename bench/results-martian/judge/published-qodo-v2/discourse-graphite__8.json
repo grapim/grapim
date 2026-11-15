@@ -1,0 +1,63 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": " The findMembers() call is now asynchronous and unhandled. The controller may not have member data immediately available, creating a race condition.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate addresses async findMembers race."
+  },
+  {
+   "comment": "In the next action, capping the next offset at user_count can produce an empty page (e.g., total equal to limit results in offset == total, showing 2/2 with no members). This can cause confusing UX on the last page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.7,
+   "reasoning": "G2 is about next offset capping at user_count; C1 is about totalPages calc. Related but distinct; C1 mentions offset equal to user_count yielding empty list but via totalPages. Mostly matches G4."
+  },
+  {
+   "comment": "The remove_member test uses xhr :put to call the remove_member action, but the route defines delete 'members' => 'groups#remove_member' requiring DELETE method.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate about put vs delete in test."
+  },
+  {
+   "comment": "The `totalPages` calculation using `Math.floor(user_count / limit) + 1` produces an extra page when `user_count` is an exact multiple of `limit`, leading to incorrect pagination. For example, with 100 users and a limit of 50, it reports 3 pages instead of 2, allowing navigation to an empty page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes exactly the totalPages extra page issue."
+  },
+  {
+   "comment": "Expected to return a value at the end of function - code paths without explicit returns will return undefined",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate about missing return."
+  },
+  {
+   "comment": "The route provides the group's ID in params[:id], but the code attempts to read it from params[:group_id], causing the action to fail. This results in a broken feature when trying to access group memberships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate about params[:id] vs params[:group_id]."
+  }
+ ],
+ "candidates": [
+  "Admin group pagination computes totalPages with Math.floor(user_count/limit)+1, which adds an extra page when user_count is an exact multiple of limit, allowing navigation to an offset equal to user_count and yielding an empty members list",
+  "The remove_member endpoint removes memberships via group.users.delete(user_id) but does not trigger the existing primary_group_id cleanup used by bulk username updates, leaving User.primary_group_id pointing at a group the user is no longer a member of and bypassing GroupUser counter-cache/callback semantics"
+ ]
+}

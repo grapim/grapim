@@ -1,0 +1,68 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": " The findMembers() call is now asynchronous and unhandled. The controller may not have member data immediately available, creating a race condition.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate points out the race condition from the unhandled async findMembers() call. C2 is about missing error handlers on add/remove, which is a different problem."
+  },
+  {
+   "comment": "In the next action, capping the next offset at user_count can produce an empty page (e.g., total equal to limit results in offset == total, showing 2/2 with no members). This can cause confusing UX on the last page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.55,
+   "reasoning": "C1 says 'next' moves to an empty page with offset = user_count when the member count equals the limit, showing 1/2. That is the empty-last-page scenario in G2, although C1 blames the totalPages calculation rather than the cap in the next action."
+  },
+  {
+   "comment": "The remove_member test uses xhr :put to call the remove_member action, but the route defines delete 'members' => 'groups#remove_member' requiring DELETE method.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the test calling remove_member with PUT when the route requires DELETE."
+  },
+  {
+   "comment": "The `totalPages` calculation using `Math.floor(user_count / limit) + 1` produces an extra page when `user_count` is an exact multiple of `limit`, leading to incorrect pagination. For example, with 100 users and a limit of 50, it reports 3 pages instead of 2, allowing navigation to an empty page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes exactly the Math.floor(user_count / limit) + 1 off-by-one when user_count is a multiple of limit."
+  },
+  {
+   "comment": "Expected to return a value at the end of function - code paths without explicit returns will return undefined",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions code paths that end without a return value."
+  },
+  {
+   "comment": "The route provides the group's ID in params[:id], but the code attempts to read it from params[:group_id], causing the action to fail. This results in a broken feature when trying to access group memberships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions reading params[:group_id] when the route provides params[:id]."
+  }
+ ],
+ "candidates": [
+  "app/assets/javascripts/admin/controllers/admin-group.js.es6:13 - totalPages counts one page too many when user_count is a multiple of limit.. `Math.floor(user_count / limit) + 1` gives 2 for 50 members with limit 50, and 3 for 100. The UI then shows \"1/2\", `showingLast` stays false on the real last page, and \"next\" moves to an empty page (offset = user_count). The same thing happens after removing the last member on the last page. Use `Math.ceil(this.get(\"user_count\") / this.get(\"limit\"))`.",
+  "app/assets/javascripts/discourse/models/group.js:40 - Failures when adding or removing members are silently ignored.. `removeMember` and `addMembers` only attach a success handler, and the controller actions (`admin-group.js.es6` lines 51-65) ignore the returned promise. When the server answers 422 (automatic group), 404, or 500, nothing is shown and the list is not reloaded, so the admin gets no feedback that the change failed. The usernames input is also never cleared (see the TODO). Add a rejection handler that shows the server's `errors` with `bootbox.alert`, the way `save` already does.",
+  "app/controllers/groups_controller.rb:22 - The public group members page is now cut off at 50 members and has no way to page.. Before this change, non-automatic groups returned every member and automatic groups returned up to 200. Now every request defaults to `limit=50`. The public `group-members` route calls `model.findMembers()` with the model's default limit of 50, and `group/members.hbs` has no next/previous controls. Any group with more than 50 members only shows the first 50 on its public page. Either add pagination or infinite loading to the public members template, or keep a higher limit there.",
+  "app/controllers/admin/groups_controller.rb:24 - create/update now read top-level params, which breaks existing API clients that send `group[...]`.. Before, `create` and `update` read `params[:group][:name]`, `params[:group][:visible]`, and so on. Now they read `params[:name]` and `params[:visible]` directly. An API client still sending the old nested shape gets a blank name on create, which fails validation. On update, its fields are ignored and `visible` is silently reset to false, because `params[:visible] == \"true\"` is now false. The `group[usernames]` and PATCH `changes` membership APIs are also removed with no replacement path for those clients. If external callers exist, accept both shapes or document the break.",
+  "app/controllers/groups_controller.rb:22 - limit and offset are not validated, so negative or zero values reach SQL.. `params[:limit].to_i` and `params[:offset].to_i` are passed directly to `.limit`/`.offset`. A request with `offset=-1` or `limit=-5` makes PostgreSQL raise an error (\"OFFSET must not be negative\"), which returns a 500. A very large `limit` also lets any viewer pull the whole member list in one request. Clamp both values, for example `limit = [[limit, 1].max, 200].min` and `offset = [offset, 0].max`."
+ ]
+}

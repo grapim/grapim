@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "microsoft__vscode__275955",
+ "url": "https://github.com/microsoft/vscode/pull/275955",
+ "head_sha": "78d21e258e812314b44c11760e91d0e599a259f9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:38:02.498Z",
+ "seconds": 27.964,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 313,
+   "end_line": 313,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The keydown handler still removes aria-activedescendant on a bare Ctrl press, so the reported bug remains.",
+   "body": "The PR description says this handler now skips the removal for Ctrl/Shift/Alt/Meta, but the only change here is a comment. Pressing Ctrl alone still runs `inputBox.removeAttribute('aria-activedescendant')`. That moves the screen reader back to the input, which is how it re-announces \"Type the command to run\" (issue #271032 step 4). The description's second change is also missing: lines 222 and 263 still set the attribute to `''` instead of removing it. Add the modifier-key check described (`e.keyCode !== KeyCode.Ctrl && ...`), and call `removeAttribute` when `getActiveDescendant()` returns nothing."
+  },
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 221,
+   "end_line": 221,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Skipping aria-activedescendant updates while Ctrl is held breaks Ctrl-held quick navigation for screen readers.",
+   "body": "The new `!this.keyMods.ctrlCmd` guard (here and the same one at line 262 for the tree) skips every focus update while Ctrl/Cmd is down, not just a lone Ctrl press. Several common flows move focus with Ctrl held: Ctrl+Tab editor switching, pressing Ctrl+P / Ctrl+E repeatedly in quick open (quickNavigate), and Ctrl+N/Ctrl+P or Ctrl+J/K list bindings. In those flows `aria-activedescendant` either stays on the old item or stays removed (the keydown handler removes it), so a screen reader never announces the newly focused item. Also, if the keyup is missed (for example on blur), `ctrlCmd` can stay true and block updates. Fix the root cause instead: in the keydown handler, don't remove the attribute when only a modifier key is pressed, and leave focus-change updates alone."
+  },
+  {
+   "path": "src/vs/platform/quickinput/test/browser/quickinput.test.ts",
+   "line": 283,
+   "end_line": 299,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The new test asserts nothing (`assert.ok(true)`).",
+   "body": "The test only checks that setting the placeholder doesn't throw. It never reads the input's `aria-label` and never checks whether the attribute was rewritten, so it passes whether or not the deduplication in `QuickInputBox` works. Assert on the input element's `aria-label`, or spy on `setAttribute` to confirm a same-value assignment doesn't touch the DOM."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 7614,
+  "cacheRead": 3262,
+  "output": 2455,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 10878,
+   "outputTokens": 2455,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #271032",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.08783039999999999
+}

@@ -1,0 +1,124 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "head_sha": "54486a059cd2032042189bb565646ba4e0f6bd61",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:43:03.135Z",
+ "seconds": 38.113,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/features/auth/lib/next-auth-options.ts",
+   "line": 139,
+   "end_line": 156,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "A backup code can be used more than once by sending requests at the same time.",
+   "body": "Login reads `user.backupCodes`, decrypts them, finds the matching code, then writes the list back with that entry set to null. Nothing locks the row and the write does not check the stored value. If two sign-in requests with the same backup code arrive together, both read the old list, both find the code, and both sign in. Each also writes its own copy back, so one request can also bring back a code that another request had just used up.\n\nFix: make the consume step atomic. Either run it in a transaction that locks the row (`SELECT ... FOR UPDATE`), or make the update conditional on the old value (`updateMany({ where: { id, backupCodes: user.backupCodes }, ... })`) and reject the login when 0 rows change."
+  },
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 135,
+   "end_line": 135,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Closing the dialog on the backup-codes step skips onEnable and leaves the modal stuck on that step.",
+   "body": "Once the TOTP code is accepted, 2FA is already enabled on the server, but `onEnable()` now runs only from the new Close button. If the user dismisses the dialog with Escape or by clicking the overlay (`onOpenChange`), the parent is never told 2FA was enabled, so the settings switch stays unchecked. `resetState()` also never runs, so `step` stays `DisplayBackupCodes` and reopening the modal shows the old codes with no password step. Fix: when the dialog closes on this step, call `onEnable()` and `resetState()`, or block dismissal until Close is clicked."
+  },
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 283,
+   "end_line": 287,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The Download button sits inside the enable form and probably submits it.",
+   "body": "The Close and Copy buttons call `e.preventDefault()` because they sit inside `<Form handleSubmit={handleEnable}>`. That suggests these buttons submit the form by default. The Download `Button` is wrapped in an `<a>` and does not prevent this, so clicking it likely also submits the form. That calls `TwoFactorAuthAPI.enable` again after 2FA is already enabled, and the failed call can show a 'something went wrong' error on the backup-codes screen. Nesting a button inside a link is also invalid interactive markup. Fix: render the link styled as a button (e.g. `Button href=... download`), or give the button `type=\"button\"`."
+  },
+  {
+   "path": "apps/web/playwright/login.2fa.e2e.ts",
+   "line": 50,
+   "end_line": 51,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "The first 2FA test never closes the new backup-codes screen and relies on an assertion it admits always passes.",
+   "body": "The PR says it fixes the setup test for the new backup-code screen, but this test goes straight from `fillOtp` to checking the switch without clicking `backup-codes-close`. So `onEnable` never runs and the switch is not checked at that point. The test still passes only because `expect(locator.isChecked()).toBeTruthy()` checks an un-awaited Promise, as the new FIXME notes. Fix: click `backup-codes-close`, then assert with `await expect(locator).toBeChecked()`, as the second test does."
+  },
+  {
+   "path": "packages/ui/components/form/inputs/Input.tsx",
+   "line": 49,
+   "end_line": 49,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "tabIndex={-1} takes the show-password toggle out of the tab order in a shared component.",
+   "body": "`PasswordField` is used across the app. With `tabIndex={-1}`, keyboard users can no longer reach the button that shows or hides the password, on every password field and not just the 2FA modals. The request covers backup codes, not this shared accessibility change. Fix: revert it, or handle focus order only inside the 2FA modal."
+  },
+  {
+   "path": "apps/web/pages/api/auth/two-factor/totp/disable.ts",
+   "line": 61,
+   "end_line": 61,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "A backup code that is not a string crashes the disable endpoint with a 500.",
+   "body": "`req.body.backupCode` is taken from the client and never type-checked. A JSON body such as `{\"backupCode\": 123}` or `{\"backupCode\": [\"a\"]}` makes `.replaceAll` throw, so the request ends in an unhandled 500 instead of a 400. Fix: check `typeof req.body.backupCode === \"string\"` before using it, and return `IncorrectBackupCode` when it is not."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 28622,
+  "cacheRead": 6524,
+  "output": 6127,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 34,
+   "reviewedHunks": 34,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 35150,
+   "outputTokens": 6127,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 16,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+    "line": 174,
+    "end_line": 174,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Passing type=\"password\" to PasswordField may break its show/hide toggle.",
+    "body": "`PasswordField` switches its input type when the eye toggle is clicked, then spreads `{...props}`. The explicit `type=\"password\"` kept on this field would likely override that, so clicking the toggle would never reveal the password. I could not see where `PasswordField` sets the type. Fix: remove `type=\"password\"` here."
+   }
+  ]
+ },
+ "cost_usd": 0.2669708
+}

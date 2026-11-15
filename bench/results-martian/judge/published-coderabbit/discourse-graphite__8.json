@@ -1,0 +1,77 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": " The findMembers() call is now asynchronous and unhandled. The controller may not have member data immediately available, creating a race condition.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mention the unhandled async findMembers race condition."
+  },
+  {
+   "comment": "In the next action, capping the next offset at user_count can produce an empty page (e.g., total equal to limit results in offset == total, showing 2/2 with no members). This can cause confusing UX on the last page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 describes how next() clamping the offset to user_count can produce an empty page."
+  },
+  {
+   "comment": "The remove_member test uses xhr :put to call the remove_member action, but the route defines delete 'members' => 'groups#remove_member' requiring DELETE method.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out that the test uses PUT instead of DELETE."
+  },
+  {
+   "comment": "The `totalPages` calculation using `Math.floor(user_count / limit) + 1` produces an extra page when `user_count` is an exact multiple of `limit`, leading to incorrect pagination. For example, with 100 users and a limit of 50, it reports 3 pages instead of 2, allowing navigation to an empty page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 identifies the same off-by-one error in the totalPages calculation."
+  },
+  {
+   "comment": "Expected to return a value at the end of function - code paths without explicit returns will return undefined",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "None of the candidates mention the missing return value."
+  },
+  {
+   "comment": "The route provides the group's ID in params[:id], but the code attempts to read it from params[:group_id], causing the action to fail. This results in a broken feature when trying to access group memberships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 identifies the same mismatch between params[:id] and params[:group_id]."
+  }
+ ],
+ "candidates": [
+  "next() function allows navigating to an empty page by clamping offset to user_count instead of the last valid offset",
+  "Test for automatic-group remove_member uses PUT instead of DELETE, which won't validate verb correctness",
+  "totalPages calculation has off-by-one error when user_count is a multiple of limit - Math.floor(user_count / limit) + 1 yields an extra page for exact multiples, should use Math.ceil instead",
+  "Route parameter mismatch - routes provide :id but controller expects :group_id, causing param is missing error",
+  "Usernames are not normalized before lookup in add_members - whitespace or blank entries will silently skip valid users",
+  "Pagination params limit and offset are not clamped - negative or very large values can trigger heavy queries or odd behavior",
+  "Guard condition in group/members.hbs checks model but loop iterates over members - if model is truthy but members is undefined/empty, table header renders with no rows",
+  "Stray closing </div> tag with no matching opening tag in group/members.hbs template",
+  "Hardcoded colors #333 and #aaa in SCSS instead of SCSS variables may break theme consistency",
+  "usernames input is not cleared after add operation, making it easy to accidentally re-add the same usernames"
+ ]
+}

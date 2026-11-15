@@ -1,0 +1,113 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "dotnet__runtime__126318",
+ "url": "https://github.com/dotnet/runtime/pull/126318",
+ "head_sha": "d6f01d1f04079e04bd1ba8dacefb2cf086a7c656",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:10:16.123Z",
+ "seconds": 74.599,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 189,
+   "end_line": 206,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "An empty allow list with no std handles builds a zero-length HANDLE_LIST, so CreateProcess setup fails.",
+   "body": "Take `InheritedHandles = []` with no StandardInput/Output/ErrorHandle set; this is the issue's own example of starting notepad with no redirection. Here `handleCount` stays 0, and `UpdateProcThreadAttribute(PROC_THREAD_ATTRIBUTE_HANDLE_LIST, cbSize: 0)` fails, so a `Win32Exception` is thrown and the process never starts.\n\nEven when the call does not fail, the parent's std handles are not in the list. The docs promise those are still inherited.\n\nFix: when the list would be empty, skip the attribute and pass `bInheritHandles = false`. Also add the parent's std handles when no explicit std handles are supplied."
+  },
+  {
+   "path": "src/libraries/Common/src/Interop/Unix/System.Native/Interop.ForkAndExecProcess.cs",
+   "line": 58,
+   "end_line": 97,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "One shared AddRef flag makes cleanup release handles that were never AddRef'd.",
+   "body": "All inherited handles share a single `inheritedHandleRefsAdded` flag, but the finally block calls `DangerousRelease()` on every element of the list.\n\nIf `DangerousAddRef` throws partway through the loop, the finally block still releases every handle. That includes the failing handle and the ones after it, which were never AddRef'd. Triggers: a later handle is already disposed (`ObjectDisposedException`), or an element is null (NRE in the loop, then another NRE in finally). The extra release drives the user's SafeHandle refcount down and can close it early.\n\nFix: track how many handles were successfully AddRef'd, or keep a per-handle bool array, and release only those. Reject null elements up front."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 442,
+   "end_line": 453,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Clearing the inherit flag after start races with concurrent starts and changes handles that were already inheritable.",
+   "body": "Starts that pass `InheritedHandles` now run concurrently under a read lock. Suppose two such starts list the same handle: the first one to finish clears `HANDLE_FLAG_INHERIT` while the other is between `SetHandleInformation` and `CreateProcess`. The second `CreateProcess` then fails, because the handle list holds a non-inheritable handle.\n\nCleanup also clears inheritance on handles the caller had already made inheritable. The new test does exactly this with an `Inheritable` pipe, which silently changes caller state for later starts.\n\nFix: record each handle's original flag and restore only what was changed. Serialize starts that share handles, or duplicate the handles into inheritable copies instead of mutating the caller's handles."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 465,
+   "end_line": 486,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "CleanupHandles can throw from the finally block before the start lock is released.",
+   "body": "`CleanupHandles` runs inside the finally block, before `ExitReadLock`/`ExitWriteLock`, and throws a `Win32Exception` when `SetHandleInformation` fails. It also calls `DangerousRelease` first, so a handle disposed concurrently can make the marshaller throw `ObjectDisposedException`.\n\nAny such throw has four effects:\n- the read lock is never exited, so every later `Process.Start` deadlocks;\n- the remaining handles are never released;\n- `commandLine` is never disposed;\n- a successfully created child process is leaked while its exception is masked.\n\nFix: never throw from cleanup (ignore or log failures), clear the flag before releasing the ref, and release the lock in an outer finally."
+  },
+  {
+   "path": "src/native/libs/System.Native/pal_process.c",
+   "line": 315,
+   "end_line": 320,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "POSIX_SPAWN_CLOEXEC_DEFAULT closes stdio in the child when std handles are not redirected.",
+   "body": "With `inheritedFdCount >= 0`, `POSIX_SPAWN_CLOEXEC_DEFAULT` closes every fd that has no file action. When `stdinFd`/`stdoutFd`/`stderrFd` is -1 (that stream is not redirected), there is no dup2 for fd 0/1/2. The loop below also explicitly skips 0–2, so the macOS child starts with stdin/stdout/stderr closed.\n\nThat contradicts the docs, which say the standard handles are always inherited, and breaks console output for children started with an empty list. The fork path keeps 0–2, so platforms behave differently.\n\nFix: call `posix_spawn_file_actions_addinherit_np` for each of 0/1/2 that has no dup2."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 34390,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 7790,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 31,
+   "reviewedHunks": 31,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 37507,
+   "outputTokens": 7790,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #13943",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+    "line": 169,
+    "end_line": 169,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "EXTENDED_STARTUPINFO_PRESENT is now set on every start, including CreateProcessWithLogonW.",
+    "body": "Every Windows start now passes `EXTENDED_STARTUPINFO_PRESENT` and `cb = sizeof(STARTUPINFOEX)`, even when `InheritedHandles` is null. That includes the `UserName` path through `CreateProcessWithLogonW`, whose documented contract takes a plain `STARTUPINFO` and lists no attribute-list support.\n\nIf that API rejects the flag or ignores the attribute list, starts with credentials regress, or the restriction is silently not applied for them. I could not verify the API's runtime behaviour from here.\n\nFix: set the flag and the extended `cb` only when an attribute list is built. For the logon path, either reject `InheritedHandles` or keep the old `STARTUPINFO`."
+   }
+  ]
+ },
+ "cost_usd": 0.2939834
+}

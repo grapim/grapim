@@ -1,0 +1,36 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "grafana__90045",
+ "url": "https://github.com/grafana/grafana/pull/90045",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The context is being created with d.Log instead of the log variable that was initialized with additional context values (name, kind, method). This means those values won't be propagated to the logging context.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 is about the context being cancelled, not about logger context values being lost."
+  },
+  {
+   "comment": "In DualWriterMode3's DeleteCollection method, when a storage operation fails, recordStorageDuration is incorrectly called with recordLegacyDuration instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "C1 doesn't mention the wrong metric function."
+  },
+  {
+   "comment": "Inconsistency: using name instead of options.Kind for metrics recording differs from other methods.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "C1 doesn't mention metric labels."
+  }
+ ],
+ "candidates": [
+  "pkg/apiserver/rest/dualwriter_mode3.go:50 - Async legacy writes use the request context, so they are cancelled when the request ends.. Each goroutine builds its timeout from the request `ctx` using `context.WithTimeoutCause(ctx, ...)`, so it also inherits that context's cancellation. The apiserver cancels the request context as soon as the handler returns, which happens right after the goroutine starts. Legacy Create, Update, Delete and DeleteCollection will then often fail with `context canceled`, and legacy storage quietly falls out of sync. That defeats the \"write to legacy as a safe measure\" goal. The same problem is at lines 108-114, 134-141 and 161-167. Fix: start from `context.WithoutCancel(ctx)` and apply the timeout to that."
+ ]
+}

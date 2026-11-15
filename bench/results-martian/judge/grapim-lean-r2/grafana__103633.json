@@ -1,0 +1,42 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The Check operation exhibits asymmetric cache trust logic: cached permission grants are trusted and returned immediately, but cached denials from the same permission cache are ignored, leading to a fresh database lookup. This allows stale cached grants to provide access to revoked resources, posing a security risk. ",
+   "severity": "High",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "G1 is about cached grants being trusted while cached denials are re-checked, which lets stale grants through. C2 covers the opposite problem: stale denials from the denial cache. No candidate raises the stale-grant risk."
+  },
+  {
+   "comment": "The test comment says the cached permissions 'allow access', but the map stores false for dashboards:uid:dash1, so checkPermission will still treat this scope as not allowed.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 makes the same point: the test comment says the cached permissions allow access, but the map stores false."
+  },
+  {
+   "comment": "The cache key construction in `userPermDenialCacheKey` uses simple string concatenation with underscores, which can lead to ambiguous keys and collision risks when any component contains underscores or is empty. This could result in incorrect denial cache hits, affecting user permissions.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 makes the same point: joining the denial cache key parts with underscores can cause collisions."
+  }
+ ],
+ "candidates": [
+  "pkg/services/authz/rbac/cache.go:30 - The denial cache key can collide when a name or folder contains '_'.. The key joins `action`, `name` and `parent` with `_`, and those values can contain underscores themselves. For example, name=`a_b` with parent=`c` and name=`a` with parent=`b_c` both give `..._a_b_c`. So a denial recorded for one dashboard/folder pair is returned for a different resource the user may actually be allowed to see. Fix: use a separator that cannot appear in names or UIDs (or escape the parts), or hash the tuple.",
+  "pkg/services/authz/rbac/service.go:116 - Denial cache serves stale denies and nothing clears it, which works against the goal of this PR.. Any `Check` that comes back false stores a denial keyed by user/action/name/folder for `shortCacheTTL`, and that denial is checked before anything else. Nothing removes it when permissions change. Two ways it fails: (1) something checks a dashboard or folder name before it exists (for example an existence or `get` check during save), gets denied, and that denial is cached; once the resource is created and the creator is given permissions, the creator is still denied until the TTL runs out. That is the exact problem this PR says it fixes. (2) After an admin grants access, the user keeps getting denied for the length of the TTL. The fresh DB lookup on a cache miss only helps if the denial cache is skipped. Fix: clear the denial entries when permissions are written, use a much shorter TTL for denials, or do not cache a denial until a fresh DB query has confirmed it.",
+  "pkg/services/authz/rbac/service_test.go:978 - The deny-cache test would pass even if the denial cache were never read.. The comment says the cached permissions grant access, but the map entry is set to `false`, and the fake store returns no permissions. So `Check` denies whether or not the denial cache entry is used, and the test does not show that the short-circuit works. Fix: set `\"dashboards:uid:dash1\": true` in `permCache` (and/or put the permission in the store) so only the denial entry can produce `Allowed == false`."
+ ]
+}

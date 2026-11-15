@@ -1,0 +1,64 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "tldraw__tldraw__11465",
+ "url": "https://github.com/tldraw/tldraw/pull/11465",
+ "head_sha": "db9e4a4a5d9c4b9cde9b88aace71b21f8dd4f43c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:00:26.816Z",
+ "seconds": 46.09,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/commenting/src/canvas/thread-view.tsx",
+   "line": 427,
+   "end_line": 430,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Keyboard users lose the visible focus target after closing an edit.",
+   "body": "Focus now always returns with `focus({ focusVisible: false })`, even when the edit was closed from the keyboard (Escape, or submitting with the keyboard). In browsers that support this option, the ⋯ button then gets focus without matching `:focus-visible`. In this same change, `comments.css` only shows `.tlui-cmt-card__actions` on `:hover` or `:has(:focus-visible)`. A keyboard-only user who closes an edit is left focused on a button with opacity 0 and no focus ring, so they can't see where focus is. Only suppress the focus ring when the edit was closed with the pointer (for example, record how it was closed), or leave the option out when the close came from a key event.",
+   "raised": 2
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 6,
+  "cacheWrite": 20597,
+  "cacheRead": 46792,
+  "output": 4031,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 15,
+   "reviewedHunks": 15,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 67395,
+   "outputTokens": 4031,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1929874
+}

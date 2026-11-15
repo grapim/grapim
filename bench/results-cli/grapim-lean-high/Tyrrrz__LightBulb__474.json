@@ -1,0 +1,79 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "Tyrrrz__LightBulb__474",
+ "url": "https://github.com/Tyrrrz/LightBulb/pull/474",
+ "head_sha": "354d65d206d90e5681bfa27d1f20eb6788efb465",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:06:50.861Z",
+ "seconds": 63.335,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "LightBulb/App.axaml.cs",
+   "line": 143,
+   "end_line": 144,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Tray \"Settings\" runs ShowSettings again even when a settings dialog is already open.",
+   "body": "The window now stays alive while hidden, so a dialog left open is still open the next time the window is shown. The issue this PR closes (#467) describes exactly that: open Settings, hide to tray, then come back. If the user picks tray \"Settings\" at that point, `ShowSettingsCommand.Execute(null)` starts a second run. `AsyncRelayCommand.Execute` ignores `CanExecute`, which is why the in-window button is greyed out. A second settings dialog then either waits on the dialog lock and reopens as soon as the user closes the first, or DialogHost throws because it is already open. Fix: only show the window when a dialog is already open, e.g. `if (_mainViewModel.ShowSettingsCommand.CanExecute(null)) _mainViewModel.ShowSettingsCommand.Execute(null);`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 8995,
+  "cacheRead": 3262,
+  "output": 6213,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 10,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 12259,
+   "outputTokens": 6213,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #467",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [
+   {
+    "path": "LightBulb/ViewModels/MainViewModel.cs",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "LightBulb/Views/MainView.axaml.cs",
+    "line": 22,
+    "end_line": 27,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The start-hidden check runs on every Loaded and depends on dialogs already being open.",
+    "body": "`StartOptions.Current.IsInitiallyHidden` never changes after startup, so this handler hides the window every time `Loaded` fires. If Avalonia raises `Loaded` again when a hidden window is shown, then with `--start-hidden` every tray click or hotkey would show the window and hide it at once. I could not confirm how Avalonia behaves after `Hide`/`Show`. The `!DialogHost.IsOpen` check also only sees dialogs that are already open when this handler runs. A startup dialog opened after an await, or from a Loaded handler that runs later, would be left on a hidden window. Fix: make the hide one-shot (unsubscribe or use a flag after the first run) and hide before the startup dialogs are scheduled."
+   }
+  ]
+ },
+ "cost_usd": 0.1698954
+}

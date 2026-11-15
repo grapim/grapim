@@ -1,0 +1,28 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block).",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C1 is about an unprotected update in the catch block that could stop the loop. It says nothing about a stale read or a non-atomic retryCount increment."
+  },
+  {
+   "comment": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "C1 doesn't mention the deleteMany filter missing an SMS method check, so it doesn't match."
+  }
+ ],
+ "candidates": [
+  "The prisma.workflowReminder.update in the catch block (line 191) is unprotected - if it throws (e.g., the record was already deleted by the deleteMany above, or a DB connection issue), the error propagates out of the for...of loop and halts processing of all remaining reminders. Wrap this update in a nested try-catch or append .catch() to prevent a single failure from stopping the entire cron job."
+ ]
+}

@@ -1,0 +1,37 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Consider adding try-catch around the await to handle import failures gracefully",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    1
+   ],
+   "confidence": 0.5,
+   "reasoning": "C1 mainly argues that the imports are loaded eagerly. It also notes that a failed import has no rejection handler, which partly overlaps with G1's concern that import failures are not handled. That makes this a weak match."
+  },
+  {
+   "comment": "The code uses forEach with async callbacks, which causes asynchronous operations (e.g., calendar/video event deletions, payment refunds) to run concurrently without being awaited. This 'fire-and-forget' behavior leads to unhandled promise rejections, race conditions, and incomplete cleanup, as surrounding try-catch blocks cannot properly handle errors from these unawaited promises. Replace forEach with for...of loops or Promise.all() with map() to ensure proper sequential execution and error handling.",
+   "severity": "Critical",
+   "category": "concurrency",
+   "matches": [
+    2,
+    3,
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2, C3 and C4 each flag a forEach with an async callback whose promises are dropped. They point out unhandled rejections, that the try/catch no longer catches errors, and that the code continues before deletions finish. They suggest Promise.all or for...of, which is exactly G2's issue."
+  }
+ ],
+ "candidates": [
+  "packages/app-store/index.ts:3 - `import()` runs as soon as the module loads, so no app loading is deferred.. Each property is set to `import(\"./x\")`, which starts loading that module immediately. Any file that imports `appStore` still loads all 28 app packages at startup, so the stated goal of deferring module loading is not met. These promises also have no rejection handler until some caller awaits that key. If an app module fails to load and nobody awaits it, the result is an unhandled rejection, which can crash Node. Fix: store loader functions instead (`applecalendar: () => import(\"./applecalendar\")`) and have callers call `await appStore[key]?.()`.",
+  "packages/app-store/vital/lib/reschedule.ts:125 - The async `forEach` callback moves `getCalendar` errors outside the try/catch.. Before this change, a synchronous throw from `getCalendar` (for example, a CalendarService constructor that rejects a bad credential) was caught by the surrounding try/catch and logged. Now each callback is async and `forEach` drops the promises it returns. Those errors become unhandled rejections, and the code goes on before any deletion has finished. Fix: use `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => ...))` or a `for...of` loop inside the try.",
+  "packages/app-store/wipemycalother/lib/reschedule.ts:125 - The async `forEach` callback moves `getCalendar` errors outside the try/catch.. The callback is now async and `forEach` ignores the promises it returns. A rejection from `getCalendar` (for example, a calendar service constructor that throws) is no longer caught by the surrounding try/catch. It becomes an unhandled rejection, and the reschedule does not wait for the deletions. Fix: use `await Promise.all(bookingRefsFiltered.map(async ...))` or a `for...of` loop with `await`.",
+  "packages/trpc/server/routers/viewer/bookings.tsx:553 - The async `forEach` callback drops the promises, and rejections go unhandled.. `bookingRefsFiltered.forEach(async ...)` throws away the promise from each callback. Any rejection from `await getCalendar(...)`, which used to be a synchronous throw that propagated to the caller, now surfaces as an unhandled rejection instead of failing the request. The mutation also returns before the calendar and video deletions finish. Fix: replace it with `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => ...))`."
+ ]
+}

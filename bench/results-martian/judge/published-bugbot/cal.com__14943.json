@@ -1,0 +1,32 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block).",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate raises the stale-read/race condition or suggests an atomic increment. C3 only talks about duplicated code."
+  },
+  {
+   "comment": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same issue: the OR condition is missing the SMS method filter, so non-SMS reminders get deleted."
+  }
+ ],
+ "candidates": [
+  "The second OR condition in the delete query lacks the `method: WorkflowMethods.SMS` filter, causing the query to delete ALL workflow reminders with `retryCount > 1` regardless of method (EMAIL, WHATSAPP, etc.) instead of only SMS reminders",
+  "The `prisma.workflowReminder.update` call in the catch block is not wrapped in a try-catch, so if this database update fails the exception bubbles up unhandled, causing the handler to stop processing remaining reminders and the original error to never be logged",
+  "The `prisma.workflowReminder.update` call to increment `retryCount` is identically duplicated in two places (when `scheduledSMS` is falsy and in the catch block), risking inconsistent changes if the retry logic needs modification"
+ ]
+}

@@ -1,0 +1,153 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "convex__agent__98",
+ "url": "https://github.com/convex/agent/pull/98",
+ "head_sha": "6b530179d6f474840664d705a7c6da1f245ee112",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:38:28.156Z",
+ "seconds": 39.451,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 73,
+   "end_line": 73,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "askHuman now auto-executes, so the human is never actually asked.",
+   "body": "Before this change, `askHuman` was a `tool` with no `execute`, so the model's call came back unresolved and waited for a human to answer through `humanResponseAsToolCall`. With `createTool` and a handler that returns `question`, the SDK runs the tool right away and saves the question itself as the tool result. The model then reads its own question as the human's answer and carries on. When a human later answers, a second tool-result is saved for the same `toolCallId`. Fix: keep a tool with no execute/handler, e.g. `tool({ description, inputSchema: z.object({...}) })`."
+  },
+  {
+   "path": "example/convex/agents/fashion.ts",
+   "line": 10,
+   "end_line": 10,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "New `as any` casts go against the stated goal of removing all type assertions.",
+   "body": "The PR is meant to remove every `as any`. Instead it adds `chat: chat as any` here and in simple.ts, story.ts, weather.ts, addFile.ts, rateLimiting.ts and agentAsTool.ts. It also adds `as any` in modelsForDemo.ts, both RAG files and threads.ts (`initialMessage as any`). These casts hide the real v1/v2 model and message type mismatches instead of fixing them, so runtime incompatibilities will no longer show up at compile time."
+  },
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 98,
+   "end_line": 98,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The PR says type assertions were replaced with runtime checks, but this line is still an assertion.",
+   "body": "The description says `(input as { question: string }).question` was replaced with proper runtime type checking. This line adds exactly that assertion. If the input is malformed, `question` comes back undefined with no error. Fix: check the shape at runtime, e.g. with the zod schema's `safeParse`."
+  },
+  {
+   "path": "src/client/index.test.ts",
+   "line": 255,
+   "end_line": 255,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "MockLanguageModelV2 is still given the V1 result and stream shapes.",
+   "body": "The mock now uses `MockLanguageModelV2`, but `doGenerate` and `doStream` still return V1 fields: `text`, `logprobs`, `usage: { promptTokens, completionTokens }`, `defaultObjectGenerationMode`, and stream parts with `textDelta`. V2 expects a `content` array, `usage.inputTokens`/`outputTokens`, and `text-delta` parts with `delta` and `id`. Tests that use this mock will see empty text and undefined usage. The `as LanguageModelV2StreamPart[]` cast hides the mismatch. Also, `LanguageModelV2` and `LanguageModelV2StreamPart` may not be exported from `ai`."
+  },
+  {
+   "path": "example/convex/chat/human.ts",
+   "line": 132,
+   "end_line": 132,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Tool-result `output` gets a raw string, but AI SDK v5 expects a typed output object.",
+   "body": "In AI SDK v5, `ToolResultPart.output` must be a tagged object such as `{ type: \"text\", value: string }`. Here the plain string `args.response` is passed, and `as any` hides the type mismatch. When this message is turned back into model input, the output can be dropped or rejected. Fix: use `output: { type: \"text\", value: args.response }` and remove the cast."
+  },
+  {
+   "path": "example/convex/files/addFile.ts",
+   "line": 34,
+   "end_line": 34,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Renaming the public action argument breaks existing callers.",
+   "body": "`uploadFile` (and `askAboutImage` in autoSave.ts) now require `mediaType` instead of `mimeType`. Any frontend still sending `mimeType` will fail Convex argument validation, because it has an unexpected field and is missing a required one. I could not see the frontend callers to check whether they were updated. Either update them in this PR or keep the old argument name, since the action API does not have to follow AI SDK naming."
+  },
+  {
+   "path": "example/convex/modelsForDemo.ts",
+   "line": 3,
+   "end_line": 11,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`chat` is downgraded to LanguageModelV1 in an AI SDK v5 migration.",
+   "body": "AI SDK v5 and the agent expect `LanguageModelV2`. Typing `chat` as `LanguageModelV1` goes backwards, and the OpenAI branch needs `as any` to compile. The groq branch assigns a V2 model to a V1-typed variable without a cast, which is a type error. Depending on the installed `@ai-sdk/provider` version, `LanguageModelV1` may not be exported at all. This is also why every agent now needs `chat as any`. Fix: keep `LanguageModelV2` (or `LanguageModel` from `ai`) and drop the casts."
+  },
+  {
+   "path": "package-lock.json",
+   "line": 38,
+   "end_line": 38,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The `ai` peer dependency range is now unbounded.",
+   "body": "Changing `^5.0.0-beta.29` to `>=5.0.0-beta.29` accepts any future major version of `ai`, such as v6. Those can break the library's API use without peer-dependency warnings. The change is also made directly in the lockfile, so it may not match package.json. Fix: keep a caret range, e.g. `^5.0.0`."
+  },
+  {
+   "path": "example/convex/tools/weather.ts",
+   "line": 2,
+   "end_line": 7,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "The weather tools were switched to `createTool`, not `tool` with `inputSchema` as the description states.",
+   "body": "The PR says all tools now use `tool` from \"ai\" with `inputSchema`. These tools were moved to `createTool` from the agent package instead, which also makes them depend on the Convex action context. Either use `tool({ inputSchema, execute })` or correct the description."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20556,
+  "cacheRead": 3262,
+  "output": 3958,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 21,
+   "hunks": 31,
+   "reviewedHunks": 31,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 23820,
+   "outputTokens": 3958,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/client/index.ts",
+    "line": 197,
+    "end_line": 198,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "scope",
+    "title": "Removing NoInfer changes generic inference in the core library, outside the request's scope.",
+    "body": "Without `NoInfer`, TypeScript can infer `AgentTools` from the `stopWhen` argument as well as from `tools`. A `stopWhen` condition can then widen or narrow the agent's tool type and cause confusing type errors for users. This is a public library API change, while the request is about example-directory compatibility. Keep `NoInfer` unless there is a specific reason to remove it."
+   }
+  ]
+ },
+ "cost_usd": 0.1826004
+}

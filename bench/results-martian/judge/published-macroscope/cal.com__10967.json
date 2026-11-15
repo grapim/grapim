@@ -1,0 +1,70 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A null reference occurs in GoogleCalendarService.createEvent() and updateEvent() when mainHostDestinationCalendar is destructured from evt.destinationCalendar but evt.destinationCalendar is null or an empty array, causing mainHostDestinationCalendar to be undefined.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 points out that mainHostDestinationCalendar is undefined when destinationCalendar is empty, which then crashes."
+  },
+  {
+   "comment": "The optional chaining on mainHostDestinationCalendar?.integration is redundant since you already check mainHostDestinationCalendar in the ternary condition.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the redundant optional chaining."
+  },
+  {
+   "comment": "Logic error: when externalCalendarId is provided, you're searching for a calendar where externalId === externalCalendarId, but this will always fail since you're looking for a calendar that matches itself. Should likely find by credentialId or use different logic.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.7,
+   "reasoning": "C2 flags the same self-referential find(cal.externalId === externalCalendarId) logic error in updateEvent."
+  },
+  {
+   "comment": "Logic inversion in organization creation: The slug property is now conditionally set when IS_TEAM_BILLING_ENABLED is true, instead of when it's false as originally intended. This change, combined with requestedSlug still being set when IS_TEAM_BILLING_ENABLED is true, results in both properties being set when billing is enabled, and neither when disabled",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the inverted slug/IS_TEAM_BILLING_ENABLED logic."
+  },
+  {
+   "comment": "The Calendar interface now requires createEvent(event, credentialId), but some implementations (e.g., Lark/Office365) still declare createEvent(event) only—this breaks the interface contract (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the Calendar interface signature mismatch."
+  },
+  {
+   "comment": "The `credential` may be undefined when passed to `updateEvent` if `reference.credentialId` is set but the credential is not found. This can lead to a runtime error when `updateEvent` is called with an undefined credential, which should be handled to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 points out that updateEvent is called with an undefined credential when it is not found."
+  }
+ ],
+ "candidates": [
+  "When evt.destinationCalendar is empty, mainHostDestinationCalendar becomes undefined, but line 119 accesses mainHostDestinationCalendar.integration without checking, causing a runtime crash",
+  "In updateEvent, when externalCalendarId is falsy, the fallback searches event.destinationCalendar?.find((cal) => cal.externalId === externalCalendarId) which will only match calendars with empty/null externalId instead of the intended calendar, causing selectedCalendar to be undefined and the update to fall back to an unintended calendar or fail",
+  "At line 542, updateEvent(credential, event, bookingRefUid, calenderExternalId) is called even when credential remains undefined, which happens when the credential is not found in this.calendarCredentials and either the database lookup returns null or credentialFromDB.app?.slug is falsy, likely causing a runtime error",
+  "When cancelling recurring events with multiple calendar references, the inner loop at lines 449-468 iterates over all user calendar credentials and all updatedBookings for every single reference in the outer loop, causing the same calendar events to be deleted multiple times and triggering duplicate deletion attempts and API errors",
+  "When both eventType.destinationCalendar and organizerUser.destinationCalendar are null/undefined, evt.destinationCalendar is set to null at line 1067, then at line 1078 evt.destinationCalendar?.push(...teamDestinationCalendars) silently does nothing because optional chaining on null returns undefined without calling push, causing team member destination calendars to be lost for COLLECTIVE team events"
+ ]
+}

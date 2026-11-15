@@ -1,0 +1,46 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "grafana__90045",
+ "url": "https://github.com/grafana/grafana/pull/90045",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The context is being created with d.Log instead of the log variable that was initialized with additional context values (name, kind, method). This means those values won't be propagated to the logging context.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: klog.NewContext is given d.Log instead of the enriched log, so the extra fields are lost."
+  },
+  {
+   "comment": "In DualWriterMode3's DeleteCollection method, when a storage operation fails, recordStorageDuration is incorrectly called with recordLegacyDuration instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.6,
+   "reasoning": "C2 covers the same kind of metrics mix-up, where storage failures record legacy duration, and it names DeleteCollection. But it describes the DeleteCollection case in reverse: the legacy goroutine recording storage duration. It is still close enough to count as the same metrics-attribution bug."
+  },
+  {
+   "comment": "Inconsistency: using name instead of options.Kind for metrics recording differs from other methods.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    3
+   ],
+   "confidence": 0.93,
+   "reasoning": "C3 points out the same problem: the metrics label uses the resource name instead of the kind."
+  }
+ ],
+ "candidates": [
+  "klog.NewContext uses d.Log instead of the enriched log variable, dropping the enriched fields",
+  "Metrics are attributed to the wrong path on failures - Create/Update error paths record legacy duration instead of storage duration, and DeleteCollection legacy goroutine records storage duration instead of legacy duration",
+  "Delete metrics label uses resource name instead of kind, which can explode label cardinality and mislabel metrics",
+  "Async legacy writes are tied to request cancellation - background legacy operations inherit the request context, so if the request ends quickly the legacy write can be canceled immediately",
+  "Mode 3 async legacy writes can make test assertions race - doPlaylistTests validates legacy API results immediately after K8s writes, but in mode 3 legacy writes are fire-and-forget, causing potential flakiness"
+ ]
+}

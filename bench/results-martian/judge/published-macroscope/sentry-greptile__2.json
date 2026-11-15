@@ -1,0 +1,49 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "OptimizedCursorPaginator's negative-offset branch in get_result() passes cursor.offset directly as start_offset to queryset slicing when enable_advanced_features is True and cursor.offset < 0.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.7,
+   "reasoning": "C1 covers the unclamped is_prev branch, not OptimizedCursorPaginator's negative-offset advanced-features branch."
+  },
+  {
+   "comment": "In BasePaginator.get_result(), when cursor.is_prev is True, it sets start_offset = offset without clamping, allowing negative offset values to be passed to queryset slicing.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 describes the same unclamped start_offset = offset when is_prev is True, which lets negative values reach the queryset slice."
+  },
+  {
+   "comment": "OptimizedCursorPaginator.get_item_key uses floor/ceil on a datetime key (order_by='-datetime'), causing TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions using floor/ceil on a datetime key."
+  },
+  {
+   "comment": "Accessing .has_global_access on organization_context.member can raise an AttributeError when organization_context is None, particularly for non-superuser non-member users.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 identifies the same AttributeError when accessing has_global_access for a non-superuser, non-member user."
+  }
+ ],
+ "candidates": [
+  "When cursor.is_prev is True, start_offset is set to offset without clamping to zero, allowing negative values which causes AssertionError because Django QuerySets do not support negative indexing",
+  "Accessing organization_context.member.has_global_access raises AttributeError when organization_context.member is None, which can happen when user doesn't have membership with the organization and request.user.is_superuser is False"
+ ]
+}

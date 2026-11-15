@@ -1,0 +1,164 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "dotnet__runtime__126318",
+ "url": "https://github.com/dotnet/runtime/pull/126318",
+ "head_sha": "d6f01d1f04079e04bd1ba8dacefb2cf086a7c656",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:35:54.159Z",
+ "seconds": 56.357,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 326,
+   "end_line": 338,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "An exception in CleanupHandles skips ExitReadLock, so every later process start hangs.",
+   "body": "`CleanupHandles` runs inside the `finally` before the lock is exited, and it throws a `Win32Exception` when `SetHandleInformation` fails. That call marshals the SafeHandle and AddRefs it. It runs right after `DangerousRelease`, so a handle that another thread disposed in the meantime throws ObjectDisposedException. In either case `ExitReadLock` never runs. The next start without `InheritedHandles` then blocks forever in `EnterWriteLock`, and the remaining handles in the array are never released. Fix: clear the inherit flag before releasing, never throw from cleanup (ignore or log failures), and exit the lock in its own try/finally."
+  },
+  {
+   "path": "src/native/libs/System.Native/pal_process.c",
+   "line": 535,
+   "end_line": 553,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "Handle restriction silently does nothing when close_range/fdwalk is missing or fails at runtime.",
+   "body": "The fork path depends entirely on `close_range`/`syscall(__NR_close_range)`/`fdwalk`, and it ignores their errors. `CLOSE_RANGE_CLOEXEC` needs Linux 5.11 or later (close_range itself arrived in 5.9). On older kernels the call returns ENOSYS/EINVAL, and every inheritable fd still reaches the child. The same happens when none of the three macros are defined, for example the macOS fork path used with credentials, or other BSDs: the `#if` chain compiles to nothing. A caller who sets `InheritedHandles = []` to keep sockets out of the child gets no protection and no error. Add a fallback that loops from 3 to `getrlimit(RLIMIT_NOFILE)`/`sysconf(_SC_OPEN_MAX)` and sets FD_CLOEXEC (or closes) each fd. Use it when the fast path is unavailable or returns an error."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 255,
+   "end_line": 255,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "CreateProcessWithLogonW now always gets EXTENDED_STARTUPINFO_PRESENT and a STARTUPINFOEX.",
+   "body": "`creationFlags` now always includes `EXTENDED_STARTUPINFO_PRESENT`, and `cb` is now `sizeof(STARTUPINFOEX)`. The UserName/Password path (CreateProcessWithLogonW) also gets these, even when `InheritedHandles` is null. CreateProcessWithLogonW does not document support for extended startup info or attribute lists. It can reject the call with ERROR_INVALID_PARAMETER, which would break every existing start that uses credentials. Even if the call succeeds, the handle list is not honored, so `InheritedHandles` is silently ignored there. I could not confirm the API's exact behaviour from here. Fix: set the flag and the larger `cb` only on the CreateProcess path, and only when an attribute list is built. Either throw or document the limitation when `InheritedHandles` is combined with UserName."
+  },
+  {
+   "path": "src/libraries/Common/src/Interop/Unix/System.Native/Interop.ForkAndExecProcess.cs",
+   "line": 58,
+   "end_line": 97,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "One shared AddRef flag means handles that were never AddRef'd get released.",
+   "body": "`inheritedHandleRefsAdded` is a single bool for the whole list. If `DangerousAddRef` throws partway through the list (for example, the 3rd handle was already disposed, which raises ObjectDisposedException), the flag is already true from the 1st handle. The `finally` then calls `DangerousRelease` on every handle in the list, including the one that failed and the ones after it. Those handles get their ref count decremented without a matching AddRef, which can close a live handle the caller still owns. A null entry in the list also throws NullReferenceException in the loop and again in `finally`. Fix: count how many refs were actually added (or keep a bool per handle) and release only those."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 122,
+   "end_line": 127,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Under the shared read lock, concurrent starts that share a handle clear each other's inherit flag.",
+   "body": "Starts that use `InheritedHandles` take only the read lock, so they run concurrently. If two such starts list the same SafeHandle, they race. Thread A's `CleanupHandles` clears HANDLE_FLAG_INHERIT while thread B is between `PrepareHandleAllowList` and `CreateProcess`. B's CreateProcess then fails, because every handle in PROC_THREAD_ATTRIBUTE_HANDLE_LIST must be inheritable, or B's child misses the handle. Fix: track the inherit flag with a per-handle reference count, or keep the write lock while the flags are toggled."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 189,
+   "end_line": 207,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "An empty handle list is passed to UpdateProcThreadAttribute with cbSize 0.",
+   "body": "When `InheritedHandles` is an empty list and no valid stdio handles are provided, `handleCount` is 0. `UpdateProcThreadAttribute(PROC_THREAD_ATTRIBUTE_HANDLE_LIST, ..., cbSize: 0)` is then called. Windows rejects an empty handle list, so the start fails with a Win32Exception. Yet the docs say an empty list is the way to inherit nothing, which is exactly what the linked issue asks for. Fix: when `handleCount == 0`, skip the attribute list and call CreateProcess with `bInheritHandles = false`."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 414,
+   "end_line": 417,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Null, invalid or closed entries in InheritedHandles are silently skipped on Windows.",
+   "body": "`PrepareHandleAllowList` drops null, invalid or closed handles with `continue`. A caller who passes a disposed handle gets a child that silently lacks the handle it was promised. The Unix path instead throws on the same input (NullReferenceException or ObjectDisposedException from `DangerousAddRef`), so the two platforms behave differently. Fix: validate the list up front, for example in `ThrowIfInvalid` or the start path, and throw an ArgumentException or ObjectDisposedException on both platforms."
+  },
+  {
+   "path": "src/native/libs/System.Native/pal_process.c",
+   "line": 315,
+   "end_line": 320,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "POSIX_SPAWN_CLOEXEC_DEFAULT closes stdin/stdout/stderr when they are not redirected.",
+   "body": "Once `POSIX_SPAWN_CLOEXEC_DEFAULT` is set, the child gets only the fds named in file actions. If `stdinFd`/`stdoutFd`/`stderrFd` is -1, which the existing `!= -1` checks allow, no dup2 action is added for that stream. The inherit loop below also skips 0-2 on purpose, so the child starts with that stdio fd closed. The fork path keeps 0-2 open, so macOS behaves differently. When a stdio fd is -1 and restriction is on, call `posix_spawn_file_actions_addinherit_np` for that fd."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 38541,
+  "cacheRead": 6524,
+  "output": 9391,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 31,
+   "reviewedHunks": 31,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 45069,
+   "outputTokens": 9391,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #13943",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 3
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+    "line": 200,
+    "end_line": 202,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Without explicit stdio handles, the parent's standard handles are missing from the allow-list.",
+    "body": "When stdin/stdout/stderr handles are null, `STARTF_USESTDHANDLES` is not set and the child takes the parent's standard handles. With a handle list in place, only the listed handles are inherited. If the parent's stdio is a pipe or file rather than a console, those handles are not inherited, and the child's stdio values are invalid in its process. Fix: add the parent's `GetStdHandle` values to the list when no stdio handles are supplied, or always supply them. I could not see whether callers ever pass null stdio handles when `InheritedHandles` is set."
+   },
+   {
+    "path": "src/libraries/System.Diagnostics.Process/tests/ProcessHandlesTests.cs",
+    "line": 352,
+    "end_line": 353,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Inheritable pipe fd can leak into processes other tests start in parallel, making the test hang or flake.",
+    "body": "The pipe is created with `HandleInheritability.Inheritable`. Any process another test starts in parallel without restriction inherits the client end and holds the write side open, so `ReadAsync` waits until that unrelated process exits. Also, on Unix in the non-inherited case, the numeric fd passed to the child can match some other fd the child opened, so `AnonymousPipeClientStream` may open the wrong descriptor. Consider making the test non-parallel and validating the descriptor in the child."
+   },
+   {
+    "path": "src/native/libs/System.Native/pal_process.c",
+    "line": 550,
+    "end_line": 552,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "fdwalk is called in the child between fork/vfork and exec, where it is not async-signal-safe.",
+    "body": "On illumos, `fdwalk` usually enumerates `/proc/self/fd` with opendir/readdir, and those allocate memory. Allocating in a forked child of a multithreaded process, or in a vfork child that shares the parent's heap, can deadlock or corrupt the heap. Use a loop of async-signal-safe `fcntl` calls over the fd range, or `closefrom`/`fcntl(F_CLOSEM)` where available. I could not check whether this path uses vfork on illumos."
+   }
+  ]
+ },
+ "cost_usd": 0.3818458
+}

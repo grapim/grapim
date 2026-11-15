@@ -1,0 +1,31 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "keycloak__32918",
+ "url": "https://github.com/keycloak/keycloak/pull/32918",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "InfinispanIdentityProviderStorageProvider.getForLogin() recursively calls session.identityProviders().getById() instead of idpDelegate.getById(), causing the cache lookup to re-enter the same caching layer.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "G1 is about getForLogin() calling session.identityProviders().getById(), which re-enters the caching layer. C2 talks about wrapped vs. unwrapped models in the invalidation logic, which is a different issue."
+  },
+  {
+   "comment": "Cleanup reference uses incorrect alias - should be 'idp-alias-' + i instead of 'alias'.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same problem: the cleanup uses a hardcoded 'alias' instead of 'idp-alias-' + i."
+  }
+ ],
+ "candidates": [
+  "Test cleanup in testCacheIDPForLogin uses hardcoded 'alias' instead of the actual IDP alias (e.g. 'idp-alias-' + i) on lines 381 and 425, so cleanup silently fails to remove any of the created test IDPs, leaving stale IDPs in the realm",
+  "registerIDPLoginInvalidationOnUpdate compares a wrapped (org-aware) original model from getById() with the raw unwrapped updated model parameter, creating asymmetry in isEnabled() evaluation that can cause under-invalidation - when an org-linked IDP is cached for login, then the org is disabled, then a login-relevant field like hideOnLogin is changed, both models fail the login predicate for different reasons, triggering early return that skips cache invalidation, causing stale cache entries after org re-enablement"
+ ]
+}

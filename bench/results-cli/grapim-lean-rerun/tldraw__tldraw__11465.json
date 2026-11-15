@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "tldraw__tldraw__11465",
+ "url": "https://github.com/tldraw/tldraw/pull/11465",
+ "head_sha": "db9e4a4a5d9c4b9cde9b88aace71b21f8dd4f43c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:31:20.791Z",
+ "seconds": 32.202,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/commenting/src/canvas/thread-view.tsx",
+   "line": 430,
+   "end_line": 430,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Keyboard users get focus put back on a hidden actions button.",
+   "body": "`comments.css` now shows a card's actions only on `:hover` or `:has(:focus-visible)`, and this line hands focus back with `focusVisible: false`. Suppose a keyboard user opens Edit from the ⋯ menu and saves or cancels with Enter or Escape. In browsers that honour the option (Firefox), focus goes back to the ⋯ button, but the button does not match `:focus-visible`. The actions row stays at `opacity: 0`, so focus sits on a control nobody can see. Before this change, `:focus-within` kept the actions visible. Fix: pass `focusVisible: false` only when the edit was closed with the pointer. Otherwise, keep the actions visible while focus is inside the card."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18527,
+  "cacheRead": 3262,
+  "output": 2938,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 15,
+   "reviewedHunks": 15,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21791,
+   "outputTokens": 2938,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/commenting/src/canvas/thread-view.tsx",
+    "line": 430,
+    "end_line": 430,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`focusVisible: false` is likely ignored in Chromium and Safari, so the actions still stay up.",
+    "body": "As far as I know, `FocusOptions.focusVisible` only works in Firefox; I could not confirm current browser support from here. In Chromium, a programmatic focus that follows a textarea, which always matches `:focus-visible`, usually gets `:focus-visible` too. If so, after a mouse user saves an edit, the ⋯ button matches `:focus-visible`, the new `.tlui-cmt-card:has(:focus-visible)` rule keeps the actions visible, and the byline's time stays hidden after the pointer leaves. That is the behaviour this change set out to fix. Check this in Chrome. If it reproduces, blur the button after a pointer-driven close, or track hover state explicitly."
+   },
+   {
+    "path": "apps/dotcom/client/src/tla/components/TlaEditor/TlaCommentByline.tsx",
+    "line": 55,
+    "end_line": 55,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "An unnamed author leaves the byline blank instead of showing \"Someone\".",
+    "body": "`CommentsOnCanvas` says the toolkit's default byline shows \"Someone\" for an unnamed author, and `TlaPinContent` adds its own fallback. This byline, which now draws every comment, renders `author.name` directly in both the person and agent branches, including the \"/ {name}\" suffix and the \"On behalf of {name}\" tooltip. If the author has no name, the byline shows an empty name and \"/ \". Use the same `unknownAuthor` fallback here."
+   }
+  ]
+ },
+ "cost_usd": 0.1520554
+}

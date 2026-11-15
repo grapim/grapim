@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Azure__azure-sdk-for-rust__5551",
+ "url": "https://github.com/Azure/azure-sdk-for-rust/pull/5551",
+ "head_sha": "0e1c2ddc6933568defe654b728d7f8e3d57eb96b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:09:52.254Z",
+ "seconds": 56.52,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "sdk/identity/azure_identity/src/custom_token_proxy.rs",
+   "line": 803,
+   "end_line": 805,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "No test exercises the real rustls CA/SNI client path anymore.",
+   "body": "Before this change, `sends_requests_with_custom_ca_and_sni` started a local TLS server with a runtime-generated CA, and `accepts_inline_and_file_ca` parsed a real PEM. Together they exercised the `impl TokenProxyClient for reqwest::Client` code: custom root loading, SNI, and resolved-address overrides.\n\nNow both real tests are `#[ignore]` and need a live AKS identity-binding pod. The replacement tests swap in `MockTokenProxyClient`/`MockCaClient`, so the `reqwest::Client` builder and its CA parsing never run in CI. A regression in the TLS setup, the very code whose feature gating this PR changes, would go unnoticed.\n\nThe linked issue only asks to move the feature. Keep a non-ignored test that builds the real rustls client against a locally generated CA and server.\n\nA runtime-generated CA is not a checked-in CA. If openssl must stay optional, `rcgen` can generate it."
+  },
+  {
+   "path": "sdk/identity/test-resources-post.ps1",
+   "line": 38,
+   "end_line": 45,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Rewrite of the live-test provisioning script is unrelated to the feature-flag issue.",
+   "body": "The issue asks to move `reqwest/rustls` from `reqwest` to `reqwest_rustls`. This hunk rewrites identity test provisioning instead:\n- it gates on a new Bicep output;\n- it adds readiness polling and endpoint auth checks that fail the whole provisioning step;\n- it uses temporary kubeconfig files;\n- it deletes the pod on every run;\n- it changes parameter mandatoriness.\n\nIt ships alongside removing the `CI_HAS_DEPLOYED_RESOURCES` skip from the ACI/AKS live tests. So in a live CI run with `deployResources=false`, this script now returns early. `IDENTITY_ACI_IP_USER_ASSIGNED`/`IDENTITY_AKS_IP` are never published, and those live tests panic instead of skipping.\n\nSplit this infrastructure change into its own PR, or keep the test skip guard."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 43389,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 5837,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 25,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 46506,
+   "outputTokens": 5837,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #5550",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "sdk/core/azure_core_test/Cargo.toml",
+    "line": 26,
+    "end_line": 26,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "scope",
+    "title": "Disabling azure_identity default features in azure_core_test is outside the request.",
+    "body": "`azure_core_test` now depends on `azure_identity` with `default-features = false`. That drops `azure_core/default` and `reqwest_rustls` from this crate's dependency graph, which the linked issue does not cover.\n\nAny test or helper in `azure_core_test` that relied on azure_identity's default transport or its rustls TLS can stop compiling or fail at runtime. The trigger is building it alone or in a workspace subset where no other crate enables those features. I could not see whether `azure_core_test` needs them.\n\nRevert the change, or explain it and verify `cargo test -p azure_core_test` builds and runs on its own."
+   },
+   {
+    "path": "sdk/identity/azure_identity/src/managed_identity_credential.rs",
+    "line": 698,
+    "end_line": 698,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "IMDS live helper now errors instead of skipping when IMDS is unavailable.",
+    "body": "`run_imds_live_test` used to print a skip message and return `Ok(())` when `IDENTITY_IMDS_AVAILABLE` was unset. It now returns an error.\n\nOnly `imds_system_assigned_live` was changed to `#[ignore]` here. Any other caller still marked `#[recorded::test(live)]`, such as a user-assigned IMDS live test, will now fail in every live run on hosts without IMDS. I could not see whether such callers exist. This test-infrastructure change is also not part of the requested feature fix.\n\nMark every caller `#[ignore]` as well, or restore the skip behaviour."
+   }
+  ]
+ },
+ "cost_usd": 0.29091940000000005
+}

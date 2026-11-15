@@ -1,0 +1,35 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Consider adding try-catch around the await to handle import failures gracefully",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "G1 asks for a try-catch around the awaited dynamic import so import failures are handled. C1 is mainly about the imports running eagerly instead of being deferred. It mentions unhandled rejections from failed loads only as a side effect, and its fix is lazy loader functions, not error handling at the await. So it is not the same issue."
+  },
+  {
+   "comment": "The code uses forEach with async callbacks, which causes asynchronous operations (e.g., calendar/video event deletions, payment refunds) to run concurrently without being awaited. This 'fire-and-forget' behavior leads to unhandled promise rejections, race conditions, and incomplete cleanup, as surrounding try-catch blocks cannot properly handle errors from these unawaited promises. Replace forEach with for...of loops or Promise.all() with map() to ensure proper sequential execution and error handling.",
+   "severity": "Critical",
+   "category": "concurrency",
+   "matches": [
+    2,
+    3,
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2, C3 and C4 each flag a forEach with an async callback whose promises are never awaited, causing unhandled rejections, errors escaping try/catch, and fire-and-forget deletes. Each suggests Promise.all with map as the fix, which is the issue G2 describes."
+  }
+ ],
+ "candidates": [
+  "packages/app-store/index.ts:3 - Every app module is still loaded when this file loads, so nothing is deferred.. Each `import(\"./x\")` call inside the object literal runs as soon as `index.ts` is evaluated. Importing `appStore` anywhere still starts loading all 28 app packages at once. The PR says it defers module loading, but this code does not. It also means a module that fails to load (for example, an app whose top-level code throws because an env var is missing) produces an unhandled promise rejection at startup, even when that app is never used. To defer loading, store loader functions instead (`applecalendar: () => import(\"./applecalendar\")`) and have each caller do `await appStore[key]?.()`.",
+  "packages/app-store/vital/lib/reschedule.ts:125 - The async `forEach` callback moves `getCalendar` errors outside the try/catch, so they become unhandled rejections.. `forEach(async ...)` throws away the promise each callback returns. Before this change, `getCalendar` ran synchronously inside the `try`, so an exception (for example, a `CalendarService` constructor rejecting a bad credential key) was caught and logged. Now it rejects a promise nobody awaits. On Node 15+ an unhandled rejection crashes the process by default. The deletes also now run after the surrounding code has moved on. Fix: `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => { ... }))` inside the `try`.",
+  "packages/app-store/wipemycalother/lib/reschedule.ts:125 - The async `forEach` callback moves `getCalendar` errors outside the try/catch, so they become unhandled rejections.. Same issue as in the vital reschedule: the promises from `forEach(async ...)` are discarded. A throw from `getCalendar` or the calendar constructor used to be caught by the surrounding `try`/`catch`. Now it is an unhandled rejection, which can crash the Node process, and the deletes finish at an unknown later time. Fix: use `await Promise.all(bookingRefsFiltered.map(async ...))` inside the `try`.",
+  "packages/trpc/server/routers/viewer/bookings.tsx:553 - Calendar and video deletes for the rescheduled booking are now fire-and-forget, and their errors are unhandled.. Making the callback `async` inside `forEach` means nobody awaits the calendar/video deletes. A rejection from `getCalendar` (or from `deleteEvent`/`deleteMeeting`) becomes an unhandled promise rejection, which can crash the server process on modern Node instead of surfacing to the tRPC caller. The mutation can also return before the old calendar events are removed. Fix: use `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => { ... }))`."
+ ]
+}

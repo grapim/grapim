@@ -1,0 +1,37 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "cal.com__8330",
+ "url": "https://github.com/calcom/cal.com/pull/8330",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect end time calculation using slotStartTime instead of slotEndTime",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.85,
+   "reasoning": "C3 says that `end` is computed from slotStartTime when it should come from slotEndTime."
+  },
+  {
+   "comment": "Using === for dayjs object comparison will always return false as it compares object references, not values. Use .isSame() method instead: dayjs(date.start).add(utcOffset, 'minutes').isSame(dayjs(date.end).add(utcOffset, minutes))",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 describes the same === comparison of dayjs objects and recommends .isSame()."
+  }
+ ],
+ "candidates": [
+  "packages/trpc/server/routers/viewer/slots.ts:117 - The override range check accepts slots that only partly overlap the override.. A slot is rejected only if it ends at or before the override start, or starts after the override end. A slot that starts before the override start and ends inside it, or starts inside it and runs past the end, is accepted. Combined with the early `return true`, a fixed host can be booked outside their override hours, which is the bug this PR sets out to fix. A slot that starts exactly at the override end is also accepted. Require `slotStart >= overrideStart && slotEnd <= overrideEnd`.",
+  "packages/trpc/server/routers/viewer/slots.ts:133 - Slots inside a date override skip the busy-time check.. When a slot falls inside a date override, `dateOverrideExist` is set and the function returns `true` straight away. It never reaches the `busy.every(...)` check below. On any day with a date override, slots that clash with existing bookings or calendar events are offered as free, so double bookings happen. Fix: drop the early `return true` and only skip the working-hours check when an override exists, so the busy check still runs.",
+  "packages/trpc/server/routers/viewer/slots.ts:138 - The working-hours check wrongly rejects slots for split schedules and ignores the slot's end.. `find` returns true, which marks the slot unavailable, as soon as any working-hours entry for that weekday does not contain the slot. With two ranges on one day (e.g. 9–12 and 13–17), a 14:00 slot falls outside 9–12 and is rejected. UTC-serialized hours that wrap midnight are split into such entries too. Also, `end` is computed from `slotStartTime`, so the slot's end is never checked against `workingHour.endTime`. Fix: mark the slot available if some entry for that day contains `[start, slotEnd]`, and compute `end` from `slotEndTime`.",
+  "packages/trpc/server/routers/viewer/slots.ts:114 - Two dayjs objects are compared with ===, so the result is always false.. `dayjs(a) === dayjs(b)` compares object references, so this check never fires. On a day the host marked unavailable (an override where start equals end), a slot that starts exactly at `start` gets past the next two checks: its end is after start, and its start is not after end. That slot is reported as available. Use `.isSame(...)`.",
+  "packages/lib/slots.ts:212 - Shifted overrides can wrap past midnight or land on a different invitee day.. Start and end become minutes-of-day after adding the offset, so an override shifted across midnight (e.g. 20:00–23:00 shifted +3h) gives start=1380 and end=120, an invalid range. `activeOverrides` is still chosen by the override's original UTC date, so overrides that move into the neighbouring invitee day are applied to the wrong day. Also, `override.timeZone` is optional; when it is missing, `.tz(undefined)` falls back to the server's local timezone and the offset is wrong. Handle the day-crossing cases, e.g. by selecting and clamping overrides in real UTC instants against the invitee day.",
+  "packages/trpc/server/routers/viewer/slots.ts:107 - The override day is matched in server-local time and by UTC date, not the organizer's day.. `dayjs(date.start)...format(\"YYYY MM DD\")` formats in the server's local timezone, while `slotStartTime` is UTC. On a server not running in UTC, the dates disagree and overrides are matched to the wrong day. Also, after shifting to real UTC, an override in the organizer's local day can fall on a different UTC date, for example 01:00 local at +6. Slots on the organizer's override day that land on the other UTC date are then checked against normal working hours instead of the override. Compare dates in the organizer's timezone, e.g. `dayjs.utc(...).tz(organizerTimeZone)` against `slotStartTime.tz(organizerTimeZone)`."
+ ]
+}

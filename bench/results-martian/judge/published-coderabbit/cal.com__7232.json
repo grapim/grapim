@@ -1,0 +1,51 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Asynchronous functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called without await inside forEach loops. This occurs during booking rescheduling/cancellation, and workflow/workflow step deletion/updates. Consequently, scheduled workflow reminders may not be reliably cancelled, potentially leaving them active.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1,
+    8
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 and C8 both point out that deletion/cancellation calls inside forEach are not awaited."
+  },
+  {
+   "comment": "When immediateDelete is true, the deleteScheduledEmailReminder function cancels the SendGrid email but fails to delete the corresponding WorkflowReminder record from the database. This creates orphaned database entries and is inconsistent with the immediateDelete: false path, which marks the record as cancelled. The SendGrid DELETE API call is also omitted in this path.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same missing DB delete in the immediateDelete path."
+  },
+  {
+   "comment": "The 'cancelled' field is nullable, which can lead to existing records having null values instead of a default of false. This can cause incorrect behavior in the application when checking the cancellation status of reminders.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions that the cancelled field is nullable."
+  }
+ ],
+ "candidates": [
+  "In workflows.tsx, cancellation helpers are invoked inside forEach without awaiting, which can race with later mutations and silently miss cancellations",
+  "Critical: In emailReminderManager.ts, the immediateDelete path cancels SendGrid scheduled send but returns without deleting the workflowReminder row from the database, creating orphaned records",
+  "In scheduleEmailReminders.ts, the cancellation query doesn't filter by method: EMAIL, which could inadvertently process SMS reminders marked as cancelled",
+  "In scheduleEmailReminders.ts, reminder.referenceId is nullable but passed directly to SendGrid API which expects a valid batch_id, causing API errors for reminders without a referenceId",
+  "In scheduleEmailReminders.ts, if SendGrid API call fails for one reminder, the loop exits early and remaining reminders are not processed, while DB deletions collected before failure are still executed",
+  "In WorkflowStepContainer.tsx, users can trigger multiple verification SMS sends before the first resolves because the button is not disabled during sendVerificationCodeMutation.isLoading",
+  "In WorkflowStepContainer.tsx, hardcoded strings 'Verification code' placeholder and 'Verify' button label bypass i18n",
+  "In bookings.tsx, same fire-and-forget pattern where reminder deletion calls are not awaited during reschedule, which could result in duplicate notifications",
+  "In workflows.tsx, PrismaPromise is used only as a type but imported as a runtime value instead of using type-only import",
+  "In WorkflowStepContainer.tsx, verification can be submitted with empty phone number or empty code, causing unnecessary mutation calls",
+  "In schema.prisma, missing composite index on (cancelled, scheduledDate) for WorkflowReminder which could cause slow queries as the table grows"
+ ]
+}

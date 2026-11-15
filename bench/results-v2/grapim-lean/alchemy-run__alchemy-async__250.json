@@ -1,0 +1,133 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "alchemy-run__alchemy-async__250",
+ "url": "https://github.com/alchemy-run/alchemy-async/pull/250",
+ "head_sha": "768c3f7bf1df594ef6ffaf218a8aa5047717f15e",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:11:43.305Z",
+ "seconds": 31.765,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 196,
+   "end_line": 208,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Update re-POSTs secrets that already exist",
+   "body": "On every update, `insertSecrets` POSTs all of `props.secrets` to the bulk create endpoint, including secrets that already exist in the store.\n\nRe-running a stack with unchanged secrets (or changing only a value) will likely be rejected by Cloudflare as a duplicate. The update then fails. The test avoids this only because it renames every secret.\n\nFix: diff against `listSecrets`. Create only the new names and PATCH the existing secrets by id to change their values."
+  },
+  {
+   "path": "alchemy/src/cloudflare/worker-metadata.ts",
+   "line": 389,
+   "end_line": 395,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Secrets Store binding is wired to a secret named after the binding, not the store",
+   "body": "Cloudflare's `secrets_store` binding points at a single secret (`store_id` plus `secret_name`). At runtime, `env.X.get()` takes no argument and returns that one secret.\n\nHere `secret_name` is set to `bindingName`. With `bindings: { SECRETS: store }`, the worker binds to a secret literally called `SECRETS`, which normally does not exist. Deploy or access then fails.\n\nThe documented usage `env.SECRETS.get(\"API_KEY\")`, and the `SecretsStoreBinding.get(secretName)` type in bound.ts, do not match the platform's model.\n\nFix: bind per secret. Emit one `secrets_store` binding for each secret in the store, or require the user to bind a specific secret. Update the Bound type to `get(): Promise<string>`."
+  },
+  {
+   "path": "alchemy/src/cloudflare/wrangler.json.ts",
+   "line": 559,
+   "end_line": 560,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Secrets Store bindings silently dropped from wrangler.json",
+   "body": "The comment says these bindings are handled through a `secrets_store_secrets` array. Nothing ever adds to such an array, so the binding is omitted from the generated wrangler.json.\n\nAs a result, local dev and wrangler-based tooling will not see the binding.\n\nFix: collect the bindings into `spec.secrets_store_secrets` as `{ binding, store_id, secret_name }`."
+  },
+  {
+   "path": "alchemy/src/test/vitest.ts",
+   "line": 188,
+   "end_line": 198,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Unrelated change drops describe-block name from test scope ids",
+   "body": "This rewrite of the shared test harness removes the `describe` suite name prefix from each test's scope name. The Secrets Store request does not cover it.\n\nTests with the same name in different `describe` blocks of one file now share a scope. Their resources and state collide, and one test's destroy can delete another's resources.\n\nRevert this hunk."
+  },
+  {
+   "path": "alchemy/src/cloudflare/secrets-store.ts",
+   "line": 334,
+   "end_line": 334,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Secrets are created with empty scopes, so Workers cannot use them",
+   "body": "Secrets Store secrets must be scoped (for example `[\"workers\"]`) before a Worker binding can read them.\n\nCreating them with `scopes: []` means any Worker bound to these secrets cannot access them.\n\nFix: default the scopes to `[\"workers\"]`, or make them configurable."
+  },
+  {
+   "path": "alchemy/test/cloudflare/secrets-store.test.ts",
+   "line": 33,
+   "end_line": 33,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "Tautological assertion compares the id to itself",
+   "body": "`expect(secretsStore.id).toEqual(secretsStore.id)` always passes, so the test never checks that an update keeps the same store.\n\nSave the id from the first call and compare the updated store's id against it."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 17918,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 3173,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21035,
+   "outputTokens": 3173,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #244",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "alchemy/src/cloudflare/secrets-store.ts",
+    "line": 260,
+    "end_line": 271,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Store create may be a bulk endpoint returning an array",
+    "body": "Cloudflare's `POST /secrets_store/stores` appears to take an array body (`[{name}]`) and return `result` as an array.\n\nIf so, the plain object body is rejected, or `result.id` is undefined and an empty id is stored in state. Every later call then targets `/stores/undefined`.\n\nI could not check the current API shape. Verify it, and read `result[0].id` if the endpoint is bulk."
+   },
+   {
+    "path": "alchemy/src/cloudflare/secrets-store.ts",
+    "line": 355,
+    "end_line": 369,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Bulk secret delete sends names where the API likely expects secret ids",
+    "body": "`listSecrets` throws away the secret ids and returns only names. `deleteSecrets` then sends an array of names to `DELETE .../secrets`.\n\nCloudflare's bulk delete identifies secrets by id. The removal of stale secrets on update will likely fail or do nothing, leaving removed secrets in the store.\n\nI could not confirm the exact API contract from here. Keep the ids from the list call and send those instead."
+   }
+  ]
+ },
+ "cost_usd": 0.1357554
+}

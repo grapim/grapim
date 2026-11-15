@@ -1,0 +1,58 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The exported function TwoFactor handles backup codes and is in BackupCode.tsx. Inconsistent naming.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same naming mismatch: the file is BackupCode.tsx but the exported function is called TwoFactor."
+  },
+  {
+   "comment": "Error message mentions 'backup code login' but this is a disable endpoint, not login",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the wrong error message on the disable endpoint."
+  },
+  {
+   "comment": "Backup code validation is case-sensitive due to the use of indexOf(). This causes validation to fail if a user enters uppercase hex characters, as backup codes should be case-insensitive for a better user experience.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention that backup code validation is case-sensitive."
+  },
+  {
+   "comment": "Because backupCodes are decrypted and mutated in memory before being written back, two concurrent login requests using the same backupCode could both pass this check and update, so a single backup code may effectively be accepted more than once if used concurrently, weakening the intended one-time-use semantics.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the race condition that could let one backup code be used more than once."
+  },
+  {
+   "comment": "Object URL for backup codes is not revoked on component unmount, leading to a potential memory leak. This can cause increased memory usage over time, especially if the component is mounted and unmounted frequently.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention that the object URL is never revoked."
+  }
+ ],
+ "candidates": [
+  "BackupCode.tsx line 7 exports function TwoFactor instead of function BackupCode - wrong function name will appear in React DevTools and error stack traces causing confusion since a real TwoFactor component already exists",
+  "Dismissing the dialog (via Escape key or clicking outside) during the backup codes step bypasses the onEnable callback, causing the UI to show 2FA as disabled even though it was successfully enabled on the server because utils.viewer.me.invalidate() is never called",
+  "First e2e test never interacts with the new backup codes screen after OTP verification - it skips straight to checking the two-factor-switch without clicking backup-codes-close, so onEnable() is never called",
+  "First e2e test assertion on line 53 uses expect(Promise).toBeTruthy() which evaluates the Promise object itself (always truthy) rather than the resolved boolean - should use await expect(page.locator(...)).toBeChecked()",
+  "PasswordField on line 167 has explicit type=\"password\" prop that breaks the show/hide password toggle because {...props} spread in InputField comes after the internal type prop, causing the explicit type to always override the dynamic isPasswordVisible state"
+ ]
+}

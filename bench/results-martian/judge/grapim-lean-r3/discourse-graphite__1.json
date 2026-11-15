@@ -1,0 +1,54 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The downsize method is defined twice. The second definition, which expects a single dimensions string parameter, overrides the first, which expected separate max_width and max_height parameters. This makes the original method unreachable and breaks existing code that calls it with separate width and height arguments.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 identifies the duplicate downsize definition that overrides the original."
+  },
+  {
+   "comment": "Hardcoding maxSizeKB = 10 * 1024 ignores Discourse.SiteSettings['max_' + type + '_size_kb'], so the client-side limit can diverge from server-side and per-type settings (also applies to the 413 handler below).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2,
+    6
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 covers the hardcoded limit that ignores the site settings. C6 covers the 413 handler's hardcoded 10 MB, which the golden comment also mentions."
+  },
+  {
+   "comment": "Passing 80% as the dimensions can fail for animated GIFs when allow_animated_thumbnails is true, since the animated path uses gifsicle --resize-fit which expects WxH geometry, not a percentage; downsizing would then silently fail.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C5 is about the missing .gif extension stopping the animated path from running. It is not about gifsicle rejecting a percentage geometry."
+  },
+  {
+   "comment": "The loop checking `tempfile.size` may never terminate correctly due to stale cached size, leading to potential infinite loops or incorrect file handling after modifications.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the stale tempfile.size in the loop."
+  }
+ ],
+ "candidates": [
+  "app/models/optimized_image.rb:149 - Second `def self.downsize` replaces the existing width/height `downsize`.. Ruby has no method overloading, so the new `downsize(from, to, dimensions, opts={})` silently replaces `downsize(from, to, max_width, max_height, opts={})` defined just above. Existing callers that pass a width and a height (for example thumbnail creation) now either raise ArgumentError with 5 arguments, or with 4 arguments bind the height to `opts`. In that case `opts[:allow_animation]` calls `Integer#[]` with a Symbol and raises TypeError. Thumbnail and optimized image creation breaks. Fix: give the percentage variant its own name (e.g. `downsize_by(from, to, dimensions, opts)`), or have the old signature build the dimensions string and call a single shared implementation.",
+  "app/assets/javascripts/discourse/lib/utilities.js:182 - Hard-coded 10 MB client limit ignores the admin-configured size settings.. `max_<type>_size_kb` is no longer read. If an admin set `max_attachment_size_kb` above 10 MB, the client now rejects files the server would accept. If the attachment limit is below 10 MB, the client lets through files the server will reject, and users get a less clear error. Only images are shrunk server-side. Use `Math.max(10 * 1024, setting)` for images only, and keep the site setting for other types.",
+  "app/controllers/uploads_controller.rb:55 - API URL download cap is hard-coded to 10 MB for every upload type.. The download used to be limited by `max_image_size_kb`. It is now always 10 MB. Sites with a larger configured limit can no longer import bigger files by URL. The cap also applies to non-image (attachment) URLs, which are not shrunk afterwards. Base the cap on the relevant site setting, e.g. the larger of 10 MB and the configured limit.",
+  "app/controllers/uploads_controller.rb:64 - Up to 5 synchronous ImageMagick runs on large user images inside the request.. Images up to 10 MB used to be rejected at `max_image_size_kb` (often a few MB). They are now accepted and re-encoded up to five times by `convert` plus ImageOptim inside the web request. A crafted image that is small on disk but has huge pixel dimensions, or many such uploads, can tie up web workers and memory. Consider checking pixel dimensions first, resizing once to a computed target size, and/or moving the work to a background job with ImageMagick resource limits.",
+  "app/controllers/uploads_controller.rb:67 - Animated GIFs lose their animation because the tempfile path has no .gif extension.. `optimize` only picks the `_animated` instructions when `from =~ /\\.GIF$/i`. Here `from` is `tempfile.path`, and Rack multipart tempfile names (and `FileHelper.download` temp names) usually don't end in `.gif`. So a large animated GIF goes through the non-animated `downsize_instructions`, which normally take only the first frame. The upload is stored as a static image, which contradicts the stated goal of preserving animation. Fix: decide whether the file is animated from `filename`, or pass an explicit animated flag to the optimizer instead of matching on the path.",
+  "app/assets/javascripts/discourse/lib/utilities.js:246 - 413 error message always reports 10 MB.. The web server returns 413 based on its own body limit, which isn't necessarily 10 MB. Hard-coding 10 MB here can show users the wrong maximum. Derive the limit from the same setting the server uses."
+ ]
+}

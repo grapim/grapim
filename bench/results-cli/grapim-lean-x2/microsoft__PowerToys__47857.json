@@ -1,0 +1,126 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "microsoft__PowerToys__47857",
+ "url": "https://github.com/microsoft/PowerToys/pull/47857",
+ "head_sha": "ea580dbd3714a5081a04a796ba4cef679f102840",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:02:53.201Z",
+ "seconds": 142.972,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+   "line": 53,
+   "end_line": 79,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Raw HTML img sanitizing differs from what the PR says: it only runs when the setting is on, and srcset is never removed.",
+   "body": "The PR's security table says raw HTML `src` is rewritten to `#` when the setting is OFF, so `data:` images can't render. It also says `srcset` is removed in both states. In the code, the `Regex.Replace` only runs when `allowLocalImages` is true, so in the OFF state raw `<img src=\"data:...\">` passes through unchanged. Nothing anywhere strips `srcset`. The regex also only matches double-quoted `src`. Single-quoted or unquoted `src` values (for example `src='https://evil/x.png'`) skip validation and never trigger the info bar. Either add the sanitizing for both states plus the `srcset` removal, or correct the security claims.",
+   "raised": 2
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 194,
+   "end_line": 200,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "performance",
+   "title": "Image handler serves any file type of any size, reading it fully into memory on the UI thread.",
+   "body": "Any URL on `https://localmdimages/` that resolves under the allowed base gets `File.ReadAllBytes` and a 200 response. The extension is not checked and there is no size limit. A Markdown file on a network share can contain `<img src=\"big.iso\">` or `<iframe src=\"https://localmdimages/some/large.vhdx\">`. The base for a share is the share root, so the request can reach any file on the share. The preview handler then reads the whole file into a `MemoryStream`, inside the `WebResourceRequested` handler on the UI thread. That can hang Explorer's preview pane or run it out of memory. Non-image files (HTML, archives) are also served as `application/octet-stream`. Fix: serve only known image extensions (return 403 for everything else), check `FileInfo.Length` against a cap, and return a `FileStream` instead of reading the whole file into memory.",
+   "raised": 2
+  },
+  {
+   "path": "src/common/FilePreviewCommon/HTMLParsingExtension.cs",
+   "line": 166,
+   "end_line": 179,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "No junction or symlink check, although the security model says reparse points are rejected.",
+   "body": "The PR says each part of the resolved path is rejected if it has `FileAttributes.ReparsePoint`, because a lexical containment check doesn't stop redirection. Neither `TryResolveVirtualUrl` nor `TryGetLocalImageVirtualUrl` checks file attributes. They only compare `GetFullPath` and `GetRelativePath` results. A junction or symlink inside the document folder or share (for example `imgs` pointing to `C:\\Users\\victim`) passes the check, and the handler serves files from outside the allowed tree. Fix: before serving, walk each directory from the base path down to `resolvedPath` and reject any that has `FileAttributes.ReparsePoint`, or compare against the final path from `FileSystemInfo.ResolveLinkTarget`.",
+   "raised": 1
+  },
+  {
+   "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+   "line": 61,
+   "end_line": 61,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The raw HTML img rewrite only matches double-quoted src values.",
+   "body": "The pattern only matches `src=\"...\"`. A local image written as `<img src='images/a.png'>` or `<img src=images/a.png>` is never rewritten to the virtual host. It then resolves against the temp HTML file's location and is blocked, so the feature silently fails for valid HTML. A remote image written that way is blocked by the resource filter but never calls `imagesBlockedCallBack`, and with local images ON the regex-based info-bar check is skipped, so the user gets no notice. Fix: also match single-quoted and unquoted attribute values, or parse the HTML instead of using a regex.",
+   "raised": 1
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 198,
+   "end_line": 198,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Any file under the base path is read fully into memory on the UI thread, with no limit on size or type.",
+   "body": "The handler serves any file the document points to, with no check on extension or size, and reads it with `File.ReadAllBytes` inside the WebResourceRequested callback. A Markdown file with `<img src=\"disk.vhdx\">` or `![](backup.iso)` makes the preview host read gigabytes synchronously. With UNC paths the read also happens over the network. The preview pane hangs, and an `OutOfMemoryException` is not caught by the IOException/UnauthorizedAccessException handlers. Fix: only serve known image extensions (the ones `GetImageContentType` maps), refuse files above a reasonable size limit, and open a `FileStream` instead of buffering the whole file.",
+   "raised": 1
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/Settings.cs",
+   "line": 66,
+   "end_line": 73,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Settings read only handles FileNotFoundException, so other failures break every Markdown preview.",
+   "body": "Before this change, the Markdown preview never read the PowerToys settings file. Now `GetLocalImagesEnabled()` runs on every preview and catches only `FileNotFoundException`. Two cases are not caught: a corrupt or half-written settings.json (`JsonException`), and a fresh profile where the settings folder doesn't exist yet (`DirectoryNotFoundException`, which is not a subclass of `FileNotFoundException`). Either one reaches `DoPreview` and the user gets the error page instead of the Markdown. I could not see `SettingsUtils.GetSettings`, so I can't tell which exceptions it already handles. Fix: use `GetSettingsOrDefault`, or catch `IOException` and `JsonException` (or `Exception`) and return `false`.",
+   "raised": 1
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 42276,
+  "cacheRead": 48800,
+  "output": 13549,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 22,
+   "hunks": 37,
+   "reviewedHunks": 37,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 91080,
+   "outputTokens": 13549,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #40787",
+    "issue #3713",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 2
+  },
+  "skipped": [
+   {
+    "path": "src/modules/previewpane/MarkdownPreviewHandler/TestFiles/images/test.png",
+    "reason": "binary file"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.492136
+}

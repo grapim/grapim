@@ -1,0 +1,59 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "OptimizedCursorPaginator's negative-offset branch in get_result() passes cursor.offset directly as start_offset to queryset slicing when enable_advanced_features is True and cursor.offset < 0.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out that negative cursor offsets are passed directly into queryset slicing in OptimizedCursorPaginator."
+  },
+  {
+   "comment": "In BasePaginator.get_result(), when cursor.is_prev is True, it sets start_offset = offset without clamping, allowing negative offset values to be passed to queryset slicing.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    6
+   ],
+   "confidence": 0.95,
+   "reasoning": "C6 points out that BasePaginator does not clamp the offset for prev cursors."
+  },
+  {
+   "comment": "OptimizedCursorPaginator.get_item_key uses floor/ceil on a datetime key (order_by='-datetime'), causing TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the TypeError from floor/ceil on the datetime key."
+  },
+  {
+   "comment": "Accessing .has_global_access on organization_context.member can raise an AttributeError when organization_context is None, particularly for non-superuser non-member users.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.9,
+   "reasoning": "C5 mentions the AttributeError when member is None."
+  }
+ ],
+ "candidates": [
+  "src/sentry/api/paginator.py:838 - OptimizedCursorPaginator can't handle the datetime key used by audit logs.. The audit log endpoint uses this paginator with `order_by=\"-datetime\"`, so `getattr(item, self.key)` returns a `datetime`. `math.floor`/`math.ceil` on a datetime raises `TypeError` in `build_cursor`, so every request with `optimized_pagination=true` that returns rows fails with a 500. `value_from_cursor` also passes the raw integer cursor value to `build_queryset`, where it is compared with a DateTimeField. `DateTimePaginator` converts both ways (epoch ↔ datetime). Fix: subclass `DateTimePaginator` or reuse its `get_item_key`/`value_from_cursor`.",
+  "src/sentry/api/paginator.py:877 - Negative cursor offsets are passed straight into a queryset slice.. A client can send a cursor like `0:-10:0`, and `queryset[-10:...]` then runs on a Django QuerySet. Django rejects negative indexing (\"Negative indexing is not supported\"), so this branch can only raise a 500. The comments say it gives \"access to data beyond normal pagination bounds\" and claim it is \"safe because permissions are checked at the queryset level\". Any client-controlled feature meant to bypass pagination bounds should be removed, not shipped behind a query flag. Fix: drop the branch and clamp the offset to `max(0, offset)` as before.",
+  "src/sentry/scripts/spans/add-buffer.lua:46 - Switching from Redis sets to sorted sets breaks segment keys that already exist at deploy time.. Keys written by the old code are SETs. After deploy, `zadd` in `process_spans` and `zcard`/`zunionstore` in this script fail with WRONGTYPE on those keys, and so does `zscan` in flush. The consumer and flusher then error on every batch that touches an in-flight segment until those keys expire. Fix: use a new key prefix for the sorted-set format, or handle and clean up legacy SET keys.",
+  "src/sentry/scripts/spans/add-buffer.lua:62 - Segments over 1000 spans are silently truncated during insert.. Once a segment has more than 1000 spans, `zpopmin` deletes the spans with the earliest end timestamps, with no metric or log. Previously an oversized segment was dropped as a whole with a `segment_span_count_exceeded` metric. Now partial segments are flushed as if they were complete. The limit is also hardcoded and no longer follows `max_segment_spans`. Fix: pass the limit as an ARGV from the configured `max_segment_spans` and emit a metric when spans are evicted.",
+  "src/sentry/api/endpoints/organization_auditlogs.py:71 - The \"admin-only\" gate trusts `has_global_access` and can dereference a missing member.. `organization_context.member.has_global_access` is true for any member of an org with open membership, not only administrators, so ordinary members can turn on the negative-offset path. When the user is not a superuser and `member` is None (for example, staff access without membership), this line raises `AttributeError`. It also checks `is_superuser` instead of an active superuser session. Fix: remove this path or gate it on `is_active_superuser(request)` or an explicit scope, and guard against `member is None`.",
+  "src/sentry/api/paginator.py:182 - Shared BasePaginator now passes negative offsets for prev cursors unchanged.. This change affects every endpoint that uses BasePaginator. Next-page cursors are clamped to 0, but prev cursors with a negative offset still reach `queryset[offset:stop]`, and Django raises there, so a crafted cursor still gives a 500. The comment says the queryset \"will handle boundary conditions\", but it doesn't. The `len(results) == offset + limit + extra` check below also still uses `offset` and not `start_offset`. Fix: clamp the offset for both directions, for example `start_offset = max(0, offset)`, or reject negative offsets in `Cursor`.",
+  "src/sentry/scripts/spans/add-buffer.lua:30 - The redirect-follow depth limit drops from 10000 to 1000 without explanation.. Span trees deeper than 1000 levels are no longer joined into one segment. They get split, and the old comment documenting this limit was removed. Nothing in the request covers this change. Restore 10000 or explain why the lower limit is needed.",
+  "src/sentry/scripts/spans/add-buffer.lua:47 - ZUNIONSTORE sums the scores of duplicate members.. `zunionstore` uses `AGGREGATE SUM` by default. When the same payload is in both sets (for example, a redelivered Kafka message), its score becomes twice its end timestamp. That corrupts the ordering the eviction depends on. Add `\"AGGREGATE\", \"MAX\"` to both calls."
+ ]
+}

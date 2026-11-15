@@ -1,0 +1,72 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "latitude-dev__latitude-llm__2697",
+ "url": "https://github.com/latitude-dev/latitude-llm/pull/2697",
+ "head_sha": "8422f8d10a178795d0666b04be81662857e22c94",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:11:45.117Z",
+ "seconds": 16.22,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "packages/domain/spans/src/otlp/claude-code.ts",
+   "line": 12,
+   "end_line": 12,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Model sanitizer does not handle the real `claude-opus-4-6[1m]` suffix from the issue.",
+   "body": "The issue shows Claude Code sending `\"model\": \"claude-opus-4-6[1m]\"`, a literal bracketed suffix with a closing `]`. The fallback regex `/\\[[0-9;]*m$/i` only matches a trailing `[1m` with no closing bracket, so this value passes through unchanged as `gen_ai.request.model`.\n\nModel and pricing lookups keyed on `claude-opus-4-6` will then miss, and cost and model analytics for these spans come out wrong. The test only covers the ESC-prefixed form `\\u001b[1m`.\n\nFix: also strip a trailing `\\[[0-9;]*m\\]?$`, or decide on purpose how to map the `[1m]` context-size marker. Add a fixture with the literal value from the issue."
+  },
+  {
+   "path": "packages/telemetry/typescript/src/sdk/span-filter.ts",
+   "line": 95,
+   "end_line": 95,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Any span with a `span.type` attribute is now exported, whatever its value.",
+   "body": "The default export predicate now returns true for any span that has a `span.type` key. `span.type` is a generic attribute: Datadog-style and other instrumentations set it to values like `web`, `db`, `http` or `cache`. Those ordinary HTTP and DB spans will now pass the smart filter and be exported to Latitude. That defeats the filter's purpose and adds noise and ingest cost.\n\nFix: only match when the value is a Claude Code type, for example `span.attributes[\"span.type\"] === \"interaction\" || === \"llm_request\"`. Keep the `user_prompt` and `llm_request.context` checks as they are."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 10672,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 1589,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 6,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 13789,
+   "outputTokens": 1589,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #2695",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.07509139999999999
+}

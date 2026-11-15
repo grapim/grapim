@@ -1,0 +1,55 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions a race condition in the device count check."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate says anonymous authentication now fails outright when the device limit is reached. C1 is about wrong error semantics in updateDevice, which is a different problem."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 makes the same point: rowsAffected == 0 is reported as ErrDeviceLimitReached when it can just mean the device was not found or has expired."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate raises the inconsistent time window calculation."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the cache being populated before the device limit check."
+  }
+ ],
+ "candidates": [
+  "Misleading error semantics: updateDevice returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows can also mean the device is expired or not found rather than the limit being exceeded, causing incorrect denial of access for expired-but-returning anonymous users",
+  "Wire dependency injection breaks because ProvideAnonDBStore signature changed from (db.DB) to (db.DB, int64), and Wire cannot auto-resolve a bare int64 parameter since no provider for that type exists in the wire set"
+ ]
+}

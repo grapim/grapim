@@ -1,0 +1,30 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: Error level is being used for normal debug-type logging, which pollutes the error logs."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the cleanup ticker interval change."
+  }
+ ],
+ "candidates": [
+  "r.log.Error is used for normal operational logging at lines 534, 537, 554, and 557, causing non-error messages like 'Annotations to clean by time' to appear in error logs during every cleanup cycle. Should use r.log.Debug or r.log.Info instead to avoid polluting error logs."
+ ]
+}

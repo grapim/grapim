@@ -1,0 +1,35 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Unsafe raw List deserialization without type safety. Calling Optional.get() directly on the Optional returned by RecoveryAuthnCodesUtils.getCredential(user) without checking isPresent() can lead to a NoSuchElementException if the Optional is empty.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions calling Optional.get() without an isPresent() check, or unsafe raw List deserialization."
+  },
+  {
+   "comment": "After creating the RecoveryAuthnCodesCredentialModel, consider setting its id from the stored credential (e.g., myUser.recoveryCodes.getId()); otherwise getId() will be null and downstream removal by id (e.g., removeStoredCredentialById in the authenticator flow) may not work.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 says the model built by createFromValues has no ID set, so the original ID is lost and deletion fails. That is the same issue as G2. C4 is about removal targeting local rather than federated storage, which is a different cause."
+  }
+ ],
+ "candidates": [
+  "In getCredentials(), recovery codes credential is reconstructed via createFromValues() which does not set an ID on the model, so the original ID is lost making federated recovery codes undeletable via admin/account API",
+  "Recovery codes in BackwardsCompatibilityUserStorage.isValid() are never consumed after use, allowing infinite reuse of the same recovery code",
+  "Recovery codes validation in BackwardsCompatibilityUserStorage.isValid() accepts any matching code rather than only the next sequential one, violating the security contract",
+  "RecoveryAuthnCodesFormAuthenticator.isRecoveryAuthnCodeInputValid() calls removeStoredCredentialById() which targets local storage, not federated storage, so cleanup would fail for federated credentials",
+  "disableCredentialType() does not handle recovery codes credential type, preventing credential deletion for federated users",
+  "getDisableableCredentialTypesStream() does not handle recovery codes credential type, preventing credential disabling for federated users"
+ ]
+}

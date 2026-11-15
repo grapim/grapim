@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "microsoft__TypeScript__65022",
+ "url": "https://github.com/microsoft/TypeScript/pull/65022",
+ "head_sha": "ad98c177d3b79373edbb817fb790b12cdde3693f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:26:11.904Z",
+ "seconds": 52.969,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 7046,
+  "cacheRead": 3262,
+  "output": 4913,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 10310,
+   "outputTokens": 4913,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #65020",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "tsc/internal/parser/jsdoc.go",
+    "line": 1200,
+    "end_line": 1200,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Broken nested tag now adds a `\"\"` member to the nested type, which may be required at every use site",
+    "body": "With this guard, the tag whose type fails to parse stays in the nested `Args` literal as a property with an empty name. The new baseline shows `keyof Sig[\"Args\"]` as `\"\" | \"name\" | \"onCancel\"`. That property has no brackets and no trailing `=`, so it is probably a required property of unresolved type. If it is, any object or component invocation checked against `Sig[\"Args\"]` (e.g. `const a: Sig[\"Args\"] = { name: \"x\" }`) now fails with \"Property '' is missing\". Before the fix, the `\"\"` member went to the top-level `Sig`, which is often never built directly (as in the Glimmer-style signatures in the issue). So the use-site error the issue complains about, reported far from the `TS1005`, could come back in a new form instead of going away. The issue asks that only `Args.onSave` be affected. I could not check from the shown code whether the reparser makes a missing-name property optional. Please add a case like `const a: Sig[\"Args\"] = { name: \"x\" }` to the test. If it errors, either skip tags with a missing name when building the nested literal, or make them optional."
+   }
+  ]
+ },
+ "cost_usd": 0.1341504
+}

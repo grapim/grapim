@@ -1,0 +1,32 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out that the Error log level is being used for informational messages, which is the same issue as G1."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the cleanup ticker interval being changed."
+  }
+ ],
+ "candidates": [
+  "Incorrect log level: Error used for informational messages in annotation cleanup - logs at line 534 use Error level for routine operational information, which will pollute error logs and potentially trigger alerts",
+  "Variable 'err' at line 534 will always be nil at that point since errors return early, so logging it is unnecessary",
+  "Condition checks r.cfg.AnnotationCleanupJobBatchSize > sqliteParameterLimit instead of len(ids) > sqliteParameterLimit, meaning even small final batches unnecessarily use inlined IDs when configured batch size is large"
+ ]
+}

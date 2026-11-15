@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "Azure__azure-cli__34253",
+ "url": "https://github.com/Azure/azure-cli/pull/34253",
+ "head_sha": "394d88c2773b00c93c914e44afcdfedb135c6d06",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:40:44.148Z",
+ "seconds": 18.783,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/azure-cli/azure/cli/command_modules/containerapp/_utils.py",
+   "line": 983,
+   "end_line": 983,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A `null` identity entry becomes `{}`, so an identity marked for removal gets assigned instead.",
+   "body": "In ARM PATCH, `userAssignedIdentities: {<id>: null}` is the standard way to remove one user-assigned identity. `clean_null_values(None)` returns `None`, and the new `or {}` turns that into `{}`.\n\nTrigger: a YAML manifest with `\"<id>\": null` under `userAssignedIdentities`, passed to `update --yaml`.\n\nBefore this change the entry was silently dropped. Now it is sent as `{}`, which asks the service to keep or add the identity: the opposite of what the manifest says.\n\nI could not check whether this PATCH endpoint treats `null` as removal.\n\nFix: only replace an identity's value with `{}` when the original value is a dict. Keep an explicit `None` as `None`, and make the outer filter keep `None` values inside `userAssignedIdentities`. Or, at minimum, leave the old behaviour of dropping such entries, and don't turn them into assignments."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 6427,
+  "cacheRead": 11502,
+  "output": 1628,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 17933,
+   "outputTokens": 1628,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0670114
+}

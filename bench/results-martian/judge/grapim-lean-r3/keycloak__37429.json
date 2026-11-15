@@ -1,0 +1,61 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    1,
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C1 and C2 both point out Italian text in the Lithuanian bundles. C1 is the account bundle and C2 is the login bundle. It is the same underlying problem."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    5
+   ],
+   "confidence": 0.95,
+   "reasoning": "C5 points out that the totpStep1 value in zh_CN uses Traditional Chinese."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate talks about the anchor sanitization logic."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the santizeAnchors typo."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate says HTML_TAGS should be declared private static final."
+  }
+ ],
+ "candidates": [
+  "themes/src/main/resources-community/theme/base/account/messages/messages_lt.properties:101 - Lithuanian totpStep1 replaced with an Italian sentence.. The new value \"Installa una delle seguenti applicazioni sul tuo cellulare:\" is Italian, so Lithuanian users see Italian text on the TOTP setup page. It looks like it was copied from `messages_it`. Use a Lithuanian translation, for example \"Įdiekite vieną iš šių programėlių savo mobiliajame telefone:\", or remove the key so the English fallback is used.",
+  "themes/src/main/resources-community/theme/base/login/messages/messages_lt.properties:71 - Lithuanian loginTotpStep1 replaced with an Italian sentence.. `loginTotpStep1` in the Lithuanian login bundle is now Italian (\"Installa una delle seguenti applicazioni sul tuo cellulare:\"). Lithuanian users will see Italian during OTP setup at login. Replace it with Lithuanian text or remove the key so the English fallback is used.",
+  "js/apps/account-ui/maven-resources/theme/keycloak.v3/account/messages/messages_en.properties:188 - Account UI message switched from i18next `{{0}}` placeholders to MessageFormat syntax.. This has the same problem as the admin UI bundle. The account UI translates with i18next, which only interpolates `{{0}}` and cannot evaluate `{2,choice,0#values|1#value|1<values}`. If this key is rendered client-side, users who submit too many or too few values get a message with the raw `{0}` placeholders and choice pattern. Keep `{{n}}` interpolation in the js bundles, or confirm the server formats this message first.",
+  "js/apps/admin-ui/maven-resources/theme/keycloak.v2/admin/messages/messages_en.properties:3138 - Admin UI message switched from i18next `{{0}}` placeholders to Java MessageFormat syntax.. The admin UI bundle uses i18next interpolation (`{{error}}`, `{{fieldName}}`), and the old value deliberately used `{{0}}`, `{{1}}` and `{{2}}`. i18next does not replace `{0}` and does not understand `{2,choice,...}`. If this key is translated client-side, the multivalued-size validation error will show the raw placeholders and the choice pattern instead of the attribute name and limits. I could not see how the UI renders this key. Keep the `{{n}}` form in the js bundles, or confirm the server pre-formats this message before the UI shows it.",
+  "themes/src/main/resources-community/theme/base/account/messages/messages_zh_CN.properties:112 - Traditional Chinese text added to the Simplified Chinese (zh_CN) bundle.. \"在您的手機上安裝以下應用程式之一：\" is written in Traditional Chinese with Taiwan wording (手機, 應用程式). zh_CN users will see it among Simplified text. Use the Simplified form, for example \"在您的手机上安装以下应用程序之一：\"."
+ ]
+}

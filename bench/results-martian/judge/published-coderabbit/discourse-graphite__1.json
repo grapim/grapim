@@ -1,0 +1,55 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The downsize method is defined twice. The second definition, which expects a single dimensions string parameter, overrides the first, which expected separate max_width and max_height parameters. This makes the original method unreachable and breaks existing code that calls it with separate width and height arguments.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same duplicate downsize definition, where the second one shadows the first."
+  },
+  {
+   "comment": "Hardcoding maxSizeKB = 10 * 1024 ignores Discourse.SiteSettings['max_' + type + '_size_kb'], so the client-side limit can diverge from server-side and per-type settings (also applies to the 413 handler below).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 flags the hardcoded 10 MB limit, which loses the per-type max size setting."
+  },
+  {
+   "comment": "Passing 80% as the dimensions can fail for animated GIFs when allow_animated_thumbnails is true, since the animated path uses gifsicle --resize-fit which expects WxH geometry, not a percentage; downsizing would then silently fail.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mentions the 80% percentage geometry breaking gifsicle for animated GIFs."
+  },
+  {
+   "comment": "The loop checking `tempfile.size` may never terminate correctly due to stale cached size, leading to potential infinite loops or incorrect file handling after modifications.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 points out the same problem: tempfile.size is cached and stale after downsizing."
+  }
+ ],
+ "candidates": [
+  "Duplicate method definition of downsize in OptimizedImage shadows the first version - Ruby does not support method overloading, so the second definition completely shadows the first",
+  "Hardcoded max size of 10 MB loses per-type flexibility - previous logic likely resolved max size dynamically based on type (image vs attachment)",
+  "tempfile.size in Ruby won't reflect updated size after OptimizedImage.downsize because Ruby caches the file size - need to reopen or stat the file to get actual new size",
+  "Switch case declaration in case 413 declares variable maxSizeKB without a block, allowing other cases to erroneously access the declaration - needs to be wrapped in a block for scope safety",
+  "Using the same path for input and output in image processing is risky - if the operation fails mid-write, the original file is lost",
+  "Inline rescue nil swallows all exceptions silently including network errors that might be worth logging"
+ ]
+}

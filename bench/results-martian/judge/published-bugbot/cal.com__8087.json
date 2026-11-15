@@ -1,0 +1,30 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Consider adding try-catch around the await to handle import failures gracefully",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "G1 asks for a try-catch around an awaited import, so a failed import is handled. C1 is about async callbacks inside forEach, which is a different issue."
+  },
+  {
+   "comment": "The code uses forEach with async callbacks, which causes asynchronous operations (e.g., calendar/video event deletions, payment refunds) to run concurrently without being awaited. This 'fire-and-forget' behavior leads to unhandled promise rejections, race conditions, and incomplete cleanup, as surrounding try-catch blocks cannot properly handle errors from these unawaited promises. Replace forEach with for...of loops or Promise.all() with map() to ensure proper sequential execution and error handling.",
+   "severity": "Critical",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same problem as G2: forEach with async callbacks turns the deletions into fire-and-forget calls, so the try-catch can't catch their errors and cleanup may not finish."
+  }
+ ],
+ "candidates": [
+  "Using forEach with async callback doesn't await the async operations - forEach ignores returned promises, so calendar deleteEvent and deleteMeeting calls become fire-and-forget operations. The surrounding try-catch block will never catch errors from these async callbacks, and the function may return before deletions complete, leaving orphaned calendar events and video meetings when bookings are rescheduled."
+ ]
+}

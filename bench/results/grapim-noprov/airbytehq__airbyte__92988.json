@@ -1,0 +1,45 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "airbytehq__airbyte__92988",
+ "url": "https://github.com/airbytehq/airbyte/pull/92988",
+ "head_sha": "6d817e2b5a8339cc1cffae618a32464c570aa178",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:14:10.223Z",
+ "seconds": 4.583,
+ "status": "ok",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 37827,
+  "cacheWrite": 0,
+  "cacheRead": 2096,
+  "output": 10,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 22,
+   "reviewedHunks": 22,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 39923,
+   "outputTokens": 10,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.1519272
+}

@@ -1,0 +1,82 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "Tyrrrz__LightBulb__474",
+ "url": "https://github.com/Tyrrrz/LightBulb/pull/474",
+ "head_sha": "354d65d206d90e5681bfa27d1f20eb6788efb465",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:55:49.198Z",
+ "seconds": 81.132,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "LightBulb/App.axaml.cs",
+   "line": 141,
+   "end_line": 141,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Tray \"Settings\" opens a second dialog when one is already open on the hidden window",
+   "body": "The window now stays alive when hidden, so a dialog stays open after it is hidden to the tray. Issue #467 is exactly that case. Sequence: open Settings, hide to tray, then pick tray → Settings. The window is shown and `ShowSettingsCommand.Execute(null)` runs again. CommunityToolkit's `Execute` does not check `CanExecute`, so a second dialog is pushed onto a `DialogHost` that is already open. That usually throws (\"DialogHost is already open\"). The fire-and-forget `Execute` call then passes the exception to the dispatcher, which can crash the app. Before this change the window was rebuilt each time, so this could not happen. Fix: skip the call when the command cannot run or a dialog is already open, for example `if (_mainViewModel.ShowSettingsCommand.CanExecute(null)) ...`, or just show the window when a dialog is already open.",
+   "raised": 2
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 8978,
+  "cacheRead": 15502,
+  "output": 7566,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 10,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 24484,
+   "outputTokens": 7566,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #467",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 2
+  },
+  "skipped": [
+   {
+    "path": "LightBulb/ViewModels/MainViewModel.cs",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "LightBulb/Views/MainView.axaml.cs",
+    "line": 22,
+    "end_line": 27,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Start-hidden check runs on every Loaded, not only the first",
+    "body": "`Window_OnLoaded` hides the window whenever `StartOptions.Current.IsInitiallyHidden` is set, and that option stays true for the whole process. If Avalonia raises `Loaded` again when a hidden window is shown (because the window is unloaded on `Hide`), then with `--start-hidden` every later `Toggle()`/`ShowActivateFocus()` from the tray or hotkey would hide the window right away, and the user could never open it. I could not confirm whether `Loaded` fires again after `Hide`/`Show` in the Avalonia version used here. The PR also says this was not tested. Fix: apply the hide only once, for example with a `_hasHandledStartup` flag or by unsubscribing the handler after its first run.",
+    "raised": 1
+   }
+  ]
+ },
+ "cost_usd": 0.1993264
+}

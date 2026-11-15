@@ -1,0 +1,40 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Asynchronous functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called without await inside forEach loops. This occurs during booking rescheduling/cancellation, and workflow/workflow step deletion/updates. Consequently, scheduled workflow reminders may not be reliably cancelled, potentially leaving them active.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions the missing await in the forEach loops."
+  },
+  {
+   "comment": "When immediateDelete is true, the deleteScheduledEmailReminder function cancels the SendGrid email but fails to delete the corresponding WorkflowReminder record from the database. This creates orphaned database entries and is inconsistent with the immediateDelete: false path, which marks the record as cancelled. The SendGrid DELETE API call is also omitted in this path.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 points out the same thing: when immediateDelete is true, the DB record is never deleted, which leaves orphaned records."
+  },
+  {
+   "comment": "The 'cancelled' field is nullable, which can lead to existing records having null values instead of a default of false. This can cause incorrect behavior in the application when checking the cancellation status of reminders.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises the nullable cancelled field."
+  }
+ ],
+ "candidates": [
+  "In emailReminderManager.ts:222, when immediateDelete is true and referenceId exists, the function cancels the scheduled send in SendGrid but returns without deleting or updating the workflowReminder database record, leaving orphaned records in the database",
+  "When twilio.cancelSMS(referenceId) throws, the prisma.workflowReminder.delete call is skipped because both operations share the same try block, leaving orphaned database records that cannot be deleted through normal means",
+  "In scheduleEmailReminders.ts:56, if client.request throws an error for any reminder in the loop, the Promise.all(workflowRemindersToDelete) is never executed, leaving the system in an inconsistent state where SendGrid has cancelled the email but the workflowReminder record persists and will be retried on the next cron run"
+ ]
+}

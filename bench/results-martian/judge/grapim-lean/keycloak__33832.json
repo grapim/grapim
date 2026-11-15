@@ -1,0 +1,51 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returns wrong provider (default keystore instead of BouncyCastle)",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "G1 says a method returns the default keystore provider instead of BouncyCastle. No candidate mentions this."
+  },
+  {
+   "comment": "Dead code exists where ASN1Encoder instances are created and written to, but their results are immediately discarded. The actual encoding is performed by new ASN1Encoder instances created in the subsequent return statement, rendering the earlier operations useless.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 describes the same discarded ASN1Encoder instances."
+  },
+  {
+   "comment": "When length starts at -1 from indefinite-length encoding, the arithmetic 'length = length - bytes.length' will behave unexpectedly, potentially leading to incorrect processing of encoded data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "G3 is about a length of -1 from indefinite-length encoding causing bad arithmetic. No candidate covers this."
+  },
+  {
+   "comment": "Abstract order() method on CryptoProvider may break backward compatibility with existing implementations",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 raises the same backward-compatibility break from the abstract order() method."
+  }
+ ],
+ "candidates": [
+  "common/src/main/java/org/keycloak/common/crypto/CryptoIntegration.java:57 - Removing the multiple-provider error lets a FIPS setup silently run on a non-FIPS provider.. Before this change, finding more than one `CryptoProvider` was a hard error. Now the providers are sorted by `order()` and the first one wins. `DefaultCryptoProvider`, `FIPS1402Provider` and `WildFlyElytronProvider` all return 200, so when both the default and the FIPS jars are on the classpath (a common packaging mistake), the sort keeps ServiceLoader's classpath order. The non-FIPS BouncyCastle provider can then be chosen, and the only trace is a debug log line. A FIPS deployment that used to fail fast now quietly uses non-compliant crypto.\n\nFix: still throw (or at least log a warning) when two or more providers share the highest order. Only allow picking by order when there is a single highest provider, such as the authz-client fallback at 100.",
+  "common/src/main/java/org/keycloak/common/crypto/CryptoProvider.java:44 - Adding `order()` as an abstract method breaks every existing CryptoProvider implementation.. `order()` is declared without a default body. Any `CryptoProvider` implemented outside the three updated in this PR stops compiling, and an old compiled one loaded at runtime throws `AbstractMethodError` when `detectProvider` sorts. That includes custom or third-party providers, and possibly test or mock providers elsewhere in the repo that I could not see here. Fix: make it `default int order() { return 0; }` or similar, so existing implementations keep working.",
+  "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java:114 - Two ASN.1 encoders are built and thrown away.. `ASN1Encoder.create().write(rBigInteger)` and `ASN1Encoder.create().write(sBigInteger)` each build an encoding and then discard it. The return statement right below builds both again. These look like leftovers; remove the two lines.",
+  "authz/client/src/test/java/org/keycloak/authorization/client/test/ECDSAAlgorithmTest.java:42 - The ES384 and ES512 tests sign with a P-256 key, so they never test those curves' sizes.. `KeyPairGenerator.getInstance(\"EC\").genKeyPair()` uses the JDK's default curve, which is P-256. That means r and s are always 32 bytes or fewer, even in the ES384 and ES512 tests. The 48- and 66-byte paths in `integerToBytes` and `concatenatedRSToASN1DER` are only checked with small values, so a size-handling bug for P-384 or P-521 would still pass. Fix: initialize the generator with the matching curve for each algorithm (`secp256r1`, `secp384r1`, `secp521r1`)."
+ ]
+}

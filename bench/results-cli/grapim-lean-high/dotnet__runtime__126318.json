@@ -1,0 +1,134 @@
+{
+ "tool": "grapim-lean-high",
+ "pr_id": "dotnet__runtime__126318",
+ "url": "https://github.com/dotnet/runtime/pull/126318",
+ "head_sha": "d6f01d1f04079e04bd1ba8dacefb2cf086a7c656",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:19:58.243Z",
+ "seconds": 141.528,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/libraries/Common/src/Interop/Unix/System.Native/Interop.ForkAndExecProcess.cs",
+   "line": 58,
+   "end_line": 63,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "One shared AddRef flag makes the cleanup release handles that were never AddRef'd.",
+   "body": "`inheritedHandleRefsAdded` becomes true after the first successful `DangerousAddRef`, and the `finally` block then calls `DangerousRelease` on every entry in the list. Suppose a later entry is already disposed: its `DangerousAddRef` throws `ObjectDisposedException`, and the cleanup still releases that entry and every entry after it, none of which were AddRef'd. That drops a live handle's refcount to zero and closes the fd while its owner is still using it. A `null` entry throws `NullReferenceException` in the loop and again in `finally`. The Windows path skips null, invalid and closed handles, so the two platforms also behave differently.\n\nFix: snapshot the list once, keep a per-handle `bool[]` of successful AddRefs, release only those, and skip or reject null and invalid handles the same way Windows does."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 474,
+   "end_line": 484,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Cleanup can throw inside `finally` and leave `s_processStartLock` held forever.",
+   "body": "`CleanupHandles` runs in the `finally` block before `ExitReadLock`. It calls `DangerousRelease()` before `SetHandleInformation(safeHandle, ...)`. If another thread disposed the handle during the start, the release closes it, and marshalling it to `SetHandleInformation` then throws `ObjectDisposedException`. Any `Win32Exception` thrown by that function has the same effect. The exception escapes the `finally` block, so:\n- the read lock is never released, and every later `Process.Start` that needs the write lock hangs forever;\n- the remaining handles are never released and keep their inherit flag;\n- `commandLine` is not disposed;\n- the child process has already started, but the caller gets an exception instead of `procSH`.\n\nFix: clear the inherit flag before `DangerousRelease`. Make cleanup best-effort (don't throw from `finally`), and release the lock in an outer `try/finally` that always runs."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 124,
+   "end_line": 127,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Restricted starts that share a handle race on its inherit flag under the shared read lock.",
+   "body": "Restricted starts take only the read lock, so two of them can run at the same time. If both list the same `SafeHandle` (for example a shared pipe or log file), thread A can finish and call `CleanupHandles`, which clears `HANDLE_FLAG_INHERIT`, while thread B is between its own `SetHandleInformation` and `CreateProcess`. B's `CreateProcess` then fails, because every handle in `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` must be inheritable. Fix: refcount the per-handle inherit enablement, or serialize the steps that set and clear the flags."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 169,
+   "end_line": 169,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`EXTENDED_STARTUPINFO_PRESENT` is now set for every start, including `CreateProcessWithLogonW`.",
+   "body": "`creationFlags` now always includes `EXTENDED_STARTUPINFO_PRESENT`, and `cb` is always `sizeof(STARTUPINFOEX)`, even when `InheritedHandles` is null. The same flags go to `CreateProcessWithLogonW` (the `UserName` path). That API documents `lpStartupInfo` as a plain `STARTUPINFO` and does not list `EXTENDED_STARTUPINFO_PRESENT` among its supported creation flags. Every start with `UserName` set may therefore fail with `ERROR_INVALID_PARAMETER`, which would be a regression for callers that never use the new property. Even if the call succeeds, the handle-list attribute is not honoured there, so the restriction is silently not applied. I could not confirm how seclogon reacts to this flag.\n\nFix: set the flag and the extended `cb` only when an attribute list is actually built and `CreateProcess` is the API being called. Reject or document `InheritedHandles` together with `UserName`."
+  },
+  {
+   "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+   "line": 206,
+   "end_line": 206,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "An empty inherit list sends a zero-sized `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`, which Windows rejects.",
+   "body": "`handleCount` can be 0 in two cases:\n- `InheritedHandles = []` and no standard handles are given;\n- all standard handles are invalid, for example `Console.OpenStandardInputHandle()` in a GUI or service process with no console, as in the new `CanRedirectToInheritedHandles(restrictHandles: true)` test.\n\n`UpdateProcThreadAttribute` is then called with `cbSize == 0`. As far as I know, Windows rejects an empty handle list (`ERROR_BAD_LENGTH`/`ERROR_INVALID_PARAMETER`), so `Process.Start` throws `Win32Exception` exactly when the user asked to inherit nothing. Fix: when `handleCount == 0`, skip the attribute list and call `CreateProcess` with `bInheritHandles: false`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 35108,
+  "cacheRead": 3262,
+  "output": 14548,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 31,
+   "reviewedHunks": 31,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 38372,
+   "outputTokens": 14548,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #13943",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 3
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/libraries/System.Diagnostics.Process/src/Microsoft/Win32/SafeHandles/SafeProcessHandle.Windows.cs",
+    "line": 191,
+    "end_line": 195,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The native handle buffer is sized from one `Count` read but filled by a separate, unchecked enumeration.",
+    "body": "`handlesToInherit` is allocated from `inheritedHandles.Count` here. `PrepareHandleAllowList` then reads `Count` again for `handlesToRelease` and writes into the native buffer while it enumerates the list, with no bounds check. If the user-supplied `IList` changes between the two reads (another thread adds to it), or a custom `IList` yields more items than `Count` reports, `handlesToInherit[handleCount++]` writes past the `NativeMemory` allocation and corrupts the native heap. Fix: copy the list to an array once and use that snapshot for sizing, iteration and release, on both Windows and Unix."
+   },
+   {
+    "path": "src/native/libs/System.Native/pal_process.c",
+    "line": 317,
+    "end_line": 320,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`POSIX_SPAWN_CLOEXEC_DEFAULT` closes the child's fds 0–2 when no stdio fd is redirected.",
+    "body": "With `POSIX_SPAWN_CLOEXEC_DEFAULT`, macOS closes every fd that no file action names. Standard fds are only named through `adddup2` when `stdinFd`/`stdoutFd`/`stderrFd != -1`. The loop below also explicitly skips fds 0–2 when calling `addinherit_np`. So when a stdio fd is passed as -1 (inherit the parent's), the child starts with that standard stream closed. The fork path does not do this, because it uses `close_range(3, ...)`. Fix: call `posix_spawn_file_actions_addinherit_np` for 0, 1 and 2 whenever the corresponding fd is -1. I could not see whether the managed caller ever passes -1 here."
+   },
+   {
+    "path": "src/native/libs/System.Native/pal_process.c",
+    "line": 550,
+    "end_line": 552,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`fdwalk()` runs in the child between `fork` and `exec`, where it is not async-signal-safe.",
+    "body": "On illumos/Solaris, `fdwalk` lists `/proc/self/fd` through `opendir`/`readdir`, which allocate memory. In a multithreaded parent, the child created by `fork`/`vfork` may only call async-signal-safe functions. If another thread held the malloc lock at fork time, the child deadlocks before `exec`, and `Process.Start` hangs waiting on the exec pipe. Fix: use an async-signal-safe approach, such as looping `fcntl` up to the `RLIMIT_NOFILE` value captured before the fork, or `closefrom`-style syscalls."
+   }
+  ]
+ },
+ "cost_usd": 0.46716040000000003
+}

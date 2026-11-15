@@ -1,0 +1,120 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "elastic__kibana__255866",
+ "url": "https://github.com/elastic/kibana/pull/255866",
+ "head_sha": "a6802508b578eef72844226f3145fd58515a742d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:05:07.324Z",
+ "seconds": 89.734,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 173,
+   "end_line": 179,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The raw ES `_id` is used as the saved object id, so the AAD never matches and decryption always fails.",
+   "body": "The `_id` metadata column holds the raw document id that the serializer builds, `[namespace:]type:id` (for example `index-pattern:abc` or `space1:connector:abc`). It does not hold the saved object id. Passing it as `id` to `decryptOrStripResponseAttributes` builds the wrong AAD, so every encrypted attribute in `_source` fails to decrypt and is stripped. The documented \"decrypted in `_source`\" path never works. The descriptor is also built only from `source.namespaces`. Single-namespace types store their space in `source.namespace`, so the AAD namespace is wrong for them as well. Fix: parse the raw id the way the serializer does (`serializer.rawToSavedObject`, or strip the `namespace:type:` prefix) and pass the real namespace for single-namespace types.",
+   "raised": 2
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 145,
+   "end_line": 150,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Encrypted ciphertext in `_source` is returned untouched when `_id` is missing or a column is renamed.",
+   "body": "`decryptSourceColumn` skips all processing unless there is a column named exactly `_source` and one named exactly `_id`. `stripEncryptedColumns` never touches `_source`. So `metadata: ['_source']` without `_id`, or a pipeline such as `| RENAME _source AS src`, sends encrypted attribute values to the caller as-is. That contradicts the tutorial's promise that they are decrypted or stripped. The unit test at esql.test.ts:410 locks in this leak. Fix: when `_source` is present but cannot be decrypted, strip encrypted attributes from it (using `getEncryptedAttributes`) instead of returning it unchanged. Also consider rejecting renames of `_source`.",
+   "raised": 2
+  },
+  {
+   "path": "tasks/prd.json",
+   "line": 1,
+   "end_line": 186,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Leftover agent task files are committed to the repository.",
+   "body": "`tasks/prd.json` and `tasks/progress.txt` are working notes from the agent loop (branch name, user-story progress, learnings). They are not part of the feature, add top-level files to Kibana, and the request does not cover them. Remove them from the PR.",
+   "raised": 2
+  },
+  {
+   "path": "tasks/progress.txt",
+   "line": 1,
+   "end_line": 42,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Agent progress log is committed to the repository.",
+   "body": "This is a scratch log from the agent run. The request does not need it, so it should not be merged. Remove the file.",
+   "raised": 2
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 231,
+   "end_line": 242,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Encrypted columns are found only by exact name, so renaming or deriving a column bypasses stripping.",
+   "body": "Columns are nulled only when their name is exactly `${type}.${attr}`. A pipeline such as `| EVAL s = connector.secrets` or `| RENAME connector.secrets AS s` (or `CONCAT`, `STATS VALUES(...)`) returns the encrypted value under another name, untouched. This applies whenever the encrypted attribute is mapped and readable by ES|QL; I could not check the mappings of every encrypted type. Fix: inspect the pipeline for references to encrypted fields, or exclude them with a `DROP`/filter before the user pipeline runs, so the check does not depend on the output column names.",
+   "raised": 2
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 50944,
+  "cacheRead": 57468,
+  "output": 8448,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 25,
+   "hunks": 30,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 108416,
+   "outputTokens": 8448,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 25,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+    "line": 21,
+    "end_line": 21,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "intent_mismatch",
+    "title": "The composer is imported from `@elastic/esql`, not the `@kbn/esql-language` package the PR describes.",
+    "body": "The PR description and the PRD say the `esql` composer comes from `@kbn/esql-language`. This file imports `esql` from `@elastic/esql` and relies on `esql.from(indices, metadata).print()`. If that package is not a declared dependency of this core package, or its `from` API differs, building the FROM clause fails at build or run time. I could not verify the package or its API from here. Fix: import from the intended package and declare it in the package's dependencies.",
+    "raised": 1
+   }
+  ]
+ },
+ "cost_usd": 0.43518959999999995
+}

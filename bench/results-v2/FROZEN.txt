@@ -1,0 +1,6 @@
+Config frozen after the dev-half run of 2026-11-15 (grapim-lean: dev recall 52.9% vs pr-agent 44.1%).
+Variant: grapim-lean = review "all", no notes, limits { fileContextChars: 0, contextLines: 10 }, model claude-opus-5-5.
+sha256 of src/airev/*.js (the engine), first 16 hex: 0953666f8da89000
+The held-out half (--split test) must be run with the engine unchanged, or the dev half re-run first.
+
+Later engine commits (passes as an option, default 1; the summary's last line for cloud review): sha256 95144892ed9c932f on 2026-11-15. A single-pass request is byte-for-byte what it was at 0953666f8da89000 (the prompt, schema, effort and message were not touched), so the dev-half results above still describe it.

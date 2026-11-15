@@ -1,0 +1,90 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The PollFeed job calls open(SiteSetting.feed_polling_url) without validating the URL, allowing an attacker who controls the feed_polling_url site setting to make the server fetch arbitrary internal or external URLs.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    7
+   ],
+   "confidence": 0.8,
+   "reasoning": "C7 flags the same unvalidated open(SiteSetting.feed_polling_url) call. It frames the risk as shell/file access rather than SSRF, but the fix it gives (accept only http/https) covers the same problem."
+  },
+  {
+   "comment": "The current origin validation using indexOf is insufficient and can be bypassed. An attacker could use a malicious domain like evil-discourseUrl.com to pass this check.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [
+    6
+   ],
+   "confidence": 0.9,
+   "reasoning": "C6 points out the same weakness: the indexOf origin check is a substring match and can be bypassed."
+  },
+  {
+   "comment": "postMessage targetOrigin should be the origin (scheme+host+port), not the full referrer URL; using the full URL will cause the message to be dropped and prevent resizing.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions that postMessage gets the full referrer URL as its targetOrigin."
+  },
+  {
+   "comment": "The code sets X-Frame-Options: ALLOWALL which completely disables clickjacking protection. The referer validation can be bypassed (referer headers are easily spoofed), and the fallback to empty string for nil referer masks validation failures.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises X-Frame-Options ALLOWALL or the bypassable referer check."
+  },
+  {
+   "comment": "The TopicEmbed.import method is susceptible to a NoMethodError if the contents parameter is nil when attempting to append a string, and an XSS vulnerability due to unescaped url interpolation in the generated HTML.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.75,
+   "reasoning": "C4 covers the XSS from putting the url into the HTML unescaped. It does not cover the nil-contents NoMethodError half of the golden comment."
+  },
+  {
+   "comment": "The ERB block closes with end if, which is invalid Ruby/ERB and will raise at render; it should just be end to close the if block.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the invalid 'end if' in the ERB template."
+  },
+  {
+   "comment": "Calling `i.content.scrub` assumes that `i.content` is always populated. However, many RSS feeds do not provide a `content` field, leading to a potential nil pointer exception when `i.content` is nil. A fallback to `description` should be implemented to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 describes the same crash when i.content is nil and suggests the same fallback to description."
+  },
+  {
+   "comment": "An unescaped request header (request.referer) is interpolated into JavaScript without proper escaping, which can lead to XSS vulnerabilities if the referer contains malicious content. This issue can allow attackers to execute arbitrary scripts in the context of the application.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate flags the referer being put into JavaScript unescaped."
+  }
+ ],
+ "candidates": [
+  "app/models/post.rb:131 - raw_html posts skip all sanitization and are served as stored HTML on the forum origin.. When `cook_method` is `raw_html`, `cook` returns `raw` as-is, so nothing passes through the sanitizer. That HTML comes from the RSS feed after `CGI.unescapeHTML`, or from a page fetched by `import_remote`. Any `<script>`, `onerror=`, `javascript:` href or iframe in the feed or page then runs on the forum's origin. It shows on the topic page and in the embed view, which prints it with `raw post.cooked`. Anyone who controls or compromises the source blog or feed gets stored XSS against forum users. Fix: run raw_html content through the same whitelist sanitizer the normal cook pipeline uses, and skip only the markdown step.",
+  "lib/tasks/disqus.thor:148 - Disqus import loses its `--category` option and the original thread dates.. The hunk removes the `--category` option and the `category_id` lookup, and stops passing `created_at`. Imported topics now go to the default category and get the date of the import, not the original Disqus date. Anyone who runs the task with `-c` now gets an unknown-option error. Every thread is also fetched over HTTP, so one URL that is unreachable or returns 404 raises an error and stops the whole import. Nothing in the request asks to remove these features. Keep the category and created_at handling, and rescue fetch errors for each thread.",
+  "app/jobs/scheduled/poll_feed.rb:35 - `i.content.scrub` crashes on feed items that have no content element.. SimpleRSS sets `content` only when the item has `<content>` or `<content:encoded>`. Plain RSS 2.0 items often have only `<description>`. For those items `i.content` is nil, the job raises NoMethodError and stops importing the rest of the feed. Because `retry: false` is set, this happens again every hour. Fix: fall back to `i.description` and skip the item when both are blank.",
+  "app/models/topic_embed.rb:11 - URL check uses a line anchor, and the URL is put into HTML without escaping.. `url =~ /^https?:\\/\\//` uses `^`, which matches at the start of any line. A feed item link such as `\"javascript:alert(1)\\nhttp://x\"` passes the check. The URL is then put unescaped into `<a href='#{url}'>`, so a `'` in it breaks out of the attribute, and the result is rendered as raw HTML. Fix: anchor the pattern with `\\A`, parse the URL with `URI`, and HTML-escape `url` before building the link.",
+  "db/migrate/20131223171005_create_top_topics.rb:3 - An existing migration is changed to `force: true`, which drops `top_topics` when it runs.. This migration is unrelated to embedding. With `force: true`, any database where it runs again (or for the first time while a `top_topics` table already exists) silently drops the table and its data. Editing a migration that has already shipped also makes databases differ depending on when they were migrated. Revert this change. `force: true` in the new `create_topic_embeds` migration is risky in the same way.",
+  "app/assets/javascripts/embed.js:17 - The postMessage origin check is a substring match.. `discourseUrl.indexOf(e.origin) === -1` also accepts any origin that is a prefix of `discourseUrl`. For example, `https://forum.example.co` is accepted when `discourseUrl` is `https://forum.example.com/`. A page on that origin can then resize the embed iframe. Compare `e.origin` exactly with the origin parsed from `discourseUrl`.",
+  "app/jobs/scheduled/poll_feed.rb:29 - `Kernel#open` on a value from a setting can run a shell command or read a local file.. `open(SiteSetting.feed_polling_url)` treats a value starting with `|` as a shell command, and a plain path as a local file. Whoever can change this setting can run commands on the server. Use `URI.parse(url).open` or an HTTP client, and accept only http and https URLs. `import_remote` (`open(url)`) has the same problem when it is called from the Disqus import."
+ ]
+}

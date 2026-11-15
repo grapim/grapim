@@ -1,0 +1,55 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "Infisical__infisical__5687",
+ "url": "https://github.com/Infisical/infisical/pull/5687",
+ "head_sha": "98b67bb64cdbe9f2d67529791c1882295dc1012f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:12:41.508Z",
+ "seconds": 8.5,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "backend/src/server/plugins/auth/inject-identity.ts",
+   "line": 246,
+   "end_line": 249,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Fire-and-forget telemetry promise has no rejection handler and runs on every request.",
+   "body": "`void server.services.telemetry.identifyIdentity(...)` discards the promise without a `.catch`. Unless `identifyIdentity` catches every error internally, a PostHog failure (network error, timeout, bad config) becomes an unhandled rejection. On Node ≥15 that terminates the process by default, so an outage of an external analytics service could take down the API.\n\nThis also runs on every machine-identity request, not once per identity, which adds an outbound telemetry call to the auth hot path.\n\nFix: attach a `.catch(() => {})` (or log at debug level) here. Also dedupe or throttle per `identityId`, for example with a short-lived cache, so the identify call is not repeated for every API request."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 12404,
+  "cacheWrite": 0,
+  "cacheRead": 4192,
+  "output": 644,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16596,
+   "outputTokens": 644,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.0633344
+}

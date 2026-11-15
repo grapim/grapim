@@ -1,0 +1,13 @@
+{
+ "tool": "claude-action",
+ "pr_id": "elastic__kibana__255866",
+ "url": "https://github.com/elastic/kibana/pull/255866",
+ "head_sha": "a6802508b578eef72844226f3145fd58515a742d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:22:36.634Z",
+ "seconds": 107.573,
+ "status": "error",
+ "note": "Error: git worktree add --detach: Preparing worktree (detached HEAD a6802508b)\nUpdating files:   0% (183/105579)\rUpdating files:   0% (504/105579)\rUpdating files:   0% (857/105579)\rUpdating files:   1% (1056/105579)\rUpdating files:   1% (1230/105579)\rUpdating files:   1% (1552/105579)\rUpdating files:   1% (1972/105579)\rUpdating files:   2% (2112/105579)\rUpdating files:   2% (2397/105579)\rUpdating files:   2% (2779/105579)\rUpdating\n    at git (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:38:11)\n    at worktree (file:///C:/Users/OS/Desktop/commons/bench/lib/git.mjs:119:3)\n    at Object.claudeAction [as claude-action] (file:///C:/Users/OS/Desktop/commons/bench/lib/adapters.mjs:275:16)\n    at file:///C:/Users/OS/Desktop/commons/bench/run.mjs:186:33\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:69:30\n    at async Promise.all (index 0)\n    at async pool (file:///C:/Users/OS/Desktop/commons/bench/run.mjs:68:3)\n    at async file:///C:/Users/OS/Desktop/commons/bench/run.mjs:162:1",
+ "cost_usd": 0
+}

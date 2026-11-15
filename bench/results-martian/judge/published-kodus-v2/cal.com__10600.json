@@ -1,0 +1,52 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The exported function TwoFactor handles backup codes and is in BackupCode.tsx. Inconsistent naming.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the TwoFactor/BackupCode.tsx naming mismatch."
+  },
+  {
+   "comment": "Error message mentions 'backup code login' but this is a disable endpoint, not login",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the wrong 'backup code login' error message in the disable endpoint."
+  },
+  {
+   "comment": "Backup code validation is case-sensitive due to the use of indexOf(). This causes validation to fail if a user enters uppercase hex characters, as backup codes should be case-insensitive for a better user experience.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions that indexOf makes backup code checks case-sensitive."
+  },
+  {
+   "comment": "Because backupCodes are decrypted and mutated in memory before being written back, two concurrent login requests using the same backupCode could both pass this check and update, so a single backup code may effectively be accepted more than once if used concurrently, weakening the intended one-time-use semantics.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "C1 does describe a backup-code replay race, but it places it in the disable flow and says the login flow consumes codes correctly. G4 is about the non-atomic read-modify-write in the login flow itself, which lets concurrent logins reuse one code. Because C1 treats the login flow as safe, it is a different issue."
+  },
+  {
+   "comment": "Object URL for backup codes is not revoked on component unmount, leading to a potential memory leak. This can cause increased memory usage over time, especially if the component is mounted and unmounted frequently.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the object URL that is never revoked."
+  }
+ ],
+ "candidates": [
+  "Inconsistent backup code consumption between login flow and disable-2FA flow - in login flow (next-auth-options.ts) the backup code is immediately consumed by setting backupCodes[index] = null and persisting to database, but in disable flow (totp/disable.ts) the backup code is NOT consumed after verification, creating a race condition window where the same backup code could be replayed in a concurrent request before the final database update that nullifies all codes"
+ ]
+}

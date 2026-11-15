@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "microsoft__TypeScript__65022",
+ "url": "https://github.com/microsoft/TypeScript/pull/65022",
+ "head_sha": "ad98c177d3b79373edbb817fb790b12cdde3693f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:18:34.401Z",
+ "seconds": 28.33,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "tsc/internal/parser/jsdoc.go",
+   "line": 1200,
+   "end_line": 1200,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A top-level tag whose type fails to parse is now absorbed into the preceding nested object",
+   "body": "The new `!ast.NodeIsMissing(child.Name())` check treats every child tag with a missing name as part of the current nested literal, whether or not it was written as `name.x`. The name is missing because the type failed to parse, so the parser never reads the real name, which may be a top-level one.\n\nThis breaks a common legacy pattern, and Closure `function(...)` types now fail to parse:\n```js\n/**\n * @param {Object} opts\n * @param {string} opts.a\n * @param {function(Error)} callback\n */\n```\nBefore this change, `callback` ended the `opts` literal. Now it is added to `opts` as a required property named `\"\"`. Every call that passes `{ a: \"x\" }` for `opts` then fails with a \"property '' is missing\" error. That error shows up at the call sites, far from the `TS1005`, which is the confusing kind of report the issue complains about. The same happens to a flat `@property` that follows nested ones in a `@typedef`.\n\nSuggested fix: before keeping the tag nested, check that the raw text after the type starts with `<name>.`. Or don't add a missing-name child to the literal at all, and keep scanning so the later siblings stay nested. Also add a test with a broken top-level tag after nested ones."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 7045,
+  "cacheRead": 3262,
+  "output": 2314,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 10309,
+   "outputTokens": 2314,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #65020",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0821654
+}

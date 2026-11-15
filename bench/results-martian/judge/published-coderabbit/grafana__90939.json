@@ -1,0 +1,31 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "grafana__90939",
+ "url": "https://github.com/grafana/grafana/pull/90939",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The GetWebAssets function implements an incomplete double-checked locking pattern for caching web assets. The function first checks if the cache is populated using a read lock (RLock), and if the cache is empty, it acquires a write lock to populate it. However, it fails to re-check whether the cache was populated by another goroutine while waiting to acquire the write lock.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same gap: the cache isn't checked again after the write lock is acquired."
+  },
+  {
+   "comment": "In addition to the missing double-check, the function has a critical flaw in its error handling: it unconditionally assigns the fetch result to the cache (line 69: entryPointAssetsCache = result) regardless of whether the fetch succeeded or failed. When an error occurs during asset fetching, result is nil, and this nil value overwrites any previously valid cache entry.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions that a nil result on error overwrites the cache."
+  }
+ ],
+ "candidates": [
+  "Add a second cache check under the write lock to avoid redundant rebuilds - a concurrent caller could fill the cache between the initial RUnlock and Lock, re-checking avoids extra IO",
+  "Docstring coverage is 0.00% which is insufficient - the required threshold is 80.00%, need to write docstrings for functions missing them"
+ ]
+}

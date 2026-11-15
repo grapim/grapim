@@ -1,0 +1,35 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 flags the missing key on GrafanaRuleListItem."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.8,
+   "reasoning": "C3 points out that the silence drawer is gated on the ruler rule, so the Silence item does nothing for prom-only rules."
+  }
+ ],
+ "candidates": [
+  "public/app/features/alerting/unified/components/rule-viewer/AlertRuleMenu.tsx:73 - The skipToken path still grants Duplicate, so cloud rules show Duplicate based on Grafana's create permission.. For a non-Grafana `promRule`, or when `promRule` is undefined, the hook gets `skipToken`. `useAllGrafanaPromRuleAbilities(undefined)` then returns `loading: false` and `isPluginProvided: false`, so Duplicate becomes `toAbility(AlwaysSupported, getRulesPermissions('grafana').create)`. Because `canDuplicate` ORs this with the ruler result, a Mimir/Prometheus rule shows Duplicate whenever the user has Grafana `alert.rules:create`. This happens even when the ruler says the action is unsupported (no ruler, ruler still loading) or the user lacks external rule write permissions. Make every ability return NotSupported when the rule is skipped, or only use the Grafana result when `promRule` is a Grafana rule.",
+  "public/app/features/alerting/unified/hooks/useAbilities.ts:227 - Federated rule groups are no longer treated as immutable by useAllAlertRuleAbilities.. `useAllAlertRuleAbilities` used to set `isFederated = isFederatedRuleGroup(rule.group)`, which made Mimir federated groups (with `source_tenants`) immutable. It now delegates to `useAllRulerRuleAbilities`, which hardcodes `isFederated = false` (line 245). As a result, Update/Delete/Pause become supported for federated rules wherever the deprecated CombinedRule hook is still used, such as the existing list view and the details components. Pass the federation state through to `useAllRulerRuleAbilities`, or keep the `isFederatedRuleGroup(rule.group)` check in this wrapper.",
+  "public/app/features/alerting/unified/rule-list/components/RuleActionsButtons.V2.tsx:25 - The list view loses Delete and Pause, and probably Silence, when no ruler rule is passed.. The new list only passes `promRule`, so `rule` (the ruler rule) is undefined. The Delete action calls `handleDelete(rulerRule, …)` and Pause renders `MenuItemPauseRule` with the ruler rule, so both are dropped even when `canDelete`/`canPause` are true. The new GrafanaGroupLoader test confirms this: with delete permission granted, it asserts that exactly 4 menu items appear and Delete is not one of them. The silence drawer in this component (unchanged lines) is likely gated on `rulerRuleType.grafana.rule(rule)`. If so, the Silence item shown for prom-only rules opens nothing. I could not see those lines to confirm. Either support these actions with a prom rule (by uid) or hide the menu items, and don't lock the regression into the test.",
+  "public/app/features/alerting/unified/rule-list/FilterView.tsx:157 - The `key` prop was dropped from the list item rendered inside `rules.map`.. The old `GrafanaRuleLoader` got `key={key}`, but the new `GrafanaRuleListItem` has no key. This causes React key warnings, and React matches items by index, so when rules are added or filtered, state such as open drawers or menus can attach to the wrong rule. Add `key={key}`."
+ ]
+}

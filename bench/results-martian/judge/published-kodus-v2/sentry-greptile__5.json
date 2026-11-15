@@ -1,0 +1,66 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The BrowserReportingCollectorEndpoint returns HttpResponse objects but the endpoint inherits from Endpoint which expects rest_framework.response.Response objects.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate addresses HttpResponse vs Response."
+  },
+  {
+   "comment": "In BaseDetectorTypeValidator.update(), the validator incorrectly updates instance.type using validated_data.get('detector_type') instead of validated_data.get('type').",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate about detector_type key."
+  },
+  {
+   "comment": "Using zip(error_ids, events.values()) assumes the get_multi result preserves the input order; dict value order is not guaranteed to match error_ids, so event data can be paired with the wrong ID (missing nodes also shift alignment).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same zip ordering issue."
+  },
+  {
+   "comment": "Hardcoded empty data passed to TableWidgetVisualization causes it to always render an empty table instead of displaying actual results when the feature flag is enabled.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 describes the same hardcoded empty data issue."
+  },
+  {
+   "comment": "Validation logic incorrectly uses .get('timestamp'), which treats a timestamp of 0 as absent. It should directly check 'timestamp' in self.initial_data to ensure proper field presence detection, preventing both 'age=0' and 'timestamp' from passing mutual-exclusion validation.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate about timestamp 0 validation."
+  },
+  {
+   "comment": "Analytics events are recorded before the feature flag check, resulting in analytics being logged for all requests, including those that return 404 due to the feature being disabled. This can lead to misleading analytics data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate about analytics before the feature flag check."
+  }
+ ],
+ "candidates": [
+  "In project_replay_summarize_breadcrumbs.py, zip(error_ids, events.values()) unsafely assumes nodestore.backend.get_multi returns entries in the same order as input keys and that all requested keys are present, causing silent mispairing of error IDs with wrong event data when entries are missing",
+  "TableWidgetVisualization in chart.tsx passes empty hardcoded placeholders (columns: [] and tableData: { data: [], meta: { fields: {}, units: {} } }) instead of actual result.data, result.meta, and fields, rendering an empty table regardless of data when use-table-widget-visualization feature flag is enabled",
+  "AttributeError at runtime: get_merged_pr_single_issue_template calls PRCommentWorkflow._truncate_title(title) but _truncate_title is defined as a @staticmethod on CommitContextIntegration, not on PRCommentWorkflow, causing crashes when GitHubPRCommentWorkflow or GitlabPRCommentWorkflow invoke this method"
+ ]
+}

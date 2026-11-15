@@ -1,0 +1,61 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "MetaMask__metamask-mobile__31075",
+ "url": "https://github.com/MetaMask/metamask-mobile/pull/31075",
+ "head_sha": "ef18288a8c8935af936a6f50993936771e772b23",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T02:10:36.841Z",
+ "seconds": 22.986,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "app/components/UI/Ramp/Views/NativeFlow/components/PhoneField/PhoneField.tsx",
+   "line": 60,
+   "end_line": 66,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Prefix inference can pick the wrong country for shared dialing codes and override the user's region.",
+   "body": "`defaultPhoneCountry` is whatever `findCountryByPhonePrefix` returns, and only falls back to `fallbackCountry` when nothing matches. Several countries share a dialing code (`+1` for US, Canada and many Caribbean territories; `+7` for Russia and Kazakhstan; `+44` for GB and the Crown Dependencies).\n\n`findCountryByPhonePrefix` sorts by prefix length only. The sort is stable, so among equal-length matches the first country in the list wins. That is usually alphabetical.\n\nTrigger: a US user returns to Basic Info with a prefilled `+1…` number. The field shows Canada's flag, Canada's template and placeholder, and Canada is marked as selected in the modal, even though the user's region is US.\n\nFix: when the user's region country's prefix matches the number, use the region country. Only use prefix inference when the region prefix does not match. For example:\n\n```ts\nconst fallbackPrefix = getPhonePrefixDigits(fallbackCountry);\nconst digits = initialNumber?.replace(/\\D/g, '') ?? '';\nif (fallbackCountry && fallbackPrefix && digits.startsWith(fallbackPrefix)) return fallbackCountry;\n```\n\nI could not see the real country list's prefix format or ordering. If codes are stored as distinct prefixes such as `+1684`, the overlap is smaller but plain `+1` still collides."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 39759,
+  "cacheWrite": 0,
+  "cacheRead": 3117,
+  "output": 2137,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 31,
+   "hunks": 39,
+   "reviewedHunks": 39,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 42876,
+   "outputTokens": 2137,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 31,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2023994
+}

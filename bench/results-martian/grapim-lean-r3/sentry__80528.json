@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__80528",
+ "url": "https://github.com/getsentry/sentry/pull/80528",
+ "head_sha": "dcdcadb771128e79259cc9eff9c70c38fc597976",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:24:58.159Z",
+ "seconds": 17.997,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 12600,
+  "cacheRead": 3262,
+  "output": 898,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 15864,
+   "outputTokens": 898,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/sentry/monitors/logic/mark_failed.py",
+    "line": 8,
+    "end_line": 9,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Names moved out of mark_failed with no re-export can break existing importers",
+    "body": "`mark_failed_threshold`, `create_issue_platform_occurrence`, `get_failure_reason`, `get_monitor_environment_context` and `SimpleCheckIn` are removed from `sentry.monitors.logic.mark_failed`. Two of them are also renamed: `mark_failed_threshold` becomes `try_incident_threshold` and `create_issue_platform_occurrence` becomes `create_incident_occurrence`. Any module or test that still imports these names from `mark_failed`, or patches them there with `mock.patch(\"sentry.monitors.logic.mark_failed....\")`, will raise ImportError or AttributeError. Tests of `get_failure_reason` are a likely example. I can't see the rest of the repo, so I couldn't check whether those callers were updated. Update every importer and patch target to the new modules, or re-export the old names from `mark_failed` for now."
+   }
+  ]
+ },
+ "cost_usd": 0.0816204
+}

@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sympy__sympy__30393",
+ "url": "https://github.com/sympy/sympy/pull/30393",
+ "head_sha": "6a273d9be1e485d68af0d875e78750b53452abf4",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:04:30.126Z",
+ "seconds": 32.335,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "sympy/functions/special/error_functions.py",
+   "line": 2938,
+   "end_line": 2939,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Arguments are rounded to `prec` bits before the guard bits apply, so large irrational `h` returns wrong digits.",
+   "body": "`h` and `a` are converted with `_to_mpmath(prec)`, outside `workprec(prec + 10)`, so the guard bits never reach the inputs. The integrand is `exp(-h²(1+t²)/2)`, which means a relative error δ in `h` becomes a relative error of about `h²·δ` in T. For an irrational `h` such as `100*sqrt(2)`, `h²` is about 2·10⁴ (~15 bits), more than the 10 guard bits, so the trailing digits of the result are wrong but get reported as accurate. That breaks the `Add` cancellation retries this change is meant to support. Fix: convert the arguments at a higher precision that grows with `h`, e.g. `prec + 10 + bitcount(|h|²)`, inside the `workprec` block."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 7033,
+  "cacheRead": 0,
+  "output": 2756,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 1,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 7035,
+   "outputTokens": 2756,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 1,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "sympy/functions/special/error_functions.py",
+    "line": 2952,
+    "end_line": 2953,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The `mpmath.quad` error estimate is never checked, so an inaccurate quadrature is returned at full claimed precision.",
+    "body": "`mpmath.quad` never raises when tanh-sinh fails to converge. It just returns its best estimate. The result goes straight to `Expr._from_mpmath(result, prec)` and is reported as accurate to `prec` bits. This can go wrong when `|h|` is large and `a` is far from 0 (e.g. `owens_t(40, 1e6)`), because the integrand is a narrow peak of width about 1/|h| at the start of a very long interval, and when `a` is complex with a large modulus. In those cases the result can carry far fewer correct bits than claimed, and `Add` uses it without knowing. The old `Integral.evalf` path tracked quadrature accuracy. Fix: call `mpmath.quad(..., error=True)` and return `None` (or retry at higher precision) when the error is too large. Also consider splitting the interval at about `min(|a|, c/|h|)` so the peak gets its own subinterval."
+   }
+  ]
+ },
+ "cost_usd": 0.090293
+}

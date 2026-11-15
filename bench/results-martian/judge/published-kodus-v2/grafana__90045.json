@@ -1,0 +1,38 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "grafana__90045",
+ "url": "https://github.com/grafana/grafana/pull/90045",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The context is being created with d.Log instead of the log variable that was initialized with additional context values (name, kind, method). This means those values won't be propagated to the logging context.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate addresses the context being created with d.Log instead of the log variable."
+  },
+  {
+   "comment": "In DualWriterMode3's DeleteCollection method, when a storage operation fails, recordStorageDuration is incorrectly called with recordLegacyDuration instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate covers the wrong metric function being called in DeleteCollection."
+  },
+  {
+   "comment": "Inconsistency: using name instead of options.Kind for metrics recording differs from other methods.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 flags that name is passed instead of options.Kind for metrics recording, which is the same issue as G3."
+  }
+ ],
+ "candidates": [
+  "In pkg/apiserver/rest/dualwriter_mode3.go line 106, the Delete success path passes the object's unique name as the kind metric label to recordStorageDuration instead of options.Kind, creating an unbounded number of Prometheus time-series (one per unique object name), leading to cardinality explosion and potential memory exhaustion in the metrics backend"
+ ]
+}

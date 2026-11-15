@@ -1,0 +1,40 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Asynchronous functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called without await inside forEach loops. This occurs during booking rescheduling/cancellation, and workflow/workflow step deletion/updates. Consequently, scheduled workflow reminders may not be reliably cancelled, potentially leaving them active.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: the async delete reminder functions are called inside forEach without await, so cancellations can be dropped."
+  },
+  {
+   "comment": "When immediateDelete is true, the deleteScheduledEmailReminder function cancels the SendGrid email but fails to delete the corresponding WorkflowReminder record from the database. This creates orphaned database entries and is inconsistent with the immediateDelete: false path, which marks the record as cancelled. The SendGrid DELETE API call is also omitted in this path.",
+   "severity": "High",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.7,
+   "reasoning": "G2 says the immediateDelete=true path leaves an orphaned WorkflowReminder record in the database. C2 only says the reschedule flow's use of immediateDelete=true is inconsistent with the deferred approach. It does not mention the missing database deletion."
+  },
+  {
+   "comment": "The 'cancelled' field is nullable, which can lead to existing records having null values instead of a default of false. This can cause incorrect behavior in the application when checking the cancellation status of reminders.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention that the 'cancelled' field is nullable or lacks a default."
+  }
+ ],
+ "candidates": [
+  "Several handlers call async deleteScheduledEmailReminder/deleteScheduledSMSReminder inside forEach without awaiting, so cancellations can be dropped when the request finishes (especially in serverless) and promise rejections won't be caught, resulting in reminders still being sent for cancelled/rescheduled bookings",
+  "Reschedule flow cancels previous booking email reminders with immediateDelete=true, which bypasses the new deferred-cancellation (cancelled flag + cron) approach and is inconsistent with other reschedule/cancel paths, potentially leaving reminders active or reintroducing the cancellation-pressure pattern the PR aims to avoid",
+  "The new cron cancellation query doesn't restrict to EMAIL reminders or non-null referenceId and then posts batch_id from reminder.referenceId which can be null, causing failed cancellations or attempts to cancel non-email reminders, with errors only being console.logged"
+ ]
+}

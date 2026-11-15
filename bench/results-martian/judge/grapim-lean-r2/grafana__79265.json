@@ -1,0 +1,61 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same race: the count check and the insert are not atomic, so concurrent requests can go over the limit."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "C3 also notes that tagging moved from async to sync, but its concern is latency and context cancellation. It does not raise the point that anonymous authentication fails outright once the limit is reached."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C4 makes the same point: treating RowsAffected==0 as 'limit reached' wrongly denies devices, because zero rows does not mean the limit was hit."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the inconsistent time window calculation."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same bug: the cache is set before CreateOrUpdateDevice runs, so a denied device gets past the limit until the cache entry expires."
+  }
+ ],
+ "candidates": [
+  "pkg/services/anonymous/anonimpl/impl.go:147 - The limit can probably be bypassed on the second request because the local cache is likely set before the DB write.. `tagDeviceUI` (not shown) most likely checks `localCache` and calls `SetDefault(key)` before it calls `CreateOrUpdateDevice`. If so, a device that is denied with `ErrDeviceLimitReached` is still cached. Its next request within the 29-minute TTL hits the cache, `TagDevice` returns nil, and `Authenticate` lets it in. The limit only blocks the first request. I could not see `tagDeviceUI` to confirm the order. If it is as described, write to the cache only after the store call succeeds, or delete the key when the call fails.",
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:109 - The count-then-insert check is not atomic, so concurrent new devices can go over the limit.. `CountDevices` and the following upsert run as separate statements, with no transaction or lock around them. When N new devices arrive at the same time while the count is `limit-1`, all of them see `count < limit` and all of them are inserted. HA replicas make this worse, because each has its own local cache. The limit is then only approximate. If it must be strict, do the check and the insert in one transaction with a suitable lock, or use a conditional insert.",
+  "pkg/services/anonymous/anonimpl/client.go:44 - Device tagging now runs synchronously on every anonymous request, even when no limit is set.. Before this change `TagDevice` ran in a background goroutine with its own 2-minute timeout and panic recovery. Now it runs inline in `Authenticate` and uses the request context. Every anonymous request that misses the local cache now waits for the DB upsert, plus a `CountDevices` range query when a limit is set. This happens for all deployments, including the default `device_limit = 0`. A client that cancels or times out also cancels the write, and the write is then logged as a failure. Keep the async path when `deviceLimit == 0`, and only do the synchronous check when a limit is configured.",
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:95 - Treating `RowsAffected == 0` as \"limit reached\" can deny devices that already exist on MySQL.. MySQL reports matched-but-unchanged rows as 0 affected by default, and `updated_at` has second precision there. Two updates for the same known device within the same second, for example from different HA instances that do not share a local cache, leave the row unchanged. The update then returns 0 rows, and an already-registered device is rejected with `ErrDeviceLimitReached`. Check whether the device exists (for example a SELECT on the same condition) instead of relying on `RowsAffected`."
+ ]
+}

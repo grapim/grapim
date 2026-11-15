@@ -1,0 +1,58 @@
+{
+ "tool": "published-kodus-v2",
+ "pr_id": "keycloak__36880",
+ "url": "https://github.com/keycloak/keycloak/pull/36880",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Inconsistent feature flag bug causing orphaned permissions. The AdminPermissions event listener, responsible for cleaning up permissions upon role, client, or group removal, is incorrectly guarded by the ADMIN_FINE_GRAINED_AUTHZ (V1) feature flag. This is inconsistent with other methods in the class that use ADMIN_FINE_GRAINED_AUTHZ_V2. Consequently, if ADMIN_FINE_GRAINED_AUTHZ_V2 is enabled but V1 is not, the permission cleanup logic will not execute, leading to orphaned permission data. Cleanup should occur regardless of which fine-grained authorization version is enabled.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.5,
+   "reasoning": "C1 flags the same event-listener guard, which checks ADMIN_FINE_GRAINED_AUTHZ while V2 is in use. It names a different consequence (an UnsupportedOperationException crash rather than cleanup being skipped), but it points to the same V1/V2 flag mismatch on the same code."
+  },
+  {
+   "comment": "In hasPermission(ClientModel client, String scope), the resource lookup uses findByName(server, client.getId(), server.getId()), but AdminPermissionsSchema.getOrCreateResource creates per-client resources with the owner set to resourceServer.getClientId(), so this lookup will never find those resources and will always fall back to the 'all-clients' resource, effectively ignoring client-specific permissions.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions the owner mismatch in findByName (client.getId() vs the resource server's clientId)."
+  },
+  {
+   "comment": "In getClientsWithPermission(String scope), iterating resourceStore.findByType(server, AdminPermissionsSchema.CLIENTS_RESOURCE_TYPE) and returning resource.getName() will only ever consider the type-level 'Clients' resource (per-client resources have no type) and return its name, while AvailableRoleMappingResource#getRoleIdsWithPermissions expects actual client IDs to pass to realm.getClientById, which can lead to incorrect behavior or a null client and subsequent failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers getClientsWithPermission returning resource names instead of client IDs."
+  },
+  {
+   "comment": "In ClientPermissionsV2.hasPermission, the method getResourceTypeResource could return null, leading to a NullPointerException in findByResource. Defensive null checks are needed to prevent this issue.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 describes the NPE that happens when getResourceTypeResource returns null and that null is passed to findByResource."
+  },
+  {
+   "comment": "Remove unused getEvaluationContext private method in ClientPermissionsV2 - it is defined but never called",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the unused getEvaluationContext method."
+  }
+ ],
+ "candidates": [
+  "UnsupportedOperationException thrown on client removal when ADMIN_FINE_GRAINED_AUTHZ_V2 is enabled - Line 77 guards on ADMIN_FINE_GRAINED_AUTHZ, but management() returns MgmtPermissionsV2 when ADMIN_FINE_GRAINED_AUTHZ_V2 is enabled, and ClientPermissionsV2.setPermissionsEnabled() unconditionally throws UnsupportedOperationException, crashing the ClientRemovedEvent handler. Same applies to RoleRemovedEvent and GroupRemovedEvent",
+  "NullPointerException in hasPermission(ClientModel, String) when getResourceTypeResource returns null - Line 214 finds no resource for the specific client, falls through to line 217 for 'all-clients' resource lookup, and if that also returns null, line 219 passes null resource to findByResource(server, resource) causing NPE",
+  "Inconsistent admin-role fallback between canManage(ClientModel) and canMapRoles/canMapCompositeRoles/canMapClientScopeRoles - canManage checks root.hasOneAdminRole(AdminRoles.MANAGE_CLIENTS) before evaluating V2 permissions, but the three map-roles methods skip admin-role checks entirely, breaking the principle that manage is a superset of map-roles"
+ ]
+}

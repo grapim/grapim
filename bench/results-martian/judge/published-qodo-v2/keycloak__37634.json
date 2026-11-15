@@ -1,0 +1,51 @@
+{
+ "tool": "published-qodo-v2",
+ "pr_id": "keycloak__37634",
+ "url": "https://github.com/keycloak/keycloak/pull/37634",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In AccessTokenContext constructor, the fourth Objects.requireNonNull validates grantType twice instead of validating rawTokenId, allowing null rawTokenId values to pass validation.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same duplicated grantType check, which means rawTokenId is never validated."
+  },
+  {
+   "comment": "In isAccessTokenId, the substring for the grant shortcut and the equality check look inverted: the grant shortcut occupies indices 4–5 (substring(4,6)), and a match should return true (combined with UUID check), not false.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2,
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 covers the wrong substring indices, and C3 covers the inverted equality check. Each is part of G2."
+  },
+  {
+   "comment": "Javadoc mentions \"usually like 3-letters shortcut\" but some implementations use 2-letter shortcuts (\"ac\", \"cc\", \"rt\", \"te\", \"pc\", \"ci\", \"ro\"). Consider updating documentation to reflect actual usage pattern.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the Javadoc saying the shortcut is usually 3 letters when the code uses 2-letter shortcuts."
+  },
+  {
+   "comment": " Catching generic RuntimeException is too broad. The implementation throws IllegalArgumentException specifically - catch that instead for more precise testing.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the test catching a generic RuntimeException instead of IllegalArgumentException."
+  }
+ ],
+ "candidates": [
+  "AccessTokenContext constructor validates grantType twice and never validates rawTokenId due to copy/paste mistake, allowing null raw IDs to produce malformed encoded token IDs",
+  "AssertEvents.isAccessTokenId rejects valid encoded token IDs due to incorrect substring indexing - uses substring(3,5) instead of positions [4,6) for the grant shortcut",
+  "AssertEvents.isAccessTokenId has inverted equality check - returns false when the extracted value equals the expected shortcut, so valid IDs won't match"
+ ]
+}

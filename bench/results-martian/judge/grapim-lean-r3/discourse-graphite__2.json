@@ -1,0 +1,32 @@
+{
+ "tool": "grapim-lean-r3",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "logic: Potential nil pointer exception - if no TopicUser record exists, tu will be nil and calling methods on it will crash",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out that tu is nil when no TopicUser row exists, which causes a NoMethodError."
+  },
+  {
+   "comment": "Typo in property name: 'stopNotificiationsText' should be 'stopNotificationsText' (missing 'n' in 'Notifications')",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the stopNotificiationsText typo."
+  }
+ ],
+ "candidates": [
+  "app/controllers/topics_controller.rb:105 - Unsubscribe crashes when the user has no TopicUser row.. `TopicUser.find_by` returns nil when the user has no row for this topic. That happens when the user was notified by a mention or a group message without ever visiting the topic, or when a logged-in user opens a link someone forwarded to them. The next line, `tu.notification_level`, then raises NoMethodError and the request fails with a 500. Fix: use `TopicUser.change(...)` or `find_or_initialize_by`, and treat a nil level as regular.",
+  "config/locales/server.en.yml:1852 - Shared `unsubscribe_link` string now requires `unsubscribe_url`, but only post notification emails pass it.. `MessageBuilder#html_part` (and probably the text body) calls `I18n.t('unsubscribe_link', template_args)` for every email with `add_unsubscribe_link: true`. Only `UserNotifications#send_notification_email` now passes `unsubscribe_url`. Other senders that set `add_unsubscribe_link`, such as the digest email, will hit a missing interpolation argument. That either raises I18n::MissingInterpolationArgument or shows a broken link. They would also show a \"this particular topic\" line that makes no sense in a digest. The spec had to add `unsubscribe_url` to pass, which points to the same problem. Fix: use a separate key for the per-topic line, and add it only when `@template_args[:unsubscribe_url]` is present. I could not see the other callers to confirm which ones set `add_unsubscribe_link`.",
+  "app/controllers/topics_controller.rb:98 - A GET request changes notification state with no CSRF protection.. `unsubscribe` is routed as GET (config/routes.rb) and saves a new notification level on every request. GET requests skip CSRF checks, so any third-party page can embed `<img src=\"https://forum/t/x/123/unsubscribe\">` and mute or downgrade topics for whoever is logged in. Mail link scanners that prefetch URLs can also unsubscribe users who never clicked. Repeat visits keep lowering the level (watching → regular → muted). Fix: make the GET only show a confirmation page, and do the change through a POST/PUT from the page, or protect the link with a per-user signed token."
+ ]
+}

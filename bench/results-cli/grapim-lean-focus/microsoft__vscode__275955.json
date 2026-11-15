@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "microsoft__vscode__275955",
+ "url": "https://github.com/microsoft/vscode/pull/275955",
+ "head_sha": "78d21e258e812314b44c11760e91d0e599a259f9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:36:22.580Z",
+ "seconds": 26.577,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 221,
+   "end_line": 221,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Skipping aria-activedescendant updates while Ctrl/Cmd is held breaks screen reader announcements for Ctrl-held navigation.",
+   "body": "Quick open has a normal keyboard flow where the user holds Ctrl (Cmd on macOS) and presses P/Tab again to move through items (quickOpenNavigateNext/Previous). It also has Ctrl+click and Ctrl+arrow paths. With this change, `keyMods.ctrlCmd` is true during all of these, so list focus moves but `aria-activedescendant` is never updated. Screen readers then announce nothing, or the stale item. Nothing resets the attribute when Ctrl is released, so it stays stale until the next focus change. `ctrlCmd` also maps to Cmd on macOS, which widens the regression. Either drop this guard or update the attribute when the modifier is released. The real fix is to avoid touching the attribute on bare modifier keydowns."
+  },
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 262,
+   "end_line": 262,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The same Ctrl guard on the tree focus handler stops tree pickers from announcing the focused item while Ctrl is held.",
+   "body": "This has the same problem as the list handler. While Ctrl/Cmd is held, tree focus changes (for example Ctrl-held quick-navigate) no longer update `aria-activedescendant`. The attribute then points at the previously focused element or at nothing, so screen reader users hear the wrong item. Remove the `!this.keyMods.ctrlCmd` condition, or re-sync the attribute when the modifier is released."
+  },
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 218,
+   "end_line": 221,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "aria-activedescendant is still set to an empty string instead of being removed.",
+   "body": "The PR description says that when there is no active descendant the attribute is now removed rather than set to `''`, so screen readers do not announce the placeholder. The code still calls `setAttribute('aria-activedescendant', list.getActiveDescendant() ?? '')`, and the tree handler does the same. Call `inputBox.removeAttribute('aria-activedescendant')` when `getActiveDescendant()` is undefined."
+  },
+  {
+   "path": "src/vs/platform/quickinput/browser/quickInputController.ts",
+   "line": 313,
+   "end_line": 313,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "The keydown handler still removes aria-activedescendant on a bare Ctrl press, so the reported announcement remains.",
+   "body": "The issue is that pressing Ctrl makes the screen reader read the input prompt again. The cause is that `onKeyDown` removes `aria-activedescendant` on every key, including bare modifiers, so focus moves back to the input and its label is spoken. The PR description says modifier keys (Ctrl/Shift/Alt/Meta) are skipped here. The code only edits a comment and still removes the attribute unconditionally. Add the keyCode check the description describes, for example skip when `e.keyCode` is `KeyCode.Ctrl`, `Shift`, `Alt` or `Meta`."
+  },
+  {
+   "path": "src/vs/platform/quickinput/test/browser/quickinput.test.ts",
+   "line": 283,
+   "end_line": 298,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The new test asserts nothing; it ends in `assert.ok(true)`.",
+   "body": "The test sets the placeholder a few times and then asserts `true`. It never reads the input's `aria-label`, and never checks whether setting the same value avoids a DOM write. It passes whatever the new skip-if-unchanged logic does. Assert the actual `aria-label` after each change, for example by reading it from the quick input's input element. Or observe the element with a MutationObserver to check that setting an identical value does not write to the DOM."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 7526,
+  "cacheRead": 3262,
+  "output": 2460,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 10790,
+   "outputTokens": 2460,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #271032",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0874904
+}

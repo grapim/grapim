@@ -1,0 +1,108 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "head_sha": "060cda77729cb1c4a827560e09e89a7b22078ba9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:34:40.873Z",
+ "seconds": 39.104,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/assets/javascripts/admin/controllers/admin-group.js.es6",
+   "line": 13,
+   "end_line": 13,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "totalPages counts one page too many when user_count is a multiple of limit.",
+   "body": "`Math.floor(user_count / limit) + 1` gives 2 for 50 members with limit 50, and 3 for 100. The UI then shows \"1/2\", `showingLast` stays false on the real last page, and \"next\" moves to an empty page (offset = user_count). The same thing happens after removing the last member on the last page. Use `Math.ceil(this.get(\"user_count\") / this.get(\"limit\"))`."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/models/group.js",
+   "line": 40,
+   "end_line": 59,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Failures when adding or removing members are silently ignored.",
+   "body": "`removeMember` and `addMembers` only attach a success handler, and the controller actions (`admin-group.js.es6` lines 51-65) ignore the returned promise. When the server answers 422 (automatic group), 404, or 500, nothing is shown and the list is not reloaded, so the admin gets no feedback that the change failed. The usernames input is also never cleared (see the TODO). Add a rejection handler that shows the server's `errors` with `bootbox.alert`, the way `save` already does."
+  },
+  {
+   "path": "app/controllers/groups_controller.rb",
+   "line": 22,
+   "end_line": 26,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The public group members page is now cut off at 50 members and has no way to page.",
+   "body": "Before this change, non-automatic groups returned every member and automatic groups returned up to 200. Now every request defaults to `limit=50`. The public `group-members` route calls `model.findMembers()` with the model's default limit of 50, and `group/members.hbs` has no next/previous controls. Any group with more than 50 members only shows the first 50 on its public page. Either add pagination or infinite loading to the public members template, or keep a higher limit there."
+  },
+  {
+   "path": "app/controllers/admin/groups_controller.rb",
+   "line": 24,
+   "end_line": 40,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "create/update now read top-level params, which breaks existing API clients that send `group[...]`.",
+   "body": "Before, `create` and `update` read `params[:group][:name]`, `params[:group][:visible]`, and so on. Now they read `params[:name]` and `params[:visible]` directly. An API client still sending the old nested shape gets a blank name on create, which fails validation. On update, its fields are ignored and `visible` is silently reset to false, because `params[:visible] == \"true\"` is now false. The `group[usernames]` and PATCH `changes` membership APIs are also removed with no replacement path for those clients. If external callers exist, accept both shapes or document the break."
+  },
+  {
+   "path": "app/controllers/groups_controller.rb",
+   "line": 22,
+   "end_line": 23,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "limit and offset are not validated, so negative or zero values reach SQL.",
+   "body": "`params[:limit].to_i` and `params[:offset].to_i` are passed directly to `.limit`/`.offset`. A request with `offset=-1` or `limit=-5` makes PostgreSQL raise an error (\"OFFSET must not be negative\"), which returns a 500. A very large `limit` also lets any viewer pull the whole member list in one request. Clamp both values, for example `limit = [[limit, 1].max, 200].min` and `offset = [offset, 0].max`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20322,
+  "cacheRead": 3262,
+  "output": 3509,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 18,
+   "reviewedHunks": 16,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 23586,
+   "outputTokens": 3509,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 15,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "app/assets/javascripts/discourse/templates/components/admin-group-selector.hbs",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1724504
+}

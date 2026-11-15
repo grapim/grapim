@@ -1,0 +1,31 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "keycloak__32918",
+ "url": "https://github.com/keycloak/keycloak/pull/32918",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "InfinispanIdentityProviderStorageProvider.getForLogin() recursively calls session.identityProviders().getById() instead of idpDelegate.getById(), causing the cache lookup to re-enter the same caching layer.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the recursive getById call in getForLogin."
+  },
+  {
+   "comment": "Cleanup reference uses incorrect alias - should be 'idp-alias-' + i instead of 'alias'.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same issue: cleanup uses the literal 'alias' instead of the generated alias."
+  }
+ ],
+ "candidates": [
+  "Cleanup uses the literal string 'alias' instead of the generated alias variable, which won't remove created IDPs and can leak IDPs across tests",
+  "Guard against null storedIdp before invalidation - if the alias doesn't exist, storedIdp can be null, and invalidation calls will throw NPE. The remove method should return false without NPEs when storedIdp is null"
+ ]
+}

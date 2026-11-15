@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__97529",
+ "url": "https://github.com/grafana/grafana/pull/97529",
+ "head_sha": "26fed312840cd76b766cbd2158e17a7e6c0ec548",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:42:16.980Z",
+ "seconds": 35.534,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/server/module_server_test.go",
+   "line": 35,
+   "end_line": 38,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The storage-server integration test is now skipped on Postgres instead of fixed.",
+   "body": "When `GRAFANA_TEST_DB=postgres`, this test now skips. That is the CI configuration where it was failing, so the startup path this PR changes (`Init` now runs inside `NewResourceServer`) is no longer tested on Postgres. The PR summary calls this \"Enhanced PostgreSQL integration test compatibility\", but the change turns the test off. Fix the Postgres failure, or at least link a tracking issue and make sure the test still runs in another CI job."
+  },
+  {
+   "path": "pkg/storage/unified/resource/server.go",
+   "line": 258,
+   "end_line": 262,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Removing `Init` from every handler means `Stop` no longer blocks requests.",
+   "body": "`Stop` sets `s.initErr = \"service is stopping\"`. That only rejected requests because each handler (Create, Update, Delete, Read, List, Watch, Search, History, Origin, IsHealthy, PutBlob, GetBlob) called `s.Init(ctx)`, which returned `initErr`. With those calls gone, requests that arrive after `Stop` keep going to a backend that has been cancelled, and `IsHealthy` keeps reporting SERVING during shutdown. Add a cheap check for `s.initErr` (or a stopping flag) at the top of the handlers, or at least in `IsHealthy`."
+  },
+  {
+   "path": "pkg/storage/unified/resource/search.go",
+   "line": 216,
+   "end_line": 216,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The new `TotalDocs` call reads the index cache map while the watcher may be writing to it.",
+   "body": "The event goroutine started just above can call `handleEvent` → `getOrCreateIndex` → `BuildIndex`, which writes `b.cache[key]`. `TotalDocs` loops over `b.cache` without holding `cacheMu`. If an event arrives right after init and creates a new index, Go can crash with \"concurrent map iteration and map write\". This PR also stops holding `cacheMu` around `BuildIndex`, so nothing serializes the two any more. Take `cacheMu` (or a read lock) inside `TotalDocs`, or log before starting the watcher goroutine."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 12189,
+  "cacheRead": 3262,
+  "output": 2531,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 19,
+   "reviewedHunks": 10,
+   "aiHunks": 0,
+   "skippedHunks": 9,
+   "inputTokens": 15453,
+   "outputTokens": 2531,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.11222539999999999
+}

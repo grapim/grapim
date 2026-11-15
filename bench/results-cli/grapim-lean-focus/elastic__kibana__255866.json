@@ -1,0 +1,142 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "elastic__kibana__255866",
+ "url": "https://github.com/elastic/kibana/pull/255866",
+ "head_sha": "a6802508b578eef72844226f3145fd58515a742d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:33:43.318Z",
+ "seconds": 51.939,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 155,
+   "end_line": 179,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The raw ES `_id` is used as the saved-object id, so `_source` decryption always fails.",
+   "body": "The ES `_id` of a saved-object document is the raw id from the serializer (`<type>:<id>`, or `<namespace>:<type>:<id>` for single-namespace types), not the saved object's id. Encrypted attributes are bound to `{id, type, namespace}` through AAD. Passing the raw id therefore makes every decryption fail with an AAD mismatch, logs an error per row, and strips the attributes. Single-namespace types also store `namespace`, not `namespaces`, so the namespace part of the AAD is wrong as well. Turn the raw id back into the saved-object id and namespace with the serializer (`rawToSavedObject` or `isRawSavedObject`/`generateRawId` logic) before calling `decryptOrStripResponseAttributes`."
+  },
+  {
+   "path": "tasks/prd.json",
+   "line": 1,
+   "end_line": 186,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Agent planning file committed to the repository root.",
+   "body": "`tasks/prd.json` is the task list from an autonomous agent loop (branch `ralph/esql-search-saved-objects`, user stories with `passes`/`notes`). The request is to add an `esql` API to Saved Objects, not to add this file. It adds an unowned top-level `tasks/` directory to Kibana and will go out of date as soon as this merges. Remove it from the PR."
+  },
+  {
+   "path": "tasks/progress.txt",
+   "line": 1,
+   "end_line": 42,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Agent progress log committed to the repository root.",
+   "body": "`tasks/progress.txt` is the agent's working log (\"Ralph Progress Log\", dated notes, learnings for future iterations). The requested feature does not use it and the request does not mention it. It adds clutter at the repo root. Remove it, and move any lasting guidance into the tutorial or code comments."
+  },
+  {
+   "path": "dev_docs/tutorials/saved_objects_esql.mdx",
+   "line": 143,
+   "end_line": 146,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Docs promise encrypted columns are always nulled, but stripping only matches column names.",
+   "body": "The tests show that stripping is decided by the output column name (`<type>.<encryptedAttr>`). A pipeline such as `| EVAL s = connector.secrets | KEEP s`, `| RENAME connector.secrets AS s`, or `CONCAT`/`STATS VALUES(...)` on the attribute returns a column with a different name. That column passes through with the raw ciphertext. So the claim \"Always replaced with `null`\" is false, and consumers who rely on it will leak encrypted values. Either make the post-processing reject or null any column derived from encrypted fields (for example, by refusing pipelines that reference encrypted attribute paths), or change the docs to say this is not guaranteed. I could not see `esql.ts`, which may have a check I don't know about."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.test.ts",
+   "line": 410,
+   "end_line": 430,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Without an `_id` column, `_source` comes back with the encrypted attributes untouched.",
+   "body": "This test makes it expected behaviour that a response with a `_source` column but no `_id` column (for example, `metadata: ['_source']` or `| DROP _id`) skips decryption entirely. It only asserts that decryption was not called and never asserts that `index-pattern.secret` was stripped. When `_source` can't be decrypted, the encrypted attributes should be removed from it, matching the docs' 'stripped on failure' rule. As written, the raw ciphertext reaches the caller. Strip encrypted attributes from `_source` whenever decryption is not possible, and assert that `secret` is undefined in this test."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 51,
+   "end_line": 56,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "The pipeline check doesn't stop callers from changing which indices are queried.",
+   "body": "The only check is a regex that rejects a pipeline starting with `FROM`/`ROW`/`SHOW`/`METRICS`. The pipeline is then pasted straight after the generated `FROM` clause (line 114), so it can still change the source. A pipeline like `, other-index | ...` or `METADATA _index | ...` appends more indices or metadata to the `FROM`. A pipeline like `| LOOKUP JOIN some_lookup_index ON ...` or `| ENRICH policy` pulls data from indices the namespace `filter` never applies to. The query runs as the repository's internal client, not as the end user. Require the pipeline to start with `|` once leading whitespace is trimmed. Parse it with the ES|QL parser and reject source-changing commands (`LOOKUP JOIN`, `ENRICH`, subqueries), or allow only an explicit list of processing commands. I could not check which lookup indices or enrich policies the kibana system user can read."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 116,
+   "end_line": 120,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Elasticsearch errors are passed through raw instead of being turned into saved-object errors.",
+   "body": "`rawClient.esql.query` is called with no error handling. An invalid pipeline (ES returns 400), a missing index (404) or an unsupported-server error reaches the caller as a raw `ResponseError`. Other repository APIs convert these with `SavedObjectsErrorHelpers` (`decorateEsError`) and check for a supported ES server. HTTP routes therefore return a 500 for a bad pipeline instead of a 400. Calling the raw client also skips the retry and error handling that `RepositoryEsClient` adds. Wrap the call in try/catch and convert the error with `decorateEsError`, as `search`/`find` do."
+  },
+  {
+   "path": "src/core/packages/saved-objects/api-server-internal/src/lib/apis/esql.ts",
+   "line": 206,
+   "end_line": 254,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Encrypted values are only nulled when the output column has the exact original name.",
+   "body": "`stripEncryptedColumns` nulls a column only when its name is exactly `<type>.<encryptedAttr>`. A pipeline such as `| EVAL x = \\`type.secret\\``, `| RENAME \\`type.secret\\` AS x`, `| STATS v = VALUES(\\`type.secret\\`)` or `| EVAL x = CONCAT(...)` returns the stored encrypted value under a different name, and it is not removed. The same gap exists for `_source`. When `_source` is requested without `_id` (line 148), or copied or renamed with EVAL, it is returned with the raw ciphertext still in it, whereas `find` strips those attributes. This matters when an encrypted attribute is mapped, or when ES|QL reads unmapped fields from `_source`. Reject pipelines that reference encrypted attribute fields, or block `_source` and encrypted fields up front, instead of filtering output columns by name."
+  },
+  {
+   "path": "dev_docs/tutorials/saved_objects_esql.mdx",
+   "line": 65,
+   "end_line": 65,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The example comment says a `WHERE` clause is generated, but security filtering goes through `filter`.",
+   "body": "The comment says `generates: FROM .kibana METADATA _id, _source | WHERE ...`. The same doc and the unit tests (`/^FROM .+ METADATA _id, _source \\| LIMIT 10$/`) show that no `WHERE` is added: the namespace and type restrictions go into the request's `filter` parameter instead. Change the comment to show the actual generated query."
+  }
+ ],
+ "usage": {
+  "requests": 3,
+  "input": 6,
+  "cacheWrite": 59016,
+  "cacheRead": 9786,
+  "output": 8011,
+  "models": {
+   "claude-opus-5-5": 3
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 25,
+   "hunks": 30,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 68808,
+   "outputTokens": 8011,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 25,
+   "reviewedAiHunks": 0,
+   "requests": 3,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.4572812
+}

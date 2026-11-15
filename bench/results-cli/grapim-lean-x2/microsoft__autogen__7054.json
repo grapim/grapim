@@ -1,0 +1,65 @@
+{
+ "tool": "grapim-lean-x2",
+ "pr_id": "microsoft__autogen__7054",
+ "url": "https://github.com/microsoft/autogen/pull/7054",
+ "head_sha": "1921f6253f1e64c324be890d96fc9aa9a21d1d8b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:05:29.333Z",
+ "seconds": 20.661,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "python/packages/autogen-ext/src/autogen_ext/models/openai/config/__init__.py",
+   "line": 103,
+   "end_line": 103,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`reasoning_effort` leaves out \"minimal\", which GPT-5 supports.",
+   "body": "The linked issue is about GPT-5 models, which accept `reasoning_effort=\"minimal\"`. The Pydantic `Literal[\"low\", \"medium\", \"high\"]` here rejects that value. A config like the one in the issue with `\"reasoning_effort\": \"minimal\"` will make `ChatCompletionClient.load_component` raise a `ValidationError`. The `CreateArguments` TypedDict on line 53 has the same omission, so type checkers will flag direct constructor calls that pass `\"minimal\"`. The PR description says both models include \"minimal\", but the diff does not. Fix: add \"minimal\" to both Literals and to the valid-values loop in the test.",
+   "raised": 2
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 7041,
+  "cacheRead": 13565,
+  "output": 1469,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 20610,
+   "outputTokens": 1469,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #7053",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 2
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.067314
+}

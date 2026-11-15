@@ -1,0 +1,40 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "keycloak__37038",
+ "url": "https://github.com/keycloak/keycloak/pull/37038",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In GroupPermissionsV2.canManage(), the permission fallback checks for both VIEW and MANAGE scopes (hasPermission(null, AdminPermissionsSchema.VIEW, AdminPermissionsSchema.MANAGE)), but canManage() should only grant access for MANAGE scope, not VIEW. This means users with only VIEW permission on groups can pass the canManage() check, granting them write access they should not have. The canView() method correctly checks both VIEW and MANAGE, but canManage() should only check MANAGE.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same bug: canManage() also accepts the VIEW scope."
+  },
+  {
+   "comment": "In getGroupIdsWithViewPermission, hasPermission is called with groupResource.getId() and the same groupResource.getId() is added to granted, but hasPermission resolves resources by name (treating the argument as a group id) and the GroupPermissionEvaluator contract says this method returns group IDs that are later used as UserModel.GROUPS and in getUsersCount group filters. This mismatch means per-group VIEW_MEMBERS/MANAGE_MEMBERS permissions may not yield the expected group IDs for filtering and counts, and evaluation may effectively only look at the type-level 'all-groups' resource; consider revisiting whether this should operate on the underlying group ids (resource names) instead so it aligns with the JPA queries and the interface contract.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same mismatch: getId() is used instead of the resource name, which holds the group id."
+  }
+ ],
+ "candidates": [
+  "canManage() method treats AdminPermissionsSchema.VIEW as sufficient for global group management by calling hasPermission(null, AdminPermissionsSchema.VIEW, AdminPermissionsSchema.MANAGE) - VIEW should not confer create/move authority",
+  "getGroupIdsWithViewPermission() uses groupResource.getId() (authorization resource IDs) instead of groupResource.getName() (Keycloak group IDs), causing permission checks to miss intended per-group resources and returning UUIDs that downstream group filters cannot match",
+  "requireManageMembers() Javadoc points at canManage() but should point at canManageMembership(GroupModel)",
+  "@return tags say Stream but the method returns Set<String>",
+  "canMapRole() checks root.hasOneAdminRole(AdminRoles.MANAGE_USERS) then calls checkAdminRoles(role), removing the schema-level users-manage shortcut - should return true immediately when MANAGE_USERS is detected",
+  "UserPermissionsV2 dropped the AdminRoles.ADMIN fast-path shortcut - users granted only the umbrella admin role will fail canView/canManage/canMapRoles/canManageGroupMembership checks",
+  "AdminPermissions listener for cleanup on role/client/group removal is only registered when ADMIN_FINE_GRAINED_AUTHZ is enabled, leaving orphaned authorization state in V2-only deployments",
+  "response.getLocation() can be null even with 201 status, causing NPE - should add explicit null assertion before parsing the path",
+  "RealmAdminPermissionsConfig adds AdminRoles.QUERY_GROUPS to shared fixture, which may hide regressions in Groups resource-type permission path for tests that shouldn't satisfy the group list gate"
+ ]
+}

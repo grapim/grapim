@@ -1,0 +1,104 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "head_sha": "6ad6fe3899f630ccf922ce7ac681147dc7987435",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:27:30.464Z",
+ "seconds": 32.857,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/search/events/datasets/discover.py",
+   "line": 1046,
+   "end_line": 1050,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "upsampled_count() counts events with no sample_weight as zero.",
+   "body": "`sum(sample_weight)` skips NULL values. In an allowlisted project, any error event sent without `contexts.error_sampling.client_sample_rate` (older SDKs, events from before the project was allowlisted, or clients that don't sample) adds 0 instead of 1. Once a project is allowlisted, counts for these events drop or go to zero. The comment assumes every event has a weight, but nothing in the shown code makes that true. Use `sum(ifNull(sample_weight, 1))` so these events still count once."
+  },
+  {
+   "path": "sentry-repo",
+   "line": 1,
+   "end_line": 1,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "A stray submodule gitlink `sentry-repo` was added.",
+   "body": "The PR adds a gitlink to commit a5d2909 at path `sentry-repo`. The upsampling feature does not need it, and there is no matching .gitmodules entry, so it looks like a nested checkout committed by accident. It breaks or confuses clones and CI that run submodule commands. Remove it."
+  },
+  {
+   "path": "src/sentry/api/helpers/error_upsampling.py",
+   "line": 135,
+   "end_line": 140,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The substring check treats negated or compound event.type filters as error queries.",
+   "body": "`\"event.type:error\" in query` also matches `!event.type:error`. It also matches `event.type:error OR event.type:transaction` and similar queries. For those queries the discover count() is rewritten to `sum(sample_weight)`, so transactions and other non-error events add 0 or get the wrong weight, and the counts come out wrong. Parse the query, or at least require a non-negated, standalone `event.type:error` term with no other event.type terms."
+  },
+  {
+   "path": "src/sentry/api/endpoints/organization_events_stats.py",
+   "line": 220,
+   "end_line": 222,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The eligibility check uses the outer `dataset` instead of the `scoped_dataset` actually queried.",
+   "body": "`_get_event_stats` receives `scoped_dataset`, which can differ from the request-level `dataset`, for example when a dashboard widget's discover query is split into errors or transactions. The upsampling decision is made on the outer `dataset`, so it can rewrite columns for a dataset that has no `sample_weight` or `upsampled_count`, or skip a scoped errors query that should be upsampled. Pass `scoped_dataset` to `is_errors_query_for_error_upsampled_projects`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 16551,
+  "cacheRead": 3262,
+  "output": 2811,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 19815,
+   "outputTokens": 2811,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/sentry/api/helpers/error_upsampling.py",
+    "line": 27,
+    "end_line": 27,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The cache key uses a hash of the project IDs, so two project sets can share one eligibility entry.",
+    "body": "The key stores only `hash(tuple(sorted(project_ids)))`. If two different project sets in the same org hash to the same value, they share one cached eligibility result, and upsampling can be applied to projects that are not allowlisted for up to 60 seconds. Build the key from the sorted IDs themselves (joined, or hashed with a stable digest such as md5/sha1 of the joined string)."
+   }
+  ]
+ },
+ "cost_usd": 0.1396354
+}

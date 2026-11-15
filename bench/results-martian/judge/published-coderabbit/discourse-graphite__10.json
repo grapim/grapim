@@ -1,0 +1,86 @@
+{
+ "tool": "published-coderabbit",
+ "pr_id": "discourse-graphite__10",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/10",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The EmbeddableHost model's before_validation callback calls self.host.sub! to strip http://, https://, and path segments, but if self.host is nil, this raises NoMethodError.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: calling sub! on a nil host raises an error."
+  },
+  {
+   "comment": "The update and destroy methods in Admin::EmbeddableHostsController do not validate the existence of the EmbeddableHost record retrieved by ID. If EmbeddableHost.where(id: params[:id]).first returns nil (i.e., the host does not exist), attempting to call methods on the nil object (e.g., save_host or destroy) will result in a NoMethodError.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out the same problem: a nil record in update/destroy causes a NoMethodError."
+  },
+  {
+   "comment": "record_for_host compares lower(host) = ? but does not normalize the parameter’s case, so mixed‑case referer hosts may fail to match even though comparison intends to be case‑insensitive.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions that the lookup parameter isn't lowercased before the case-insensitive comparison."
+  },
+  {
+   "comment": "Because this migration inserts embeddable_hosts rows with raw SQL, any existing embeddable_hosts values that include http:// or /https:// or path segments won’t go through the EmbeddableHost model’s normalization, so the new host lookup (which compares only the bare host) may fail for migrated data. Consider ensuring that migrated hosts are normalized to the same format as newly created EmbeddableHost records so existing embedding configurations keep working.",
+   "severity": "High",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "C7 covers escaping and blank lines in the migration, but it doesn't mention normalizing http:// prefixes or path segments."
+  },
+  {
+   "comment": "The contents of `category_fabricator.rb` and `embeddable_host_fabricator.rb` have been swapped, resulting in the loss of original category fabricators and potentially causing errors in fabricator usage.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C8 is about the behaviour of private_category's after_build, not about the swapped fabricator file contents."
+  },
+  {
+   "comment": "The SQL query in the `app/controllers/admin/embeddable_hosts_controller.rb` file uses string interpolation (`'#{h}'`) to insert values, which is vulnerable to SQL injection. It should use parameter binding or proper quoting to prevent this security vulnerability.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    7
+   ],
+   "confidence": 0.7,
+   "reasoning": "The '#{h}' interpolation is the host backfill SQL that C7 flags as unescaped, even though the golden comment attributes it to the controller file."
+  },
+  {
+   "comment": "The migration accesses execute(...)[0]['id'] without checking if the query returned any rows, which causes a crash when no embed_category setting exists. This can lead to a broken feature when attempting to edit category/host relationships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 points out the same problem: execute(...)[0] fails when the query returns no rows."
+  }
+ ],
+ "candidates": [
+  "self.host.sub! in before_validation raises on nil host instead of returning validation error - needs nil guard",
+  "EmbeddableHost.where(id:).first returns nil causing NoMethodError in update/destroy actions when invalid id is passed - need find_by with explicit guard",
+  "Migration execute(...)[0] will raise IndexError if embed_category or uncategorized_category_id queries return no rows - needs presence checks",
+  "Icon-only d-button elements (save, cancel, edit, delete) lack accessible labels for screen readers - need title attributes with i18n keys that don't currently exist in locale files",
+  "obj[k].map in store.js.es6 will throw if API returns null or non-array for *_ids fields - needs Array.isArray guard before calling map",
+  "Host validation regex caps TLDs at 5 characters, rejecting valid domains like .museum or .community - should allow up to 63 characters",
+  "Migration backfill interpolates host strings directly into SQL without escaping and doesn't filter blank lines - needs connection.quote and blank check",
+  "Fabricator(:private_category) after_build uses update! which persists even for Fabricate.build, and transients[:group].id raises if group not passed - should set attribute directly and guard group usage",
+  "Extra blank lines in spec files violate RuboCop layout rules (Layout/EmptyLinesAroundBlockBody)",
+  "Typo in spec context description: 'emeddable' should be 'embeddable'",
+  "Test requests fruit id 2 but mock always returns fruit id 1 - test passes accidentally due to matching color_ids"
+ ]
+}

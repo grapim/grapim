@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cli__cli__15009",
+ "url": "https://github.com/cli/cli/pull/15009",
+ "head_sha": "e8022e837d4d422370059c3ea954d13e11ebeeaf",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:05:21.155Z",
+ "seconds": 22.266,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/cmd/auth/status/status.go",
+   "line": 401,
+   "end_line": 403,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Rate-limit and server failures are still reported as an invalid token with re-auth advice.",
+   "body": "Linked issue #14053 asks for 401 (a revoked or invalid token) to be told apart from other failures such as 403 rate limits, 5xx errors and network errors. For those other failures it wants something like \"Could not verify token: …\" instead of \"The token in X is invalid.\" and the `gh auth refresh` hint. This change only adds an `- Error: …` line, and only when stderr is a TTY. The updated tests show the problem: a 503 (hunk 6) and a GraphQL rate limit (the new test) still print \"The token in … is invalid.\" and \"To re-authenticate, run: gh auth refresh\". The issue says refreshing while rate limited makes things worse, and that advice is still printed. Non-TTY output is unchanged too, so CI logs, the issue's main case, still show only the misleading verdict. Fix: in `buildEntry`, give non-401 failures their own state that prints the real error and leaves out the re-auth and logout hints, or narrow the PR's \"closes\" claim to match what it does."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 11829,
+  "cacheRead": 3262,
+  "output": 1900,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 15093,
+   "outputTokens": 1900,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #14053",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0978054
+}

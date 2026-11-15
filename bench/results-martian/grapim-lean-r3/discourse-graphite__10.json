@@ -1,0 +1,160 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__10",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/10",
+ "head_sha": "d1c69189f3c90ecf56013a8da904da9bff9a8e19",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:33:42.272Z",
+ "seconds": 44.242,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "db/migrate/20150818190757_create_embeddable_hosts.rb",
+   "line": 9,
+   "end_line": 15,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "destructive_migration",
+   "title": "Migration crashes when embed_category or uncategorized_category_id has no row in site_settings.",
+   "body": "`execute(...)[0]['id']` assumes the query returns a row. `site_settings` only stores values that were changed from their defaults. If `embed_category` was never set, or its name matches no category, the result is empty, `[0]` raises, and the migration aborts during deploy. The `uncategorized_category_id` lookup on line 15 has the same problem. Check `ntuples`/`cmd_tuples` before indexing, and fall back to a safe default."
+  },
+  {
+   "path": "db/migrate/20150818190757_create_embeddable_hosts.rb",
+   "line": 22,
+   "end_line": 31,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "Migrated hosts are not normalized or escaped, so existing embeds break, and the old settings are deleted anyway.",
+   "body": "The old `embeddable_hosts` setting allowed entries like `http://discourse.org` or `https://example.com/1234`; the old specs used exactly these. The migration inserts each line raw. It skips the model's scheme and path stripping and does not remove whitespace or `\\r`. `record_for_host` compares `uri.host` with `lower(host)`, so those rows never match, and embedding stops working for those sites. A value containing `'` also breaks the SQL statement. Line 31 then deletes the original settings in a `change` migration with no `down`, so the data cannot be recovered. Strip the scheme, path and whitespace, skip blank lines, quote values with `ActiveRecord::Base.connection.quote`, and make the delete reversible or keep the old setting values."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/models/store.js.es6",
+   "line": 192,
+   "end_line": 192,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Every `*_ids` attribute on any REST model is now replaced, and a null value crashes hydration.",
+   "body": "The regex now matches any key ending in `_ids`, not just the new `embeddable_host_ids`. The original `*_ids` key is deleted unconditionally and replaced with an array of `_lookupSubType` results. Those are `undefined` when the payload has no matching sideloaded collection. So any existing rest-serialized model with an array of ids loses that data. If the value is `null` or not an array, `obj[k].map` throws and the whole find fails. `hydrated || []` never helps, because `map` always returns an array. Only convert the key when it holds an array and the matching collection exists in `root`. Otherwise leave the key alone, as the single-id branch does."
+  },
+  {
+   "path": "app/controllers/admin/embeddable_hosts_controller.rb",
+   "line": 10,
+   "end_line": 17,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "update and destroy return a 500 for an unknown id.",
+   "body": "`EmbeddableHost.where(id: ...).first` returns nil for a missing or already-deleted id. `save_host(nil)` and `host.destroy` then raise NoMethodError. This happens, for example, when two admins delete the same host. Use `find` or `raise Discourse::NotFound` so the client gets a 404."
+  },
+  {
+   "path": "app/models/embeddable_host.rb",
+   "line": 5,
+   "end_line": 8,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "before_validation crashes with NoMethodError when host is nil.",
+   "body": "`self.host.sub!` raises when `host` is nil, for example when the admin API receives `embeddable_host[category_id]` without `host`. The result is a 500 instead of a validation error. Guard the normalization with `if host.present?`, or use `self.host = host.to_s.sub(...)`."
+  },
+  {
+   "path": "app/models/embeddable_host.rb",
+   "line": 17,
+   "end_line": 17,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Hosts saved with a port or uppercase letters never match.",
+   "body": "The validation accepts `host:port`, and `before_validation` does not strip the port. `uri.host` never includes the port, so a host saved as `example.com:8080` is never allowed. The column is lowercased in the comparison but the referer host is not, and the stored value is not downcased. Downcase both sides and strip or compare the port consistently."
+  },
+  {
+   "path": "app/models/topic.rb",
+   "line": 869,
+   "end_line": 869,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "expandable_first_post? no longer checks that any embeddable host is configured.",
+   "body": "The old guard `SiteSetting.embeddable_hosts.present?` was removed without a replacement such as `EmbeddableHost.exists?`. Topics with an embed record are now expandable even after every host is deleted. The spec \"is false if embeddable_host is blank\" still passes only because a built topic has no id, so `has_topic_embed?` is false. The test no longer checks the condition it is named for. Add `EmbeddableHost.exists? &&` to the condition."
+  },
+  {
+   "path": "app/assets/javascripts/admin/components/embeddable-host.js.es6",
+   "line": 46,
+   "end_line": 48,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "A delete failure is silently ignored.",
+   "body": "`destroyRecord()` has no `.catch(popupAjaxError)`. If the server delete fails, the admin sees no error and the row stays as if nothing happened. Add `.catch(popupAjaxError)`, as `save` does."
+  },
+  {
+   "path": "spec/fabricators/category_fabricator.rb",
+   "line": 1,
+   "end_line": 1,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Fabricator definitions are swapped between files.",
+   "body": "`category_fabricator.rb` now defines only `:embeddable_host`, and `embeddable_host_fabricator.rb` holds all the category fabricators. It works because all fabricators are loaded, but anyone editing category fabricators will look in the wrong file. Put each definition back in the file named for it."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 24740,
+  "cacheRead": 3262,
+  "output": 4308,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 36,
+   "hunks": 40,
+   "reviewedHunks": 36,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 28004,
+   "outputTokens": 4308,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 32,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "app/models/site_setting.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/locales/server.en.yml",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/site_settings.yml",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "spec/models/site_setting_spec.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2105204
+}

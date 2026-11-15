@@ -1,0 +1,110 @@
+{
+ "tool": "grapim-lean-focus",
+ "pr_id": "microsoft__PowerToys__47857",
+ "url": "https://github.com/microsoft/PowerToys/pull/47857",
+ "head_sha": "ea580dbd3714a5081a04a796ba4cef679f102840",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:32:03.682Z",
+ "seconds": 51.253,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+   "line": 59,
+   "end_line": 79,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Raw-HTML image sanitizer only matches double-quoted src, so other forms get through",
+   "body": "The regex only matches `src=\"...\"` and stops at the first `>`. These forms are never matched and keep their original `src`:\n- `<img src='data:image/png;base64,...'>` (single quotes)\n- `<img src=data:...>` (no quotes)\n- `<img alt=\"a>b\" src=\"...\">` (a `>` inside an earlier attribute)\n\nThe PR says `data:` images are resolved inside WebView2 and never reach the resource filter. So with the setting ON, a `data:` image in any of these forms renders, even though the stated model says `data:` is always blocked. Any other scheme in these forms also skips the validation. I can't see `MarkdownPreviewHandlerControl.cs`, which might sanitize again later.\n\nFix: parse the HTML instead of using a regex, or at least handle single-quoted and unquoted values and quoted `>`. If no match is found, drop the `<img>` rather than leave it unchanged."
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+   "line": 194,
+   "end_line": 207,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Image files are read synchronously, with no size limit, on the WebView2 event thread.",
+   "body": "`File.Exists` and `File.ReadAllBytes` run inside `WebResourceRequested`, which fires on the UI thread. A slow or unreachable network share therefore freezes the preview pane. A large file under the allowed folder is read fully into memory. Any file type is served, not only images, so a link to a multi-GB file could do this. Files over 2 GB throw `IOException` and are blocked. Smaller but very large files can throw `OutOfMemoryException`, which is not caught here and can bring down the preview host. Fix: allow only known image extensions, cap the file size, and serve a `FileStream` through `e.GetDeferral()` instead of reading the whole file on the UI thread."
+  },
+  {
+   "path": "src/modules/previewpane/MarkdownPreviewHandler/Settings.cs",
+   "line": 66,
+   "end_line": 73,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Settings read errors other than FileNotFoundException break the whole preview.",
+   "body": "Only `FileNotFoundException` is caught. Other errors propagate: a malformed settings.json (`JsonException`), a sharing violation while the Settings UI is writing the file (`IOException`), or a missing directory (`DirectoryNotFoundException`). `GetLocalImagesEnabled()` is called inside `DoPreview`'s try block, so any of these fails the whole Markdown preview instead of just turning local images off. Fix: catch these errors too (or use `GetSettingsOrDefault`) and return `false`."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 46494,
+  "cacheRead": 6524,
+  "output": 8973,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 22,
+   "hunks": 37,
+   "reviewedHunks": 37,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 53022,
+   "outputTokens": 8973,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #40787",
+    "issue #3713",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2
+  },
+  "skipped": [
+   {
+    "path": "src/modules/previewpane/MarkdownPreviewHandler/TestFiles/images/test.png",
+    "reason": "binary file"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/common/FilePreviewCommon/MarkdownHelper.cs",
+    "line": 53,
+    "end_line": 53,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "intent_mismatch",
+    "title": "Raw-HTML rewrite only runs when the setting is ON and never strips srcset, unlike the description",
+    "body": "The PR description says two things:\n- With the setting OFF, raw HTML `src` is rewritten to `#` so `data:` images cannot render.\n- `srcset` on raw `<img>` is removed in both states.\n\nHere the whole rewrite sits inside `if (allowLocalImages)`, and nothing touches `srcset`. With the setting OFF, `<img src=\"data:...\">` is left as is. In either state, `<img src=\"ok.png\" srcset=\"data:... 1x\">` keeps an unvalidated `srcset`. If `MarkdownPreviewHandlerControl.cs`, which I can't see, does not do this, the documented protections are missing. Fix: run the sanitizer in both states (rewrite everything to `#` when OFF) and remove `srcset` attributes."
+   },
+   {
+    "path": "src/modules/previewpane/MarkdownPreviewHandler/MarkdownPreviewHandlerControl.cs",
+    "line": 127,
+    "end_line": 136,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "security",
+    "title": "The share-root calculation treats extended-length `\\\\?\\` paths as UNC shares and widens the allowed base too far.",
+    "body": "A path that starts with `\\\\` gets cut down to its first two components. For an extended-length path this gives the wrong base. `\\\\?\\C:\\Users\\me\\docs\\a.md` becomes `\\\\?\\C:`, which is the whole drive. `\\\\?\\UNC\\server\\share\\a.md` becomes `\\\\?\\UNC`, which covers every server. With the second base, an image link like `\\\\?\\UNC\\attacker\\share\\p.png` passes the containment check. The handler then reads it over SMB, which is the tracking/credential-leak this feature is meant to prevent. I could not check whether Explorer ever passes `\\\\?\\` or `\\\\.\\` paths to the handler. Fix: normalise these prefixes first, or use `Path.GetPathRoot` on the full path to find the share root, and refuse local images when the root cannot be worked out."
+   }
+  ]
+ },
+ "cost_usd": 0.4132508
+}

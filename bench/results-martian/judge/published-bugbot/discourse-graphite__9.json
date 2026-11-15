@@ -1,0 +1,30 @@
+{
+ "tool": "published-bugbot",
+ "pr_id": "discourse-graphite__9",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The @loaded_locales instance variable in translate_accelerator.rb is lazily initialized and accessed by multiple concurrent threads without synchronization.",
+   "severity": "Low",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions thread safety or the lack of synchronization around @loaded_locales."
+  },
+  {
+   "comment": "Consider normalizing the input locale (e.g., to a symbol) when checking/loading here to avoid double-loading if the same locale is passed as a String vs Symbol (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.8,
+   "reasoning": "C1 points out that mixing String and Symbol locales means the same locale gets loaded or processed twice. That is the same underlying normalization problem G2 describes."
+  }
+ ],
+ "candidates": [
+  "The FallbackLocaleList#[] method mixes string and symbol locale types in the fallback chain. The locale parameter is typically a string (from I18n.locale), while SiteSetting.default_locale.to_sym and :en are symbols. Since Ruby treats \"en\" and :en as different values, uniq won't deduplicate them, causing the same locale to be processed twice in ensure_loaded! when a user's locale matches the default"
+ ]
+}

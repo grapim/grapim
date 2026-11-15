@@ -1,0 +1,87 @@
+{
+ "tool": "grapim-noprov",
+ "pr_id": "MetaMask__metamask-mobile__10635",
+ "url": "https://github.com/MetaMask/metamask-mobile/pull/10635",
+ "head_sha": "ab8940404cbc6924af30e133b9e924a1a7626275",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-14T18:09:18.294Z",
+ "seconds": 9.721,
+ "status": "ok",
+ "findings": [
+  {
+   "path": "app/components/Views/confirmations/SendFlow/Confirm/index.js",
+   "line": 403,
+   "end_line": 403,
+   "severity": "blocker",
+   "category": "correctness",
+   "title": "Removed await stores a Promise as the L1 fee.",
+   "body": "Same problem as in TransactionReview: without `await`, the result is a Promise rather than a fee value, and errors escape the try/catch as unhandled rejections. Restore `await`."
+  },
+  {
+   "path": "app/components/Views/confirmations/components/TransactionReview/index.js",
+   "line": 294,
+   "end_line": 294,
+   "severity": "blocker",
+   "category": "correctness",
+   "title": "Removed await stores a Promise as the L1 fee.",
+   "body": "`fetchEstimatedMultiLayerL1Fee` is async, so `multiLayerL1FeeTotal` becomes a Promise instead of a hex string. The fee display breaks, and rejections are no longer caught by the try/catch. Restore `await`."
+  },
+  {
+   "path": "app/components/Views/confirmations/components/PersonalSign/PersonalSign.tsx",
+   "line": 152,
+   "end_line": 159,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Removed awaits on onReject/onConfirm.",
+   "body": "The notification and the SIGNATURE_APPROVED/REJECTED metrics now fire before signing completes, even if it fails. A failed sign is reported as approved, and rejections become unhandled. Restore `await`."
+  },
+  {
+   "path": "app/store/index.ts",
+   "line": 25,
+   "end_line": 26,
+   "severity": "warning",
+   "category": "correctness",
+   "title": "Object.assign copy of the store and persistor may miss non-enumerable or prototype members.",
+   "body": "Any member not copied leaves `store`/`persistor` broken, and before init they are empty objects, so calls such as `store.getState` throw a TypeError instead of failing an undefined check. For example, `store?.getState()` in Sentry now throws. Consider exporting a getter instead."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 39432,
+  "cacheWrite": 0,
+  "cacheRead": 2096,
+  "output": 652,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 17,
+   "reviewedHunks": 15,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 41528,
+   "outputTokens": 652,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": []
+  },
+  "skipped": [
+   {
+    "path": "app/core/Engine.ts",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0
+ },
+ "cost_usd": 0.1711872
+}

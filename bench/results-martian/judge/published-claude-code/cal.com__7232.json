@@ -1,0 +1,39 @@
+{
+ "tool": "published-claude-code",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Asynchronous functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called without await inside forEach loops. This occurs during booking rescheduling/cancellation, and workflow/workflow step deletion/updates. Consequently, scheduled workflow reminders may not be reliably cancelled, potentially leaving them active.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions the missing await in forEach loops."
+  },
+  {
+   "comment": "When immediateDelete is true, the deleteScheduledEmailReminder function cancels the SendGrid email but fails to delete the corresponding WorkflowReminder record from the database. This creates orphaned database entries and is inconsistent with the immediateDelete: false path, which marks the record as cancelled. The SendGrid DELETE API call is also omitted in this path.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out that when immediateDelete is true, the DB record is not deleted."
+  },
+  {
+   "comment": "The 'cancelled' field is nullable, which can lead to existing records having null values instead of a default of false. This can cause incorrect behavior in the application when checking the cancellation status of reminders.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the nullable cancelled field."
+  }
+ ],
+ "candidates": [
+  "deleteScheduledEmailReminder does not delete the WorkflowReminder DB record when immediateDelete is true and referenceId is not null. It cancels the email via SendGrid but then returns immediately without cleaning up the database. This leaves orphaned WorkflowReminder records, particularly in the rescheduling path where the old booking is only marked CANCELLED (not deleted), so no Prisma cascade fires. A prisma.workflowReminder.delete call should be added after the SendGrid cancel in the immediateDelete branch.",
+  "The cancellation loop in the CRON job wraps a single try-catch around the entire for loop. If any SendGrid cancellation request fails, the loop breaks immediately - all subsequent reminders are skipped and none of the accumulated prisma.workflowReminder.delete queries execute. A persistently failing reminder would block all other cancellations every CRON run. The try-catch should be moved inside the for loop to match the per-iteration pattern used by the scheduling loop."
+ ]
+}

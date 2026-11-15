@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "immich-app__immich__32240",
+ "url": "https://github.com/immich-app/immich/pull/32240",
+ "head_sha": "4e89904e255e00310d7661f6d45212a5a6e56d85",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T05:18:56.422Z",
+ "seconds": 20.704,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 10148,
+  "cacheRead": 6524,
+  "output": 1899,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16676,
+   "outputTokens": 1899,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "issue #32083",
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "server/test/medium/specs/workflow/workflow-core-plugin.spec.ts",
+    "line": 112,
+    "end_line": 112,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`Kysely` and `DB` are used as types, but this change adds no import for them.",
+    "body": "The new `let db: Kysely<DB>;` needs both `Kysely` and `DB` in scope. Going by the line counts in CHANGES (+36), every added line is in these two hunks, so no import was added. The old code used `const db = await getKyselyDB()` with no type annotation, so the file may never have imported these names. If it didn't, `tsc` / the server type-check step fails. Vitest strips types, so the test still runs and the failure only shows up in type-check CI. I couldn't see the file's imports to confirm. Fix: add `import { Kysely } from 'kysely';` and import `DB` from the schema module if they are missing, or write `let db: Awaited<ReturnType<typeof getKyselyDB>>;`."
+   }
+  ]
+ },
+ "cost_usd": 0.0900408
+}

@@ -1,0 +1,161 @@
+{
+ "tool": "claude-action",
+ "pr_id": "Azure__azure-sdk-for-rust__5551",
+ "url": "https://github.com/Azure/azure-sdk-for-rust/pull/5551",
+ "head_sha": "0e1c2ddc6933568defe654b728d7f8e3d57eb96b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T07:11:31.492Z",
+ "seconds": 361.117,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "sdk/identity/ci.yml",
+   "line": 44,
+   "end_line": 44,
+   "severity": null,
+   "category": null,
+   "title": "Diagnostics may look in the wrong subscription and report nothing.**",
+   "body": "**Diagnostics may look in the wrong subscription and report nothing.**\n\nThe live-test job resolves its connection as `coalesce(cloud.value.ServiceConnection, 'azure-sdk-tests-<cloud>')` (`archetype-sdk-client.yml:183`). New-TestResources then deploys into the subscription from `$(SubscriptionConfiguration)`. This step hard-codes `azure-sdk-tests-public` and never runs `az account set`, so `az group list --tag BuildId=...` uses the connection's default subscription.\n\nIf the two differ, the script prints \"found 0\" and treats it like a cleaned-up group, so the problem stays hidden. The same applies if this ever runs for a non-public cloud.\n\nSuggestion: pass the deployment's subscription ID into the script (it is in `$(SubscriptionConfiguration)`) and call `az account set --subscription` before discovery. If that's hard to wire through `PostSteps`, at least log the active subscription with `az account show --query id` so a mismatch is visible."
+  },
+  {
+   "path": "sdk/identity/azure_identity/src/managed_identity_credential.rs",
+   "line": 444,
+   "end_line": 444,
+   "severity": null,
+   "category": null,
+   "title": "With the `CI_HAS_DEPLOYED_RESOURCES` guard removed, this test now panics in `expect(\"IDENTITY_ACI_IP_USER_ASSIGNED\")` whenever it runs in live mode without the post-provisioning outputs. That includes",
+   "body": "With the `CI_HAS_DEPLOYED_RESOURCES` guard removed, this test now panics in `expect(\"IDENTITY_ACI_IP_USER_ASSIGNED\")` whenever it runs in live mode without the post-provisioning outputs. That includes a contributor running `AZURE_TEST_MODE=live cargo test -p azure_identity` without `deployResources = $true`.\n\nCI is fine today because the only matrix leg deploys resources. Still, the old guard was arguably checking the wrong thing: CI sets `CI_HAS_DEPLOYED_RESOURCES` even when `deployResources` is false. If the intent is \"fail loudly when the outputs are missing\", that's reasonable. Please confirm that's intended and that CONTRIBUTING.md tells people to skip these tests (for example with `--skip aci_user_assigned_live`) when they haven't deployed. Otherwise, gate on `IDENTITY_ACI_IP_USER_ASSIGNED` being set rather than dropping the guard entirely.\n\nThe same applies to `workload_identity_credential.rs` `live()` and `IDENTITY_AKS_IP`."
+  },
+  {
+   "path": "sdk/identity/azure_identity/src/managed_identity_credential.rs",
+   "line": 698,
+   "end_line": 698,
+   "severity": null,
+   "category": null,
+   "title": "Nit: without the `println!`, the IMDS live tests now return `Ok(())` silently and show up as **passed** when IMDS isn't available. That makes \"IMDS wasn't exercised\" look the same as \"IMDS works\". Con",
+   "body": "Nit: without the `println!`, the IMDS live tests now return `Ok(())` silently and show up as **passed** when IMDS isn't available. That makes \"IMDS wasn't exercised\" look the same as \"IMDS works\". Consider keeping the message, or using `#[ignore]` or a runtime skip that test reports can surface, so a mis-set `IDENTITY_IMDS_AVAILABLE` on the VM leg doesn't hide lost coverage."
+  },
+  {
+   "path": "sdk/identity/test-resources-post.ps1",
+   "line": 47,
+   "end_line": 47,
+   "severity": null,
+   "category": null,
+   "title": "The Bicep template still outputs `IDENTITY_DEPLOY_RESOURCES = string(deployResources)`. Inferring \"not deployed\" from an empty `IDENTITY_ACR_NAME` is a weaker signal. If the ACR output is ever renamed",
+   "body": "The Bicep template still outputs `IDENTITY_DEPLOY_RESOURCES = string(deployResources)`. Inferring \"not deployed\" from an empty `IDENTITY_ACR_NAME` is a weaker signal. If the ACR output is ever renamed or broken while `deployResources = true`, provisioning is skipped without an error, and the failure only appears later as a panic in the live tests.\n\nSuggest parsing `IDENTITY_DEPLOY_RESOURCES` explicitly (`[bool]::TryParse`, throwing if it's missing or invalid). Then the required-outputs loop below catches an empty ACR name when resources *were* deployed."
+  },
+  {
+   "path": "sdk/identity/test-resources-post.ps1",
+   "line": 241,
+   "end_line": 241,
+   "severity": null,
+   "category": null,
+   "title": "The AKS endpoint wait collects `Write-IdentityAksDiagnostics` when it fails (L310–316), but this ACI wait gets nothing. That leaves an up-to-900s timeout with no container logs or state.",
+   "body": "The AKS endpoint wait collects `Write-IdentityAksDiagnostics` when it fails (L310–316), but this ACI wait gets nothing. That leaves an up-to-900s timeout with no container logs or state.\n\nConsider the same try/catch here with `az container logs -g $rg -n $containerName` and `az container show ... --query \"{state:instanceView.state,events:containers[0].instanceView.events}\"`.\n\nAlso, worst case this script can now block for about 180 + 900 + 3×180 + 900 s ≈ 42 minutes before failing. This runs during deployment, not the test step, so `TestTimeoutInMinutes: 120` doesn't directly bound it. Please confirm the deploy step or job timeout leaves room for that."
+  }
+ ],
+ "usage": {
+  "requests": 33,
+  "input": 104398,
+  "cacheWrite": 70632,
+  "cacheRead": 867125,
+  "output": 48264,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "result": {
+   "duration_api_ms": 389186,
+   "stop_reason": "end_turn",
+   "session_id": "6e95da65-d4a2-4668-a3af-2c9b2700a5c4",
+   "total_cost_usd": 2.121353,
+   "usage": {
+    "input_tokens": 38,
+    "cache_creation_input_tokens": 70632,
+    "cache_read_input_tokens": 867125,
+    "output_tokens": 14565,
+    "output_tokens_details": {
+     "thinking_tokens": 7244
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 70632,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "modelUsage": {
+    "claude-opus-5-5": {
+     "inputTokens": 104398,
+     "outputTokens": 48264,
+     "cacheReadInputTokens": 867125,
+     "cacheCreationInputTokens": 70632,
+     "webSearchRequests": 0,
+     "costUSD": 2.121353,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 23662,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   },
+   "permission_denials": [],
+   "terminal_reason": "completed",
+   "fast_mode_state": "off",
+   "fast_mode_disabled_reason": "sdk_opt_in_required",
+   "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+     "background": 0,
+     "foreground": 0,
+     "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+     "parent": 0,
+     "user": 0,
+     "system": 0
+    },
+    "refused": {
+     "depth_limit": 0,
+     "concurrency_limit": 0,
+     "budget": 0
+    },
+    "by_type": {}
+   },
+   "safety_stops": 0,
+   "is_error": false,
+   "num_turns": 33,
+   "subtype": "success",
+   "api_error_status": null,
+   "result": "I reviewed PR #5551 (\"Move TokenProxyClient to `reqwest_rustls` feature\") and posted 5 inline comments. Nothing blocks the core Rust change; the issues are in the CI scripts and test hygiene.\n\nThe shell was broken in this session (every command failed with an EPERM error), so I couldn't build or run tests. The local worktree also isn't the PR head; it lacks the diagnostics script, for one. I reviewed the files at the PR's head commit `60d8ba3` on GitHub instead, and checked the pipeline templates in the local repo.\n\n## Inline comments\n1. **`sdk/identity/ci.yml:44` — diagnostics may look in the wrong subscription (most important).** The step always uses the `azure-sdk-tests-public` connection and never selects the deployment's subscription. If that differs from the subscription the job deployed into, the script reports \"found 0\" resource groups. That looks the same as \"already cleaned up\", so the problem stays hidden.\n2. **`managed_identity_credential.rs:444` (and `live()` in `workload_identity_credential.rs`) — tests now panic instead of skipping.** With the `CI_HAS_DEPLOYED_RESOURCES` check gone, running live tests without deployed resources hits `expect(\"IDENTITY_ACI_IP_USER_ASSIGNED\")`. CI is fine today because its only live-test leg deploys resources. Local live runs will fail unless CONTRIBUTING.md tells people to skip these tests.\n3. **`managed_identity_credential.rs:698` — silent pass.** Removing the \"Skipped\" message means the IMDS tests report as passed when IMDS wasn't available.\n4. **`test-resources-post.ps1:41-47` — weaker \"not deployed\" check.** It now treats an empty ACR name as \"not deployed\", although the template still outputs `IDENTITY_DEPLOY_RESOURCES`. Parsing that flag is a stronger check.\n5. **`test-resources-post.ps1:241` — no diagnostics for ACI, and long worst-case waits.** The ACI wait collects no logs on failure, unlike the AKS wait. The script can now block for about 42 minutes before failing, and the new 120-minute test timeout doesn't directly cover this deployment step.\n\n## General observations\n- **What's good:** The core change is clean. rustls now sits behind `reqwest_rustls` (still on by default), and the fallback error tells users both ways to fix it. Turning off `azure_identity`'s default features inside `azure_core_test` also means the test for the \"no rustls\" error can actually run now. CA rotation, concurrency and URL rewriting are tested with mock clients and no longer need OpenSSL.\n- **Compatibility:** Users on `default-features = false, features = [\"reqwest\"]` with the AKS proxy configured will only find out at runtime, when the credential is built. The changelog, README and troubleshooting entries cover it, and it only breaks against 1.1.0-beta.1, which seems acceptable.\n- **Security:** No concerns. HTTPS-only, no redirects, rejecting user info in the proxy URL, and keeping CA data out of error messages are all preserved. The diagnostics script prints resource IDs and provider error text (truncated at 2,048 characters) but no credentials.\n- **Performance (existing behaviour, not changed here):** `CustomTokenProxy::client()` re-reads the CA file synchronously on every request while holding a lock. That serializes token requests that go through the proxy. Worth a follow-up, such as checking the file's modification time or rate-limiting the reload.",
+   "ttft_ms": 2021,
+   "type": "result",
+   "duration_ms": 357823,
+   "uuid": "994cb147-9a3c-42d5-ad0b-b2f7dbbb23c9",
+   "ttft_stream_ms": 1600,
+   "time_to_request_ms": 554,
+   "first_content_frame_ms": 1601,
+   "queued_turn_count": 0,
+   "result_index": 0
+  },
+  "summaries": [],
+  "proxyRequests": null
+ },
+ "cost_usd": 1.909457
+}

@@ -1,0 +1,49 @@
+{
+ "tool": "grapim-lean-r2",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The downsize method is defined twice. The second definition, which expects a single dimensions string parameter, overrides the first, which expected separate max_width and max_height parameters. This makes the original method unreachable and breaks existing code that calls it with separate width and height arguments.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the duplicate downsize definition."
+  },
+  {
+   "comment": "Hardcoding maxSizeKB = 10 * 1024 ignores Discourse.SiteSettings['max_' + type + '_size_kb'], so the client-side limit can diverge from server-side and per-type settings (also applies to the 413 handler below).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1,
+    3
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 covers the hard-coded 10 MB limit that ignores the per-type site settings. C3 covers the same hard-coded limit in the 413 handler, which the golden comment also mentions."
+  },
+  {
+   "comment": "Passing 80% as the dimensions can fail for animated GIFs when allow_animated_thumbnails is true, since the animated path uses gifsicle --resize-fit which expects WxH geometry, not a percentage; downsizing would then silently fail.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions animated GIFs, gifsicle, or percentage-based dimensions."
+  },
+  {
+   "comment": "The loop checking `tempfile.size` may never terminate correctly due to stale cached size, leading to potential infinite loops or incorrect file handling after modifications.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "C2 is about the loop ignoring downsize's return value and the cost of repeated passes. It does not mention the stale cached tempfile.size."
+  }
+ ],
+ "candidates": [
+  "app/assets/javascripts/discourse/lib/utilities.js:182 - The client size check is hard-coded to 10 MB for every upload type and ignores the site settings.. `max_' + type + '_size_kb` used to apply per type. Now every upload, including attachments, is checked against a fixed 10 MB. If an admin set `max_attachment_size_kb` or `max_image_size_kb` above 10 MB, files the site allows are now blocked in the browser. Attachments between their configured limit and 10 MB now upload fully, only for the server to reject them. The request is about downsizing images, so changing the attachment limit is out of scope. Fix: keep the setting for non-image types, and for images use something like `Math.max(setting, 10240)`.",
+  "app/controllers/uploads_controller.rb:64 - Up to five full ImageMagick + ImageOptim passes run synchronously in the request, even after a failure.. Every image over `max_image_size_kb` (now accepted up to 10 MB) gets up to five resize-and-optimize passes inside the web request. The loop ignores `downsize`'s return value. If `convert` fails (corrupt image, unsupported format, missing binary), the file never changes and the same expensive command runs five times before the upload is rejected anyway. This holds a worker for a long time and lets any user tie up CPU by uploading large or bogus images. Fix: `break unless OptimizedImage.downsize(...)`, and consider capping input dimensions or doing the work in the background.",
+  "app/assets/javascripts/discourse/lib/utilities.js:246 - The 413 error message always reports 10 MB, whatever limit the web server or file type actually has.. A 413 comes from the web server, whose body limit (e.g. nginx `client_max_body_size`) is configured separately. For attachments the relevant limit is also different. Hard-coding 10 MB can show users a limit that is wrong for their site. Pick the limit from the upload type, or share one constant with the client-side check."
+ ]
+}

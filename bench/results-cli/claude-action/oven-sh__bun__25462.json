@@ -1,0 +1,170 @@
+{
+ "tool": "claude-action",
+ "pr_id": "oven-sh__bun__25462",
+ "url": "https://github.com/oven-sh/bun/pull/25462",
+ "head_sha": "7cdf07e36e3785afa797f5ef753f478dbfb3ea31",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T06:27:14.929Z",
+ "seconds": 155.207,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/runtime.zig",
+   "line": 216,
+   "end_line": 216,
+   "severity": null,
+   "category": null,
+   "title": "Bug: the runtime transpiler cache key doesn't include the feature flags.**",
+   "body": "**Bug: the runtime transpiler cache key doesn't include the feature flags.**\n\n`bun run` and `bun test` now honor `--feature`, but `bundler_feature_flags` is missing from `hash_fields_for_runtime_transpiler` / `hashForRuntimeTranspiler`. The cache can't include it as-is, because that hash only covers booleans. So for any file ≥ `MINIMUM_CACHE_SIZE` (50KB):\n\n1. `bun run --feature=FOO big.ts` writes a cache entry where `feature(\"FOO\")` is folded to `true`.\n2. `bun run big.ts` hits the same cache entry and still runs the `FOO` branch (and the reverse).\n\nThe existing runtime tests use tiny files, so they never reach the cache path.\n\nSuggested fix: hash the sorted flag names in `hashForRuntimeTranspiler`, e.g. sort `bundler_feature_flags.keys()` and `hasher.update` each name plus a separator. Alternatively, bail out of the cache when the set is non-empty. Either way, bump `expected_version` in `RuntimeTranspilerCache.zig`, and add a test with a source file over 50KB."
+  },
+  {
+   "path": "src/cli/build_command.zig",
+   "line": 85,
+   "end_line": 85,
+   "severity": null,
+   "category": null,
+   "title": "This allocation is redundant and leaks the first one. `Transpiler.init(..., ctx.args, ...)` already sets `bundler_feature_flags` from `transform.feature_flags` (`options.zig:2019`), and `Arguments.zig",
+   "body": "This allocation is redundant and leaks the first one. `Transpiler.init(..., ctx.args, ...)` already sets `bundler_feature_flags` from `transform.feature_flags` (`options.zig:2019`), and `Arguments.zig:591` fills that from `--feature`. When flags are present, this line allocates a second `StringSet` and overwrites the pointer, so the first set is never freed. That cuts against the deinit added in 7cdf07e.\n\nThis line can probably be removed. If it's kept for clarity, free the previous set first."
+  },
+  {
+   "path": "src/options.zig",
+   "line": 1917,
+   "end_line": 1917,
+   "severity": null,
+   "category": null,
+   "title": "Ownership hazard.** This `deinit` assumes every non-empty `bundler_feature_flags` was created by `initBundlerFeatureFlags` with `allocator`. That isn't true for `Bun.build`: `bundle_v2.zig:1840` point",
+   "body": "**Ownership hazard.** This `deinit` assumes every non-empty `bundler_feature_flags` was created by `initBundlerFeatureFlags` with `allocator`. That isn't true for `Bun.build`: `bundle_v2.zig:1840` points it at `&config.features`, a field inside `JSBundleCompletionTask.config` that `Config.deinit` already frees.\n\nToday nothing calls `Transpiler.deinit` on the `Bun.build` transpiler, so this can't crash yet. But if anyone adds that call, it will free memory that isn't a heap allocation and also free `config.features` a second time.\n\nSuggestion: track ownership explicitly, e.g. an `owns_bundler_feature_flags: bool` field or a tagged union. Or have `configureBundler` copy the set via `initBundlerFeatureFlags(alloc, config.features.keys())` so every non-empty set is owned the same way."
+  },
+  {
+   "path": "src/ast/P.zig",
+   "line": 2688,
+   "end_line": 2688,
+   "severity": null,
+   "category": null,
+   "title": "Several import shapes are dropped without an error and end up as runtime `ReferenceError`s:",
+   "body": "Several import shapes are dropped without an error and end up as runtime `ReferenceError`s:\n\n- **Namespace import:** `import * as b from \"bun:bundle\"; b.feature(\"X\")`. `star_name_loc` is ignored and the statement becomes `S.Empty`, so `b` is unbound.\n- **Default import:** `import feature from \"bun:bundle\"`. `default_name` is ignored the same way.\n- **Unknown specifiers:** `import { other } from \"bun:bundle\"`. The warning says `\"other\" will be undefined`, but no binding is declared, so any use throws `ReferenceError: other is not defined`. Either declare the binding and replace it with `undefined`, or make this an error and reword the message.\n- **Non-call use of `feature`:** `const f = feature;`, `typeof feature`, or `[...].filter(feature)`. The symbol is declared but its import is removed, so the identifier is emitted with no definition. Consider reporting an error from the identifier visitor when `ref == bundler_feature_flag_ref` is reached outside the callee position.\n\n`export { feature } from \"bun:bundle\"`, `require(\"bun:bundle\")`, and `import(\"bun:bundle\")` also aren't handled. Those fall through to normal resolution.\n\nEach of these should have an error and a test."
+  },
+  {
+   "path": "src/ast/visitExpr.zig",
+   "line": 1693,
+   "end_line": 1693,
+   "severity": null,
+   "category": null,
+   "title": "`E.String` can be a rope (`next != null`) after constant folding. For example, `feature(\"FOO\" + \"_BAR\")` folds into a rope when minifying, and it passes the `.e_string` check. `flag_string.data` then ",
+   "body": "`E.String` can be a rope (`next != null`) after constant folding. For example, `feature(\"FOO\" + \"_BAR\")` folds into a rope when minifying, and it passes the `.e_string` check. `flag_string.data` then holds only the first segment (`\"FOO\"`), so the lookup checks the wrong flag and silently returns the wrong boolean.\n\nFix: call `flag_string.resolveRopeIfNeeded(p.allocator)` before reading `.data`, or reject ropes with the \"must be a string literal\" error. A test for concatenated literals would cover this.\n\nSeparately, `is_utf16` doesn't strictly mean non-ASCII; the lexer can produce UTF-16 for other reasons. Converting with `strings.toUTF8Alloc` would handle that more robustly than raising an error."
+  },
+  {
+   "path": "test/bundler/bundler_feature_flag.test.ts",
+   "line": 226,
+   "end_line": 226,
+   "severity": null,
+   "category": null,
+   "title": "The happy-path coverage across both backends is good. Scenarios that are missing:",
+   "body": "The happy-path coverage across both backends is good. Scenarios that are missing:\n\n- Duplicate import (`import { feature as a, feature as b }`) → error.\n- Unknown specifier → the warning, plus what the code actually does at runtime.\n- Namespace or default import, and non-call use of `feature` (see the comment on `P.zig`).\n- Shadowing: `function f(feature) { return feature(\"X\") }` must **not** be replaced.\n- `feature(\"A\" + \"B\")` (rope strings).\n- Error-case tests for the `api` backend. The comment says error handling \"might differ\", which is a reason to test it, not to skip it.\n- Runtime transpiler cache: a file over 50KB run with and then without `--feature`, which would currently fail.\n- `Bun.Transpiler`, which isn't wired up to feature flags at all. If that's intentional, document it."
+  }
+ ],
+ "usage": {
+  "requests": 30,
+  "input": 38,
+  "cacheWrite": 37282,
+  "cacheRead": 565942,
+  "output": 9642,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "result": {
+   "duration_api_ms": 99531,
+   "stop_reason": "end_turn",
+   "session_id": "5aec3933-baf3-41ce-bfa8-f542824a9809",
+   "total_cost_usd": 0.6044364,
+   "usage": {
+    "input_tokens": 38,
+    "cache_creation_input_tokens": 37282,
+    "cache_read_input_tokens": 565942,
+    "output_tokens": 9642,
+    "output_tokens_details": {
+     "thinking_tokens": 2559
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 37282,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "modelUsage": {
+    "claude-opus-5-5": {
+     "inputTokens": 38,
+     "outputTokens": 9642,
+     "cacheReadInputTokens": 565942,
+     "cacheCreationInputTokens": 37282,
+     "webSearchRequests": 0,
+     "costUSD": 0.6044364,
+     "contextWindow": 1000000,
+     "maxOutputTokens": 128000,
+     "thinkingTokens": 2559,
+     "canonicalModel": "claude-opus-5-5",
+     "provider": "firstParty",
+     "costBasis": "list"
+    }
+   },
+   "permission_denials": [],
+   "terminal_reason": "completed",
+   "fast_mode_state": "off",
+   "fast_mode_disabled_reason": "sdk_opt_in_required",
+   "subagent_stats": {
+    "spawned": 0,
+    "requested": {
+     "background": 0,
+     "foreground": 0,
+     "unset": 0
+    },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+     "parent": 0,
+     "user": 0,
+     "system": 0
+    },
+    "refused": {
+     "depth_limit": 0,
+     "concurrency_limit": 0,
+     "budget": 0
+    },
+    "by_type": {}
+   },
+   "safety_stops": 0,
+   "is_error": false,
+   "num_turns": 30,
+   "subtype": "success",
+   "api_error_status": null,
+   "result": "I posted 6 inline comments on PR #25462. The shell wasn't working (every command failed with a permission error), so I reviewed the files at HEAD directly instead of the full diff. Nothing was built or run. The comments are in `runtime.zig`, `build_command.zig`, `options.zig`, `P.zig`, `visitExpr.zig` and the test file. Ranked by severity:\n\n1. **Stale cached output (correctness)**, `src/runtime.zig:216`: the set of enabled flags isn't part of the runtime transpiler's cache key. For any file over 50KB, `bun run --feature=X` followed by a plain `bun run` reuses the cached output, so the wrong branch runs. The existing runtime tests use tiny files, so they never reach the cache. The fix is to hash the sorted flag names (or skip the cache when flags are set) and bump `expected_version`.\n2. **Imports that silently break at runtime (correctness)**, `src/ast/P.zig:2664-2688`: namespace imports, default imports and unknown names imported from `bun:bundle` are dropped with no binding, so they throw `ReferenceError` at runtime. The warning saying an unknown name \"will be undefined\" is wrong for the same reason. Using `feature` other than as a direct call (`const f = feature`, `typeof feature`) leaves a reference to a binding that doesn't exist. `require(\"bun:bundle\")`, `import(\"bun:bundle\")` and re-exports aren't handled either.\n3. **Concatenated flag names checked wrongly**, `src/ast/visitExpr.zig:1693`: `feature(\"FOO\" + \"_BAR\")` passes the \"must be a string literal\" check, but only `\"FOO\"` is looked up. The result is silently wrong.\n4. **Unsafe cleanup assumption**, `src/options.zig:1917`: the new `deinit` assumes every non-empty flag set was allocated by `initBundlerFeatureFlags`. For `Bun.build`, the flag set belongs to the build config, which already frees it, so it would be freed twice. Nothing triggers this today, but it should track who owns the set or copy it.\n5. **Memory leak**, `src/cli/build_command.zig:85`: `bun build` allocates the flag set a second time and leaks the first copy. The line can be removed, since `Transpiler.init` already sets the flags from `--feature`.\n6. **Test gaps**: no tests for shadowing (`function f(feature) {...}`), duplicate imports, unknown names, namespace imports, concatenated strings, errors through the `Bun.build` API, the 50KB cache case, or `Bun.Transpiler`. The last one isn't wired up to flags at all.\n\nThe inline-comment tool can't post a top-level comment, so the general notes are here. The design is clean: handling the import at parse time like macros, a shared empty set so nothing is allocated without flags, and short-circuiting when control flow is dead. Error messages are clear, and the docs (`docs/bundler/index.mdx`, the esbuild comparison table, `bundle.d.ts` and the `features` option docs in `bun.d.ts`) are thorough. I found no security problems: flag names are only looked up in a set and are never evaluated.",
+   "ttft_ms": 2184,
+   "type": "result",
+   "duration_ms": 152250,
+   "uuid": "8027c3ba-f719-4560-8247-da492c197401",
+   "ttft_stream_ms": 1504,
+   "time_to_request_ms": 764,
+   "first_content_frame_ms": 1506,
+   "queued_turn_count": 0,
+   "result_index": 0
+  },
+  "summaries": [],
+  "proxyRequests": null
+ },
+ "cost_usd": 0.49259040000000004
+}

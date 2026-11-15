@@ -1,0 +1,33 @@
+{
+ "tool": "published-macroscope",
+ "pr_id": "grafana__90939",
+ "url": "https://github.com/grafana/grafana/pull/90939",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The GetWebAssets function implements an incomplete double-checked locking pattern for caching web assets. The function first checks if the cache is populated using a read lock (RLock), and if the cache is empty, it acquires a write lock to populate it. However, it fails to re-check whether the cache was populated by another goroutine while waiting to acquire the write lock.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same missing re-check after the write lock is acquired."
+  },
+  {
+   "comment": "In addition to the missing double-check, the function has a critical flaw in its error handling: it unconditionally assigns the fetch result to the cache (line 69: entryPointAssetsCache = result) regardless of whether the fetch succeeded or failed. When an error occurs during asset fetching, result is nil, and this nil value overwrites any previously valid cache entry.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 describes the same issue: when there's an error, the nil result overwrites the valid cache at line 69."
+  }
+ ],
+ "candidates": [
+  "In GetWebAssets, after acquiring the write lock, the code does not re-check whether entryPointAssetsCache was populated by another goroutine that held the lock first, allowing multiple goroutines to sequentially read the manifest file and overwrite the cache",
+  "If readWebAssetsFromFile or cfg.GetContentDeliveryURL returns an error, result is nil and line 69 overwrites a valid cached value with nil, causing subsequent callers to receive nil or retry unnecessarily"
+ ]
+}
