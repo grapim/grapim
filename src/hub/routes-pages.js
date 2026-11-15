@@ -289,6 +289,7 @@ export function pageRoutes(router, hub) {
           role: ctx.member.role,
           origin: config.origin,
           setup,
+          cloud: setup.empty ? (hub.github?.cloudInfo?.(team) ?? null) : null,
           waiting: runs.filter((r) => r.waiting && !r.mine),
           mine: runs.filter((r) => r.waiting && r.mine),
           pulls: setup.empty ? { enforced: false, list: [] } : ov.pulls(team),

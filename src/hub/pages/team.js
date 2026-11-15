@@ -166,6 +166,55 @@ function reviewSetup() {
 </ol>`;
 }
 
+// Cloud review, the first path for a new team when the hub offers it, the way
+// GitHub review apps onboard (install the App, turn it on, open a pull
+// request): three steps, each one done in place, with the reviews that ran
+// listed under the last one. Owners act; members see who has to.
+function cloudSetup({ team, csrf, role, cloud }) {
+  const owner = role === 'owner';
+  const linked = cloud.linked.length > 0;
+  const on = cloud.enabled;
+  const u = cloud.usage;
+  const step = (n, done, title, body, action) => html`<li class="step ${done ? 'is-done' : ''}">
+    <span class="step-mark" aria-hidden="true">${done ? icon('check') : n}</span>
+    <div class="step-body">
+      <h2 class="step-title">${title} ${done ? html`<span class="badge badge-ok">Done</span>` : html`<span class="sr-only">(not done)</span>`}</h2>
+      <p class="step-text">${body}</p>
+      ${action ? html`<div class="step-action">${action}</div>` : ''}
+    </div>
+  </li>`;
+  const reviews = cloud.recent.length
+    ? html`<ul class="plain-list">${cloud.recent.map(
+        (r) => html`<li class="plain-row"><a class="plain-main link" href="https://github.com/${r.owner}/${r.name}/pull/${r.number}" rel="noopener noreferrer">${r.owner}/${r.name}#${r.number}</a><span class="muted small">${r.status === 'running' ? 'reviewing' : r.status === 'failed' ? 'could not finish' : r.blockers ? plural(r.blockers, 'blocker') : r.findings ? plural(r.findings, 'finding') : 'no findings'}</span>${time(r.finished_at ?? r.started_at)}</li>`,
+      )}</ul>`
+    : '';
+  return html`<ol class="steps-list" aria-label="Set up cloud review">
+  ${step(
+    1,
+    linked,
+    'Connect GitHub',
+    linked ? html`Connected to <span class="strong">${cloud.linked.join(', ')}</span>.` : 'Install the Grapim GitHub App on the repositories you want reviewed. You choose which ones on GitHub.',
+    linked ? null : owner ? html`<form method="post" action="/hub/teams/${team.id}/github/install">${csrfField(csrf)}<button class="btn btn-primary" type="submit">Install on GitHub</button></form>` : html`<p class="muted small">An owner of ${team.name} installs it.</p>`,
+  )}
+  ${step(
+    2,
+    on,
+    'Turn on cloud review',
+    on
+      ? html`On. This month: ${plural(u.reviews, 'review')}, $${u.spent.toFixed(2)} of $${u.budget.toFixed(2)} credit.`
+      : html`Grapim reviews each pull request with ${cloud.modelName} on its own model account. Your ${team.plan} plan includes $${u.budget.toFixed(2)} of review a month, about ${Math.max(10, Math.floor(u.budget / 0.18 / 10) * 10).toLocaleString('en-US')} pull requests.`,
+    on ? null : owner ? html`<form method="post" action="/hub/teams/${team.id}/github/cloud-review">${csrfField(csrf)}<input type="hidden" name="enabled" value="1"><input type="hidden" name="from" value="overview"><button class="btn ${linked ? 'btn-primary' : ''}" type="submit" ${linked ? '' : html`disabled aria-disabled="true"`}>Turn on</button></form>` : html`<p class="muted small">An owner of ${team.name} turns it on.</p>`,
+  )}
+  ${step(
+    3,
+    cloud.recent.length > 0,
+    cloud.recent.length ? 'Reviews' : 'Open a pull request',
+    cloud.recent.length ? 'The newest reviews. Each one is on its pull request as comments and a Grapim Review (cloud) check.' : 'Open one in a connected repository, or push to an open one. A Grapim Review (cloud) check appears at once, and the comments follow, usually within a minute or two.',
+    reviews || null,
+  )}
+</ol>`;
+}
+
 function runRow(team, r) {
   return html`<li class="item">
   <a class="item-link" href="${runHref(team.id, r)}">
@@ -200,8 +249,30 @@ function shareBlock(team, teaser) {
 </section>`;
 }
 
-export function overviewPage({ toast = null, user, csrf, team, role, origin, setup, waiting, mine, pulls, teaser, active, activity, repos, workspaces }) {
+export function overviewPage({ toast = null, user, csrf, team, role, origin, setup, cloud = null, waiting, mine, pulls, teaser, active, activity, repos, workspaces }) {
   const base = `/hub/teams/${team.id}`;
+  if (setup.empty && cloud?.available) {
+    return layout({
+      title: team.name,
+      user,
+      csrf,
+      team,
+      toast,
+      crumbs: [{ label: 'Overview' }],
+      body: html`${head(team, 'overview', { title: cloud.enabled && cloud.recent.length ? team.name : `Set up ${team.name}`, sub: 'Install the GitHub App and Grapim reviews every pull request in about a minute. It knows what each agent was asked and flags what nobody asked for.' })}
+${cloudSetup({ team, csrf, role, cloud })}
+<details class="setup-more">
+  <summary><span class="setup-more-title">Or run it in your own CI</span><span class="muted small">Your model account, nothing reaches Grapim</span></summary>
+  <p class="setup-more-text">The same review as a GitHub Action on your runner. Your code goes only to the model account you choose.</p>
+  ${reviewSetup()}
+</details>
+<details class="setup-more">
+  <summary><span class="setup-more-title">Also record every agent run (CLI)</span><span class="muted small">Optional</span></summary>
+  <p class="setup-more-text"><code>grapim init</code> records each coding agent session as a run: the agent, what it was asked and the lines it changed. Grapim Review then knows which agent wrote each line. Sync the runs here so a teammate can approve them, and undo one run without touching the rest.</p>
+  ${checklist({ team, csrf, role, origin, setup })}
+</details>`,
+    });
+  }
   if (setup.empty) {
     return layout({
       title: team.name,

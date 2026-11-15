@@ -10,13 +10,13 @@ export function signInPage({ next = '/hub', error = null }) {
     bodyClass: 'site-bg',
     body: html`<section class="auth">
   <h1>Sign in to Grapim</h1>
-  <p class="lede">Every AI change to your code, with someone accountable for it: see which agent run made it and what it was asked to do, review it, stop unreviewed agent code at the pull request, and undo one run without touching the rest.</p>
+  <p class="lede">Code review that knows what your agents were asked. Sign in, connect the GitHub App, and every pull request is reviewed in about a minute.</p>
   ${error ? html`<p class="notice notice-error" role="alert">${error}</p>` : ''}
   <a class="btn btn-primary btn-block" href="${href}">
     <svg class="gh" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
     Continue with GitHub
   </a>
-  <p class="fine">Grapim reads your public GitHub profile (name and avatar) and nothing else. It never asks for access to your repositories: code reaches the hub only from machines you connect with a token.</p>
+  <p class="fine">Signing in reads your public GitHub profile (name and avatar) and nothing else. Grapim sees a repository only after you install the Grapim GitHub App on it, and you choose which ones.</p>
   <p class="fine auth-links"><a href="/docs">Read the quickstart</a><span aria-hidden="true"> · </span><a href="/docs/security">Security</a><span aria-hidden="true"> · </span><a href="/docs/support">Support</a></p>
 </section>`,
   });

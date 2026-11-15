@@ -613,7 +613,8 @@ export function createGitHubApp(hub, options = {}) {
         if (on && !cloud.config.configured) throw new HttpError(503, 'not_configured', 'Cloud review is not set up on this hub.');
         if (on && !installs.forTeam(team.id).length) throw new HttpError(409, 'not_linked', 'Connect the GitHub App first.');
         cloud.setEnabled(team.id, on, ctx.session.user.id);
-        redirect(ctx.res, `/hub/teams/${team.id}/settings/github#cloud-review`);
+        // From the setup page on the overview, back to it.
+        redirect(ctx.res, ctx.form?.from === 'overview' ? `/hub/teams/${team.id}` : `/hub/teams/${team.id}/settings/github#cloud-review`);
       },
       TEAM_FORM,
     );
@@ -868,6 +869,12 @@ ${cfg.configured ? cloud.card(team, csrf) : ''}`;
     requireProvenance,
     process: (job) => processPullRequest(jobCtx, job),
     cloud,
+    // What a new team's setup page needs to offer cloud review first.
+    cloudInfo(team) {
+      const available = cfg.configured && cloud.config.configured;
+      const linked = installs.forTeam(team.id);
+      return { available, linked: linked.map((i) => i.account_login || `installation ${i.id}`), enabled: cloud.enabled(team.id), usage: cloud.usage(team), recent: cloud.recent(team.id), modelName: cloud.config.modelName };
+    },
     close() {
       clearInterval(sweep);
       scans.close();

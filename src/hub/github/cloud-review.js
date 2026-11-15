@@ -436,5 +436,9 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
 </section>`;
   }
 
-  return { config: cfg, enabled, setEnabled, usage, card, onPullRequest, review, queue, close: () => queue.close() };
+  // The newest reviews of a team, for its setup page.
+  const recent = (teamId, n = 5) =>
+    db.prepare("SELECT owner, name, number, status, findings, blockers, started_at, finished_at FROM cloud_reviews WHERE team_id = ? AND status != 'no_credit' ORDER BY started_at DESC LIMIT ?").all(teamId, n);
+
+  return { config: cfg, enabled, setEnabled, usage, recent, card, onPullRequest, review, queue, close: () => queue.close() };
 }

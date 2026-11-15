@@ -1019,6 +1019,18 @@ test('cloud review: an owner turns it on in Settings, GitHub; pull request event
   assert.equal((await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '1' })).status, 409);
   await link(h, owner, T, 901);
   assert.equal((await hook(h, 'pull_request', prEvent(901))).body.review, undefined, 'off by default');
+  // A new team's overview leads with cloud review: GitHub connected, turn it on, open a pull request.
+  let ov = await owner.req(`/hub/teams/${T}`);
+  assert.match(ov.text, /Connect GitHub <span class="badge badge-ok">Done<\/span>/);
+  assert.match(ov.text, /Connected to <span class="strong">acme<\/span>/);
+  assert.match(ov.text, /<input type="hidden" name="from" value="overview"><button class="btn btn-primary" type="submit" >Turn on<\/button>/);
+  assert.match(ov.text, /about 50 pull requests/);
+  assert.match(ov.text, /Or run it in your own CI/);
+  const fromOverview = await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '1', from: 'overview' });
+  assert.equal(fromOverview.location, `/hub/teams/${T}`);
+  ov = await owner.req(`/hub/teams/${T}`);
+  assert.match(ov.text, /Turn on cloud review <span class="badge badge-ok">Done<\/span>/);
+  assert.equal((await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '0' })).status, 303);
   const on = await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '1' });
   assert.equal(on.status, 303);
   assert.match(on.location, new RegExp(`/hub/teams/${T}/settings/github#cloud-review`));
