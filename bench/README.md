@@ -209,11 +209,16 @@ Results of 2026-11-15, `grapim-lean` (the setting Cloud review ships: every chan
 |---|---|---|---|---|
 | Qodo v2 (Feb 2026) | 54.1% | 58.9% | 56.4 | 3.5 |
 | **Grapim, mean of 3 runs** | 48.3% | 55.9% | **51.8** (52.6, 52.1, 50.6) | 3.8 |
+| Grapim, two passes with the agreement rule, 1 run | 52.1% | 53.8% | 53.0 | 3.3 |
 | Cursor Bugbot (Jan 2026) | 56.8% | 44.9% | 50.2 | 2.5 |
 | Macroscope (Mar 2026) | 56.3% | 42.4% | 48.4 | 2.4 |
 | Kodus v2 (Mar 2026) | 58.6% | 36.7% | 45.1 | 2.0 |
 | Claude Code (Mar 2026) | 44.1% | 42.4% | 43.2 | 3.2 |
 | CodeRabbit (Jan 2026) | 32.1% | 57.0% | 41.1 | 5.9 |
+
+`grapim-lean-x2` is the two-pass row: a high-confidence finding is posted from any pass, a medium one only when both passes raised it. It was estimated at 55.4 by merging the stored single runs (the rule was chosen on the dev half of `data/martian-split.json` and held on the other half), and the real engine then scored 53.0: 56.1 on the held-out half, 50.0 on the dev half. The estimate counted a merged finding as matched when either pass's wording matched; the engine posts one wording. One run, so the difference from a single pass (51.8) is inside the spread.
+
+**The table above is not the leaderboard.** It holds only the six tools we re-judged. Martian's own offline board (its judge, a little more lenient than ours; it ranks by F2, which weights recall) has three tools well above everything in it: Qodo Extended v2, shown as "Qodo Deep" (precision 67.1%, recall 64.6%, F1 65.8, F2 65.1), Cubic v2 (61.5%, 65.8%, 63.6, 64.9) and Augment (59.5%, 65.2%, 62.2, 64.0), then Qodo v2 (F2 60.6) and GitHub Copilot v2 (F2 58.0). Grapim's one-pass mean under our judge is F1 51.8, F2 54.2, which would sit about sixth on that board, some 11 to 14 points behind the top three. An earlier note in this project called Grapim second; that compared it with the re-judged six only and was wrong.
 
 What to say with these numbers, and what not:
 
@@ -224,3 +229,20 @@ What to say with these numbers, and what not:
 - Grapim was run through the Claude Code CLI (`--via-cli`), which posts a few more comments than the API path. A published claim should come from an API run.
 - CodeRabbit's terms of service bar its customers from disclosing benchmark results. These numbers use reviews a third party published, not a run of ours; get advice before publishing them.
 - Martian's own leaderboard lists only tools with roughly 600 to 1,000 reviewed public pull requests and an attributable bot identity. Its monthly online tracker (which pull requests developers changed after a bot's review) is a different measure from this fixed set, and the two scores cannot be compared.
+
+## Martian's online tracker, measured here (online.mjs)
+
+Martian's online board (the default view of codereview.withmartian.com) does not use an answer key. For merged public pull requests a bot reviewed, it asks what the developer fixed after the bot's first review, and matches the bot's suggestions to those fixes. `online.mjs` runs the same three steps with Martian's prompts (MIT licence) on any bot's pull requests, so Grapim can be measured the same way before it is listed:
+
+    node bench/online.mjs score --bot greptile-apps --since 2026-11-01 --limit 20
+    node bench/online.mjs score --bot grapim --prs grapim/grapim#7
+    node bench/online.mjs report
+
+What the method rewards, read from its code (online/etl/pipeline/analyze.py, online/api_service/src/compute.rs):
+
+- Precision and recall are worked out per pull request and then averaged. A pull request where the bot raised nothing has no precision and is left out, so staying quiet when unsure costs nothing; one doubtful point on a pull request with one real one halves that pull request's precision.
+- Suggestions are taken from every comment the bot leaves: inline comments, the review body and issue comments. A summary that lists points the review could not confirm ("Worth a look") counts each of them as a suggestion.
+- The cut is the commit of the bot's first review. Only fixes after it count, so a review that arrives after the author has already pushed fixes loses them.
+- Pull requests over 50 commits or 2,000 changed lines, and pull requests with no commits after the review, are not scored.
+
+The judge here is claude-opus-5-5 through the CLI, not Martian's model, and the sample is ours, so compare bots measured here with each other, not with Martian's published numbers.
