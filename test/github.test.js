@@ -1074,3 +1074,16 @@ test('installed straight from GitHub, no team: the setup page says public reposi
   // A state still needs a session.
   assert.match((await anon.req('/hub/github/setup?installation_id=182&state=x')).location, /^\/hub\/login/);
 });
+
+test('@grapim comments: only on pull requests, never from bots, only from people with write access or the author', async (t) => {
+  const h = await startHub();
+  t.after(h.close);
+  const base = { action: 'created', installation: { id: 77 }, repository: { id: 5, name: 'api', owner: { login: 'acme' }, private: false } };
+  const issue = (c, extra = {}) => ({ ...base, issue: { number: 3, pull_request: {}, user: { login: 'author' } }, comment: { id: 1, body: '@grapim hello', user: { login: 'someone', type: 'User' }, author_association: 'NONE', ...c }, ...extra });
+  assert.equal((await hook(h, 'issue_comment', issue({}, { issue: { number: 3, user: { login: 'author' } } }))).body.ignored, 'not_a_pull_request');
+  assert.equal((await hook(h, 'issue_comment', issue({ user: { login: 'x[bot]', type: 'Bot' } }))).body.ignored, 'bot');
+  assert.equal((await hook(h, 'issue_comment', issue({}))).body.ignored, 'not_allowed');
+  assert.equal((await hook(h, 'issue_comment', issue({ author_association: 'MEMBER' }))).body.ignored, 'unlinked', 'allowed, but no such installation');
+  assert.equal((await hook(h, 'issue_comment', issue({ user: { login: 'author', type: 'User' } }))).body.ignored, 'unlinked', 'the author may ask');
+  assert.equal((await hook(h, 'pull_request_review_comment', { ...base, action: 'edited', pull_request: { number: 3 }, comment: { id: 2, body: '@grapim x' } })).body.ignored, 'action');
+});

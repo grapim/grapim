@@ -1,7 +1,7 @@
 // Grapim Review in the cloud, one pull request: run by cloud-review.js as a
 // child process, so the engine's git calls (synchronous) and its memory never
 // block or bloat the hub. Reads one JSON job on stdin:
-//   { dir, base, head, model, request, limits }
+//   { dir, base, head, model, request, limits, feedback }
 // takes the model key from ANTHROPIC_API_KEY in its own environment, and
 // writes one JSON line on stdout: { ok: true, result } or { ok: false, error, config }.
 // Progress goes to stderr. It never runs code from the repository.
@@ -34,6 +34,12 @@ async function main() {
       picked = raw !== null && Object.hasOwn(JSON.parse(String(raw).replace(/^﻿/, '')), 'review');
     } catch {}
     if (!picked) config = validateConfig({ ...config, review: 'all' });
+    // The team's reactions and replies on earlier Grapim comments
+    // (review-memory.js), after the repository's own instructions.
+    if (typeof job.feedback === 'string' && job.feedback.trim()) {
+      const joined = [config.instructions, job.feedback.trim()].filter(Boolean).join('\n\n');
+      config = validateConfig({ ...config, instructions: joined.length > 4000 ? `${joined.slice(0, 3999)}…` : joined });
+    }
   } catch (err) {
     if (err instanceof ConfigError) return { ok: false, config: true, error: err.message };
     throw err;

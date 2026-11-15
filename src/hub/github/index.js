@@ -398,6 +398,39 @@ export function createGitHubApp(hub, options = {}) {
         const reviewing = cloud.onPullRequest({ ...job, teamId: row.team_id, public: isPublic });
         return queued || reviewing ? { queued: true, ...(reviewing ? { review: true } : {}) } : { ignored: 'busy' };
       }
+      case 'issue_comment':
+      case 'pull_request_review_comment': {
+        // "@grapim ..." in a pull request (cloud-review.js onComment).
+        if (p.action !== 'created') return { ignored: 'action' };
+        const review = event === 'pull_request_review_comment';
+        if (!review && !p.issue?.pull_request) return { ignored: 'not_a_pull_request' };
+        const c = p.comment;
+        if (!c || c.user?.type === 'Bot' || typeof c.body !== 'string') return { ignored: 'bot' };
+        // Write access, or the pull request's own author: on a public
+        // repository anyone can comment, and every answer costs a model call.
+        const author = review ? p.pull_request?.user?.login : p.issue?.user?.login;
+        if (!['OWNER', 'MEMBER', 'COLLABORATOR'].includes(c.author_association) && c.user?.login !== author) return { ignored: 'not_allowed' };
+        const row = installs.get(inst?.id);
+        if (!row || row.deleted_at || row.suspended_at) return { ignored: 'unlinked' };
+        if (!auth || !cfg.slug) return { ignored: 'not_configured' };
+        const number = review ? p.pull_request?.number : p.issue?.number;
+        if (!Number.isSafeInteger(number)) return { ignored: 'bad_event' };
+        const queued = cloud.onComment({
+          installationId: row.id,
+          repoId: Number.isSafeInteger(p.repository?.id) ? p.repository.id : null,
+          owner: String(p.repository?.owner?.login ?? ''),
+          name: String(p.repository?.name ?? ''),
+          number,
+          teamId: row.team_id ?? null,
+          public: p.repository?.private === false,
+          kind: review ? 'review' : 'issue',
+          commentId: c.id,
+          rootId: review ? (Number.isSafeInteger(c.in_reply_to_id) ? c.in_reply_to_id : c.id) : null,
+          user: String(c.user?.login ?? '').slice(0, 100),
+          body: c.body.slice(0, 8000),
+        });
+        return queued ? { queued: true, chat: true } : { ignored: 'no_mention' };
+      }
       case 'check_run':
         return p.action === 'requested_action' ? onRequestedAction(p) : { ignored: 'action' };
       default:

@@ -451,6 +451,15 @@ ${siteFooter()}
 // the docs page that explains it.
 const CHANGES = [
   {
+    date: '2026-11-16',
+    items: [
+      { title: 'No repeated comments on a new push', body: 'Cloud review no longer posts a finding again when it already commented on it earlier in the same pull request. The summary says how many are still there, and a blocker that is still there still fails the check.', link: ['/docs/review#on-every-new-push', 'What happens on a new push'] },
+      { title: 'Ask Grapim in the pull request', body: 'Write @grapim in a comment to ask about a finding or the change, and the answer appears in the thread. @grapim review runs a fresh review.', link: ['/docs/review#ask-grapim-in-the-pull-request', 'How to ask'] },
+      { title: 'Learns from your team', body: 'Thumbs up and down on Grapim’s comments, and your team’s replies to them, now guide the next reviews in the repository. Nothing extra is stored.', link: ['/docs/review#it-learns-from-your-team', 'How it learns'] },
+    ],
+    more: [],
+  },
+  {
     date: '2026-11-15',
     items: [
       { title: 'Free for open source', body: 'Install the GitHub App on a public repository and every pull request gets a cloud review, free, with no account to create. Teams with cloud review on no longer spend credit on their public repositories. Pull requests opened by bots are skipped.', link: ['/docs/review#free-for-open-source', 'How free reviews work'] },

@@ -34,6 +34,22 @@ Public repositories are reviewed free. [Install the GitHub App](https://github.c
 - Grapim only comments on repositories where someone installed it. Uninstall the App and it stops.
 - The summary comment ends with one line saying the review is free for public repositories.
 
+### On every new push
+
+Grapim reviews the new head, but a finding it already posted on the pull request (same file, same or nearly the same title) is not posted again. The summary says how many earlier findings are still there, and a blocker that is still there still fails the check.
+
+### Ask Grapim in the pull request
+
+Mention the App in a comment: `@grapim is this really a problem?` under one of its comments, or `@grapim what does this change break?` in the conversation. Grapim answers with the diff, the description and that thread in front of it. `@grapim review` runs a fresh review of the head.
+
+- People with write access, and the pull request's author, can ask. Comments from bots are ignored.
+- Answers use the same review credit (or the free pool for public repositories), at most 20 a day per pull request.
+- The model has no tools: it can only write the reply.
+
+### It learns from your team
+
+Before each review, Grapim reads its recent comments in the repository back from GitHub: 👎 and 👍 on them, and the replies written under them by people with write access. That goes to the reviewer as guidance, so a kind of finding your team keeps dismissing comes up less. Nothing is stored on Grapim's side for this, and replies from people without write access are left out. A blocker is still reported.
+
 ## Run it in your own CI
 
 The rest of this page sets up the review as a GitHub Action.
