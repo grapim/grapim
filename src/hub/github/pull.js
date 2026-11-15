@@ -286,9 +286,20 @@ export async function processPullRequest(ctx, job) {
   const requireReview = ctx.requireReview(team);
   const requireProvenance = requireReview && !!ctx.requireProvenance?.(team);
 
+  // With cloud review on, Grapim says one thing per pull request: the
+  // provenance goes into the review's summary comment (cloud-review.js reads
+  // it from ctx.saveProvenance) instead of a comment of its own, and the
+  // provenance check is created only when it can block (require_review on).
+  const merged = !!ctx.cloudOn?.(team);
+  const quietCheck = merged && !requireReview;
+
   const hubRepo = await source.repoFor(team, fullName);
   const finishEmpty = async () => {
-    const comment = await upsertComment(gh, repoPath, job.number, renderEmpty({ via: 'app' }), { botLogin, once: true });
+    if (merged) {
+      ctx.saveProvenance?.({ installationId: inst.id, repoId: job.repoId, number: job.number, headSha: head, markdown: null });
+      if (quietCheck) return { empty: true, comment: { action: 'merged' }, check: { action: 'skipped', conclusion: 'skipped' } };
+    }
+    const comment = merged ? { action: 'merged' } : await upsertComment(gh, repoPath, job.number, renderEmpty({ via: 'app' }), { botLogin, once: true });
     const check = await upsertCheck(gh, repoPath, head, {
       conclusion: 'neutral',
       title: 'No AI provenance yet',
@@ -462,9 +473,12 @@ export async function processPullRequest(ctx, job) {
   const link = (place, run) => `${origin}/hub/teams/${seg(team.id)}/repos/${seg(place.repo_id)}/runs/${seg(run)}?machine=${seg(place.machine)}`;
   const reviewLinks = new Map([...places].map(([run, place]) => [run, link(place, run)]));
   const { markdown, stats } = renderSummary({ files, notesByCommit: notes, blameByFile, reviews, omittedFiles, reviewLinks });
-  const comment = noProvenance
-    ? await upsertComment(gh, repoPath, job.number, renderEmpty({ via: 'app' }), { botLogin, once: true })
-    : await upsertComment(gh, repoPath, job.number, markdown, { botLogin, once: false });
+  if (merged) ctx.saveProvenance?.({ installationId: inst.id, repoId: job.repoId, number: job.number, headSha: head, markdown: noProvenance ? null : markdown });
+  const comment = merged
+    ? { action: 'merged' }
+    : noProvenance
+      ? await upsertComment(gh, repoPath, job.number, renderEmpty({ via: 'app' }), { botLogin, once: true })
+      : await upsertComment(gh, repoPath, job.number, markdown, { botLogin, once: false });
 
   // The AI runs of this pull request (line by line, plus the conservative ones).
   const aiRuns = new Map();
@@ -524,6 +538,7 @@ export async function processPullRequest(ctx, job) {
     ? `**Approve from GitHub:** the button${actions.length === 1 ? '' : 's'} above record${actions.length === 1 ? 's' : ''} an approval in Grapim as the GitHub user who clicks, under the hub's rules: a member of the team who did not sync the run.`
     : '';
   const summary = [notice ? `> ${md(notice, 300)}` : '', decision ? `${decision.summary}\n\n---\n\n${body}` : body, buttons].filter(Boolean).join('\n\n');
+  if (quietCheck) return { empty: noProvenance, stats, decision, comment, check: { action: 'skipped', conclusion: 'skipped' }, calls: gh.calls, title };
   const check = await upsertCheck(gh, repoPath, head, {
     conclusion: decision ? decision.conclusion : 'neutral',
     title,

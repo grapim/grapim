@@ -122,7 +122,7 @@ export function createGitHubApp(hub, options = {}) {
   const governance = typeof options.governance === 'function' ? options.governance : defaultGovernance(hub);
   const stop = new AbortController();
   const rules = new PathRules({ db, now });
-  const cloud = createCloudReview(hub, { auth, installs, apiBase, fetch: fetchImpl, slug: cfg.slug, env: options.env ?? process.env, gitUrl: options.gitUrl ?? null, signal: stop.signal });
+  const cloud = createCloudReview(hub, { auth, installs, apiBase, fetch: fetchImpl, slug: cfg.slug, env: options.env ?? process.env, gitUrl: options.gitUrl ?? null, signal: stop.signal, ...(options.provenanceWaitMs !== undefined ? { provenanceWaitMs: options.provenanceWaitMs } : {}) });
   const scans = new HistoryScans({ db, now, log, auth, apiBase, fetch: fetchImpl, sleep: options.sleep, maxWaitMs: options.maxWaitMs ?? RATE_WAIT_MS, signal: stop.signal, timers: options.historyTimers !== false, ...(options.rescanMs !== undefined ? { rescanMs: options.rescanMs } : {}) });
   // Starts the 90-day scan; an install-time scan never fails the link.
   const startScan = (teamId, userId, reason) => {
@@ -313,7 +313,7 @@ export function createGitHubApp(hub, options = {}) {
     return queued;
   }
 
-  const jobCtx = { db, teams, auth, apiBase, fetch: fetchImpl, now, sleep: options.sleep, signal: stop.signal, slug: cfg.slug, source, origin: config.origin, requireReview, requireProvenance, track, actionFor, noticeFor, maxWaitMs: options.maxWaitMs ?? RATE_WAIT_MS };
+  const jobCtx = { db, teams, auth, apiBase, fetch: fetchImpl, now, sleep: options.sleep, signal: stop.signal, slug: cfg.slug, source, origin: config.origin, requireReview, requireProvenance, track, actionFor, noticeFor, cloudOn: (team) => cloud.on(team), saveProvenance: (p) => cloud.saveProvenance(p), maxWaitMs: options.maxWaitMs ?? RATE_WAIT_MS };
   const queue = new JobQueue({
     concurrency: options.concurrency ?? 2,
     log,

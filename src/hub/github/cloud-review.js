@@ -91,7 +91,27 @@ CREATE TABLE IF NOT EXISTS cloud_reviews (
   error         TEXT
 );
 CREATE INDEX IF NOT EXISTS cloud_reviews_team ON cloud_reviews (team_id, started_at);
+-- The provenance section of a pull request whose team has cloud review on
+-- (pull.js renders it, the review's summary comment carries it). Newest head only.
+CREATE TABLE IF NOT EXISTS cloud_provenance (
+  installation_id INTEGER NOT NULL,
+  repo_gh_id      INTEGER NOT NULL,
+  number          INTEGER NOT NULL,
+  head_sha        TEXT NOT NULL,
+  markdown        TEXT,
+  updated_at      INTEGER NOT NULL,
+  PRIMARY KEY (installation_id, repo_gh_id, number)
+);
 `;
+
+// The provenance comment's body as a section of the review summary: its own
+// marker and heading go, the rest (run table, links) stays.
+export function provenanceSection(markdown, limit = 20_000) {
+  if (!markdown) return '';
+  let body = String(markdown).replace(/^<!--[^>]*-->\n?/, '').replace(/^#{1,4} Grapim provenance\n+/, '').trim();
+  if (body.length > limit) body = `${body.slice(0, limit).replace(/\n[^\n]*$/, '')}\n\n…`;
+  return `### Who wrote it\n\n${body}`;
+}
 
 const int = (v, d, lo, hi) => {
   const n = Number(v);
@@ -210,7 +230,7 @@ function runWorker(job, { key, baseUrl, signal, timeoutMs, log }) {
   });
 }
 
-export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, env = process.env, gitUrl = null, signal: stopSignal } = {}) {
+export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, env = process.env, gitUrl = null, signal: stopSignal, provenanceWaitMs = 2000 } = {}) {
   const { db, now, log, teams } = hub;
   db.exec(CLOUD_SCHEMA);
   const cfg = cloudConfig(env);
@@ -372,7 +392,16 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       finish({ status: 'done', findings: findings.length, blockers: n.blocker, input_tokens: st.inputTokens ?? 0, output_tokens: st.outputTokens ?? 0, cost_micros: cost });
 
       const posted = await post(client, repo, job.number, head, findings);
-      const text = summaryMarkdown({ summary: result.summary, extra: posted.moved, heading: 'Not on a changed line', md, limit: LIMIT }).replace(MARKER, CLOUD_MARKER);
+      // One comment per pull request: the provenance section joins the review.
+      // The provenance job runs on its own queue and is nearly always done by
+      // now; wait for it briefly so the one comment is complete.
+      let provMd = provenanceFor(job);
+      for (let i = 0; provMd === undefined && i < 10 && !signal.aborted; i++) {
+        await new Promise((r) => setTimeout(r, provenanceWaitMs));
+        provMd = provenanceFor(job);
+      }
+      const prov = provenanceSection(provMd);
+      const text = summaryMarkdown({ summary: prov ? `${result.summary}\n\n${prov}` : result.summary, extra: posted.moved, heading: 'Not on a changed line', md, limit: LIMIT }).replace(MARKER, CLOUD_MARKER);
       await summary(client, repo, job.number, text);
       const failOn = result.failOn === 'never' ? 'never' : 'blocker';
       await check(client, repo, checkId, {
@@ -440,5 +469,21 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
   const recent = (teamId, n = 5) =>
     db.prepare("SELECT owner, name, number, status, findings, blockers, started_at, finished_at FROM cloud_reviews WHERE team_id = ? AND status != 'no_credit' ORDER BY started_at DESC LIMIT ?").all(teamId, n);
 
-  return { config: cfg, enabled, setEnabled, usage, recent, card, onPullRequest, review, queue, close: () => queue.close() };
+  // pull.js hands over the provenance of a pull request whose team has cloud
+  // review on; the review's summary carries it (provenanceSection).
+  const on = (team) => cfg.configured && !!auth && enabled(team.id);
+  function saveProvenance({ installationId, repoId, number, headSha, markdown }) {
+    if (!Number.isSafeInteger(Number(repoId)) || !Number.isSafeInteger(number)) return;
+    db.prepare(
+      `INSERT INTO cloud_provenance (installation_id, repo_gh_id, number, head_sha, markdown, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(installation_id, repo_gh_id, number) DO UPDATE SET head_sha = excluded.head_sha, markdown = excluded.markdown, updated_at = excluded.updated_at`,
+    ).run(installationId, Number(repoId), number, headSha, markdown ?? null, now());
+  }
+  function provenanceFor(job) {
+    const r = db.prepare('SELECT head_sha, markdown FROM cloud_provenance WHERE installation_id = ? AND repo_gh_id = ? AND number = ?').get(job.installationId, Number(job.repoId), job.number);
+    // undefined: not rendered yet; null: rendered, nothing to show.
+    return r && r.head_sha === job.headSha ? r.markdown : undefined;
+  }
+
+  return { config: cfg, enabled, setEnabled, usage, recent, card, onPullRequest, review, queue, on, saveProvenance, provenanceFor, close: () => queue.close() };
 }

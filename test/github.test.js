@@ -1043,10 +1043,15 @@ test('cloud review: an owner turns it on in Settings, GitHub; pull request event
   await join(owner, bob, T);
   assert.equal((await bob.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '0' })).status, 403);
   // A pull request event now queues a cloud review too.
+  const before = { comments: h.gh.s.comments.length, checks: h.gh.s.checks.length };
   const r = await hook(h, 'pull_request', prEvent(901));
   assert.equal(r.status, 202);
   assert.equal(r.body.review, true);
+  await h.hub.github.queue.idle();
   await h.hub.github.cloud.queue.idle();
+  // One voice per pull request: with cloud review on, no separate provenance comment, and no provenance check while it cannot block.
+  assert.ok(!h.gh.s.comments.slice(before.comments).some((c) => c.body.startsWith('<!-- grapim:provenance')), 'no provenance comment of its own');
+  assert.ok(!h.gh.s.checks.slice(before.checks).some((c) => c.name === 'Grapim provenance (app)'), 'no neutral provenance check');
   const row = h.hub.db.prepare('SELECT status FROM cloud_reviews').get();
   assert.ok(row, 'the review ran');
   assert.ok(!JSON.stringify(h.logs).includes('sk-test-cloud-key'));

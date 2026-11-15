@@ -10,7 +10,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { CLOUD_CHECK, CLOUD_MARKER, cloudConfig, costMicros, createCloudReview, DEFAULT_MODEL } from '../src/hub/github/cloud-review.js';
+import { CLOUD_CHECK, CLOUD_MARKER, cloudConfig, costMicros, createCloudReview, DEFAULT_MODEL, provenanceSection } from '../src/hub/github/cloud-review.js';
 
 const TOKEN = 'ghs_cloudtest_secret_token';
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
@@ -113,6 +113,7 @@ async function setup(t, { plan = 'free', credit = null } = {}) {
     slug: 'grapim-test',
     env,
     gitUrl: () => src.dir,
+    provenanceWaitMs: 5,
   });
   t.after(() => cloud.close());
   const job = { installationId: 1, repoId: 99, teamId: 'team1', owner: 'acme', name: 'api', number: 7, headSha: src.head };
@@ -195,4 +196,21 @@ test('a fetch that fails ends the check as neutral, without the token in the mes
   assert.equal(check.conclusion, 'neutral');
   assert.ok(!JSON.stringify(check).includes(TOKEN));
   assert.equal(model.s.requests.length, 0);
+});
+
+test('one comment per pull request: the provenance section joins the review summary', async (t) => {
+  const { cloud, gh, job } = await setup(t);
+  cloud.setEnabled('team1', true, 'u1');
+  const prov = '<!-- grapim:provenance -->\n### Grapim provenance\n\n**1 agent run of 1 not reviewed yet.** 39% of the added lines came from agent runs (11 of 28): claude-code 11\n';
+  cloud.saveProvenance({ installationId: job.installationId, repoId: job.repoId, number: job.number, headSha: job.headSha, markdown: prov });
+  const r = await cloud.review(job, AbortSignal.timeout(60_000));
+  assert.equal(r.done, true);
+  const body = gh.s.comments[0].body;
+  assert.ok(body.startsWith(CLOUD_MARKER));
+  assert.match(body, /### Who wrote it\n\n\*\*1 agent run of 1 not reviewed yet\.\*\*/);
+  assert.ok(!body.includes('grapim:provenance'), 'the provenance marker is not carried over');
+  // A stale head is not shown; nothing rendered yet shows nothing.
+  cloud.saveProvenance({ installationId: job.installationId, repoId: job.repoId, number: job.number, headSha: 'f'.repeat(40), markdown: prov });
+  assert.equal(cloud.provenanceFor(job), undefined);
+  assert.equal(provenanceSection(null), '');
 });
