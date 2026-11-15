@@ -84,19 +84,19 @@ function fakeGitHub(head, { isPrivate = true, userType = 'User' } = {}) {
   }).then((srv) => ({ ...srv, s }));
 }
 
-function fakeAnthropic() {
+function fakeAnthropic({ text = null } = {}) {
   const s = { requests: [] };
   return listen((req, url, body, send) => {
     s.requests.push({ key: req.headers['x-api-key'], model: body.model });
     const findings = [{ path: 'src/small.js', line: 1, end_line: 1, severity: 'blocker', confidence: 'high', category: 'correctness', title: 'a is now 10', body: 'Callers expect 1.' }];
-    send(200, { id: 'msg_1', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'text', text: JSON.stringify({ findings }) }], stop_reason: 'end_turn', usage: { input_tokens: 1000, output_tokens: 200 } });
+    send(200, { id: 'msg_1', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'text', text: text ?? JSON.stringify({ findings }) }], stop_reason: 'end_turn', usage: { input_tokens: 1000, output_tokens: 200 } });
   }).then((srv) => ({ ...srv, s }));
 }
 
-async function setup(t, { plan = 'free', credit = null, env: extra = {}, isPrivate = true, userType = 'User' } = {}) {
+async function setup(t, { plan = 'free', credit = null, env: extra = {}, isPrivate = true, userType = 'User', modelText = null } = {}) {
   const src = sourceRepo();
   const gh = await fakeGitHub(src.head, { isPrivate, userType });
-  const model = await fakeAnthropic();
+  const model = await fakeAnthropic({ text: modelText });
   t.after(async () => {
     await gh.close();
     await model.close();
@@ -259,4 +259,27 @@ test('open source: a cap per repository and a switch to turn the pool off', asyn
   assert.equal(off.cloud.onPullRequest({ ...off.job, teamId: null, public: true }), false);
   assert.equal((await off.cloud.review({ ...off.job, teamId: null, public: true }, AbortSignal.timeout(30_000))).skipped, 'off');
   assert.equal(off.cloud.onPullRequest({ ...off.job, teamId: null, public: false }), false, 'never a private repository of an unlinked installation');
+});
+
+test('a repository that has notes still gets commits made without Grapim reviewed (twfly104/grapim#5 reviewed 0 of 17 hunks)', async (t) => {
+  const { cloud, gh, model, job, src } = await setup(t);
+  // The repository has Grapim notes, for another commit: the engine's default would take the PR's lines for human-written and skip them.
+  git(src.dir, 'notes', '--ref=grapim', 'add', '-m', JSON.stringify({ v: 1, runs: [], files: {} }), 'main');
+  cloud.setEnabled('team1', true, 'u1');
+  const r = await cloud.review(job, AbortSignal.timeout(60_000));
+  assert.equal(r.done, true, JSON.stringify(r));
+  assert.ok(model.s.requests.length >= 1, 'the model was asked');
+  assert.equal(r.counts.blocker, 1);
+  const check = gh.s.checks.find((c) => c.name === CLOUD_CHECK);
+  assert.equal(check.conclusion, 'failure');
+});
+
+test('a review that looked at nothing ends neutral as "Nothing reviewed", never as a pass', async (t) => {
+  const { cloud, gh, job } = await setup(t, { modelText: 'not json at all' });
+  cloud.setEnabled('team1', true, 'u1');
+  const r = await cloud.review(job, AbortSignal.timeout(60_000));
+  assert.equal(r.done, true, JSON.stringify(r));
+  const check = gh.s.checks.find((c) => c.name === CLOUD_CHECK);
+  assert.equal(check.conclusion, 'neutral');
+  assert.equal(check.output.title, 'Nothing reviewed');
 });

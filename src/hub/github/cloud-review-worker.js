@@ -7,6 +7,7 @@
 // Progress goes to stderr. It never runs code from the repository.
 
 import { anthropicProvider, ConfigError, loadConfig, reviewChanges, validateConfig } from '../../airev/index.js';
+import { git } from '../../provenance/pr.js';
 
 async function readStdin() {
   const chunks = [];
@@ -20,9 +21,19 @@ async function main() {
   try {
     // The base commit's .grapim/review.json (a pull request cannot loosen its
     // own review), with the model the cloud review pays for.
-    // A repository without Grapim notes gets every change reviewed: the
-    // engine's planReview does that itself.
     config = validateConfig({ ...loadConfig(job.dir, { rev: job.base }), model: job.model });
+    // A team that turned cloud review on expects every pull request reviewed.
+    // The engine's default skips lines it takes for human-written outside
+    // sensitive paths, and in a repository that has notes, every commit made
+    // without Grapim looks human-written: twfly104/grapim#5 got 0 of 17 hunks
+    // reviewed. So the cloud reviews everything unless the repository's own
+    // .grapim/review.json picks a mode.
+    const raw = git(job.dir, ['cat-file', 'blob', `${job.base}:.grapim/review.json`], { allowFail: true });
+    let picked = false;
+    try {
+      picked = raw !== null && Object.hasOwn(JSON.parse(String(raw).replace(/^﻿/, '')), 'review');
+    } catch {}
+    if (!picked) config = validateConfig({ ...config, review: 'all' });
   } catch (err) {
     if (err instanceof ConfigError) return { ok: false, config: true, error: err.message };
     throw err;

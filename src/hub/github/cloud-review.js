@@ -451,10 +451,12 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       const text = `${summaryMarkdown({ summary: prov ? `${result.summary}\n\n${prov}` : result.summary, extra: posted.moved, heading: 'Not on a changed line', md, limit: LIMIT - OSS_FOOTER.length }).replace(MARKER, CLOUD_MARKER).trimEnd()}${oss ? OSS_FOOTER : '\n'}`;
       await summary(client, repo, job.number, text);
       const failOn = result.failOn === 'never' ? 'never' : 'blocker';
+      // A review that looked at nothing must not pass as "No findings".
+      const nothing = !(st.reviewedHunks > 0);
       await check(client, repo, checkId, {
         status: 'completed',
-        conclusion: failOn === 'blocker' && n.blocker ? 'failure' : 'success',
-        output: { title: `${countText(n)[0].toUpperCase()}${countText(n).slice(1)}`, summary: text.replace(CLOUD_MARKER, '').trim().slice(0, LIMIT) },
+        conclusion: nothing ? 'neutral' : failOn === 'blocker' && n.blocker ? 'failure' : 'success',
+        output: { title: nothing ? 'Nothing reviewed' : `${countText(n)[0].toUpperCase()}${countText(n).slice(1)}`, summary: text.replace(CLOUD_MARKER, '').trim().slice(0, LIMIT) },
       });
       return { done: true, counts: n, cost };
     } catch (err) {
