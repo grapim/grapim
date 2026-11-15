@@ -36,6 +36,10 @@ Public repositories are reviewed free. [Install the GitHub App](https://github.c
 - Grapim only comments on repositories where someone installed it. Uninstall the App and it stops.
 - The summary comment ends with one line saying the review is free for public repositories.
 
+### A second look before posting
+
+Before cloud review posts anything, every finding goes back to the model with the code around it, where the names it mentions are used in the repository, the commit messages, and what the author and people with write access said on the pull request. A finding that context contradicts is dropped: the author already explained the change, the condition it needs cannot happen in this code, or the value it calls wrong is right. The summary says how many were dropped. If the second look fails, every finding is posted as before.
+
 ### On every new push
 
 Grapim reviews the new head, but a finding it already posted on the pull request (same file, same or nearly the same title) is not posted again. The summary says how many earlier findings are still there, and a blocker that is still there still fails the check.

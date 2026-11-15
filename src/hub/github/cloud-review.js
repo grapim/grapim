@@ -357,6 +357,24 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     }
   }
 
+  // What the author and people with write access said on the pull request, for
+  // the second look: an author who already explained a change should not be
+  // asked about it. Others are left out: on a public repository a stranger's
+  // "this is fine" must not talk the reviewer out of a finding. Bots too.
+  async function prDiscussion(client, repo, number, author) {
+    try {
+      const TRUSTED = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+      const human = (c) => c?.user?.type !== 'Bot' && String(c?.body ?? '').trim() && (TRUSTED.has(c.author_association) || (author && c.user?.login === author));
+      const lines = [];
+      for (const c of (await list(client, `/repos/${repo}/issues/${number}/comments`, 3)).filter(human)) lines.push(`${c.user.login}: ${c.body}`);
+      for (const c of (await list(client, `/repos/${repo}/pulls/${number}/reviews`, 3)).filter(human)) lines.push(`${c.user.login} (review): ${c.body}`);
+      for (const c of (await list(client, `/repos/${repo}/pulls/${number}/comments`, 3)).filter(human)) lines.push(`${c.user.login} on ${c.path}:${c.line ?? c.original_line}: ${c.body}`);
+      return lines.join('\n\n').slice(0, 12_000);
+    } catch {
+      return '';
+    }
+  }
+
   // The team's 👎 / 👍 and replies on Grapim's recent comments in this repository.
   async function repoFeedback(client, repo) {
     if (!slug) return { text: '', signals: 0 };
@@ -518,7 +536,8 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
 
       const request = await statedRequest({ pr, repo, request: (method, url) => client.request(method, url), lib: { closingIssues }, log: () => {} });
       const feedback = await repoFeedback(client, repo);
-      const out = await runWorker({ dir, base, head, model: cfg.model, request, limits: REVIEW_LIMITS, ...(feedback.text ? { feedback: feedback.text } : {}) }, { key: cfg.key, baseUrl: cfg.baseUrl, signal, timeoutMs: cfg.jobMs, log });
+      const discussion = await prDiscussion(client, repo, job.number, pr?.user?.login ?? null);
+      const out = await runWorker({ dir, base, head, model: cfg.model, request, limits: REVIEW_LIMITS, discussion, ...(feedback.text ? { feedback: feedback.text } : {}) }, { key: cfg.key, baseUrl: cfg.baseUrl, signal, timeoutMs: cfg.jobMs, log });
       if (!out?.ok) {
         const msg = String(out?.error ?? 'The review failed.').split(cfg.key).join('***');
         finish({ status: 'failed', error: msg.slice(0, 500) });

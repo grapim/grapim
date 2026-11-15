@@ -103,7 +103,9 @@ function fakeAnthropic({ text = null } = {}) {
   return listen((req, url, body, send) => {
     s.requests.push({ key: req.headers['x-api-key'], model: body.model, text: JSON.stringify(body) });
     const findings = [{ path: 'src/small.js', line: 1, end_line: 1, severity: 'blocker', confidence: 'high', category: 'correctness', title: 'a is now 10', body: 'Callers expect 1.' }];
-    send(200, { id: 'msg_1', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'text', text: text ?? JSON.stringify({ findings }) }], stop_reason: 'end_turn', usage: { input_tokens: 1000, output_tokens: 200 } });
+    // s.text(body): a test's own answer for some requests (null: the default).
+    const custom = typeof s.text === 'function' ? s.text(body) : null;
+    send(200, { id: 'msg_1', type: 'message', role: 'assistant', model: body.model, content: [{ type: 'text', text: custom ?? text ?? JSON.stringify({ findings }) }], stop_reason: 'end_turn', usage: { input_tokens: 1000, output_tokens: 200 } });
   }).then((srv) => ({ ...srv, s }));
 }
 
@@ -296,6 +298,26 @@ test('a review that looked at nothing ends neutral as "Nothing reviewed", never 
   const check = gh.s.checks.find((c) => c.name === CLOUD_CHECK);
   assert.equal(check.conclusion, 'neutral');
   assert.equal(check.output.title, 'Nothing reviewed');
+});
+
+test('second look: a finding the author already explained is dropped before posting; strangers cannot do that', async (t) => {
+  const { cloud, gh, model, job } = await setup(t);
+  cloud.setEnabled('team1', true, 'u1');
+  gh.s.comments.push(
+    { id: 501, body: 'a = 10 is on purpose: every caller reads the new value.', user: { login: 'dev', type: 'User' }, author_association: 'NONE' },
+    { id: 502, body: 'Looks fine to me, nothing to fix here.', user: { login: 'stranger', type: 'User' }, author_association: 'NONE' },
+  );
+  // The fake model answers every request with the same text: a finding list
+  // for the review, and for the second look a verdict list.
+  model.s.text = (body) => (body.output_config?.format?.schema?.properties?.verdicts ? JSON.stringify({ verdicts: [{ id: 0, verdict: 'drop', reason: 'The author says every caller reads the new value.' }] }) : null);
+  const r = await cloud.review(job, AbortSignal.timeout(60_000));
+  assert.equal(r.done, true, JSON.stringify(r));
+  assert.equal(r.counts.blocker, 0, 'the blocker was dropped');
+  assert.equal(gh.s.reviews.length, 0, 'nothing posted inline');
+  assert.match(gh.s.comments.at(-1).body, /second look at the code and the discussion dropped 1 finding/);
+  const look = model.s.requests.map((q) => q.text).find((t) => t.includes('verdicts'));
+  assert.ok(look.includes('every caller reads the new value'), 'the author is heard');
+  assert.ok(!look.includes('nothing to fix here'), 'a stranger is not');
 });
 
 test('free reviews: a repository with few stars is reviewed on request only, unless its owner is allowed', async (t) => {
