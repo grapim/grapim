@@ -26,7 +26,7 @@ export const term = (s) => String(s).replace(/\r(?!\n)|[\x00-\x08\x0b\x0c\x0e-\x
 export const HUB = 'https://app.grapim.com';
 export const DOCS = 'https://app.grapim.com/docs';
 
-const HELP = `grapim: every AI change to your code has someone accountable for it.
+const HELP = `grapim: record what your coding agents change, so review knows what each one was asked.
 
 Usage: grapim <command> [options]
 
