@@ -15,7 +15,7 @@ import { collectChanges, planReview, splitBatch, runAtLine, maxDepth, DEFAULT_LI
 import { buildRequest } from './prompt.js';
 import { normalizeRequest } from './request.js';
 import { ProviderError, providerFromEnv, describeProvider } from './providers.js';
-import { parseFindingsText, validateFindings, capFindings, rankFindings, renderReviewSummary, isTestFile } from './findings.js';
+import { parseFindingsText, validateFindings, mergePasses, capFindings, rankFindings, splitByConfidence, renderReviewSummary, isTestFile } from './findings.js';
 
 export { ConfigError, DEFAULT_CONFIG, loadConfig, validateConfig } from './config.js';
 export { ProviderError, providerFromEnv, anthropicProvider, bedrockProvider, vertexProvider, foundryProvider, describeProvider } from './providers.js';
@@ -74,6 +74,14 @@ export async function reviewChanges({
   log(`Grapim Review: ${changes.files.length} files changed, ${plan.stats.hunks} hunks (${plan.stats.aiHunks} by agent runs); ${plan.batches.length} requests to ${describeProvider(prov)}.`);
   if (req && plan.batches.length) log(`Compared with: ${req.sources.join(', ')}.`);
 
+  // Every changed file, for the CHANGES block of a request that holds only some.
+  const overview = changes.files.map((f) => ({
+    path: f.path,
+    status: f.status,
+    added: f.hunks.reduce((n, h) => n + h.added.length, 0),
+    removed: f.hunks.reduce((n, h) => n + h.lines.filter((l) => l.type === '-').length, 0),
+  }));
+
   const skipped = [...plan.skipped];
   const skipKeys = new Set(skipped.map((s) => `${s.path}\u0000${s.reason}`));
   const skip = (path, reason) => {
@@ -109,43 +117,8 @@ export async function reviewChanges({
     for (const u of batch.units) skip(u.path, reason);
   };
 
-  async function runBatch(batch) {
-    const { body } = buildRequest(batch, { model: cfg.model, instructions: cfg.instructions, request: req });
-    const files = batch.units.length;
-    log(`Request ${batch.id}: ${files} file${files === 1 ? '' : 's'}, effort ${batch.effort}, about ${batch.tokens.toLocaleString('en-US')} tokens.`);
-    let msg;
-    try {
-      msg = await send(body);
-    } catch (err) {
-      if (err instanceof ProviderError && !err.fatal) {
-        log(`Request ${batch.id} failed: ${err.message}`);
-        return skipBatch(batch, `the model request failed (${err.status ? `HTTP ${err.status}` : err.type ?? 'error'})`);
-      }
-      throw err;
-    }
-    const u = msg.usage ?? {};
-    usage.input += (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
-    usage.output += u.output_tokens ?? 0;
-
-    if (msg.stop_reason === 'refusal') {
-      const c = category(msg.stop_details?.category);
-      log(`Request ${batch.id}: the model declined${c ? ` (${c})` : ''}.`);
-      return skipBatch(batch, `the model declined to review it${c ? ` (category: ${c})` : ''}`);
-    }
-    if (msg.stop_reason === 'max_tokens') {
-      const parts = batch.retried ? [] : splitBatch(batch);
-      if (!parts.length) return skipBatch(batch, "the review did not fit in the model's output limit");
-      log(`Request ${batch.id} ran out of output tokens; retrying in ${parts.length} smaller requests.`);
-      for (const p of parts) await runBatch(p);
-      return;
-    }
-    const parsed = parseFindingsText(msg);
-    const allowed = new Map();
-    for (const unit of batch.units) allowed.set(unit.path, unit.hunks.map((h) => ({ added: new Set(h.added) })));
-    const v = validateFindings(parsed, allowed);
-    if (v.malformed) return skipBatch(batch, "the model's answer was not valid findings JSON");
-    dropped += v.dropped;
-    found.push(...v.findings);
+  // The batch is counted as reviewed once, by the first pass that answers.
+  function countReviewed(batch) {
     for (const unit of batch.units) {
       reviewedFiles.add(unit.path);
       for (const h of unit.hunks) {
@@ -159,6 +132,58 @@ export async function reviewChanges({
           runs.set(r.id, agg);
         }
       }
+    }
+  }
+
+  // One batch: the same request sent `passes` times, one after the other (a
+  // later pass reads the prompt from the cache the first one wrote). A pass
+  // that fails after an earlier one answered ends the batch quietly: it was
+  // reviewed once. Only a first pass that fails marks its files as skipped.
+  async function runBatch(batch) {
+    const { body } = buildRequest(batch, { model: cfg.model, instructions: cfg.instructions, request: req, overview, cache: cfg.passes > 1 });
+    const files = batch.units.length;
+    log(`Request ${batch.id}: ${files} file${files === 1 ? '' : 's'}, effort ${batch.effort}, about ${batch.tokens.toLocaleString('en-US')} tokens${cfg.passes > 1 ? `, ${cfg.passes} passes` : ''}.`);
+    const allowed = new Map();
+    for (const unit of batch.units) allowed.set(unit.path, unit.hunks.map((h) => ({ added: new Set(h.added) })));
+    for (let pass = 0; pass < cfg.passes; pass++) {
+      const first = pass === 0;
+      let msg;
+      try {
+        msg = await send(body);
+      } catch (err) {
+        if (err instanceof ProviderError && !err.fatal) {
+          log(`Request ${batch.id} failed: ${err.message}`);
+          if (first) skipBatch(batch, `the model request failed (${err.status ? `HTTP ${err.status}` : err.type ?? 'error'})`);
+          return;
+        }
+        throw err;
+      }
+      const u = msg.usage ?? {};
+      usage.input += (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
+      usage.output += u.output_tokens ?? 0;
+
+      if (msg.stop_reason === 'refusal') {
+        const c = category(msg.stop_details?.category);
+        log(`Request ${batch.id}: the model declined${c ? ` (${c})` : ''}.`);
+        if (first) skipBatch(batch, `the model declined to review it${c ? ` (category: ${c})` : ''}`);
+        return;
+      }
+      if (msg.stop_reason === 'max_tokens') {
+        if (!first) return;
+        const parts = batch.retried ? [] : splitBatch(batch);
+        if (!parts.length) return skipBatch(batch, "the review did not fit in the model's output limit");
+        log(`Request ${batch.id} ran out of output tokens; retrying in ${parts.length} smaller requests.`);
+        for (const p of parts) await runBatch(p);
+        return;
+      }
+      const v = validateFindings(parseFindingsText(msg), allowed);
+      if (v.malformed) {
+        if (first) skipBatch(batch, "the model's answer was not valid findings JSON");
+        return;
+      }
+      dropped += v.dropped;
+      found.push(...v.findings.map((f) => ({ ...f, pass })));
+      if (first) countReviewed(batch);
     }
   }
 
@@ -178,7 +203,9 @@ export async function reviewChanges({
   await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, queue.length)) }, worker));
   if (fatal) throw fatal;
 
-  const { kept, omitted } = capFindings(found, cfg.maxComments);
+  const { sure, held: unsure } = splitByConfidence(mergePasses(found));
+  const held = rankFindings(unsure);
+  const { kept, omitted } = capFindings(sure, cfg.maxComments);
   const findings = rankFindings(kept).map((f) => {
     const run = runAtLine(changes, f.path, f.line);
     return run ? { ...f, run: { id: run.id, kind: run.kind, intent: run.intent } } : f;
@@ -200,9 +227,12 @@ export async function reviewChanges({
     droppedFindings: dropped,
     omittedFindings: omitted,
     comparedWith: req && reviewedHunks ? req.sources : [],
+    noNotes: plan.stats.noNotes === true,
+    heldFindings: held.length,
+    passes: cfg.passes,
   };
   const runList = [...runs.values()].sort((a, b) => b.hunks - a.hunks || a.label.localeCompare(b.label));
   const deletedTests = changes.files.filter((f) => f.status === 'deleted' && isTestFile(f.path)).map((f) => f.path);
-  const summary = renderReviewSummary({ findings, stats, skipped, runs: runList, providerText: describeProvider(prov), requests: usage.requests, deletedTests });
-  return { findings, summary, stats, skipped, deletedTests, base: changes.base, head: changes.head };
+  const summary = renderReviewSummary({ findings, stats, skipped, runs: runList, providerText: describeProvider(prov), requests: usage.requests, deletedTests, held });
+  return { findings, held, summary, stats, skipped, deletedTests, base: changes.base, head: changes.head };
 }

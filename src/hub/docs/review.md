@@ -169,7 +169,8 @@ If no review appears, open the job's log in the **Actions** tab. Each problem is
   "instructions": "Our services must never log account numbers.",
   "maxComments": 15,
   "maxFiles": 100,
-  "failOn": "blocker"
+  "failOn": "blocker",
+  "passes": 1
 }
 ```
 
@@ -183,6 +184,7 @@ If no review appears, open the job's log in the **Actions** tab. Each problem is
 | `maxComments` | `15` | The most severe findings are kept. |
 | `maxFiles` | `100` | Riskiest files first; the rest are listed as not reviewed. |
 | `failOn` | `blocker` | `blocker` fails the job when the review finds a blocker. `never` only comments. |
+| `passes` | `1` | How many times each change is reviewed, 1 to 3. A second pass can find a problem the first missed; a problem both raise is posted once. Expect a few more comments, about a third more cost and twice the time. |
 
 The review always reads this file from the pull request's **base** branch, never from the pull request itself. A pull request cannot loosen its own review, for example with `"ignore": ["**"]` or `"failOn": "never"`. A change to the file takes effect once it is merged.
 
@@ -233,7 +235,8 @@ It exits with code 1 when it finds a blocker. Options are in the [CLI reference]
 ## Limits and costs
 
 - **Model costs are yours.** Every request goes to your model account and is billed there by the provider. Grapim does not charge for the review or see your usage. The summary comment lists the tokens each review used.
-- **What gets reviewed.** Under the default, human-written lines outside `sensitive` paths are skipped, which keeps the cost down. `"review": "all"` reviews everything.
+- **What gets reviewed.** Under the default, human-written lines outside `sensitive` paths are skipped, which keeps the cost down. `"review": "all"` reviews everything. A repository with no Grapim notes yet has no known authors, so the default reviews every changed line there.
+- **What gets posted.** The reviewer rates how sure it is of each finding. High and medium findings become inline comments. Low ones are listed in the summary under "Worth a look", one line each.
 - **Size.** Up to `maxFiles` files per review, riskiest first. A review sends at most about 600,000 input tokens. Files over the limit are listed as not reviewed.
 - **When a request fails.** A request that still fails after retries, or that the model declines, is listed under not reviewed in the summary. Rejected credentials or a model that is not enabled stop the job with a failure.
 - **Forks.** A pull request from a fork gets no secrets, so it is not reviewed and the job passes.

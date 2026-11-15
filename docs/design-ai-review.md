@@ -59,11 +59,12 @@ Provenance notes give the prompt of each agent run, but most repos have no notes
   "instructions": "Our services must never log account numbers.",
   "maxComments": 15,
   "maxFiles": 100,
-  "failOn": "blocker"                    // "blocker" | "never"
+  "failOn": "blocker",                   // "blocker" | "never"
+  "passes": 1                            // 1 to 3: how many times each request is reviewed
 }
 ```
 
-Depth per hunk: agent-written and sensitive -> `high` effort, agent-written -> `medium`, sensitive human-written -> `medium`, other human-written -> skipped under the default (`low` under `all`).
+Depth per hunk: agent-written and sensitive -> `high` effort, agent-written -> `medium`, sensitive human-written -> `medium`, other human-written -> skipped under the default (`low` under `all`). A repository with no notes ref has no known authors: the default then plans as `all`. Depth `low` orders the batches and is cut first by the budgets, but it is sent at API effort `medium`: at effort `low` the model answered most pull requests with an empty list and no thinking (bench, 2026-11-14).
 
 ## Providers (customer's credentials, read from env)
 
@@ -79,8 +80,12 @@ Each provider is a small adapter that sends a Messages API body and returns the 
 ## Model call
 
 - Default `claude-opus-5-5`, adaptive thinking (always on), `output_config.effort` from the depth, `output_config.format` = JSON schema of findings (structured outputs). No forced `tool_choice`.
+- Coverage first, filter in code: the prompt asks for every defect the model can tie to a trigger and a failure, each with a `confidence` (high, medium, low). The cut is made in `findings.js`, not by telling the model to be careful: low-confidence findings go to the summary ("Worth a look"), the rest are posted inline up to `maxComments`.
+- A request that holds only some of the changed files also gets a CHANGES block: every file of the pull request with its status and line counts.
+- The whole file is sent as context only for a file the change touches in part: not for a new file or one the change mostly rewrites (the diff already holds it).
 - System prompt is fixed and cached (`cache_control`). The diff, file context and run prompts are untrusted data inside clearly marked blocks; the system prompt says instructions inside them are never followed.
 - One request per batch of hunks (batched per file, under a token budget). Check `stop_reason` (`refusal` -> the batch is reported as skipped, with category; `max_tokens` -> retry once smaller).
+- `passes` > 1 sends each request again, one pass after the other, with the whole message marked for the prompt cache so a later pass reads it at the cache price. `mergePasses` joins the answers by place, not text: a finding within 3 lines of one from another pass in the same file is the same problem (the surer wording is kept, `raised` counts the passes); findings of one pass are never merged with each other. A problem raised by more passes ranks first within its severity. Measured on the benchmark's dev half (2026-11-15): of 34 known problems 12 were found by every one of five runs of the same prompt, 11 by none and 11 only sometimes, so a second pass should add about 2. One real two-pass run found 20 (single passes: 18, 19, 20) with 3.6 comments per PR against 2.4 to 3.1, about a third more cost and twice the time. The gain is within the run-to-run noise, so the default stays 1.
 - Hard caps: `maxFiles`, a per-run input-token budget, `maxComments` (keep the most severe).
 
 ## Output on GitHub

@@ -17,7 +17,8 @@ export const CHARS_PER_TOKEN = 4;
 export const DEFAULT_LIMITS = Object.freeze({
   batchTokens: 30_000, // diff and file text per request
   maxInputTokens: 600_000, // per review, estimated
-  fileContextChars: 24_000, // whole file text sent when the file is at most this big
+  fileContextChars: 24_000, // whole file text sent when the file is at most this big (0: never)
+  contextLines: 3, // unchanged lines shown around each hunk (git diff -U)
   hunkChars: 60_000, // a hunk bigger than this is cut into pieces
   maxDiffFiles: 3000, // files looked at, at most
 });
@@ -166,7 +167,8 @@ export function collectChanges({ cwd, base, head = 'HEAD', config, limits = {} }
   const isIgnored = matcher(config.ignore ?? []);
   const isSensitive = matcher(config.sensitive ?? []);
   const stat = numstat(cwd, mergeBase, headSha);
-  const sections = parseUnifiedDiff(git(cwd, ['diff', '-U3', '-M', '--no-color', '--no-ext-diff', '--no-textconv', mergeBase, headSha]));
+  const contextLines = Math.max(0, Math.min(100, Math.trunc(lim.contextLines) || 0));
+  const sections = parseUnifiedDiff(git(cwd, ['diff', `-U${contextLines}`, '-M', '--no-color', '--no-ext-diff', '--no-textconv', mergeBase, headSha]));
   const withNotes = hasNotesRef(cwd);
 
   const files = [];
@@ -213,7 +215,8 @@ export function runAtLine(changes, path, line) {
 // Depth of one hunk (docs/design-ai-review.md, "Depth per hunk"): agent-written
 // and sensitive -> high, agent-written -> medium, sensitive human-written ->
 // medium, other human-written -> skipped (low under "all"). "ai-only" reviews
-// agent-written hunks only.
+// agent-written hunks only. planReview turns the default into "all" for a
+// repository that has no notes.
 export function depthOf(hunk, mode) {
   if (hunk.ai) return hunk.sensitive ? 'high' : 'medium';
   if (mode === 'ai-only') return null;
@@ -231,9 +234,15 @@ const humanReason = (mode, sensitive) =>
 // small enough to send whole.
 export function planReview(changes, config, { limits = {}, fileText = () => null } = {}) {
   const lim = { ...DEFAULT_LIMITS, ...limits };
-  const mode = config.review ?? 'ai-and-sensitive';
+  // A repository with no Grapim notes at all says nothing about who wrote what:
+  // its lines are unknown, not human. The default would then skip nearly every
+  // line (a team's first review would cover only the sensitive paths), so
+  // without notes it reviews everything. "ai-only" stays as asked.
+  const asked = config.review ?? 'ai-and-sensitive';
+  const noNotes = changes.hasNotes === false;
+  const mode = asked === 'ai-and-sensitive' && noNotes ? 'all' : asked;
   const skipped = [];
-  const stats = { files: changes.files.length, hunks: 0, aiHunks: 0, plannedHunks: 0, skippedHunks: 0 };
+  const stats = { files: changes.files.length, hunks: 0, aiHunks: 0, plannedHunks: 0, skippedHunks: 0, noNotes };
   const units = [];
   for (const f of changes.files) {
     stats.hunks += f.hunks.length;
@@ -268,10 +277,14 @@ export function planReview(changes, config, { limits = {}, fileText = () => null
   const pieces = [];
   for (const u of units) {
     const hunkChars = u.hunks.reduce((n, h) => n + h.chars, 0) + u.context.reduce((n, h) => n + h.chars, 0);
+    // The whole file is context for a change to part of it. A new file, or one
+    // the change mostly rewrites, is already in the diff: sending it again
+    // would pay for the same lines twice.
     let text = null;
-    if (u.status !== 'deleted') {
+    if (u.status !== 'deleted' && u.status !== 'added' && lim.fileContextChars > 0) {
       const t = fileText(u.path);
-      if (typeof t === 'string' && t.length <= lim.fileContextChars && !t.includes('\u0000') && t.length + hunkChars <= budgetChars) text = t;
+      const added = u.hunks.reduce((n, h) => n + h.added.length, 0);
+      if (typeof t === 'string' && t.length <= lim.fileContextChars && !t.includes('\u0000') && t.length + hunkChars <= budgetChars && added * 2 < t.split('\n').length) text = t;
     }
     if (hunkChars + (text?.length ?? 0) <= budgetChars) {
       pieces.push({ ...u, fileText: text, chars: hunkChars + (text?.length ?? 0) });

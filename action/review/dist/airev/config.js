@@ -26,6 +26,10 @@ export const DEFAULT_CONFIG = Object.freeze({
   maxComments: 15,
   maxFiles: 100,
   failOn: 'blocker',
+  // How many times each request is reviewed. A second pass finds problems the
+  // first missed (the same prompt does not always notice the same things);
+  // the findings are merged, and a problem raised twice is posted once.
+  passes: 1,
 });
 
 const MAX_CONFIG_BYTES = 64 * 1024;
@@ -122,6 +126,7 @@ export function validateConfig(raw) {
   if ('maxComments' in raw) c.maxComments = int('maxComments', raw.maxComments, 0, 100);
   if ('maxFiles' in raw) c.maxFiles = int('maxFiles', raw.maxFiles, 1, 1000);
   if ('failOn' in raw) c.failOn = oneOf('failOn', raw.failOn, FAIL_ON);
+  if ('passes' in raw) c.passes = int('passes', raw.passes, 1, 3);
   return c;
 }
 

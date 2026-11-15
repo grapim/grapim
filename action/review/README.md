@@ -2,7 +2,7 @@
 
 An AI code reviewer that runs in your own CI. It posts one review per push with inline comments on the lines that need attention, and keeps one summary comment up to date. It knows which agent run wrote each line and what that run was asked to do, so on agent-written lines it checks that the change does what was asked, and nothing else: scope creep, deleted tests, weakened checks, secrets, destructive migrations.
 
-It reads the git notes Grapim writes at commit time (`refs/notes/grapim`, see `docs/provenance.md`). Without notes it still reviews, treating every line as human-written (see `review` in the config below).
+It reads the git notes Grapim writes at commit time (`refs/notes/grapim`, see `docs/provenance.md`). A repository with no notes yet gets every changed line reviewed (nobody is known to have written anything), whatever `review` is set to, except `ai-only`.
 
 ## Where your code goes
 
@@ -185,13 +185,16 @@ The reviewer reports only a concrete mismatch (asked for X, the change does Y; o
   "instructions": "Our services must never log account numbers.",
   "maxComments": 15,
   "maxFiles": 100,
-  "failOn": "blocker"
+  "failOn": "blocker",
+  "passes": 1
 }
 ```
 
 - `review`: `ai-and-sensitive` (default) reviews agent-written lines and any lines on `sensitive` paths; `all` reviews every changed line; `ai-only` reviews agent-written lines only.
-- Agent-written lines on sensitive paths get the deepest review; human-written lines outside sensitive paths are skipped under the default.
+- Agent-written lines on sensitive paths get the deepest review; human-written lines outside sensitive paths are skipped under the default. A repository with no Grapim notes has no known authors, so the default reviews all of it.
+- Each finding carries a confidence. High and medium findings are posted as inline comments; low ones are listed in the summary under "Worth a look".
 - `maxComments` keeps the most severe findings; `maxFiles` caps the files reviewed.
+- `passes` (1 to 3, default 1) is how many times each request is reviewed. Two passes of the same prompt do not notice exactly the same things, so a second pass can find a problem the first missed. The findings are merged: a problem both passes raise is posted once. Expect a few more comments, about a third more cost (a later pass reads the prompt from the cache) and twice the time; in our own measurements the extra problems found were few.
 
 ## What it posts
 
