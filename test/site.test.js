@@ -58,8 +58,9 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   assert.match(out.headers.get('content-type'), /text\/html/);
   assert.match(out.headers.get('content-security-policy'), /script-src 'self'/);
   const body = await out.text();
-  assert.match(body, /AI code review that never sends your code to us\./);
-  assert.match(body, /class="btn btn-primary btn-lg" href="\/docs\/review">Add to a repo</, 'the primary action is the Review setup');
+  assert.match(body, /Code review that knows what your agents were asked\./);
+  assert.match(body, /class="btn btn-primary btn-lg" href="\/hub\/auth\/github">Start free</, 'the primary action starts cloud review');
+  assert.match(body, /href="\/docs\/review#run-it-in-your-own-ci">Run it in your own CI</, 'the self-hosted path is one click away');
   assert.match(body, /Your code was sent only to Amazon Bedrock \(us-east-1\)\. Grapim received nothing\./, 'the summary line, as the Action writes it');
   assert.match(body, /href="\/hub\/auth\/github"/, 'sign in stays in the bar');
   assert.match(body, /href="\/docs"/);
@@ -83,7 +84,7 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   const pricing = await (await get('/pricing')).text();
   assert.match(pricing, /nothing is charged yet/);
   assert.match(pricing, /<details open><summary>Does our code have to leave our machines\?/, 'the data question is answered open');
-  assert.match(pricing, /model usage is paid on your own model account/);
+  assert.match(pricing, /Cloud review is included in each plan’s monthly review credit/);
   for (const p of ['free', 'team', 'governance', 'enterprise']) assert.match(pricing, new RegExp(`<h2 id="plan-${p}">`));
   for (const b of [body, pricing]) assert.ok(!/start (your )?(free )?trial|buy now|checkout\.stripe/i.test(b));
 

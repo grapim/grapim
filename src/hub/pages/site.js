@@ -86,7 +86,7 @@ export function siteBar({ current = 'home', signedIn = false } = {}) {
     </details>
     ${signedIn
       ? html`<a class="btn btn-primary btn-sm" href="/hub">Open the hub</a>`
-      : html`<a class="bar-signin" href="${SIGN_IN}" rel="nofollow">Sign in</a><a class="btn btn-primary btn-sm" href="/docs/review">Add to a repo</a>`}
+      : html`<a class="bar-signin" href="${SIGN_IN}" rel="nofollow">Sign in</a><a class="btn btn-primary btn-sm" href="${SIGN_IN}" rel="nofollow">Start free</a>`}
   </div>
 </header>`;
 }
@@ -215,21 +215,21 @@ const PLANS = [
     price: '$0',
     per: '',
     lede: 'For one team trying it on a repo.',
-    items: ['Up to 3 people', '2 repos, 7 days of history', 'Every run recorded, shell commands too', 'Undo any run', 'Agent and MCP inventory'],
+    items: ['Cloud review of about 50 pull requests a month', 'Grapim Review in your own CI, free', 'Up to 3 people', '2 repos, 7 days of history', 'Every run recorded, and undo'],
   },
   {
     name: 'Team',
     price: '$20',
     per: 'per seat a month',
     lede: 'For a team whose agents ship code every day.',
-    items: ['Everything in Free', 'As many seats as you need', 'Unlimited repos', '90 days of history', 'Unlimited workspaces'],
+    items: ['Everything in Free', 'Cloud review of about 500 pull requests a month', 'As many seats as you need', 'Unlimited repos', '90 days of history'],
   },
   {
     name: 'Governance',
     price: '$40',
     per: 'per seat a month',
     lede: 'When a person must approve what agents change.',
-    items: ['Everything in Team', 'Path rules: auto-approve or named reviewer', 'Required PR check that blocks merging', 'Reports and CSV export', '365 days of history'],
+    items: ['Everything in Team', 'Cloud review of about 1,500 pull requests a month', 'Path rules: auto-approve or named reviewer', 'Required PR check that blocks merging', 'Reports and CSV export'],
     mark: true,
   },
   {
@@ -237,13 +237,14 @@ const PLANS = [
     price: 'Custom',
     per: '',
     lede: 'Seats, terms and support for a larger rollout.',
-    items: ['Everything in Governance', 'Seats and terms agreed with you', 'Help with the rollout'],
+    items: ['Everything in Governance', 'Review volume, seats and terms agreed with you', 'Help with the rollout'],
   },
 ];
 
 // The first answer is open: it is the question a security reviewer asks first.
 const FAQ = [
-  ['Does our code have to leave our machines?', 'Only to the model account you choose. Grapim Review runs in your own CI and sends changes to your Anthropic API key, Amazon Bedrock, Google Vertex AI or Microsoft Foundry. Grapim’s servers receive nothing. In the hub, No code storage keeps run records without file contents.'],
+  ['Does our code have to leave our machines?', 'Not if you choose so. Run Grapim Review in your own CI and it sends changes only to your Anthropic API key, Amazon Bedrock, Google Vertex AI or Microsoft Foundry, and Grapim’s servers receive nothing. The cloud review on the GitHub App fetches each pull request into a temporary folder on Grapim’s server, sends it to Anthropic for the review, and deletes it when the review ends.'],
+  ['What does a cloud review use up?', 'Each plan includes a monthly review credit. A typical pull request uses about $0.18 of it, so Free covers about 50 a month. When it runs out, the check says so and reviews wait for the next month or a bigger plan.'],
   ['Is anything charged today?', 'No. Grapim is in early access and has no checkout. These are the prices we intend to charge once billing opens, and we will tell every team before that happens.'],
   ['Can we try Governance now?', 'Yes. Design partners get Governance as a pilot at no charge, set by us for your team. Talk to us and say which repos you want to start with.'],
   ['What counts as a seat?', 'A member of your team in the Grapim hub. Agents are not seats, and neither are the machines that sync runs.'],
@@ -300,15 +301,15 @@ function filmSection() {
 const REVIEW_DOCS = '/docs/review';
 
 // The facts row under the product shot. Each one is checked against the code:
-// the Action calls only api.github.com and the provider's endpoint
-// (action/review/index.mjs, src/airev/providers.js), the four providers are
-// PROVIDERS in src/airev/providers.js, each workflow in action/review/README.md
-// is the whole setup, and the Action imports only Node built-ins.
+// cloud review on the App (src/hub/github/cloud-review.js: Opus 5.5, about a
+// minute and $0.18 a pull request on the bench, a monthly credit per plan),
+// the agents in src/hub/github/agents.js, and the Action that calls only
+// api.github.com and the provider's endpoint (action/review/index.mjs).
 const FACTS = [
-  ['Nothing reaches Grapim.', 'No code, no diffs, no telemetry.'],
-  ['Your model account.', 'Anthropic, Bedrock, Vertex or Foundry.'],
-  ['One workflow file.', 'No new vendor in the data path.'],
-  ['Zero dependencies.', 'Node built-ins only, source you can read.'],
+  ['About a minute.', 'From push to review.'],
+  ['Knows the agent.', 'And what each run was asked.'],
+  ['Free each month.', 'Review credit on every plan.'],
+  ['Or in your own CI.', 'Nothing reaches Grapim.'],
 ];
 
 // The path a review takes, drawn as one hairline that stops at your model
@@ -322,10 +323,10 @@ function pathLine() {
       ${stop('Grapim', 'receives nothing', ' path-off')}
     </ol>`;
 }
-const description = 'Grapim Review runs in your own CI on your own model account: Anthropic, Amazon Bedrock, Google Vertex AI or Microsoft Foundry. It knows which agent wrote each line and what it was asked to do, and flags the changes nobody asked for.';
+const description = 'Grapim reviews every pull request in about a minute and comments on the lines that need attention. It knows which agent wrote each line and what it was asked to do, and flags the changes nobody asked for. Install the GitHub App, or run it in your own CI on your own model account.';
 
 export function landingPage({ origin }) {
-  return html`${siteHead({ title: 'Grapim: AI code review that never sends your code to us', description, path: '/', origin })}
+  return html`${siteHead({ title: 'Grapim: code review that knows what your agents were asked', description, path: '/', origin })}
 <body class="site">
 <a class="skip" href="#main">Skip to content</a>
 ${siteBar({ current: 'home' })}
@@ -334,11 +335,11 @@ ${siteBar({ current: 'home' })}
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-text">
     <a class="eyebrow" href="${REVIEW_DOCS}"><b>Grapim Review</b><span>Early access</span>${ICON.arrow}</a>
-    <h1 id="hero-title">AI code review that never sends your code to us.</h1>
-    <p class="hero-sub">Grapim reviews every pull request in your own CI, on your model account. It knows what each agent was asked and flags what nobody asked for.</p>
+    <h1 id="hero-title">Code review that knows what your agents were asked.</h1>
+    <p class="hero-sub">Install the GitHub App and every pull request is reviewed in about a minute. Grapim checks agent code against the request and flags what nobody asked for.</p>
     <div class="cta">
-      <a class="btn btn-primary btn-lg" href="${REVIEW_DOCS}">Add to a repo</a>
-      <a class="btn btn-lg" href="/docs/support">Talk to us</a>
+      <a class="btn btn-primary btn-lg" href="${SIGN_IN}">Start free</a>
+      <a class="btn btn-lg" href="${REVIEW_DOCS}#run-it-in-your-own-ci">Run it in your own CI</a>
     </div>
     <p class="works" aria-label="Works with"><span class="works-label">Works with</span><span>${brand('claude', '')}Claude Code</span><span>${brand('openai', '')}Codex</span><span>${brand('cursor', '')}Cursor</span><span>${brand('googlegemini', '')}Gemini CLI</span><span>${brand('github', '')}GitHub</span></p>
   </div>
@@ -349,8 +350,8 @@ ${siteBar({ current: 'home' })}
 <section class="where" id="where" aria-labelledby="where-title">
   <div class="wrap">
     <div class="sec-head" data-reveal>
-      <h2 id="where-title" class="sec-title">Your code goes only to the model account you choose.</h2>
-      <p class="sec-lede">The review runs on your runner, and Grapim’s servers receive nothing.</p>
+      <h2 id="where-title" class="sec-title">Or keep your code in your own CI.</h2>
+      <p class="sec-lede">The same review on your runner and your model account. Grapim receives nothing.</p>
     </div>
     ${pathLine()}
     <div class="where-grid">
@@ -367,8 +368,8 @@ ${siteBar({ current: 'home' })}
     <div class="points" data-reveal>
       <div>
         ${FIG_CHECK()}
-        <h3>Runs where your code already is</h3>
-        <p>A GitHub Action in your own workflow. No new vendor holds your source.</p>
+        <h3>One switch on GitHub</h3>
+        <p>Install the App and turn review on. No workflow to write, nothing to host.</p>
       </div>
       <div>
         ${FIG_RUNS()}
@@ -390,9 +391,9 @@ ${SHOW_FILM ? filmSection() : ''}
 <section class="close" aria-labelledby="close-title">
   <div class="wrap close-in" data-reveal>
     <h2 id="close-title">Try it on one repo.</h2>
-    <p>One workflow file. Free in early access.</p>
+    <p>Install the App, or add one workflow file. Free in early access.</p>
     <div class="cta">
-      <a class="btn btn-primary btn-lg" href="${REVIEW_DOCS}">Add to a repo</a>
+      <a class="btn btn-primary btn-lg" href="${SIGN_IN}">Start free</a>
       <a class="btn btn-lg" href="/pricing">See pricing</a>
     </div>
   </div>
@@ -425,7 +426,7 @@ ${siteBar({ current: 'pricing', signedIn })}
       </section>`)}
     </div>
     <p class="fine">Prices in US dollars. Yearly: Team $192 and Governance $384 per seat.</p>
-    <p class="fine">Grapim Review’s model usage is paid on your own model account and billed by your provider.</p>
+    <p class="fine">Cloud review is included in each plan’s monthly review credit; the pull request counts assume about $0.18 a review. Grapim Review in your own CI runs on your own model account, billed by your provider.</p>
   </div>
 </section>
 
@@ -448,6 +449,14 @@ ${siteFooter()}
 // live on app.grapim.com, written for the people who use it; the links go to
 // the docs page that explains it.
 const CHANGES = [
+  {
+    date: '2026-11-15',
+    items: [
+      { title: 'Cloud review on the GitHub App', body: 'Turn on Cloud review in Settings, GitHub and Grapim reviews every pull request on its own model account, with nothing to set up in CI. A review takes about a minute and posts comments and a Grapim Review (cloud) check. Each plan includes a monthly review credit.', link: ['/docs/review#cloud-review', 'How cloud review works'] },
+      { title: 'Sharper reviews', body: 'Each finding now carries a confidence. Sure ones are posted on the line, doubtful ones are listed once in the summary under Worth a look. A repository without Grapim notes gets every changed line reviewed.', link: ['/docs/review#limits-and-costs', 'What gets reviewed'] },
+       ],
+    more: [],
+  },
   {
     date: '2026-11-13',
     items: [

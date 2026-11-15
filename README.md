@@ -1,8 +1,19 @@
 # Grapim
 
-**Every AI change to your code has someone accountable for it.**
+**Code review that knows what your agents were asked.**
 
-Grapim records every change your coding agents make as a *run*: which agent, which prompt, which turn, which lines. Your team reviews and approves runs at [app.grapim.com](https://app.grapim.com), pull requests that hold unreviewed agent runs fail their check, and any single run can be undone without touching anyone else's work.
+Grapim reviews every pull request and comments on the lines that need attention. When Claude Code, Codex, Cursor or Gemini CLI wrote the change, it knows which run wrote each line and what that run was asked to do, so it also flags work nobody asked for: a dropped column, a deleted test, a weakened check.
+
+It runs two ways:
+
+- **Cloud review.** Install the Grapim GitHub App at [app.grapim.com](https://app.grapim.com) and turn on Cloud review. Each pull request is reviewed in about a minute on Grapim's model account. Every plan includes a monthly review credit.
+- **In your own CI.** Add one workflow file ([action/review](action/review/README.md)). The review runs on your GitHub runner with your own Anthropic, Amazon Bedrock, Google Vertex AI or Microsoft Foundry account, and Grapim's servers receive nothing.
+
+Setup for both: [app.grapim.com/docs/review](https://app.grapim.com/docs/review).
+
+## The Grapim CLI: runs, blame and undo
+
+The review knows who wrote each line because the CLI records every change your coding agents make as a *run*: which agent, which prompt, which turn, which lines. Your team approves runs at [app.grapim.com](https://app.grapim.com), and any single run can be undone without touching anyone else's work.
 
 ```
 $ grapim runs
@@ -21,7 +32,7 @@ Nothing was changed. Run again with --yes to apply the 2 clean ones.
 
 Node.js 22.13 or newer. No dependencies. No telemetry.
 
-## Quickstart
+### Quickstart
 
 ```bash
 npm install -g grapim
@@ -45,7 +56,7 @@ Runs appear in the hub's Reviews within seconds. A teammate (not the person who 
 
 > Why not `npx grapim init`? The hooks call grapim on every edit, and npx runs packages from a cache folder npm clears. `grapim init` run through npx points the hooks at your global install, or asks you to make one.
 
-## Supported agents
+### Supported agents
 
 | Agent | How Grapim sees its edits | What `grapim init` writes | Stops an edit to a file another agent holds | Status |
 | --- | --- | --- | --- | --- |
@@ -62,7 +73,7 @@ Shell commands an agent runs (`sed -i`, a code generator) are recorded by compar
 
 `grapim init --agents claude,codex,cursor,gemini` (or `all`) sets up agents it did not find. A config file `init` creates is added to `.git/info/exclude`, since it holds a path on your machine. A file that is not valid JSON is left alone and reported.
 
-## What you can do with runs
+### What you can do with runs
 
 ```bash
 grapim runs                      # every agent run: intent, turns, files, +/- lines, still in the tree?
@@ -84,6 +95,7 @@ When two agents work in the same repo, or in two worktrees of it, the one that r
 - Runs, file versions and prompts stay in `.git/grapim/` on your machine until you run `grapim sync`.
 - `grapim sync` sends them only to the hub you name (default `https://app.grapim.com`), with your machine token.
 - No telemetry. grapim connects to a server only when you run `sync`, `folder` or `mount`.
+- Grapim Review in your own CI sends changes only to your model account. Cloud review fetches each pull request into a temporary folder on Grapim's server, sends it to Anthropic for the review and deletes it when the review ends.
 
 ## Docs and support
 

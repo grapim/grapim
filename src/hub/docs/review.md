@@ -1,13 +1,32 @@
 ---
 title: AI review
 nav: AI review
-description: Grapim Review is an AI code reviewer that runs in your own GitHub Actions and comments on each pull request. Your code goes only to the model account you choose.
+description: Grapim Review is an AI code reviewer that comments on each pull request. Turn it on in the GitHub App, or run it in your own GitHub Actions on your own model account.
 ---
 ## What it does
 
-On every push to a pull request, the Grapim Review job reads the diff and asks Claude to review it, through your own model account. It posts one review with a comment on each line that needs attention, and keeps one summary comment up to date.
+On every push to a pull request, Grapim Review reads the diff and asks Claude to review it. It posts one review with a comment on each line that needs attention, and keeps one summary comment up to date.
 
-It reads the notes Grapim records at commit time, so it knows which agent run wrote each line and what that run was asked to do. On agent-written lines it checks that the change does what was asked and nothing else: scope creep, deleted tests, weakened checks, secrets, destructive migrations. Without notes it still reviews, and treats every line as written by a person.
+It reads the notes Grapim records at commit time, so it knows which agent run wrote each line and what that run was asked to do. On agent-written lines it checks that the change does what was asked and nothing else: scope creep, deleted tests, weakened checks, secrets, destructive migrations. A repository without notes still gets every changed line reviewed.
+
+It runs in one of two ways:
+
+- **Cloud review**: install the Grapim GitHub App and turn it on. Grapim runs the review on its own model account. Nothing to set up in CI.
+- **In your own CI**: add one workflow file. The review runs on your GitHub runner with your own model account, and Grapim's servers receive nothing.
+
+## Cloud review
+
+1. Sign in at [app.grapim.com](https://app.grapim.com) and connect the GitHub App: **Settings**, **GitHub**, **Connect**.
+2. On the same page, turn on **Cloud review**.
+3. Open a pull request, or push to one. A **Grapim Review (cloud)** check appears at once, and the comments follow, usually within a minute or two.
+
+Each review fetches the pull request's base branch, its head and the Grapim notes into a temporary folder on Grapim's server, sends the changes to Anthropic (Claude Opus 5.5) for the review, and deletes the folder when it ends. The App's token is used only for that pull request. Your `.grapim/review.json` on the base branch applies, as in CI.
+
+Each plan includes a monthly review credit (Free: about 50 pull requests). Settings, GitHub shows how much is used. When it runs out, the check says so and nothing is sent to the model until the next month.
+
+## Run it in your own CI
+
+The rest of this page sets up the review as a GitHub Action.
 
 ## Where your code goes
 

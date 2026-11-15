@@ -1,20 +1,20 @@
 {
   "name": "grapim",
   "version": "0.1.0",
-  "description": "Every AI change to your code has someone accountable for it. Records each Claude Code, Codex, Cursor and Gemini CLI edit as a run your team reviews, blames and undoes.",
+  "description": "Code review that knows what your agents were asked. Grapim reviews pull requests and records which Claude Code, Codex, Cursor or Gemini CLI run wrote each line, so you can blame and undo one run.",
   "keywords": [
-    "ai",
-    "agents",
+    "ai-code-review",
+    "code-review",
+    "pull-requests",
+    "github-app",
     "claude-code",
     "codex",
     "cursor",
     "gemini-cli",
-    "mcp",
-    "ai-code-review",
+    "ai-agents",
     "provenance",
     "blame",
-    "undo",
-    "code-review"
+    "undo"
   ],
   "homepage": "https://grapim.com",
   "bugs": {
