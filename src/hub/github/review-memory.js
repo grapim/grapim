@@ -30,21 +30,34 @@ export function words(title) {
       .replace(/`[^`]*`/g, (m) => ` ${m.slice(1, -1)} `)
       .split(/[^a-z0-9_.]+/)
       .map((w) => w.replace(/^\.+|\.+$/g, ''))
-      .filter((w) => w && !STOP.has(w)),
+      .filter((w) => w && !STOP.has(w))
+      // "users" and "user" are one word here.
+      .map((w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w)),
   );
 }
 
-export function similar(a, b) {
+export function overlap(a, b) {
   const x = words(a);
   const y = words(b);
-  if (!x.size || !y.size) return false;
+  if (!x.size || !y.size) return 0;
   let both = 0;
   for (const w of x) if (y.has(w)) both++;
-  return both / (x.size + y.size - both) >= 0.5;
+  return both / (x.size + y.size - both);
 }
+export const similar = (a, b) => overlap(a, b) >= 0.5;
 
-// A new finding that repeats one Grapim already posted on this pull request.
-export const repeats = (finding, prior) => prior.some((p) => p.path === finding.path && similar(p.title, finding.title));
+// A new finding that repeats one Grapim already posted on this pull request:
+// same file, and a title in nearly the same words, or the same severity
+// within 3 lines and a title that shares a fair part of its words (the model
+// words the same finding differently from one run to the next).
+export const repeats = (finding, prior) =>
+  prior.some((p) => {
+    if (p.path !== finding.path) return false;
+    const o = overlap(p.title, finding.title);
+    if (o >= 0.5) return true;
+    const near = Number.isSafeInteger(p.line) && Number.isSafeInteger(finding.line) && Math.abs(p.line - finding.line) <= 3;
+    return near && p.severity === finding.severity && o >= 0.25;
+  });
 
 const TRUSTED = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 const clip = (s, n) => {

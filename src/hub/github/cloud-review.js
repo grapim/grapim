@@ -327,7 +327,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       const comments = await list(client, `/repos/${repo}/pulls/${number}/comments`);
       return comments
         .filter((c) => c?.user?.type === 'Bot' && (!slug || c.user.login === botLogin()) && !c.in_reply_to_id)
-        .map((c) => ({ path: c.path, ...(parseComment(c.body) ?? {}) }))
+        .map((c) => ({ path: c.path, line: c.line ?? c.original_line ?? null, ...(parseComment(c.body) ?? {}) }))
         .filter((f) => f.title);
     } catch {
       return [];

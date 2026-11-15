@@ -16,6 +16,10 @@ test('the same finding in other words counts as a repeat; a different one does n
   const prior = [{ path: 'src/users.js', title: 'SQL injection through `sort`' }];
   assert.ok(repeats({ path: 'src/users.js', title: 'SQL injection through the sort query parameter' }, prior));
   assert.ok(!repeats({ path: 'src/other.js', title: 'SQL injection through the sort query parameter' }, prior), 'another file is another finding');
+  // Seen live on grapim/grapim#3: the same warning in other words on the same line.
+  const warned = [{ path: 'page.js', line: 9, severity: 'warning', title: 'Unrelated users-query helper added to a pagination change' }];
+  assert.ok(repeats({ path: 'page.js', line: 9, severity: 'warning', title: 'Unrequested user-query function added to a pagination helper' }, warned));
+  assert.ok(!repeats({ path: 'page.js', line: 9, severity: 'blocker', title: 'Missing await on db.query' }, warned), 'a different finding on the same line is new');
 });
 
 test('team feedback: only Grapim comments, only replies from people with write access', () => {
