@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHub } from '../src/hub/server.js';
-import { cliHelp, docPath, loadDocs, ORDER, parseHelp, renderMarkdown } from '../src/hub/pages/docs.js';
+import { cliHelp, docPath, LEGAL, loadDocs, ORDER, parseHelp, renderMarkdown } from '../src/hub/pages/docs.js';
 import { REVIEW_PROVIDERS } from '../src/hub/pages/review-setup.js';
 
 const ORIGIN = 'http://localhost:7998';
@@ -39,7 +39,7 @@ function signedInCookie() {
   return h.hub.auth.createSession(4242).cookie.split(';')[0];
 }
 
-const PAGES = ['/', '/pricing', '/changelog', ...ORDER.map(docPath)];
+const PAGES = ['/', '/pricing', '/changelog', ...ORDER.map(docPath), ...LEGAL.map((s) => `/${s}`)];
 
 function assertCspClean(body, where) {
   // A JSON-LD data block is never run, so CSP does not apply to it.
@@ -233,6 +233,9 @@ test('renderMarkdown escapes HTML and keeps only safe links', () => {
   assert.match(html, /<code>&lt;i&gt;<\/code>/);
   assert.match(html, /echo &quot;&lt;b&gt;&quot;/);
   assert.equal(toc[0].id, 'hello-world');
+  const mail = renderMarkdown('[a](mailto:privacy@grapim.com) and [b](mailto:x@y.co?bcc=z@w.co)').html;
+  assert.match(mail, /<a class="link" href="mailto:privacy@grapim\.com">a<\/a>/, 'a plain mailto link is kept');
+  assert.ok(!mail.includes('bcc'), 'a mailto with extra fields is not');
 });
 
 test('every docs page in the nav has a file with a title and a description', () => {
@@ -244,9 +247,49 @@ test('every docs page in the nav has a file with a title and a description', () 
   }
 });
 
+test('terms and privacy: served on their own, dated, with a Changes section, linked from the footer and sign-in', async () => {
+  const text = (body) => body.replace(/<[^>]+>/g, ' ').replace(/&#39;|&quot;|&amp;/g, ' ');
+  const legal = loadDocs(undefined, LEGAL);
+  for (const slug of LEGAL) {
+    const res = await get(`/${slug}`);
+    assert.equal(res.status, 200, slug);
+    const body = await res.text();
+    assert.match(body, new RegExp(`<h1>${legal.get(slug).title}</h1>`), `${slug}: its title`);
+    assert.match(body, /<strong>Effective 15 November 2026<\/strong>/, `${slug}: the effective date`);
+    assert.match(body, /<h2 id="changes">/, `${slug}: a Changes section`);
+    assert.match(body, /href="mailto:privacy@grapim\.com"/, `${slug}: privacy requests go to privacy@`);
+    assert.ok(!body.includes('docs-nav'), `${slug}: not part of the docs nav`);
+    // The note for the founder at the top of the file never reaches the page.
+    const src = fs.readFileSync(new URL(`../src/hub/docs/${slug}.md`, import.meta.url), 'utf8');
+    assert.ok(src.startsWith('<!--'), `${slug}.md: starts with the list of legal gaps`);
+    assert.ok(!/Legal gaps|&lt;!--|lawyer/.test(body), `${slug}: the legal-gaps note is not rendered`);
+    assert.ok(!/—/.test(src), `${slug}.md: no em dashes`);
+    // Only addresses that really exist (Cloudflare Email Routing).
+    const others = text(body).replace(/https?:\/\/\S+/g, '').replace(/\b(support|privacy|hello)@grapim\.com\b/g, '');
+    assert.ok(!/@[a-z0-9-]+\.[a-z]{2,}/i.test(others), `${slug}: no email address is invented`);
+  }
+  const privacy = text(await (await get('/privacy')).text());
+  for (const fact of ['deleted when the review ends', 'Grapim receives nothing', 'Anthropic', 'Railway', 'Cloudflare', 'Stripe', 'GitHub', 'grapim_session', 'grapim_oauth']) {
+    assert.ok(privacy.includes(fact), `privacy names: ${fact}`);
+  }
+  const terms = text(await (await get('/terms')).text());
+  for (const fact of ['free for now', 'stay yours', 'can be wrong', 'as is', 'Limitation of liability']) assert.ok(terms.includes(fact), `terms say: ${fact}`);
+
+  // Every public page's footer, and the sign-in page.
+  for (const p of PAGES) {
+    const body = await (await get(p)).text();
+    assert.match(body, /<p class="foot-legal">[^]*?<a href="\/terms">Terms<\/a><a href="\/privacy">Privacy<\/a><\/p>/, `${p}: footer links`);
+  }
+  const signIn = await (await get('/hub')).text();
+  assert.match(signIn, /<a href="\/terms">Terms<\/a>/);
+  assert.match(signIn, /<a href="\/privacy">Privacy<\/a>/);
+  assert.equal((await get('/terms', { Cookie: signedInCookie() })).status, 200, 'signed in, the pages still show');
+});
+
 test('robots.txt and sitemap.xml list the public pages and keep crawlers out of the app', async () => {
   const robots = await (await get('/robots.txt')).text();
   assert.match(robots, /Disallow: \/hub\//);
+  for (const s of LEGAL) assert.match(robots, new RegExp(`^Allow: /${s}$`, 'm'));
   assert.match(robots, /Disallow: \/w\//);
   assert.match(robots, new RegExp(`Sitemap: ${ORIGIN}/sitemap.xml`));
   const res = await get('/sitemap.xml');

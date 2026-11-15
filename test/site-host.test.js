@@ -42,7 +42,7 @@ function ask(host, p, method = 'GET') {
 }
 
 test('the marketing domain serves the site and sends the hub to its own origin', async () => {
-  for (const p of ['/', '/pricing', '/changelog', '/docs', '/docs/undo', '/robots.txt', '/hub/static/site.css']) {
+  for (const p of ['/', '/pricing', '/changelog', '/docs', '/docs/undo', '/terms', '/privacy', '/robots.txt', '/hub/static/site.css']) {
     assert.equal((await ask('grapim.example', p)).status, 200, p);
   }
   assert.deepEqual(await ask('grapim.example', '/hub/auth/github?next=%2Fhub'), { status: 301, location: `${HUB}/hub/auth/github?next=%2Fhub` });

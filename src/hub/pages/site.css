@@ -171,7 +171,9 @@ section { scroll-margin-top: var(--bar-h); }
 .foot-cols h2 { margin: 0 0 14px; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; }
 .foot-cols a { display: block; padding: 4px 0; font-size: 14px; color: var(--text-2); text-decoration: none; }
 .foot-cols a:hover { color: var(--text); }
-.foot-legal { margin: 10px 0 0; font-size: 13px; color: var(--text-3); }
+.foot-legal { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--text-3); }
+.foot-legal a { color: var(--text-3); text-decoration: none; }
+.foot-legal a:hover { color: var(--text); text-decoration: underline; }
 .foot-social { margin: 10px 0 0; display: flex; gap: 14px; font-size: 14px; }
 .foot-social a { color: var(--text-2); text-decoration: none; }
 .foot-social a:hover { color: var(--text); text-decoration: underline; }
@@ -210,6 +212,7 @@ section { scroll-margin-top: var(--bar-h); }
 [hidden] { display: none !important; }
 
 .docs-main { min-width: 0; padding: 40px 0 80px; }
+.legal { padding: 48px 0 88px; }
 .prose { max-width: 72ch; font-size: 16px; line-height: 1.7; }
 .docs-crumb { margin: 0 0 12px; display: flex; gap: 8px; font-size: 13px; color: var(--text-3); }
 .docs-crumb a { color: var(--text-3); text-decoration: none; }
