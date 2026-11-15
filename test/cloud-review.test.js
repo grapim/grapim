@@ -119,15 +119,15 @@ async function setup(t, { plan = 'free', credit = null } = {}) {
   return { cloud, gh, model, db, logs, job, src };
 }
 
-test('config: Fable 5.2 by default, its price, the key never enumerable', () => {
+test('config: Opus 5.5 by default (the benchmarked model), its price, the key never enumerable', () => {
   const c = cloudConfig({ ANTHROPIC_API_KEY: 'sk-secret-xyz' });
   assert.equal(c.model, DEFAULT_MODEL);
-  assert.equal(DEFAULT_MODEL, 'claude-fable-5-2');
-  assert.deepEqual({ ...c.price }, { input: 8, output: 40 });
+  assert.equal(DEFAULT_MODEL, 'claude-opus-5-5');
+  assert.deepEqual({ ...c.price }, { input: 4, output: 20 });
   assert.ok(c.configured);
   assert.ok(!JSON.stringify(c).includes('sk-secret-xyz'));
   assert.equal(cloudConfig({}).configured, false);
-  assert.equal(costMicros(c.price, 1_000_000, 0), 8_000_000, '$8 per million input tokens');
+  assert.equal(costMicros(c.price, 1_000_000, 0), 4_000_000, '$4 per million input tokens');
 });
 
 test('a pull request is reviewed in the cloud: check in progress, inline review, summary, blocker fails the check, cost counted', async (t) => {
@@ -139,7 +139,7 @@ test('a pull request is reviewed in the cloud: check in progress, inline review,
   assert.equal(r.counts.blocker, 1);
 
   assert.ok(model.s.requests.length >= 1);
-  assert.ok(model.s.requests.every((q) => q.key === 'sk-test-cloud' && q.model === 'claude-fable-5-2'));
+  assert.ok(model.s.requests.every((q) => q.key === 'sk-test-cloud' && q.model === 'claude-opus-5-5'));
 
   const check = gh.s.checks.find((c) => c.name === CLOUD_CHECK);
   assert.equal(check.status, 'completed');

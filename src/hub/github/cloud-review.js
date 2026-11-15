@@ -14,12 +14,12 @@
 //   marker, so it never overwrites the Action's) -> the check completes
 //   -> the folder is deleted, the cost is added to the month.
 //
-// A deep review on Claude Fable 5.2 can take many minutes, so a job may run
-// up to JOB_MS (30 minutes) and the check says so while it runs.
+// A review usually takes under two minutes; a very large pull request may run
+// up to JOB_MS (30 minutes).
 //
 // env:
 //   GRAPIM_REVIEW_ANTHROPIC_KEY   the key cloud reviews use (else ANTHROPIC_API_KEY)
-//   GRAPIM_REVIEW_MODEL           default claude-fable-5-2
+//   GRAPIM_REVIEW_MODEL           default claude-opus-5-5
 //   GRAPIM_REVIEW_MONTHLY_CREDIT  JSON { plan: dollars }, e.g. {"free":10,"team":100}
 //   GRAPIM_REVIEW_PRICE           JSON { input, output } dollars per million tokens
 //   GRAPIM_REVIEW_JOB_MS          per review, 60000..3600000
@@ -41,7 +41,11 @@ import { JobQueue } from './queue.js';
 export const CLOUD_CHECK = 'Grapim Review (cloud)';
 export const CLOUD_MARKER = '<!-- grapim:review:cloud -->';
 const INLINE_MARKER = '<!-- grapim:review:cloud:inline -->';
-export const DEFAULT_MODEL = 'claude-fable-5-2';
+// The model and limits of the benchmarked setup (bench/results-martian:
+// grapim-lean, F1 52.6% on Martian's 50 PRs): Opus 5.5 on the diff alone,
+// no whole files, 10 context lines a side. About $0.18 and 40 seconds a PR.
+export const DEFAULT_MODEL = 'claude-opus-5-5';
+export const REVIEW_LIMITS = Object.freeze({ fileContextChars: 0, contextLines: 10 });
 const MODEL_NAMES = { 'claude-fable-5-2': 'Claude Fable 5.2', 'claude-opus-5-5': 'Claude Opus 5.5', 'claude-sonnet-5-5': 'Claude Sonnet 5.5' };
 // Dollars per million tokens. The engine counts cache reads and writes as
 // input, so a review is billed to the credit at the input price at most.
@@ -50,8 +54,8 @@ export const PRICES = Object.freeze({
   'claude-opus-5-5': Object.freeze({ input: 4, output: 20 }),
   'claude-sonnet-5-5': Object.freeze({ input: 2, output: 10 }),
 });
-// Dollars of review per month, by plan. A Fable 5.2 review of a typical pull
-// request costs about $0.50 to $2.
+// Dollars of review per month, by plan. An Opus 5.5 review of a typical pull
+// request costs about $0.20, so the free plan's $10 is about 50 reviews.
 export const DEFAULT_CREDIT = Object.freeze({ free: 10, team: 100, governance: 300, enterprise: 1000 });
 export const JOB_MS = 30 * 60 * 1000;
 const MICROS = 1_000_000;
@@ -329,7 +333,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       head_sha: job.headSha,
       status: 'in_progress',
       started_at: new Date(started).toISOString(),
-      output: { title: `Reviewing with ${cfg.modelName}`, summary: `Grapim is reviewing this pull request in the cloud. A deep review usually takes up to 20 minutes. The findings will appear here and as comments on the pull request.` },
+      output: { title: `Reviewing with ${cfg.modelName}`, summary: `Grapim is reviewing this pull request in the cloud. It usually takes a minute or two. The findings will appear here and as comments on the pull request.` },
     });
 
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grapim-review-'));
@@ -353,7 +357,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       if (!SHA.test(head) || !SHA.test(base)) throw new Error('The pull request has no common history with its base branch.');
 
       const request = await statedRequest({ pr, repo, request: (method, url) => client.request(method, url), lib: { closingIssues }, log: () => {} });
-      const out = await runWorker({ dir, base, head, model: cfg.model, request }, { key: cfg.key, baseUrl: cfg.baseUrl, signal, timeoutMs: cfg.jobMs, log });
+      const out = await runWorker({ dir, base, head, model: cfg.model, request, limits: REVIEW_LIMITS }, { key: cfg.key, baseUrl: cfg.baseUrl, signal, timeoutMs: cfg.jobMs, log });
       if (!out?.ok) {
         const msg = String(out?.error ?? 'The review failed.').split(cfg.key).join('***');
         finish({ status: 'failed', error: msg.slice(0, 500) });
@@ -424,7 +428,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     ? 'Cloud review is not set up on this hub.'
     : !linked
       ? 'Connect the GitHub App first. Then Grapim can review every pull request without any setup in CI.'
-      : html`Grapim reviews every pull request with ${cfg.modelName} on Grapim's model account, with nothing to set up in CI. A review usually takes up to 20 minutes and posts its findings as comments and a <code>${CLOUD_CHECK}</code> check.`}</p>
+      : html`Grapim reviews every pull request with ${cfg.modelName} on Grapim's model account, with nothing to set up in CI. A review usually takes a minute or two and posts its findings as comments and a <code>${CLOUD_CHECK}</code> check.`}</p>
   ${cfg.configured && linked
     ? html`<p class="fine">This month: ${plural(u.reviews, 'review')}, $${u.spent.toFixed(2)} of $${u.budget.toFixed(2)} credit on the ${team.plan} plan. Renews ${day(u.resets_at)}.</p>
   <p class="fine">The code of each pull request is fetched into a temporary folder on Grapim's server, sent to Anthropic for the review, and deleted when the review ends. To keep code off Grapim's servers, run <a class="link" href="/docs/review">Grapim Review in your own CI</a> instead.</p>`

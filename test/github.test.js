@@ -1023,7 +1023,7 @@ test('cloud review: an owner turns it on in Settings, GitHub; pull request event
   assert.equal(on.status, 303);
   assert.match(on.location, new RegExp(`/hub/teams/${T}/settings/github#cloud-review`));
   page = await owner.req(`/hub/teams/${T}/settings/github`);
-  assert.match(page.text, /Claude Fable 5\.2/);
+  assert.match(page.text, /Claude Opus 5\.5/);
   assert.match(page.text, /\$0\.00 of \$10\.00 credit/);
   assert.ok(!page.text.includes('sk-test-cloud-key'));
   // A member is not an owner: refused.
