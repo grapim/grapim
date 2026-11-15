@@ -22,6 +22,22 @@ const ICON = {
 };
 export { ICON };
 
+// Structured data for the home page, so search results name the site
+// "Grapim" and show its logo.
+function siteSchema(origin) {
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'WebSite', '@id': `${origin}/#website`, name: 'Grapim', url: `${origin}/`, publisher: { '@id': `${origin}/#org` } },
+      {
+        '@type': 'Organization', '@id': `${origin}/#org`, name: 'Grapim', url: `${origin}/`,
+        logo: { '@type': 'ImageObject', url: `${origin}/hub/static/site/logo.png`, width: 512, height: 512 },
+        sameAs: ['https://www.linkedin.com/company/grapim', 'https://github.com/grapim'],
+      },
+    ],
+  };
+}
+
 // <head> for a public page: title, description, canonical and Open Graph.
 export function siteHead({ title, description, path, origin, scripts = true }) {
   const url = `${origin}${path}`;
@@ -44,6 +60,7 @@ export function siteHead({ title, description, path, origin, scripts = true }) {
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+${path === '/' ? raw(`<script type="application/ld+json">${JSON.stringify(siteSchema(origin)).replace(/</g, '\\u003c')}</script>`) : ''}
 <script src="/hub/static/theme.js"></script>
 <link rel="icon" href="/hub/static/favicon.svg" type="image/svg+xml">
 <link rel="preload" href="/hub/static/fonts/public-sans-latin.woff2" as="font" type="font/woff2" crossorigin>

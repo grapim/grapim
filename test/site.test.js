@@ -42,7 +42,8 @@ function signedInCookie() {
 const PAGES = ['/', '/pricing', '/changelog', ...ORDER.map(docPath)];
 
 function assertCspClean(body, where) {
-  assert.ok(!/<script(?![^>]*\ssrc=)[^>]*>/i.test(body), `${where}: an inline <script>`);
+  // A JSON-LD data block is never run, so CSP does not apply to it.
+  assert.ok(!/<script(?![^>]*\ssrc=)(?![^>]*type="application\/ld\+json")[^>]*>/i.test(body), `${where}: an inline <script>`);
   assert.ok(!/\sstyle\s*=/i.test(body), `${where}: a style attribute`);
   assert.ok(!/<style[\s>]/i.test(body), `${where}: a <style> element`);
   assert.ok(!/\son[a-z]+\s*=/i.test(body), `${where}: an inline event handler`);
@@ -103,6 +104,15 @@ test('every public page is CSP clean and has its title, description, canonical a
     for (const tag of ['og:title', 'og:description', 'og:url', 'og:image']) assert.match(body, new RegExp(`property="${tag}" content="[^"]+"`), `${p}: ${tag}`);
     assert.equal((body.match(/<h1[\s>]/g) ?? []).length, 1, `${p}: one h1`);
   }
+});
+
+test('the home page names the site and its logo for search results', async () => {
+  const body = await (await get('/')).text();
+  const data = JSON.parse(body.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1]);
+  const byType = Object.fromEntries(data['@graph'].map((n) => [n['@type'], n]));
+  assert.equal(byType.WebSite.name, 'Grapim');
+  assert.equal(byType.Organization.logo.url, `${ORIGIN}/hub/static/site/logo.png`);
+  assert.equal((await get('/hub/static/site/logo.png')).status, 200);
 });
 
 test('every internal link and image on the public pages resolves', async () => {
