@@ -24,6 +24,9 @@ export const NAV = [
   { group: 'Reference', pages: ['cli', 'security', 'data-handling', 'faq', 'support'] },
 ];
 export const ORDER = NAV.flatMap((g) => g.pages);
+// The legal pages: Markdown in the same folder, served at /terms and /privacy
+// on their own (no docs nav), linked from the site footer and sign-in.
+export const LEGAL = ['terms', 'privacy'];
 export const docPath = (slug) => (slug === ORDER[0] ? '/docs' : `/docs/${slug}`);
 
 // ---- Markdown ----
@@ -47,7 +50,7 @@ function inline(text) {
       s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
       s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, label, href) => {
         const h = href.replace(/&amp;/g, '&');
-        if (!/^(\/|#|https:\/\/)/.test(h)) return label;
+        if (!/^(\/|#|https:\/\/)/.test(h) && !/^mailto:[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(h)) return label;
         const ext = h.startsWith('https://');
         return `<a class="link" href="${esc(h)}"${ext ? ' rel="noopener"' : ''}>${label}</a>`;
       });
@@ -154,8 +157,10 @@ export function renderMarkdown(src, blocks = {}) {
 
 // ---- Pages ----
 
+// A leading <!-- ... --> is a note for whoever edits the file (the legal
+// pages list their open questions there): never rendered.
 function parse(file) {
-  const src = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+  const src = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n').replace(/^<!--[\s\S]*?-->\n*/, '');
   const m = /^---\n([\s\S]*?)\n---\n/.exec(src);
   const meta = {};
   if (m) for (const line of m[1].split('\n')) {
@@ -165,9 +170,9 @@ function parse(file) {
   return { meta, body: m ? src.slice(m[0].length) : src };
 }
 
-export function loadDocs(dir = DOCS_DIR) {
+export function loadDocs(dir = DOCS_DIR, slugs = ORDER) {
   const pages = new Map();
-  for (const slug of ORDER) {
+  for (const slug of slugs) {
     const { meta, body } = parse(path.join(dir, `${slug}.md`));
     pages.set(slug, { slug, title: meta.title || slug, nav: meta.nav || meta.title || slug, description: meta.description || '', body });
   }
@@ -328,6 +333,28 @@ ${siteBar({ current: 'docs', signedIn })}
     ? html`<nav class="docs-toc" aria-label="On this page"><h2>On this page</h2><ul>${h2s.map((t) => html`<li><a href="#${t.id}">${raw(t.text.replace(/<[^>]+>/g, ''))}</a></li>`)}</ul></nav>`
     : html`<div class="docs-toc" aria-hidden="true"></div>`}
 </div>
+${siteFooter()}
+</body>
+</html>`.toString();
+}
+
+// /terms and /privacy: one column of prose, the site's bar and footer.
+export function legalPage({ pages, slug, origin, signedIn = false }) {
+  const page = pages.get(slug);
+  const { html: body } = renderMarkdown(page.body);
+  return html`${siteHead({ title: page.title, description: page.description, path: `/${slug}`, origin })}
+<body class="site">
+<a class="skip" href="#main">Skip to content</a>
+${siteBar({ current: slug, signedIn })}
+<main id="main" class="legal">
+  <div class="wrap">
+    <article class="prose">
+      <h1>${page.title}</h1>
+      ${page.description ? html`<p class="docs-lede">${page.description}</p>` : ''}
+      ${raw(body)}
+    </article>
+  </div>
+</main>
 ${siteFooter()}
 </body>
 </html>`.toString();

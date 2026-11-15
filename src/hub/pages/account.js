@@ -17,7 +17,7 @@ export function signInPage({ next = '/hub', error = null }) {
     Continue with GitHub
   </a>
   <p class="fine">Signing in reads your public GitHub profile (name and avatar) and nothing else. Grapim sees a repository only after you install the Grapim GitHub App on it, and you choose which ones.</p>
-  <p class="fine auth-links"><a href="/docs">Read the quickstart</a><span aria-hidden="true"> · </span><a href="/docs/security">Security</a><span aria-hidden="true"> · </span><a href="/docs/support">Support</a></p>
+  <p class="fine auth-links"><a href="/docs">Read the quickstart</a><span aria-hidden="true"> · </span><a href="/docs/security">Security</a><span aria-hidden="true"> · </span><a href="/docs/support">Support</a><span aria-hidden="true"> · </span><a href="/terms">Terms</a><span aria-hidden="true"> · </span><a href="/privacy">Privacy</a></p>
 </section>`,
   });
 }

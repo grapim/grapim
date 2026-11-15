@@ -99,7 +99,7 @@ export function siteFooter() {
       <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
       <p>AI code review that runs in your own CI.</p>
       <p class="foot-social"><a href="https://www.linkedin.com/company/grapim" rel="noopener">LinkedIn</a><a href="https://github.com/grapim" rel="noopener">GitHub</a></p>
-      <p class="foot-legal">© 2026 Grapim</p>
+      <p class="foot-legal">© 2026 Grapim<a href="/terms">Terms</a><a href="/privacy">Privacy</a></p>
       <div class="theme-seg" role="group" aria-label="Theme">${theme('system', 'System', 'system')}${theme('light', 'Light', 'sun')}${theme('dark', 'Dark', 'moon')}</div>
     </div>
     <nav class="foot-cols" aria-label="Footer">

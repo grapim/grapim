@@ -1,5 +1,5 @@
 // The public site: the landing page at / (signed-out visitors; a session
-// still goes straight to /hub), the docs at /docs, robots.txt and
+// still goes straight to /hub), the docs at /docs, /terms, /privacy, robots.txt and
 // sitemap.xml. No route here reads or changes team data.
 //
 // Registered before pageRoutes (server.js), so this / wins over its redirect.
@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { notFound, redirect } from './http.js';
-import { docPath, docsPage, loadDocs, ORDER } from './pages/docs.js';
+import { docPath, docsPage, legalPage, LEGAL, loadDocs, ORDER } from './pages/docs.js';
 import { changelogPage, landingPage, pricingPage } from './pages/site.js';
 
 const PAGES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'pages');
@@ -36,6 +36,7 @@ function send(ctx, body, type = 'text/html; charset=utf-8') {
 export function siteRoutes(router, hub) {
   const origin = hub.config.origin;
   const pages = loadDocs();
+  const legal = loadDocs(undefined, LEGAL);
   const landing = landingPage({ origin, demo: !!hub.config.demo });
 
   router.get('/', (ctx) => {
@@ -54,14 +55,15 @@ export function siteRoutes(router, hub) {
     send(ctx, docsPage({ pages, slug, origin, signedIn: !!ctx.session }));
   });
   router.get('/support', (ctx) => redirect(ctx.res, '/docs/support'));
+  for (const slug of LEGAL) router.get(`/${slug}`, (ctx) => send(ctx, legalPage({ pages: legal, slug, origin, signedIn: !!ctx.session })));
 
   router.get('/robots.txt', (ctx) => {
-    const body = ['User-agent: *', 'Allow: /$', 'Allow: /pricing', 'Allow: /changelog', 'Allow: /docs', 'Allow: /hub/static/', 'Disallow: /hub/', 'Disallow: /w/', 'Disallow: /v1/', `Sitemap: ${origin}/sitemap.xml`, ''].join('\n');
+    const body = ['User-agent: *', 'Allow: /$', 'Allow: /pricing', 'Allow: /changelog', 'Allow: /docs', ...LEGAL.map((s) => `Allow: /${s}`), 'Allow: /hub/static/', 'Disallow: /hub/', 'Disallow: /w/', 'Disallow: /v1/', `Sitemap: ${origin}/sitemap.xml`, ''].join('\n');
     send(ctx, body, 'text/plain; charset=utf-8');
   });
 
   router.get('/sitemap.xml', (ctx) => {
-    const urls = ['/', '/pricing', '/changelog', ...ORDER.map(docPath)];
+    const urls = ['/', '/pricing', '/changelog', ...ORDER.map(docPath), ...LEGAL.map((s) => `/${s}`)];
     const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${origin}${u}</loc></url>`).join('\n')}\n</urlset>\n`;
     send(ctx, body, 'application/xml; charset=utf-8');
   });
