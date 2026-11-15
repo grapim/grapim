@@ -720,7 +720,7 @@ test('slack: owners save a webhook (sealed, never shown); a 15-minute digest of 
   await sync(h, token, { repo: { id: ROOT, name: 'api', github: 'github.com/acme/api' }, machine: 'alice-laptop', runs: [{ run: 'claude-code:cccc', turn: 1, started_at: clock.t }], changes: [{ ...change(4, 'claude-code:cccc', 'claude cccc <!channel>', V0, V1) }] });
   assert.equal(await h.hub.notify.tick(), 1);
   const digest = slack.posts.at(-1).body.text;
-  assert.match(digest, /\*1 agent run waiting for review\* in Gov Co/);
+  assert.match(digest, /\*1 agent run waiting for approval\* in Gov Co/);
   assert.match(digest, /claude cccc &lt;!channel&gt;/, 'synced text is escaped for Slack');
   assert.ok(digest.includes(`<${ORIGIN}/hub/teams/${A}/repos/${ROOT}/runs/claude-code%3Acccc?machine=alice-laptop|`));
   // Within 15 minutes: no second digest, even with a new run.

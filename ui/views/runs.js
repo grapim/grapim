@@ -7,7 +7,7 @@ import { html, navigate, render, runHref } from '../app.js';
 import { agentChip, empty, errorBlock, icon, plusMinus, pluralize, reviewBadge, runTitle, setupHint, sk, treeBadge, treeText, when } from './shared.js';
 
 const FILTERS = [
-  { id: 'pending', label: 'Needs review', test: (r) => r.review.status === 'pending' },
+  { id: 'pending', label: 'Needs approval', test: (r) => r.review.status === 'pending' },
   { id: 'active', label: 'Active', test: (r) => r.active },
   { id: 'approved', label: 'Approved', test: (r) => r.review.status === 'approved' },
   { id: 'rejected', label: 'Rejected', test: (r) => r.review.status === 'rejected' },
@@ -29,7 +29,7 @@ export async function mount(el, params, ctx) {
   const glyph = (r) => {
     if (r.active) return html`<span class="state-glyph" title="Running now"><span class="ring" aria-hidden="true"></span><span class="sr-only">Running</span></span>`;
     const st = r.review.status;
-    return html`<span class="state-glyph ${st}" title="${st === 'pending' ? 'Needs review' : st[0].toUpperCase() + st.slice(1)}">${icon(st === 'approved' ? 'check' : st === 'rejected' ? 'x' : 'dotc', 'sm')}</span>`;
+    return html`<span class="state-glyph ${st}" title="${st === 'pending' ? 'Needs approval' : st[0].toUpperCase() + st.slice(1)}">${icon(st === 'approved' ? 'check' : st === 'rejected' ? 'x' : 'dotc', 'sm')}</span>`;
   };
 
   const row = (r) => html`
@@ -75,7 +75,7 @@ export async function mount(el, params, ctx) {
     }
     const list = visible();
     const none = {
-      pending: ['Nothing needs review', 'Every run has been approved or rejected. New runs appear here as soon as an agent changes a file.'],
+      pending: ['Nothing needs approval', 'Every run has been approved or rejected. New runs appear here as soon as an agent changes a file.'],
       active: ['No run is active', 'Runs from agents that are working right now show up here.'],
       approved: ['No approved runs', ctx.readonly() ? 'Runs show up here once someone approves them.' : 'Approve a run from its page, or press a on a row.'],
       rejected: ['No rejected runs', ctx.readonly() ? 'Runs show up here once someone rejects them.' : 'Reject a run from its page, or press x on a row.'],
@@ -127,7 +127,7 @@ export async function mount(el, params, ctx) {
     try {
       r.review = await api.review(run, nextStatus);
       ctx.emit('grapim:run-reviewed', { run, status: r.review?.status || nextStatus });
-      ctx.toast(nextStatus === 'pending' ? `${r.label} needs review again.` : `${nextStatus === 'approved' ? 'Approved' : 'Rejected'} ${r.label}.`, {
+      ctx.toast(nextStatus === 'pending' ? `${r.label} needs approval again.` : `${nextStatus === 'approved' ? 'Approved' : 'Rejected'} ${r.label}.`, {
         action: { label: 'Undo', fn: () => review(run, nextStatus) },
       });
       ctx.refreshShell();

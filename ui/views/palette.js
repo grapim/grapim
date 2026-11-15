@@ -45,10 +45,10 @@ export function openPalette(ctx) {
     return [
       ...viewCmds.map((c) => ({ group: 'This page', label: c.label, hint: c.hint, icon: 'right', run: c.run })),
       { group: 'Go to', label: 'Live', hint: 'g l', icon: 'live', run: () => navigate('#/live') },
-      { group: 'Go to', label: 'Runs that need review', hint: 'g r', icon: 'runs', run: () => navigate('#/runs?f=pending') },
+      { group: 'Go to', label: 'Runs that need approval', hint: 'g r', icon: 'runs', run: () => navigate('#/runs?f=pending') },
       { group: 'Go to', label: 'All runs', icon: 'runs', run: () => navigate('#/runs?f=all') },
       { group: 'Go to', label: 'Files', hint: 'g f', icon: 'files', run: () => navigate('#/files') },
-      ...s.runs.map((r) => ({ group: 'Runs', label: runTitle(r) || r.label, agent: r.label, sub: r.review?.status === 'pending' ? 'needs review' : r.review?.status, keywords: `${r.label} ${r.run} ${r.worktree}`, icon: 'runs', run: () => navigate(runHref(r.run)) })),
+      ...s.runs.map((r) => ({ group: 'Runs', label: runTitle(r) || r.label, agent: r.label, sub: r.review?.status === 'pending' ? 'needs approval' : r.review?.status, keywords: `${r.label} ${r.run} ${r.worktree}`, icon: 'runs', run: () => navigate(runHref(r.run)) })),
       ...s.files.map((f) => ({ group: 'Files', label: f.path, mono: true, sub: f.held_by ? `held by ${f.held_by}` : '', icon: 'file', run: () => navigate(fileHref(f.path)) })),
       // Embedded, the host sets the theme; the palette only moves inside this workspace.
       ...(ctx.embedded ? [] : [

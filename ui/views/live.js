@@ -92,8 +92,8 @@ export async function mount(el, _params, ctx) {
         // "approved" or "approved: the note"
         const [status, ...note] = (e.detail || '').split(': ');
         const n = note.length ? html` <span class="muted">“${note.join(': ')}”</span>` : '';
-        if (e.actor) return html`<span class="verb">${{ approved: 'approved', rejected: 'rejected', pending: 'marked as needing review' }[status] || `reviewed (${status})`}</span> ${agentChip(e.label)}${n}`;
-        return html`<span class="verb">${{ approved: 'was approved', rejected: 'was rejected', pending: 'was marked as needing review' }[status] || `review: ${e.detail}`}</span>${n}`;
+        if (e.actor) return html`<span class="verb">${{ approved: 'approved', rejected: 'rejected', pending: 'marked as needing approval' }[status] || `reviewed (${status})`}</span> ${agentChip(e.label)}${n}`;
+        return html`<span class="verb">${{ approved: 'was approved', rejected: 'was rejected', pending: 'was marked as needing approval' }[status] || `review: ${e.detail}`}</span>${n}`;
       }
       case 'branch':
         if (e.actor) return html`<span class="verb">put</span> ${agentChip(e.label)} <span class="verb">on branch</span> <span class="path">${(e.detail || '').split(' ')[0]}</span>`;
@@ -128,7 +128,7 @@ export async function mount(el, _params, ctx) {
           <p class="page-sub stats">
             <span><b>${ov.counts.agents}</b>${ov.counts.agents === 1 ? 'agent' : 'agents'} working</span>
             <span><b>${ov.counts.leases}</b>${ov.counts.leases === 1 ? 'file' : 'files'} held</span>
-            <span><a href="#/runs"><b>${ov.counts.unreviewed}</b>${ov.counts.unreviewed === 1 ? 'run needs' : 'runs need'} review</a></span>
+            <span><a href="#/runs"><b>${ov.counts.unreviewed}</b>${ov.counts.unreviewed === 1 ? 'run needs' : 'runs need'} approval</a></span>
           </p>
         </div>
       </div>

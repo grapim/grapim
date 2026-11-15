@@ -188,7 +188,7 @@ const MOD = html`<kbd class="mod">Ctrl</kbd><kbd>K</kbd>`;
 // person should not see it (a member, before the hub has an API key).
 function askButton(shell) {
   if (!shell.agent) return '';
-  return html`<button class="ask-btn" type="button" data-action="agent" aria-controls="agent" aria-expanded="false">${icon('spark')}<span>Ask Grapim</span><kbd class="mod">Ctrl</kbd><kbd>J</kbd></button>`;
+  return html`<button class="ask-btn" type="button" data-action="agent" aria-controls="agent" aria-expanded="false">${icon('mark')}<span>Ask Grapim</span><kbd class="mod">Ctrl</kbd><kbd>J</kbd></button>`;
 }
 
 function agentRoot(team, csrf, shell) {
@@ -237,7 +237,7 @@ function shellPage({ title, user, team, csrf, crumbs, body, wide, shell, toast }
       <a class="brand" href="/hub" aria-label="Grapim, all teams">${LOGO}</a>
       <span class="topbar-team">${team.name}</span>
       <button class="icon-btn" type="button" data-action="palette" aria-label="Search or jump to">${icon('search')}</button>
-      ${shell.agent ? html`<button class="icon-btn" type="button" data-action="agent" aria-controls="agent" aria-expanded="false" aria-label="Ask Grapim">${icon('spark')}</button>` : ''}
+      ${shell.agent ? html`<button class="icon-btn" type="button" data-action="agent" aria-controls="agent" aria-expanded="false" aria-label="Ask Grapim">${icon('mark')}</button>` : ''}
       <details class="mnav" data-menu>
         <summary class="icon-btn" aria-label="Menu">${icon('menu')}</summary>
         <div class="menu menu-sheet">

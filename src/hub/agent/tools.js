@@ -112,7 +112,7 @@ export const ACTION_TOOLS = new Set(TOOLS.filter((t) => t.name.startsWith('propo
 
 // What the panel says while a tool runs (the summary after comes from the tool).
 export const RUNNING = {
-  list_runs_to_review: 'Looking for runs to review',
+  list_runs_to_review: 'Looking for runs to approve',
   get_run: 'Reading the run',
   file_history: 'Looking at the file history',
   get_report: 'Reading the report',
@@ -196,7 +196,7 @@ export function createTools(hub) {
       const only = input.repo_id ? repoOf(s.team, input.repo_id).id : null;
       const runs = hub.overview.runs(s.team, s.userId).filter((r) => r.waiting && (!only || r.repo_id === only));
       return {
-        summary: `Looked at ${plural(runs.length, 'run')} waiting for review`,
+        summary: `Looked at ${plural(runs.length, 'run')} waiting for approval`,
         data: {
           count: runs.length,
           runs: runs.slice(0, 40).map((r) => ({
@@ -442,7 +442,7 @@ export function createTools(hub) {
       const note = text(input.note, 'note', 1000);
       const d = read.run(s.team, repo, need(input.run, 'run', 200), text(input.machine, 'machine', 100));
       const r = d.run;
-      if (hub.github?.reviews?.owners(s.team, r.run).has(s.userId)) fail('The signed-in person synced this run, so someone else in the team has to review it.');
+      if (hub.github?.reviews?.owners(s.team, r.run).has(s.userId)) fail('The signed-in person synced this run, so someone else in the team has to approve it.');
       const verb = decision === 'approved' ? 'Approve' : 'Reject';
       const form = { status: decision, machine: r.machine, ...(note ? { note } : {}) };
       return {

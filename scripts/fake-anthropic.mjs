@@ -125,7 +125,7 @@ function summarise(call, data, isError, text) {
     case 'list_runs_to_review': {
       const others = data.runs.filter((r) => !r.mine);
       const top = others.slice(0, 4);
-      return say(`**${others.length} runs** are waiting for your review${data.count - others.length ? ` (and ${data.count - others.length} of your own, which someone else has to review)` : ''}. The newest:\n\n${top.map((r) => `- [${r.label}](${r.url}) in \`${r.repo}\`: ${r.intent ?? 'no intent recorded'} (+${r.added} -${r.removed}, ${ago(r.last_change)})`).join('\n')}\n\nWant me to summarise one of them before you review it?`);
+      return say(`**${others.length} runs** are waiting for your approval${data.count - others.length ? ` (and ${data.count - others.length} of your own, which someone else has to approve)` : ''}. The newest:\n\n${top.map((r) => `- [${r.label}](${r.url}) in \`${r.repo}\`: ${r.intent ?? 'no intent recorded'} (+${r.added} -${r.removed}, ${ago(r.last_change)})`).join('\n')}\n\nWant me to summarise one of them before you approve it?`);
     }
     case 'get_run': {
       const files = data.files.map((f) => `- \`${f.path}\` +${f.added} -${f.removed}${f.state === 'in_tree' ? '' : f.state ? ` (${f.state.replace('_', ' ')})` : ''}`).join('\n');
@@ -171,6 +171,6 @@ export function demoBrain() {
     if (/file/.test(q) && ws) return toolUse('list_workspace_files', { workspace: ws[1] });
     if (/team|who is|owner/.test(q)) return toolUse('get_team', {});
     if (/review|need|wait/.test(q)) return toolUse('list_runs_to_review', {}, ['failing_pull_requests', {}]);
-    return say('I can look up runs waiting for review, summarise a run, check pull requests and the AI share, list workspace files, and prepare approvals, undos, invite links and tokens for you to confirm. What would you like?');
+    return say('I can look up runs waiting for approval, summarise a run, check pull requests and the AI share, list workspace files, and prepare approvals, undos, invite links and tokens for you to confirm. What would you like?');
   };
 }

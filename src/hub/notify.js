@@ -1,7 +1,7 @@
 // Slack notifications per team (research/core-features-2026-11.md, feature 3).
 //
 // An owner pastes a Slack incoming webhook URL in Settings. The hub posts:
-// - a digest of agent runs waiting for review, at most once per DIGEST_MS
+// - a digest of agent runs waiting for approval, at most once per DIGEST_MS
 //   (15 minutes), listing each run once;
 // - a message when the Grapim check fails on a pull request, once per head commit.
 //
@@ -166,7 +166,7 @@ export function createNotifier(hub, options = {}) {
         return `• ${link(href, clip(r.label || r.run, 40))} in ${esc(clip(r.repo_name, 60))}${r.intent ? `: ${esc(clip(r.intent, 100))}` : ''}`;
       });
       const more = list.length > MAX_LIST ? `\n…and ${list.length - MAX_LIST} more. ${link(`${origin}/hub/teams/${encodeURIComponent(t.team_id)}/reviews`, 'Open Reviews')}` : '';
-      const text = `*${list.length} agent run${list.length === 1 ? '' : 's'} waiting for review* in ${esc(team?.name ?? 'your team')}\n${lines.join('\n')}${more}`;
+      const text = `*${list.length} agent run${list.length === 1 ? '' : 's'} waiting for approval* in ${esc(team?.name ?? 'your team')}\n${lines.join('\n')}${more}`;
       const ok = await post(t.team_id, text);
       // Sent or not, the next digest waits: a failing webhook is not retried every minute.
       db.prepare('UPDATE team_notify SET last_sent_at = ?, cursor = ? WHERE team_id = ?').run(now(), ok ? top : t.cursor, t.team_id);
@@ -210,7 +210,7 @@ export function createNotifier(hub, options = {}) {
         if (!row(ctx.member.team.id)) throw new HttpError(404, 'not_found', 'No Slack webhook is saved.');
         hub.limit(ctx, 'form', `slack-test:${ctx.member.team.id}`);
         const team = hub.teams.get(ctx.member.team.id);
-        const ok = await post(ctx.member.team.id, `Grapim is connected. This channel will hear about agent runs waiting for review in ${esc(team?.name ?? 'your team')} and failed Grapim checks.`);
+        const ok = await post(ctx.member.team.id, `Grapim is connected. This channel will hear about agent runs waiting for approval in ${esc(team?.name ?? 'your team')} and failed Grapim checks.`);
         back(ctx, ok ? 'slack_tested' : 'slack_failed');
       },
       FORM,

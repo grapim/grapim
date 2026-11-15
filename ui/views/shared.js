@@ -77,8 +77,8 @@ export function shortId(label) {
 
 // ---------------------------------------------------------------- status
 
-const REVIEW = { pending: 'Needs review', approved: 'Approved', rejected: 'Rejected' };
-export const reviewBadge = (r) => html`<span class="badge ${r?.status || 'pending'}">${REVIEW[r?.status] || 'Needs review'}</span>`;
+const REVIEW = { pending: 'Needs approval', approved: 'Approved', rejected: 'Rejected' };
+export const reviewBadge = (r) => html`<span class="badge ${r?.status || 'pending'}">${REVIEW[r?.status] || 'Needs approval'}</span>`;
 
 const TREE = { all: ['In tree', ''], some: ['Partly in tree', 'warn'], none: ['Not in tree', ''] };
 export const treeBadge = (s) => {

@@ -124,7 +124,7 @@ function renderShell() {
   const counts = o?.counts;
   const nav = html`${NAV.map((n) => {
     const count = n.id === 'live' ? counts?.agents : n.id === 'runs' ? counts?.unreviewed : null;
-    const title = n.id === 'live' ? 'agents active' : n.id === 'runs' ? 'runs need review' : '';
+    const title = n.id === 'live' ? 'agents active' : n.id === 'runs' ? 'runs need approval' : '';
     return html`<a href="${n.href}" data-nav="${n.id}">${icon(n.icon)}<span class="label">${n.label}</span>${
       count ? html`<span class="count num ${n.id === 'runs' ? 'attention' : ''}" title="${count} ${title}">${count}</span>` : ''
     }<kbd aria-hidden="true">G</kbd><kbd aria-hidden="true">${n.key.toUpperCase()}</kbd></a>`;
@@ -135,7 +135,7 @@ function renderShell() {
     render($('#nav-embed'), html`${NAV.map((n) => {
       const count = n.id === 'runs' ? counts?.unreviewed : null;
       return html`<a href="${n.href}" data-nav="${n.id}"><span>${n.label}</span>${
-        count ? html`<span class="count num" title="${count} runs need review">${count}</span>` : ''}</a>`;
+        count ? html`<span class="count num" title="${count} runs need approval">${count}</span>` : ''}</a>`;
     })}`);
   }
   setNav(current?.name);

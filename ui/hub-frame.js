@@ -5,7 +5,7 @@
 // Only on the hub, never in an embed or under `grapim serve`. DOM only, no
 // inline code: the desk's CSP allows scripts and styles from this origin.
 
-const SPARK = '<svg class="icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M7 2.5c.35 2.55 1.45 3.65 4 4-2.55.35-3.65 1.45-4 4-.35-2.55-1.45-3.65-4-4 2.55-.35 3.65-1.45 4-4Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M12 10.25c.15 1.05.7 1.6 1.75 1.75-1.05.15-1.6.7-1.75 1.75-.15-1.05-.7-1.6-1.75-1.75 1.05-.15 1.6-.7 1.75-1.75Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+const SPARK = '<svg class="icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><g transform="scale(.25)"><rect x="25" y="9" width="30" height="30" rx="5" transform="rotate(45 40 24)" fill="none" stroke="currentColor" stroke-width="5.6"/><rect x="6" y="26" width="34" height="34" rx="8" fill="currentColor"/></g></svg>';
 
 const el = (tag, props = {}, ...kids) => {
   const n = document.createElement(tag);

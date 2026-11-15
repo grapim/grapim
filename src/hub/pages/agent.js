@@ -29,6 +29,7 @@
   // Fixed icon drawings (constants, never data), the hub's 16 px stroke set.
   const S = 'fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"';
   const ICONS = {
+    mark: `<g transform="scale(.25)"><rect x="25" y="9" width="30" height="30" rx="5" transform="rotate(45 40 24)" fill="none" stroke="currentColor" stroke-width="5.6"/><rect x="6" y="26" width="34" height="34" rx="8" fill="currentColor"/></g>`,
     spark: `<path d="M7 2.5c.35 2.55 1.45 3.65 4 4-2.55.35-3.65 1.45-4 4-.35-2.55-1.45-3.65-4-4 2.55-.35 3.65-1.45 4-4Z" ${S}/><path d="M12 10.25c.15 1.05.7 1.6 1.75 1.75-1.05.15-1.6.7-1.75 1.75-.15-1.05-.7-1.6-1.75-1.75 1.05-.15 1.6-.7 1.75-1.75Z" ${S}/>`,
     x: `<path d="m4.5 4.5 7 7m0-7-7 7" ${S}/>`,
     plus: `<path d="M8 3.5v9M3.5 8h9" ${S}/>`,
@@ -44,6 +45,18 @@
     copy: `<rect x="5.5" y="5.5" width="8" height="8" rx="1.5" ${S}/><path d="M10.5 3.5v-.25A.75.75 0 0 0 9.75 2.5h-6.5a.75.75 0 0 0-.75.75v6.5c0 .41.34.75.75.75h.25" ${S}/>`,
     up: `<path d="M5.5 7v6.5H3.25a.75.75 0 0 1-.75-.75v-5a.75.75 0 0 1 .75-.75H5.5Zm0 0 2.6-4.3a1.1 1.1 0 0 1 2 .75L9.6 6.5h3a1.2 1.2 0 0 1 1.17 1.46l-1.05 4.55a1.2 1.2 0 0 1-1.17.99H5.5" ${S}/>`,
     down2: `<path d="M5.5 9V2.5H3.25a.75.75 0 0 0-.75.75v5c0 .41.34.75.75.75H5.5Zm0 0 2.6 4.3a1.1 1.1 0 0 0 2-.75L9.6 9.5h3a1.2 1.2 0 0 0 1.17-1.46l-1.05-4.55A1.2 1.2 0 0 0 11.55 2.5H5.5" ${S}/>`,
+    // The empty state's suggestions and the composer's page chip.
+    arrow: `<path d="M3.5 8h9M8.5 4l4 4-4 4" ${S}/>`,
+    // A follow-up under the latest answer: a hooked arrow, "and then".
+    followup: `<path d="M4 3v4.5A1.5 1.5 0 0 0 5.5 9H12.5M10 6.5 12.5 9 10 11.5" ${S}/>`,
+    review: `<circle cx="8" cy="8" r="5.75" ${S}/><path d="m5.75 8.1 1.5 1.5 3-3.2" ${S}/>`,
+    pr: `<circle cx="4.5" cy="3.75" r="1.25" ${S}/><circle cx="4.5" cy="12.25" r="1.25" ${S}/><circle cx="11.5" cy="12.25" r="1.25" ${S}/><path d="M4.5 5v6M11.5 11V6.5a2 2 0 0 0-2-2H7.5M8.75 3.25 7.5 4.5l1.25 1.25" ${S}/>`,
+    pulse: `<path d="M2 8h2.5l1.5-3.5 2.5 7 1.75-5L11.5 8H14" ${S}/>`,
+    chart: `<path d="M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5" ${S}/>`,
+    file: `<path d="M9 2.5H4.75a1.25 1.25 0 0 0-1.25 1.25v8.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V6L9 2.5Z" ${S}/><path d="M9 2.5V6h3.5" ${S}/>`,
+    page: `<rect x="2.5" y="3" width="11" height="10" rx="1.5" ${S}/><path d="M2.5 6h11" ${S}/>`,
+    retry: `<path d="M13 8a5 5 0 1 1-1.46-3.54M13 3v2.5h-2.5" ${S}/>`,
+    offline: `<path d="M2.5 2.5l11 11M5.2 8.3a4.2 4.2 0 0 1 2.2-1.1M2.5 5.9a8 8 0 0 1 2.2-1.4M9.9 7.4a4.2 4.2 0 0 1 .9.9M7.8 4a8 8 0 0 1 5.7 1.9M6.9 10.6a1.6 1.6 0 0 1 2.2 0" ${S}/><circle cx="8" cy="12.6" r=".6" fill="currentColor"/>`,
   };
   const svg = (name, cls = '') => {
     const t = document.createElement('template');
@@ -95,8 +108,20 @@
     return into;
   }
 
+  // A diff is drawn line by line: added lines green, removed lines on the
+  // red wash, hunk heads grey (the review desk's colours).
+  function diffCode(code) {
+    const c = el('code');
+    code.split('\n').forEach((line, i) => {
+      if (i) c.append('\n');
+      const k = line.startsWith('@@') ? 'hunk' : line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : null;
+      c.append(k ? el('span', { class: `dl dl-${k}`, text: line }) : line);
+    });
+    return c;
+  }
+
   function codeBlock(code, lang) {
-    const pre = el('pre', { class: 'agent-code', 'aria-label': lang ? `${lang} code` : 'Code' }, el('code', { text: code }));
+    const pre = el('pre', { class: `agent-code${lang === 'diff' ? ' is-diff' : ''}`, 'aria-label': lang ? `${lang} code` : 'Code' }, lang === 'diff' ? diffCode(code) : el('code', { text: code }));
     const btn = el('button', { class: 'agent-copy', type: 'button', text: 'Copy', 'aria-label': 'Copy code' });
     btn.addEventListener('click', async () => {
       try {
@@ -223,15 +248,17 @@
     return { kind: parts[0] || 'overview' };
   }
 
+  // Suggestions per page, each one a question the tools can answer
+  // (src/hub/agent/tools.js): [icon, text].
   const STARTERS = {
-    run: ['Summarize this run', 'Which files did it change, and are they still in the tree?', 'Is anything in this run risky to approve?'],
-    repo: ['Which runs in this repo need review?', 'Who changed this repo most this week?', 'Which agents are working here right now?'],
-    workspace: ['What changed in this workspace today?', 'List the files in this workspace', 'Create a read-only token for an agent'],
-    reviews: ['What needs my review first?', 'Which pull requests fail the Grapim check?', 'Summarize the newest run waiting for review'],
-    reports: ['What is our AI share over the last 12 weeks?', 'Which agent kind writes the most lines?', 'How many AI lines were merged without review?'],
-    settings: ['Who is on the team, and who are the owners?', 'Which machine tokens exist?', 'Create an invite link'],
-    workspaces: ['Which workspace was busiest this week?', 'List every workspace token by name', 'Rename a workspace'],
-    overview: ['What needs my review?', 'Which pull requests fail the Grapim check?', 'Which agents are active right now?'],
+    run: [['review', 'Summarize this run'], ['file', 'Which files did it change, and are they still in the tree?'], ['alert', 'Is anything in this run risky to approve?'], ['pulse', 'Which other agents are working in this repo?']],
+    repo: [['review', 'Which runs in this repo wait for approval?'], ['pulse', 'Which agents are working here right now?'], ['chart', 'What share of this repo did agents write?'], ['pr', 'Which pull requests fail the Grapim check?']],
+    workspace: [['pulse', 'What changed in this workspace today?'], ['file', 'List the files in this workspace'], ['review', 'Summarize the newest run here'], ['page', 'Create a read-only token for an agent']],
+    reviews: [['review', 'What has waited longest for approval?'], ['pr', 'Which pull requests fail the Grapim check?'], ['file', 'Summarize the newest run waiting for approval'], ['pulse', 'Which agents are working right now?']],
+    reports: [['chart', 'What is our AI share over the last 12 weeks?'], ['pulse', 'Which agent kind writes the most lines?'], ['alert', 'How many AI lines were merged without approval?'], ['review', 'What is waiting for my approval?']],
+    settings: [['page', 'Who is on the team, and who are the owners?'], ['file', 'Which machine tokens exist?'], ['arrow', 'Create an invite link'], ['review', 'What is waiting for my approval?']],
+    workspaces: [['pulse', 'Which workspace was busiest this week?'], ['file', 'List every workspace token by name'], ['page', 'Rename a workspace'], ['review', 'What is waiting for my approval?']],
+    overview: [['review', 'What is waiting for my approval?'], ['pr', 'Which pull requests fail the Grapim check?'], ['pulse', 'Which agents are working right now?'], ['chart', 'What share of our code did agents write this month?']],
   };
 
   function contextLabel(ctx) {
@@ -265,7 +292,7 @@
     const titleText = el('span', { class: 'agent-title-text', text: 'Ask Grapim' });
     const status = el('span', { class: 'agent-status ag-shimmer', 'aria-hidden': 'true', text: 'Working…' });
     const head = el('header', { class: 'agent-head' },
-      el('div', { class: 'agent-head-start' }, backBtn, el('h2', { class: 'agent-title', id: 'agent-title' }, svg('spark', 'agent-mark'), titleText)),
+      el('div', { class: 'agent-head-start' }, backBtn, el('h2', { class: 'agent-title', id: 'agent-title' }, svg('mark', 'agent-mark'), titleText)),
       el('div', { class: 'agent-head-actions' }, status, configured ? historyBtn : null, configured ? newBtn : null, closeBtn));
     function setTitle(text) {
       const t = String(text || '').replace(/\s+/g, ' ').trim();
@@ -277,16 +304,19 @@
 
     // The conversation.
     const log = el('div', { class: 'agent-log', role: 'log', 'aria-live': 'polite', 'aria-relevant': 'additions', 'aria-labelledby': 'agent-title', tabindex: '0' });
-    const jump = el('button', { class: 'agent-jump', type: 'button', hidden: true }, svg('down'), 'Jump to latest');
+    const jump = el('button', { class: 'agent-jump', type: 'button', hidden: true }, svg('down'), 'Latest');
     const body = el('div', { class: 'agent-body' }, log, jump);
 
     // The composer: the page chip, the field, send that turns into stop.
+    // One box: the field on top; under it the page it starts from, the
+    // model and send (which turns into stop while it answers).
     const input = el('textarea', { class: 'agent-input', rows: '1', placeholder: 'Ask about runs, reviews, workspaces…', 'aria-label': 'Message Ask Grapim', maxlength: '4000', spellcheck: 'true' });
-    const send = el('button', { class: 'agent-send', type: 'submit', 'aria-label': 'Send' }, el('span', { class: 'agent-send-icons', 'aria-hidden': 'true' }, svg('send', 'i-send'), svg('stop', 'i-stop')));
-    const chip = el('span', { class: 'agent-chip', title: 'Ask Grapim sees the page you are on' }, el('span', { class: 'agent-chip-dot', 'aria-hidden': 'true' }), contextLabel(ctx));
+    const send = el('button', { class: 'agent-send', type: 'submit', 'aria-label': 'Send', title: 'Send  Enter' }, el('span', { class: 'agent-send-icons', 'aria-hidden': 'true' }, svg('send', 'i-send'), svg('stop', 'i-stop')));
+    const chip = el('span', { class: 'agent-chip', title: 'Ask Grapim starts from the page you are on' }, svg('page'), el('span', { class: 'agent-chip-text', text: contextLabel(ctx) }));
     const foot = el('p', { class: 'agent-foot' });
-    const modelTag = el('span', { class: 'agent-model', title: 'The model answering' });
-    const form = el('form', { class: 'agent-compose' }, el('div', { class: 'agent-field' }, el('div', { class: 'agent-field-top' }, chip, modelTag), el('div', { class: 'agent-row' }, input, send)), foot);
+    const offline = el('p', { class: 'agent-offline', role: 'status', hidden: true }, svg('offline'), el('span', { text: 'You are offline. Messages send again once you are back.' }));
+    const form = el('form', { class: 'agent-compose' }, offline,
+      el('div', { class: 'agent-field' }, input, el('div', { class: 'agent-toolbar' }, chip, el('span', { class: 'agent-toolbar-end' }, send))), foot);
 
     const resize = el('div', { class: 'agent-resize', role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Resize Ask Grapim', 'aria-valuemin': String(MIN), 'aria-valuemax': String(MAX), 'aria-valuenow': String(width()), tabindex: '0', title: 'Drag to resize, double-click to reset' });
     panel.append(resize, el('div', { class: 'agent-card' }, head, body, ...(configured ? [form] : [])));
@@ -395,7 +425,9 @@
     log.addEventListener('scroll', () => {
       pinned = nearBottom();
       if (pinned) jump.hidden = true;
-    });
+      // The header's hairline shows only once something is under it.
+      panel.classList.toggle('is-scrolled', log.scrollTop > 2);
+    }, { passive: true });
     function follow() {
       if (pinned) log.scrollTop = log.scrollHeight;
       else jump.hidden = false;
@@ -422,7 +454,7 @@
     // Under the last text of each answer: Copy, and a thumbs up or down that
     // is kept (per question) to see where answers go wrong.
     function decorateAnswers() {
-      for (const r of log.querySelectorAll('.ag-answer-actions')) r.remove();
+      for (const r of log.querySelectorAll('.ag-answer-actions, .ag-followups')) r.remove();
       if (!state.conv) return;
       let turn = 0;
       let lastText = null;
@@ -435,6 +467,31 @@
         else if (n.classList.contains('msg-text') && !n.classList.contains('is-streaming')) lastText = n;
       }
       flushTurn();
+      const last = log.lastElementChild;
+      if (last?.classList.contains('ag-answer-actions')) {
+        last.classList.add('is-last');
+        if (!state.busy) { const f = followUps(); if (f) last.after(f); }
+      }
+    }
+
+    // Under the latest answer only: up to three more questions this page
+    // can answer, skipping what was already asked here. Rows, not chips, so
+    // a whole question reads at a glance (Searchable, Grok).
+    function followUps() {
+      const asked = new Set([...log.querySelectorAll('.msg-user')].map((n) => n.textContent.trim().toLowerCase()));
+      const pool = [...(STARTERS[ctx.kind] ?? []), ...STARTERS.overview];
+      const seen = new Set();
+      const picks = pool.filter(([, q]) => { const k = q.toLowerCase(); if (asked.has(k) || seen.has(k)) return false; seen.add(k); return true; }).slice(0, 3);
+      if (!picks.length) return null;
+      const ul = el('ul', { class: 'ag-followups-list', role: 'list' });
+      picks.forEach(([, q], i) => {
+        const b = el('button', { class: 'ag-followup', type: 'button' }, svg('followup', 'ag-followup-icon'), el('span', { text: q }));
+        b.addEventListener('click', () => ask(q));
+        const li = el('li', {}, b);
+        li.style.setProperty('--i', String(i));
+        ul.append(li);
+      });
+      return el('section', { class: 'ag-followups', 'aria-label': 'Ask next' }, el('h4', { class: 'ag-followups-label', text: 'Ask next' }), ul);
     }
 
     function answerActions(turn, textNode) {
@@ -536,25 +593,30 @@
     }
 
     function noticeMsg(kind, text, live) {
-      return el('div', { class: `ag-msg msg-notice notice-${kind}${live ? ' is-live' : ''}`, role: kind === 'error' ? 'alert' : null }, kind === 'error' || kind === 'refusal' ? svg('alert') : null, el('span', { text }));
+      const icon = kind === 'offline' ? 'offline' : kind === 'error' || kind === 'refusal' || kind === 'limit' ? 'alert' : null;
+      return el('div', { class: `ag-msg msg-notice notice-${kind}${live ? ' is-live' : ''}`, role: kind === 'error' || kind === 'offline' ? 'alert' : null }, icon ? svg(icon, 'notice-icon') : null, el('span', { class: 'notice-text', text }));
     }
 
+    // Status sits at the end of each row; the label leads.
     function stepRow(step) {
       const row = el('li', { class: 'ag-step', 'data-status': step.status, 'data-id': step.id || null },
-        el('span', { class: 'ag-step-mark', 'aria-hidden': 'true' }, el('span', { class: 'ag-spin' }), svg('check', 'ag-step-check'), svg('x', 'ag-step-x')),
-        el('span', { class: 'ag-step-label', text: step.label }));
+        el('span', { class: 'ag-step-label', text: step.label }),
+        el('span', { class: 'ag-step-mark', 'aria-hidden': 'true' }, el('span', { class: 'ag-spin' }), svg('check', 'ag-step-check'), svg('x', 'ag-step-x')));
       return row;
     }
 
     function stepsGroup(steps, { live = false, open = false } = {}) {
       const list = el('ol', { class: 'ag-steps-list' }, ...steps.map(stepRow));
       const sumText = el('span', { class: 'ag-steps-sum-text' });
-      const sum = el('button', { class: 'ag-steps-sum', type: 'button', 'aria-expanded': String(open) }, svg('chev', 'ag-steps-chev'), sumText);
+      const time = el('span', { class: 'ag-steps-time num' });
+      const sum = el('button', { class: 'ag-steps-sum', type: 'button', 'aria-expanded': String(open) }, sumText, time, svg('chev', 'ag-steps-chev'));
       // A live group starts folded: one shimmering line naming the current step,
       // which opens to the full list (like the finished summary).
       const g = el('div', { class: `ag-steps${live ? ' is-live' : ''}`, 'data-state': live ? 'running' : 'done' }, sum, el('div', { class: 'ag-steps-body' }, el('div', { class: 'ag-steps-inner' }, list)));
       g._list = list;
       g._sum = sumText;
+      g._time = time;
+      if (live) g._t0 = performance.now();
       sum.addEventListener('click', () => {
         const o = sum.getAttribute('aria-expanded') !== 'true';
         sum.setAttribute('aria-expanded', String(o));
@@ -577,14 +639,22 @@
         g._sum.textContent = now ? now.querySelector('.ag-step-label').textContent : 'Working…';
         return;
       }
-      const label = rows.length === 1 ? rows[0].querySelector('.ag-step-label').textContent : `Looked at ${rows.length} things`;
-      g._sum.textContent = failed && rows.length > 1 ? `${label} · ${failed} failed` : label;
+      // One step: what it found. Several: how long it worked (or how many
+      // steps, for an answer loaded from history); the rows say the rest.
+      const first = rows[0]?.querySelector('.ag-step-label').textContent ?? '';
+      const label = rows.length <= 1 ? first : g._took ? `Worked for ${g._took}` : `${rows.length} steps`;
+      g._sum.textContent = failed ? `${label} · ${failed} failed` : label;
+      g._time.textContent = rows.length > 1 ? (g._took ? `${rows.length} steps` : '') : (g._took ?? '');
     }
 
-    // Collapses a finished group into its one-line summary.
+    // Collapses a finished group into its one-line summary, with the time it took.
     function settle(g) {
       if (!g || g.dataset.state === 'done') return;
       g.dataset.state = 'done';
+      if (g._t0) {
+        const s = (performance.now() - g._t0) / 1000;
+        g._took = s < 10 ? `${s.toFixed(1)}s` : `${Math.round(s)}s`;
+      }
       summarize(g);
       g.querySelector('.ag-steps-sum').setAttribute('aria-expanded', 'false');
       g.classList.remove('is-open');
@@ -608,8 +678,8 @@
       const dl = el('dl', { class: 'act-facts' });
       for (const [k, v] of a.lines || []) dl.append(el('dt', { text: k }), el('dd', { text: v }));
       const head = el('div', { class: 'act-head' },
-        el('h3', { class: 'act-title', text: a.title }),
-        a.status === 'proposed' ? el('span', { class: 'act-tag', text: 'Needs your OK' }) : null);
+        a.status === 'proposed' ? el('p', { class: 'act-tag' }, el('span', { class: 'act-tag-dot', 'aria-hidden': 'true' }), 'Waiting for your OK') : null,
+        el('h3', { class: 'act-title', text: a.title }));
       card.append(head, el('p', { class: 'act-effect', text: a.effect }), dl);
       if (a.status === 'proposed') {
         const ok = el('button', { class: `btn btn-sm ${a.danger ? 'btn-danger-solid' : 'btn-primary'} act-ok`, type: 'button' }, el('span', { class: 'ag-spin', 'aria-hidden': 'true' }), el('span', { class: 'act-ok-text', text: a.verb || 'Confirm' }));
@@ -703,7 +773,7 @@
       // The public demo: no model behind it, a note on what it does instead.
       if (panel.dataset.demo === '1') {
         return el('div', { class: 'agent-empty agent-off' },
-          el('span', { class: 'agent-empty-mark', 'aria-hidden': 'true' }, svg('spark')),
+          el('span', { class: 'agent-empty-mark', 'aria-hidden': 'true' }, svg('mark')),
           el('h3', { text: 'Ask Grapim is off in the demo' }),
           el('p', { text: 'In your own team it answers questions about runs, reviews and workspaces, starting from the page you are on, and prepares approvals, undos and tokens for you to confirm.' }),
           el('p', { class: 'agent-fine' }, el('a', { href: '/hub/login', text: 'Sign in with GitHub' }), ' to try it on your repos.'));
@@ -711,24 +781,52 @@
       if (!configured) {
         const owner = panel.dataset.role === 'owner';
         return el('div', { class: 'agent-empty agent-off' },
-          el('span', { class: 'agent-empty-mark', 'aria-hidden': 'true' }, svg('spark')),
+          el('span', { class: 'agent-empty-mark', 'aria-hidden': 'true' }, svg('mark')),
           el('h3', { text: 'Ask Grapim isn’t set up on this hub yet' }),
           el('p', { text: 'Once it is, anyone in the team can ask about runs, reviews and workspaces here, and have it prepare approvals, undos and tokens for them to confirm.' }),
           owner ? el('p', { class: 'agent-fine' }, 'To turn it on, set ', el('code', { text: 'ANTHROPIC_API_KEY' }), ' on the hub’s server and redeploy. Members don’t see Ask Grapim until then.') : null);
       }
+      // A short menu, not a pitch: one line on what it sees and what it may
+      // do, the questions this page suggests, then the latest conversations.
       const box = el('div', { class: 'agent-empty' },
-        el('span', { class: 'agent-empty-mark', 'aria-hidden': 'true' }, svg('spark')),
-        el('h3', { text: 'What do you want to know?' }),
-        el('p', { text: 'Ask Grapim sees what you can see in this team, starting with this page. It can prepare approvals, undos, invite links and tokens; nothing happens until you confirm.' }));
-      const list = el('div', { class: 'agent-starters', role: 'list' });
-      (STARTERS[ctx.kind] ?? STARTERS.overview).forEach((s, i) => {
-        const b = el('button', { class: 'agent-starter', type: 'button', role: 'listitem', text: s });
-        b.style.setProperty('--i', String(i));
+        el('span', { class: 'agent-empty-mark', 'aria-hidden': 'true' }, svg('mark')),
+        el('h3', { text: 'Ask about your agent runs' }),
+        el('p', { text: 'It sees what you can open in this team, starting with this page. Approvals, undos, invite links and tokens wait for your OK.' }));
+      // A question about reviews carries the live count from the sidebar, so
+      // the first row already says how much is waiting (Remote, Devin).
+      const waiting = Number(document.querySelector('.nav-item .count')?.textContent) || 0;
+      const list = el('ul', { class: 'agent-starters', role: 'list' });
+      (STARTERS[ctx.kind] ?? STARTERS.overview).forEach(([icon, s], i) => {
+        const count = waiting && /waiting for my approval|wait for approval|waited longest for approval/i.test(s)
+          ? el('span', { class: 'agent-starter-count num', title: `${waiting} run${waiting === 1 ? '' : 's'} waiting for your approval`, text: String(waiting) }) : null;
+        const b = el('button', { class: 'agent-starter', type: 'button' }, svg(icon, 'agent-starter-icon'), el('span', { class: 'agent-starter-text', text: s }), count, svg('arrow', 'agent-starter-go'));
         b.addEventListener('click', () => ask(s));
-        list.append(b);
+        const li = el('li', {}, b);
+        li.style.setProperty('--i', String(i));
+        list.append(li);
       });
-      box.append(list);
+      box.append(el('section', { class: 'agent-section', 'aria-label': 'Suggested' }, el('h4', { class: 'agent-section-label', text: 'Suggested' }), list));
+      const recent = el('section', { class: 'agent-section agent-recent', 'aria-label': 'Recent', hidden: true });
+      box.append(recent);
+      fillRecent(recent);
       return box;
+    }
+
+    // The three latest other conversations, under the suggestions.
+    async function fillRecent(section) {
+      let list = [];
+      try {
+        list = ((await (await fetch(`${api}/conversations`, { credentials: 'same-origin' })).json()).conversations ?? []).filter((c) => !c.open).slice(0, 3);
+      } catch { return; }
+      if (!list.length || !section.isConnected) return;
+      const ul = el('ul', { class: 'agent-starters', role: 'list' });
+      for (const c of list) {
+        const b = el('button', { class: 'agent-starter is-recent', type: 'button' }, svg('clock', 'agent-starter-icon'), el('span', { class: 'agent-starter-text', text: c.title, title: c.title }), el('span', { class: 'agent-starter-meta num', text: since(c.updated_at) }));
+        b.addEventListener('click', () => openConversation(c.id, false));
+        ul.append(el('li', {}, b));
+      }
+      section.replaceChildren(el('h4', { class: 'agent-section-label', text: 'Recent' }), ul);
+      section.hidden = false;
     }
 
     function render(items) {
@@ -755,15 +853,16 @@
       state.usage = u || state.usage;
       foot.replaceChildren();
       const s = state.usage;
-      if (s && typeof s.budget === 'number') {
-        const pct = s.budget > 0 ? Math.min(1, s.spent / s.budget) : 1;
-        const fill = el('span', { class: 'agent-meter-fill' });
-        fill.style.transform = `scaleX(${pct})`;
-        const meter = el('span', { class: `agent-meter${pct >= 0.9 ? ' is-high' : ''}`, 'aria-hidden': 'true' }, fill);
+      // The credit shows only once it is running low (Apollo's "5 chats
+      // left"); the rest of the month it lives in Settings, Plan and usage.
+      if (s && typeof s.budget === 'number' && s.budget > 0 && s.spent / s.budget >= 0.8) {
+        const left = Math.max(0, s.budget - s.spent);
         const when = new Date(s.resets_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
-        foot.append(el('span', { class: 'agent-usage', title: `Team credit for Ask Grapim. Renews ${when}.` }, meter, el('span', { class: 'num', text: `$${s.spent.toFixed(2)} of $${s.budget.toFixed(2)} this month` })), el('span', { class: 'sep', 'aria-hidden': 'true', text: '·' }));
+        foot.append(el('span', { class: `agent-usage${left === 0 ? ' is-out' : ''}`, title: `Team credit for Ask Grapim: $${s.spent.toFixed(2)} of $${s.budget.toFixed(2)}. Renews ${when}.` },
+          el('span', { class: 'num', text: left === 0 ? `No credit left until ${when}` : `$${left.toFixed(2)} of credit left this month` })), el('span', { class: 'sep', 'aria-hidden': 'true', text: '·' }));
       }
-      foot.append(el('span', { text: 'It can be wrong. Actions wait for your OK.' }));
+      // Which model answers is a fact for the curious, not composer chrome (Linear, Stripe).
+      foot.append(el('span', { text: 'It can be wrong. Actions wait for your OK.', title: state.model ? `Answered by ${state.model} on your team’s own model account` : null }));
     }
 
     function setBusy(b) {
@@ -794,7 +893,7 @@
         setUsage(data.usage);
         state.conv = data.conversation?.id ?? null;
         state.feedback = data.conversation?.feedback ?? {};
-        if (data.model_label) modelTag.textContent = data.model_label;
+        if (data.model_label) { state.model = data.model_label; setUsage(null); }
         render(data.conversation?.items ?? []);
         if (data.running) waitForRun();
       } catch {
@@ -826,7 +925,7 @@
     // Before the first token or step: one quiet shimmering line, in the same
     // place the steps line will take over.
     function thinkingRow(label = 'Thinking…') {
-      return el('div', { class: 'ag-thinking', role: 'status' }, svg('chev', 'ag-steps-chev'), el('span', { class: 'ag-shimmer', text: label }));
+      return el('div', { class: 'ag-thinking', role: 'status' }, el('span', { class: 'ag-pulse', 'aria-hidden': 'true' }), el('span', { class: 'ag-shimmer', text: label }));
     }
 
     // ------------------------------------------------ sending
@@ -838,8 +937,11 @@
       if (!state.loaded) await load();
       if (state.busy) return;
       log.querySelector('.agent-empty')?.remove();
+      log.querySelector('.ag-followups')?.remove();
+      log.querySelector('.ag-answer-actions.is-last')?.classList.remove('is-last');
       log.append(userMsg(text, true));
       input.value = '';
+      form.classList.remove('has-text');
       grow();
       pinned = true;
       const thinking = thinkingRow();
@@ -857,7 +959,9 @@
         });
       } catch {
         thinking.remove();
-        log.append(noticeMsg('error', 'Could not reach the hub. Check your connection and try again.', true));
+        log.append(navigator.onLine === false
+          ? noticeMsg('offline', 'You are offline, so this was not sent. Retry once you are back.', true)
+          : noticeMsg('error', 'Could not reach the hub. Check your connection and try again.', true));
         retryRow(text);
         setBusy(false);
         return;
@@ -1018,14 +1122,17 @@
       follow();
     }
 
+    // Retry sits inside the error it answers, when there is one.
     function retryRow(text) {
-      const b = el('button', { class: 'btn btn-sm', type: 'button', text: 'Retry' });
+      const b = el('button', { class: 'btn btn-sm', type: 'button' }, svg('retry'), 'Retry');
+      const last = log.lastElementChild;
+      const host = last?.matches('.notice-error, .notice-offline') ? last : null;
       b.addEventListener('click', () => {
         row.remove();
         ask(text);
       });
       const row = el('p', { class: 'msg-actions' }, b);
-      log.append(row);
+      (host ?? log).append(row);
     }
 
     function newConvButton() {
@@ -1060,7 +1167,22 @@
 
     if (configured) {
       setUsage(null);
-      input.addEventListener('input', grow);
+      input.addEventListener('input', () => {
+        grow();
+        form.classList.toggle('has-text', !!input.value.trim());
+      });
+      // Offline: say so above the field, before anything fails.
+      const net = () => {
+        offline.hidden = navigator.onLine !== false;
+        form.classList.toggle('is-offline', !offline.hidden);
+      };
+      // A click anywhere in the box (not on its buttons) goes to the field.
+      form.querySelector('.agent-field').addEventListener('click', (e) => {
+        if (!e.target.closest('button, textarea')) input.focus();
+      });
+      window.addEventListener('online', net);
+      window.addEventListener('offline', net);
+      net();
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
           e.preventDefault();

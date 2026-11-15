@@ -9,7 +9,7 @@ import { html } from './html.js';
 import { head } from './team.js';
 
 export const NAMES = [
-  ['unreviewed', 'Merged without review'],
+  ['unreviewed', 'Merged without approval'],
   ['ai-share', 'AI share'],
   ['agents', 'Agents'],
   ['activity', 'Activity'],
@@ -264,7 +264,7 @@ function unreviewedBody(r, team) {
   let acc = 0;
   const max = Math.max(1, ...r.runs.map((u) => u.lines));
   return html`<dl class="kpis">
-  ${stat('Unreviewed AI lines', n(t.lines), `${pct(t.share_of_ai)} of ${n(t.ai_lines)} AI lines`)}
+  ${stat('Unapproved AI lines', n(t.lines), `${pct(t.share_of_ai)} of ${n(t.ai_lines)} AI lines`)}
   ${stat('Pending review', n(t.pending_lines), 'lines')}
   ${stat('Rejected, still in commits', n(t.rejected_lines), 'lines')}
   ${stat('Runs not approved', n(t.runs), `${n(t.commits)} commit${t.commits === 1 ? '' : 's'}`)}
@@ -306,7 +306,7 @@ ${r.runs.length
   </tbody>
 </table>
 </div>
-${t.runs > PAGE_RUNS ? html`<p class="fine">Showing the ${PAGE_RUNS} runs with the most unreviewed lines, of ${n(t.runs)}. Export CSV for ${r.coverage.list_truncated ? `the top ${n(r.runs.length)}` : 'all of them'}.</p>` : ''}`
+${t.runs > PAGE_RUNS ? html`<p class="fine">Showing the ${PAGE_RUNS} runs with the most unapproved lines, of ${n(t.runs)}. Export CSV for ${r.coverage.list_truncated ? `the top ${n(r.runs.length)}` : 'all of them'}.</p>` : ''}`
   : html`<div class="empty empty-ok"><p class="empty-title">Every AI line in this range is from an approved run</p><p class="muted">${n(t.ai_lines)} AI lines in ${n(r.coverage.commits)} commits.</p></div>`}`;
 }
 
@@ -376,7 +376,7 @@ function teaserBody({ team, role, csrf, teaser, billing, seatsUsed }) {
   <p class="card-sub">The record a manager needs before rolling AI agents out wider.</p>
   <ul class="checks">
     <li><b>Require approval</b>: the Grapim GitHub check fails a pull request until a teammate, not the run’s author, approves each agent run, and until every commit is recorded</li>
-    <li><b>Unreviewed</b>: AI lines in commits from runs nobody approved</li>
+    <li><b>Unapproved</b>: AI lines in commits from runs nobody approved</li>
     <li><b>Agents</b>: runs, undo rate, reject rate and median review time per agent</li>
     <li><b>AI share</b> of added lines by week, repo and agent, back 365 days</li>
     <li><b>Activity</b>: runs, files, blocks and conflicts per day, and CSV export of every report</li>

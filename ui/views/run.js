@@ -46,8 +46,8 @@ export async function mount(el, params, ctx) {
           ${r.review?.note || (st !== 'pending' && r.review?.by) ? html`<p class="note">${(r.review.by || '').replace(/^\w+:/, '') || 'Someone'} ${st} this ${when(r.review.at)}${r.review.note ? html`: “${r.review.note}”` : '.'}</p>` : ''}
         </div>
         ${ctx.readonly() ? '' : html`<div class="actions" role="group" aria-label="Review">
-          <button class="btn approve ${st === 'approved' ? '' : 'primary'}" type="button" data-act="approved" aria-pressed="${st === 'approved'}" title="${st === 'approved' ? 'Approved. Click to mark as needing review again.' : 'Mark as approved. Merging stays your call in git.'}">${icon('check')}${st === 'approved' ? 'Approved' : 'Approve'}<kbd>a</kbd></button>
-          <button class="btn reject" type="button" data-act="rejected" aria-pressed="${st === 'rejected'}" title="${st === 'rejected' ? 'Rejected. Click to mark as needing review again.' : 'Mark as rejected. Its changes stay until you undo them.'}">${icon('x')}${st === 'rejected' ? 'Rejected' : 'Reject'}<kbd>x</kbd></button>
+          <button class="btn approve ${st === 'approved' ? '' : 'primary'}" type="button" data-act="approved" aria-pressed="${st === 'approved'}" title="${st === 'approved' ? 'Approved. Click to mark as needing approval again.' : 'Mark as approved. Merging stays your call in git.'}">${icon('check')}${st === 'approved' ? 'Approved' : 'Approve'}<kbd>a</kbd></button>
+          <button class="btn reject" type="button" data-act="rejected" aria-pressed="${st === 'rejected'}" title="${st === 'rejected' ? 'Rejected. Click to mark as needing approval again.' : 'Mark as rejected. Its changes stay until you undo them.'}">${icon('x')}${st === 'rejected' ? 'Rejected' : 'Reject'}<kbd>x</kbd></button>
           <button class="btn" type="button" data-act="branch" ${s.busy === 'branch' ? 'disabled' : ''} title="Put this run's changes on a new branch from HEAD. No working tree changes.">${icon('branch')}${s.busy === 'branch' ? 'Creating…' : r.branch ? 'New branch' : 'Create branch'}<kbd>b</kbd></button>
           <button class="btn danger" type="button" data-act="undo" title="Remove this run's changes from the working tree. Shows the plan first.">${icon('undo')}Undo…<kbd>u</kbd></button>
         </div>`}
@@ -176,7 +176,7 @@ export async function mount(el, params, ctx) {
       s.pendingReview = null;
       draw();
       ctx.emit('grapim:run-reviewed', { run: r.run, status: r.review?.status || next });
-      ctx.toast(next === 'pending' ? `${r.label} needs review again.` : `${next === 'approved' ? 'Approved' : 'Rejected'} ${r.label}.`, {
+      ctx.toast(next === 'pending' ? `${r.label} needs approval again.` : `${next === 'approved' ? 'Approved' : 'Rejected'} ${r.label}.`, {
         action: { label: 'Undo', fn: () => review(next) },
       });
       ctx.refreshShell();
@@ -304,8 +304,8 @@ export async function mount(el, params, ctx) {
       if (!r) return [];
       return [
         ...(ctx.readonly() ? [] : [
-          { label: r.review?.status === 'approved' ? 'Mark as needing review' : 'Approve this run', hint: 'a', run: () => review('approved') },
-          { label: r.review?.status === 'rejected' ? 'Mark as needing review' : 'Reject this run', hint: 'x', run: () => review('rejected') },
+          { label: r.review?.status === 'approved' ? 'Mark as needing approval' : 'Approve this run', hint: 'a', run: () => review('approved') },
+          { label: r.review?.status === 'rejected' ? 'Mark as needing approval' : 'Reject this run', hint: 'x', run: () => review('rejected') },
           { label: 'Create a branch from this run', hint: 'b', run: branch },
           { label: 'Undo this run…', hint: 'u', run: () => undo() },
         ]),

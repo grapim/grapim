@@ -33,6 +33,8 @@ const P = {
   key: `<circle cx="5.5" cy="10.5" r="3" ${S}/><path d="m7.6 8.4 5.4-5.4M11 5l1.5 1.5" ${S}/>`,
   help: `<circle cx="8" cy="8" r="5.75" ${S}/><path d="M6.4 6.3a1.7 1.7 0 0 1 3.3.5c0 1.2-1.7 1.4-1.7 2.5M8 11.2v.1" ${S}/>`,
   power: `<path d="M8 2v5.5M4.6 4.3a5 5 0 1 0 6.8 0" ${S}/>`,
+  // Ask Grapim: the Grapim mark itself, not a generic sparkle.
+  mark: `<g transform="scale(.25)"><rect x="25" y="9" width="30" height="30" rx="5" transform="rotate(45 40 24)" fill="none" stroke="currentColor" stroke-width="5.6"/><rect x="6" y="26" width="34" height="34" rx="8" fill="currentColor"/></g>`,
   spark: `<path d="M7 2.5c.35 2.55 1.45 3.65 4 4-2.55.35-3.65 1.45-4 4-.35-2.55-1.45-3.65-4-4 2.55-.35 3.65-1.45 4-4Z" ${S}/><path d="M12 10.25c.15 1.05.7 1.6 1.75 1.75-1.05.15-1.6.7-1.75 1.75-.15-1.05-.7-1.6-1.75-1.75 1.05-.15 1.6-.7 1.75-1.75Z" ${S}/>`,
   send: `<path d="M8 13V3.5M4 7.5l4-4 4 4" ${S}/>`,
   stop: `<rect x="4.5" y="4.5" width="7" height="7" rx="1.5" fill="currentColor" stroke="none"/>`,
