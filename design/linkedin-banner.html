@@ -1,0 +1,31 @@
+<!doctype html>
+<!-- LinkedIn cover (company page and founder profile), 1128x191 drawn at 2x.
+     Render: headless Chrome at 2256x382.
+     How the references do it (Vercel, Supabase, CodeRabbit, checked
+     2026-11-15): one line in large type that starts about a third of the way
+     in, clear of the logo tile LinkedIn draws over the lower left, and the
+     brand mark on the right. The cover shows at about half size on the page,
+     so nothing small. Ours: the black band, Public Sans, grape for the
+     phrase that says what Grapim knows. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "Public Sans"; src: url("../ui/fonts/public-sans-latin.woff2") format("woff2"); font-weight: 100 900; }
+  html, body { margin: 0; width: 2256px; height: 382px; overflow: hidden; }
+  body { font-family: "Public Sans", sans-serif; color: #ededed; background: #0a0a0a; position: relative; }
+  .copy { position: absolute; left: 700px; top: 0; bottom: 0; display: flex; align-items: center; }
+  h1 { margin: 0; font-size: 76px; line-height: 1.1; font-weight: 680; letter-spacing: -0.035em; }
+  h1 .hl { color: #9b7cff; }
+  .brand { position: absolute; right: 120px; top: 0; bottom: 0; display: flex; align-items: center; gap: 22px; font-size: 56px; font-weight: 680; letter-spacing: -0.03em; }
+  .brand svg { width: 72px; height: 72px; }
+</style>
+</head>
+<body>
+  <div class="copy"><h1>Code review that knows<br>what <span class="hl">your agents</span> were asked.</h1></div>
+  <div class="brand">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="25" y="9" width="30" height="30" rx="5" transform="rotate(45 40 24)" fill="none" stroke="#ededed" stroke-width="5.6"/><rect x="6" y="26" width="34" height="34" rx="8" fill="#ededed"/></svg>
+    Grapim
+  </div>
+</body>
+</html>

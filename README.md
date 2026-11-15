@@ -1,5 +1,9 @@
 # Grapim
 
+<p><a href="https://grapim.com"><img src="https://grapim.com/hub/static/site/og.png" alt="Grapim: code review that knows what your agents were asked. A review comment flags a migration that drops users.email, written by a Claude Code run asked only to add pagination." width="720"></a></p>
+
+<p><a href="https://grapim.com">Website</a> · <a href="https://grapim.com/docs/review">Docs</a> · <a href="https://grapim.com/pricing">Pricing</a> · <a href="https://grapim.com/changelog">Changelog</a> · <a href="https://www.linkedin.com/company/grapim">LinkedIn</a></p>
+
 **Code review that knows what your agents were asked.**
 
 Grapim reviews every pull request and comments on the lines that need attention. When Claude Code, Codex, Cursor or Gemini CLI wrote the change, it knows which run wrote each line and what that run was asked to do, so it also flags work nobody asked for: a dropped column, a deleted test, a weakened check.
