@@ -439,7 +439,7 @@ ${siteBar({ current: 'pricing', signedIn })}
         <ul>${p.items.map((i) => html`<li>${ICON.check}<span>${i}</span></li>`)}</ul>
       </section>`)}
     </div>
-    <p class="fine">Prices in US dollars. Cloud review is included in each plan’s monthly review credit; the pull request counts assume about $0.18 a review. Grapim Review in your own CI runs on your own model account, billed by your provider.</p>
+    <p class="fine">Cloud review is included in each plan’s monthly review credit; the pull request counts assume about $0.18 a review. Grapim Review in your own CI runs on your own model account, billed by your provider.</p>
   </div>
 </section>
 
