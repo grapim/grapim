@@ -37,6 +37,8 @@ async function main() {
     ...(job.request ? { request: job.request } : {}),
     ...(job.limits ? { limits: job.limits } : {}),
     env: {},
+    // The summary says the code was on Grapim's server (it was, in job.dir).
+    hosted: true,
     log: (line) => process.stderr.write(`${line}\n`),
   });
   return { ok: true, result: { ...result, failOn: config.failOn } };

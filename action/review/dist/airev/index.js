@@ -58,6 +58,9 @@ export async function reviewChanges({
   limits = {},
   concurrency = DEFAULT_CONCURRENCY,
   sleep = defaultSleep,
+  // true when the review runs on Grapim's server (cloud review): the summary
+  // then says where the code went instead of "Grapim received nothing".
+  hosted = false,
 } = {}) {
   if (!cwd) throw new ConfigError('reviewChanges needs cwd, the path of a git checkout.');
   const cfg = config ? validateConfig(config) : loadConfig(cwd);
@@ -233,6 +236,6 @@ export async function reviewChanges({
   };
   const runList = [...runs.values()].sort((a, b) => b.hunks - a.hunks || a.label.localeCompare(b.label));
   const deletedTests = changes.files.filter((f) => f.status === 'deleted' && isTestFile(f.path)).map((f) => f.path);
-  const summary = renderReviewSummary({ findings, stats, skipped, runs: runList, providerText: describeProvider(prov), requests: usage.requests, deletedTests, held });
+  const summary = renderReviewSummary({ findings, stats, skipped, runs: runList, providerText: describeProvider(prov), requests: usage.requests, deletedTests, held, hosted });
   return { findings, held, summary, stats, skipped, deletedTests, base: changes.base, head: changes.head };
 }

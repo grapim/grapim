@@ -137,7 +137,9 @@ export const isTestFile = (p) => TEST_FILE.test(String(p ?? ''));
 
 const OWN_SOURCE = /^(issue #[1-9][0-9]{0,9}|PR description|PR title)$/;
 
-export function renderReviewSummary({ findings, stats, skipped, runs, providerText, requests, deletedTests = [], held = [] }) {
+// hosted: the review ran on Grapim's server (cloud review), not in the
+// customer's CI, so the last line must not say Grapim received nothing.
+export function renderReviewSummary({ findings, stats, skipped, runs, providerText, requests, deletedTests = [], held = [], hosted = false }) {
   const n = (s) => findings.filter((f) => f.severity === s).length;
   const lines = ['### Grapim Review', ''];
   const files = new Set(findings.map((f) => f.path)).size;
@@ -184,7 +186,8 @@ export function renderReviewSummary({ findings, stats, skipped, runs, providerTe
   const notes = [];
   if (stats.droppedFindings) notes.push(`${plural(stats.droppedFindings, 'finding')} dropped (not on a changed line)`);
   if (stats.omittedFindings) notes.push(`${plural(stats.omittedFindings, 'finding')} left out over the comment limit`);
-  lines.push('', `Model: ${stats.model} on ${providerText}. ${plural(requests, 'request')}${stats.passes > 1 ? ` (${stats.passes} passes over each change)` : ''},${stats.inputTokens.toLocaleString('en-US')} input and ${stats.outputTokens.toLocaleString('en-US')} output tokens.${notes.length ? ` ${notes.join('; ')}.` : ''}`);
-  lines.push('', requests ? `Your code was sent only to ${providerText}. Grapim received nothing.` : 'No code was sent to any model. Grapim received nothing.');
+  lines.push('', `Model: ${stats.model} on ${providerText}. ${plural(requests, 'request')}${stats.passes > 1 ? ` (${stats.passes} passes over each change)` : ''}, ${stats.inputTokens.toLocaleString('en-US')} input and ${stats.outputTokens.toLocaleString('en-US')} output tokens.${notes.length ? ` ${notes.join('; ')}.` : ''}`);
+  if (hosted) lines.push('', `This review ran on Grapim's server: the code was fetched into a temporary folder there, ${requests ? `sent only to ${providerText}` : 'sent to no model'}, and deleted when the review ended.`);
+  else lines.push('', requests ? `Your code was sent only to ${providerText}. Grapim received nothing.` : 'No code was sent to any model. Grapim received nothing.');
   return lines.join('\n');
 }
