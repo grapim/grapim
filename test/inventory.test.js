@@ -11,7 +11,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { collectInventory, describeServer, parseCodexToml } from '../src/inventory.js';
 import { createHub } from '../src/hub/server.js';
-import { parseInventory } from '../src/hub/inventory.js';
+import { parseInventory, storeInventory } from '../src/hub/inventory.js';
+import { DatabaseSync } from 'node:sqlite';
 import { runHook } from '../src/hook.js';
 import { Store } from '../src/store.js';
 import { resolveWorkspace } from '../src/workspace.js';
@@ -335,6 +336,34 @@ test('ingest: each report replaces the machine snapshot; first_seen is kept, rem
   // A batch without an inventory leaves the snapshot as it is.
   assert.equal((await post(h, token, batch('mbp'))).status, 200);
   assert.equal(h.hub.db.prepare('SELECT COUNT(*) AS n FROM h_inventory WHERE team_id = ?').get(team).n, 4);
+});
+
+test('ingest: rows keyed with NUL by older hubs are re-keyed in place; they keep first_seen and can be removed', () => {
+  // Node 22's node:sqlite reads text back cut at the first NUL, so a snapshot
+  // keyed "agent scope ..." never found its old rows to delete.
+  const db = new DatabaseSync(':memory:');
+  db.exec(`CREATE TABLE h_inventory (team_id TEXT NOT NULL, repo_id TEXT NOT NULL, machine TEXT NOT NULL, user_id INTEGER NOT NULL,
+    kind TEXT NOT NULL, item TEXT NOT NULL, agent TEXT NOT NULL, name TEXT, version TEXT, transport TEXT, command TEXT, package TEXT,
+    host TEXT, scope TEXT, first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL, PRIMARY KEY (team_id, repo_id, machine, kind, item))`);
+  const put = db.prepare(`INSERT INTO h_inventory (team_id, repo_id, machine, user_id, kind, item, agent, name, version, transport, command, package, host, scope, first_seen, last_seen)
+    VALUES ('T', 'R', 'mbp', 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 100, 100)`);
+  put.run('agent', 'claude', 'claude', null, '2.0.31', null, null, null, null, null);
+  put.run('model', 'claude claude-opus-4-5', 'claude', 'claude-opus-4-5', null, null, null, null, null, null);
+  put.run('mcp', ['claude', 'user', 'github', 'stdio', 'npx', '@modelcontextprotocol/server-github', ''].join(' '), 'claude', 'github', null, 'stdio', 'npx', '@modelcontextprotocol/server-github', null, 'user');
+  put.run('mcp', ['cursor', 'project', 'linear', 'http', '', '', 'mcp.linear.app'].join(' '), 'cursor', 'linear', null, 'http', null, null, 'mcp.linear.app', 'project');
+  const inv = parseInventory({ agents: [INV.agents[0]], mcp: [INV.mcp[0]] });
+  assert.equal(storeInventory(db, 'T', 'R', 'mbp', 1, inv, 200), 3);
+  const rows = db.prepare('SELECT kind, name, item, first_seen, last_seen FROM h_inventory ORDER BY kind, name').all();
+  assert.deepEqual(
+    rows.map((r) => [r.kind, r.name, r.first_seen, r.last_seen]),
+    [
+      ['agent', null, 100, 200],
+      ['mcp', 'github', 100, 200],
+      ['model', 'claude-opus-4-5', 100, 200],
+    ],
+    'linear is gone; what stayed keeps its first_seen',
+  );
+  for (const r of rows) assert.ok(!r.item.includes(' '), `no NUL left in ${JSON.stringify(r.item)}`);
 });
 
 test('the Agents page: members see their team, another team sees nothing of it, CSP clean, empty state, new this week', async (t) => {
