@@ -77,11 +77,16 @@ export function bundledReview({ root = SRC_ROOT, entries = REVIEW_ENTRIES } = {}
   return out;
 }
 
+// Line endings aside: with core.autocrlf (the Git for Windows default) every
+// checked-out file is CRLF, but PKG above is written with LF. Git stores both
+// as LF, so CRLF vs LF in a working tree is not a stale copy.
+const lf = (s) => s.replace(/\r\n/g, '\n');
+
 function stale(files, dist) {
   const bad = [];
   for (const [f, text] of files) {
     const p = path.join(dist, ...f.split('/'));
-    if (!fs.existsSync(p) || fs.readFileSync(p, 'utf8') !== text) bad.push(f);
+    if (!fs.existsSync(p) || lf(fs.readFileSync(p, 'utf8')) !== lf(text)) bad.push(f);
   }
   return bad;
 }
