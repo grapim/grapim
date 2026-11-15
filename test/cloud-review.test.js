@@ -298,6 +298,36 @@ test('a review that looked at nothing ends neutral as "Nothing reviewed", never 
   assert.equal(check.output.title, 'Nothing reviewed');
 });
 
+test('free reviews: a repository with few stars is reviewed on request only, unless its owner is allowed', async (t) => {
+  const { cloud, gh, model, job } = await setup(t, { isPrivate: false });
+  const oss = { ...job, teamId: null, public: true, author: 'dev', stars: 3 };
+  const r = await cloud.review(oss, AbortSignal.timeout(30_000));
+  assert.equal(r.skipped, 'few_stars');
+  assert.equal(model.s.requests.length, 0, 'no model call');
+  const c = gh.s.checks.at(-1);
+  assert.equal(c.conclusion, 'neutral');
+  assert.match(c.output.summary, /fewer than 10 stars[^]*@grapim-test review/);
+  assert.equal((await cloud.review({ ...oss, manual: true }, AbortSignal.timeout(60_000))).done, true, 'asked for: reviewed');
+  assert.equal((await cloud.review({ ...oss, stars: 12 }, AbortSignal.timeout(60_000))).done, true, 'enough stars: reviewed on push');
+  assert.equal((await cloud.review({ ...oss, owner: 'grapim', stars: 0 }, AbortSignal.timeout(30_000))).skipped !== 'few_stars', true, 'an allowed owner is exempt');
+});
+
+test('free reviews: at most 5 an hour per author in a repository, then a neutral check', async (t) => {
+  const { cloud, gh, model, db, job } = await setup(t, { isPrivate: false });
+  const oss = { ...job, teamId: null, public: true, author: 'Dev', stars: 50 };
+  const now = Date.now();
+  for (let i = 0; i < 5; i++) db.prepare("INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, oss, author) VALUES ('', 'acme', 'api', 7, ?, 'done', ?, 1, 'dev')").run('a'.repeat(40), now - 10 * 60_000);
+  const calls = model.s.requests.length;
+  const r = await cloud.review(oss, AbortSignal.timeout(30_000));
+  assert.equal(r.skipped, 'hourly');
+  assert.equal(model.s.requests.length, calls);
+  assert.match(gh.s.checks.at(-1).output.title, /Hourly limit/);
+  assert.equal((await cloud.review({ ...oss, author: 'someone-else' }, AbortSignal.timeout(60_000))).done, true, 'another author is not limited');
+  // A team's own credit is not hour-limited.
+  cloud.setEnabled('team1', true, 'u1');
+  assert.equal((await cloud.review({ ...job, author: 'dev', public: false }, AbortSignal.timeout(60_000))).done, true);
+});
+
 test('memory: a finding already posted on this pull request is not posted again after a new push', async (t) => {
   const { cloud, gh, job } = await setup(t);
   cloud.setEnabled('team1', true, 'u1');

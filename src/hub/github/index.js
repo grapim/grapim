@@ -389,13 +389,15 @@ export function createGitHubApp(hub, options = {}) {
         // Public repositories are reviewed free, also for an installation no
         // team has linked yet (cloud-review.js checks again with the API).
         const isPublic = p.repository?.private === false;
+        // For the free reviews' stars rule and hourly limit (cloud-review.js).
+        const who = { author: String(p.pull_request?.user?.login ?? '').slice(0, 100), stars: Number(p.repository?.stargazers_count) };
         if (!row.team_id) {
-          const reviewing = isPublic && cloud.onPullRequest({ ...job, teamId: null, public: true });
+          const reviewing = isPublic && cloud.onPullRequest({ ...job, ...who, teamId: null, public: true });
           return reviewing ? { queued: true, review: true } : { ignored: 'unlinked' };
         }
         const queued = queue.push(`${row.id}:${p.repository?.id}:${job.number}`, job, String(row.id));
         // Cloud review (cloud-review.js), when the team turned it on.
-        const reviewing = cloud.onPullRequest({ ...job, teamId: row.team_id, public: isPublic });
+        const reviewing = cloud.onPullRequest({ ...job, ...who, teamId: row.team_id, public: isPublic });
         return queued || reviewing ? { queued: true, ...(reviewing ? { review: true } : {}) } : { ignored: 'busy' };
       }
       case 'issue_comment':

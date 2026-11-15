@@ -30,6 +30,9 @@
 //   GRAPIM_REVIEW_MONTHLY_CREDIT  JSON { plan: dollars }, e.g. {"free":10,"team":100}
 //   GRAPIM_REVIEW_OSS_MONTHLY     dollars a month for all public repositories, default 200; 0 turns it off
 //   GRAPIM_REVIEW_OSS_REPO_MONTHLY  dollars a month per public repository, default 10
+//   GRAPIM_REVIEW_OSS_MIN_STARS   below this, a public repository is reviewed on request only, default 10
+//   GRAPIM_REVIEW_OSS_HOURLY      free reviews per PR author per repository an hour, default 5
+//   GRAPIM_REVIEW_OSS_ALLOW       owners exempt from the stars rule, default "grapim,grapim-bench"
 //   GRAPIM_REVIEW_PRICE           JSON { input, output } dollars per million tokens
 //   GRAPIM_REVIEW_JOB_MS          per review, 60000..3600000
 //   GRAPIM_REVIEW_CONCURRENCY     reviews at once on this hub, 1..8
@@ -68,7 +71,10 @@ export const PRICES = Object.freeze({
 // request costs about $0.20, so the free plan's $10 is about 50 reviews.
 export const DEFAULT_CREDIT = Object.freeze({ free: 10, team: 100, governance: 300, enterprise: 1000 });
 // Public repositories: about 1,000 reviews a month in all, about 50 per repository.
-export const DEFAULT_OSS = Object.freeze({ monthly: 200, repoMonthly: 10 });
+// minStars: a public repository with fewer stars is reviewed on request
+// (@grapim review), not on every push, unless its owner is in `allow`.
+// hourly: free reviews per pull request author per repository in an hour.
+export const DEFAULT_OSS = Object.freeze({ monthly: 200, repoMonthly: 10, minStars: 10, hourly: 5, allow: Object.freeze(['grapim', 'grapim-bench']) });
 const OSS_FOOTER = '\n\n<sub>Grapim Review is free for public repositories. <a href="https://grapim.com">grapim.com</a></sub>\n';
 export const JOB_MS = 30 * 60 * 1000;
 const MICROS = 1_000_000;
@@ -159,7 +165,21 @@ export function cloudConfig(env = process.env) {
     const n = v === undefined || v === '' ? NaN : Number(v);
     return Number.isFinite(n) && n >= 0 && n <= 1e6 ? n : d;
   };
-  const oss = Object.freeze({ monthly: dollarsEnv(env.GRAPIM_REVIEW_OSS_MONTHLY, DEFAULT_OSS.monthly), repoMonthly: dollarsEnv(env.GRAPIM_REVIEW_OSS_REPO_MONTHLY, DEFAULT_OSS.repoMonthly) });
+  const count = (v, d) => {
+    const n = v === undefined || v === '' ? NaN : Number(v);
+    return Number.isInteger(n) && n >= 0 && n <= 1e6 ? n : d;
+  };
+  const owners = String(env.GRAPIM_REVIEW_OSS_ALLOW ?? DEFAULT_OSS.allow.join(','))
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => NAME.test(s));
+  const oss = Object.freeze({
+    monthly: dollarsEnv(env.GRAPIM_REVIEW_OSS_MONTHLY, DEFAULT_OSS.monthly),
+    repoMonthly: dollarsEnv(env.GRAPIM_REVIEW_OSS_REPO_MONTHLY, DEFAULT_OSS.repoMonthly),
+    minStars: count(env.GRAPIM_REVIEW_OSS_MIN_STARS, DEFAULT_OSS.minStars),
+    hourly: count(env.GRAPIM_REVIEW_OSS_HOURLY, DEFAULT_OSS.hourly),
+    allow: Object.freeze(owners),
+  });
   let price = PRICES[model] ?? PRICES[DEFAULT_MODEL];
   try {
     const p = env.GRAPIM_REVIEW_PRICE ? JSON.parse(env.GRAPIM_REVIEW_PRICE) : null;
@@ -256,7 +276,10 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
   const { db, now, log, teams } = hub;
   db.exec(CLOUD_SCHEMA);
   // Hubs created before the open-source pool: add the column.
-  if (!db.prepare('PRAGMA table_info(cloud_reviews)').all().some((c) => c.name === 'oss')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN oss INTEGER NOT NULL DEFAULT 0');
+  const cols = db.prepare('PRAGMA table_info(cloud_reviews)').all().map((c) => c.name);
+  if (!cols.includes('oss')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN oss INTEGER NOT NULL DEFAULT 0');
+  // The pull request's author, for the hourly limit on free reviews.
+  if (!cols.includes('author')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN author TEXT');
   db.exec('CREATE INDEX IF NOT EXISTS cloud_reviews_oss ON cloud_reviews (oss, started_at)');
   const cfg = cloudConfig(env);
   const remote = gitUrl ?? ((owner, name) => `${apiBase === 'https://api.github.com' ? 'https://github.com' : apiBase.replace(/\/api\/v3$/, '')}/${owner}/${name}.git`);
@@ -402,6 +425,36 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     const token = await auth.installationToken(job.installationId);
     const client = new GitHubClient({ apiBase, token, fetch, now, signal });
     const started = now();
+    const author = typeof job.author === 'string' && job.author ? job.author.slice(0, 100) : null;
+    if (oss) {
+      // Few stars: reviewed when someone asks (@grapim review), not on every push.
+      const exempt = cfg.oss.allow.includes(job.owner.toLowerCase());
+      if (!job.manual && !exempt && Number.isFinite(job.stars) && job.stars < cfg.oss.minStars) {
+        await check(client, repo, null, {
+          name: CLOUD_CHECK,
+          head_sha: job.headSha,
+          status: 'completed',
+          conclusion: 'neutral',
+          output: { title: 'Free review on request', summary: `Public repositories with fewer than ${cfg.oss.minStars} stars are reviewed when someone asks. Comment \`@${slug ?? 'grapim'} review\` on this pull request to run a free review.` },
+        });
+        return { skipped: 'few_stars' };
+      }
+      // At most `hourly` free reviews per author per repository in an hour.
+      if (author && cfg.oss.hourly > 0) {
+        const recent = db.prepare("SELECT COUNT(*) AS n, MIN(started_at) AS first FROM cloud_reviews WHERE oss = 1 AND status NOT IN ('no_credit', 'chat') AND lower(owner) = lower(?) AND lower(name) = lower(?) AND lower(author) = lower(?) AND started_at >= ?").get(job.owner, job.name, author, started - 3_600_000);
+        if (recent.n >= cfg.oss.hourly) {
+          const at = new Date(recent.first + 3_600_000).toISOString().slice(11, 16);
+          await check(client, repo, null, {
+            name: CLOUD_CHECK,
+            head_sha: job.headSha,
+            status: 'completed',
+            conclusion: 'neutral',
+            output: { title: 'Hourly limit reached', summary: `Free reviews allow ${cfg.oss.hourly} an hour for each author in a repository. The next one is available after ${at} UTC: push again then, or comment \`@${slug ?? 'grapim'} review\`.` },
+          });
+          return { skipped: 'hourly' };
+        }
+      }
+    }
     let noCredit = null;
     if (oss) {
       const o = ossMonth(job.owner, job.name);
@@ -412,8 +465,8 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       if (month(team.id).spent >= budget) noCredit = { title: 'No review credit left this month', summary: `Your team has used this month's ${dollars(budget)} of cloud review on the ${team.plan} plan. It renews on ${day(nextMonth(started))}. An owner can upgrade the plan in Settings.` };
     }
     const rowId = db
-      .prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, oss) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(team?.id ?? '', job.owner, job.name, job.number, job.headSha, noCredit ? 'no_credit' : 'running', started, oss ? 1 : 0).lastInsertRowid;
+      .prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, oss, author) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(team?.id ?? '', job.owner, job.name, job.number, job.headSha, noCredit ? 'no_credit' : 'running', started, oss ? 1 : 0, author).lastInsertRowid;
     const finish = (fields) => {
       const keys = Object.keys(fields);
       db.prepare(`UPDATE cloud_reviews SET ${[...keys.map((k) => `${k} = ?`), 'finished_at = ?'].join(', ')} WHERE id = ?`).run(...keys.map((k) => fields[k]), now(), rowId);
@@ -571,7 +624,9 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       const headSha = String(pr?.head?.sha ?? '');
       if (!SHA.test(headSha)) return { skipped: 'bad_job' };
       const { chat: _c, again: _a, kind: _k, body: _b, ...rest } = job;
-      queueMicrotask(() => queue.push(`${job.installationId}:${job.repoId}:${job.number}`, { ...rest, headSha }, String(job.installationId)));
+      // Asked for: past the stars rule, still within the hourly limit.
+      const review = { ...rest, headSha, manual: true, author: String(pr?.user?.login ?? ''), stars: Number(pr?.base?.repo?.stargazers_count) };
+      queueMicrotask(() => queue.push(`${job.installationId}:${job.repoId}:${job.number}`, review, String(job.installationId)));
       return { skipped: 'review_queued' };
     }
     const files = await list(client, `/repos/${repo}/pulls/${job.number}/files`, 30);
