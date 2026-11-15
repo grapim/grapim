@@ -270,7 +270,7 @@ function fakeOAuth() {
   return { fetch, user: (code, profile) => codes.set(code, profile) };
 }
 
-async function startHub({ configured = true, github = {}, clock = null } = {}) {
+async function startHub({ configured = true, github = {}, clock = null, env: extraEnv = {} } = {}) {
   const oauth = fakeOAuth();
   const gh = await fakeGitHub();
   const env = {
@@ -280,6 +280,7 @@ async function startHub({ configured = true, github = {}, clock = null } = {}) {
     GITHUB_CLIENT_ID: 'gh-client',
     GITHUB_CLIENT_SECRET: 'gh-secret',
     ...(configured ? { GITHUB_APP_ID: '12345', GITHUB_APP_PRIVATE_KEY: Buffer.from(PEM).toString('base64'), GITHUB_APP_WEBHOOK_SECRET: SECRET, GITHUB_APP_SLUG: SLUG } : {}),
+    ...extraEnv,
   };
   const logs = [];
   const hub = await createHub({
@@ -1004,4 +1005,39 @@ test('App reads notes pushed to refs/notes/grapim for commits the hub has no not
   assert.match(c.output.summary, /\*\*claude&#45;code\*\*: 11 lines\. Not reviewed in the hub\./, c.output.summary);
   assert.match(c.output.summary, /Not recorded: 1 commit without a Grapim note in the hub/);
   assert.ok(c.output.summary.includes(`\`${AG.slice(0, 12)}\``));
+});
+
+test('cloud review: an owner turns it on in Settings, GitHub; pull request events then queue a review; members cannot', async (t) => {
+  const h = await startHub({ env: { GRAPIM_REVIEW_ANTHROPIC_KEY: 'sk-test-cloud-key' }, github: { repoFor: () => null, provenanceFor: () => [], hasProvenance: () => false } });
+  t.after(h.close);
+  const owner = await signIn(h, 'cloud-owner');
+  const T = await createTeam(owner, 'Cloudy');
+  // Not linked yet: the card says so and cannot be turned on.
+  let page = await owner.req(`/hub/teams/${T}/settings/github`);
+  assert.match(page.text, /Cloud review/);
+  assert.match(page.text, /Connect the GitHub App first/);
+  assert.equal((await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '1' })).status, 409);
+  await link(h, owner, T, 901);
+  assert.equal((await hook(h, 'pull_request', prEvent(901))).body.review, undefined, 'off by default');
+  const on = await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '1' });
+  assert.equal(on.status, 303);
+  assert.match(on.location, new RegExp(`/hub/teams/${T}/settings/github#cloud-review`));
+  page = await owner.req(`/hub/teams/${T}/settings/github`);
+  assert.match(page.text, /Claude Fable 5\.2/);
+  assert.match(page.text, /\$0\.00 of \$10\.00 credit/);
+  assert.ok(!page.text.includes('sk-test-cloud-key'));
+  // A member is not an owner: refused.
+  const bob = await signIn(h, 'cloud-member');
+  await join(owner, bob, T);
+  assert.equal((await bob.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '0' })).status, 403);
+  // A pull request event now queues a cloud review too.
+  const r = await hook(h, 'pull_request', prEvent(901));
+  assert.equal(r.status, 202);
+  assert.equal(r.body.review, true);
+  await h.hub.github.cloud.queue.idle();
+  const row = h.hub.db.prepare('SELECT status FROM cloud_reviews').get();
+  assert.ok(row, 'the review ran');
+  assert.ok(!JSON.stringify(h.logs).includes('sk-test-cloud-key'));
+  assert.equal((await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '0' })).status, 303);
+  assert.equal(h.hub.github.cloud.enabled(T), false);
 });

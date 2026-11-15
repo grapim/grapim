@@ -32,6 +32,7 @@
 
 import { tx } from '../db.js';
 import { HttpError, readBody, redirect, sendHtml, sendJson } from '../http.js';
+import { html } from '../pages/html.js';
 import { PathRules } from '../rules.js';
 import { hmac } from '../secure.js';
 import { csvTable } from '../reports/csv.js';
@@ -44,6 +45,7 @@ import { githubConfig } from './config.js';
 import { Installations } from './link.js';
 import { githubPage, githubSection, policyCard } from './page.js';
 import { CHECK_NAME, processPullRequest } from './pull.js';
+import { createCloudReview } from './cloud-review.js';
 import { JobQueue } from './queue.js';
 import { GITHUB_SCHEMA, migrateGitHubSchema } from './schema.js';
 import { provenanceSource } from './source.js';
@@ -120,6 +122,7 @@ export function createGitHubApp(hub, options = {}) {
   const governance = typeof options.governance === 'function' ? options.governance : defaultGovernance(hub);
   const stop = new AbortController();
   const rules = new PathRules({ db, now });
+  const cloud = createCloudReview(hub, { auth, installs, apiBase, fetch: fetchImpl, slug: cfg.slug, env: options.env ?? process.env, gitUrl: options.gitUrl ?? null, signal: stop.signal });
   const scans = new HistoryScans({ db, now, log, auth, apiBase, fetch: fetchImpl, sleep: options.sleep, maxWaitMs: options.maxWaitMs ?? RATE_WAIT_MS, signal: stop.signal, timers: options.historyTimers !== false, ...(options.rescanMs !== undefined ? { rescanMs: options.rescanMs } : {}) });
   // Starts the 90-day scan; an install-time scan never fails the link.
   const startScan = (teamId, userId, reason) => {
@@ -383,7 +386,9 @@ export function createGitHubApp(hub, options = {}) {
           headSha: String(p.pull_request?.head?.sha ?? ''),
         };
         const queued = queue.push(`${row.id}:${p.repository?.id}:${job.number}`, job, String(row.id));
-        return queued ? { queued: true } : { ignored: 'busy' };
+        // Cloud review (cloud-review.js), when the team turned it on.
+        const reviewing = cloud.onPullRequest({ ...job, teamId: row.team_id });
+        return queued || reviewing ? { queued: true, ...(reviewing ? { review: true } : {}) } : { ignored: 'busy' };
       }
       case 'check_run':
         return p.action === 'requested_action' ? onRequestedAction(p) : { ignored: 'action' };
@@ -598,6 +603,21 @@ export function createGitHubApp(hub, options = {}) {
       TEAM_FORM,
     );
 
+    // Cloud review on or off (owner).
+    router.post(
+      '/hub/teams/:team/github/cloud-review',
+      (ctx) => {
+        const team = teams.get(ctx.member.team.id);
+        const on = ctx.form?.enabled === '1';
+        if (ctx.form?.enabled !== '1' && ctx.form?.enabled !== '0') throw new HttpError(400, 'bad_request', 'Nothing to change.');
+        if (on && !cloud.config.configured) throw new HttpError(503, 'not_configured', 'Cloud review is not set up on this hub.');
+        if (on && !installs.forTeam(team.id).length) throw new HttpError(409, 'not_linked', 'Connect the GitHub App first.');
+        cloud.setEnabled(team.id, on, ctx.session.user.id);
+        redirect(ctx.res, `/hub/teams/${team.id}/settings/github#cloud-review`);
+      },
+      TEAM_FORM,
+    );
+
     router.post(
       '/hub/teams/:team/github/policy',
       (ctx) =>
@@ -777,7 +797,8 @@ export function createGitHubApp(hub, options = {}) {
   }
 
   function settingsSection(team, csrf) {
-    return githubSection({ team, csrf, configured: cfg.configured, installations: installs.forTeam(team.id), policy: policy(team.id), allowed: governance(team), slug: cfg.slug, checkName: CHECK_NAME, history: historyInfo(team, csrf) });
+    return html`${githubSection({ team, csrf, configured: cfg.configured, installations: installs.forTeam(team.id), policy: policy(team.id), allowed: governance(team), slug: cfg.slug, checkName: CHECK_NAME, history: historyInfo(team, csrf) })}
+${cfg.configured ? cloud.card(team, csrf) : ''}`;
   }
 
   const notifySection = (team, csrf) => (hub.notify ? notifyCard({ team, csrf, info: hub.notify.info(team.id) }) : null);
@@ -846,11 +867,13 @@ export function createGitHubApp(hub, options = {}) {
     requireReview,
     requireProvenance,
     process: (job) => processPullRequest(jobCtx, job),
+    cloud,
     close() {
       clearInterval(sweep);
       scans.close();
       stop.abort();
       queue.close();
+      cloud.close();
     },
   };
 }

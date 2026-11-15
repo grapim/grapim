@@ -251,6 +251,9 @@ test('every team route (enumerated from the router) is guarded, and answers 404 
     const name = `${r.method} ${r.pattern}`;
     const p = fill(r.pattern, idsA);
     const form = r.opts.team === 'form' ? { team: A, seats: '5', interval: 'month' } : { name: 'evil' };
+    // Each route is checked from a fresh rate window: the per-user form limit
+    // (60 a minute) is tested on its own, not by how many routes there are.
+    h.hub.rate.buckets.clear();
 
     // 1. Mallory's session, on team A's ids.
     const viaSession = r.method === 'GET' ? await getOnce(h, p, { Cookie: cookieOf(mallory) }) : await mallory.post(p, form);

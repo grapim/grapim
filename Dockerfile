@@ -21,6 +21,8 @@ RUN apt-get update \
 COPY package.json ./
 COPY bin ./bin
 COPY src ./src
+# Cloud review (src/hub/github/cloud-review.js) posts with the review Action's formatting.
+COPY action/review/index.mjs ./action/review/index.mjs
 # The review desk, served for each cloud workspace at /w/<team>/<workspace>/.
 COPY ui ./ui
 
