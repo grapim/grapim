@@ -214,6 +214,7 @@ const PLANS = [
     name: 'Free',
     price: '$0',
     per: '',
+    bill: 'Free forever',
     lede: 'For one team trying it on a repo.',
     items: ['Cloud review of about 50 pull requests a month', 'Public repositories reviewed free, no account needed', 'Grapim Review in your own CI, free', 'Up to 3 people', '2 repos, 7 days of history', 'Every run recorded, and undo'],
   },
@@ -221,6 +222,7 @@ const PLANS = [
     name: 'Team',
     price: '$20',
     per: 'per seat a month',
+    year: { price: '$16', bill: 'Billed yearly, $192 per seat' },
     lede: 'For a team whose agents ship code every day.',
     items: ['Everything in Free', 'Cloud review of about 500 pull requests a month', 'As many seats as you need', 'Unlimited repos', '90 days of history'],
   },
@@ -228,6 +230,7 @@ const PLANS = [
     name: 'Governance',
     price: '$40',
     per: 'per seat a month',
+    year: { price: '$32', bill: 'Billed yearly, $384 per seat' },
     lede: 'When a person must approve what agents change.',
     items: ['Everything in Team', 'Cloud review of about 1,500 pull requests a month', 'Path rules: auto-approve or named reviewer', 'Required PR check that blocks merging', 'Reports and CSV export'],
     mark: true,
@@ -236,6 +239,7 @@ const PLANS = [
     name: 'Enterprise',
     price: 'Custom',
     per: '',
+    bill: 'Billed as agreed',
     lede: 'Seats, terms and support for a larger rollout.',
     items: ['Everything in Governance', 'Review volume, seats and terms agreed with you', 'Help with the rollout'],
   },
@@ -407,7 +411,7 @@ ${siteFooter()}
 }
 
 export function pricingPage({ origin, signedIn = false }) {
-  return html`${siteHead({ title: 'Pricing', description: 'Grapim plans: Free, Team at $20 and Governance at $40 per seat a month, and Enterprise. Nothing is charged during early access.', path: '/pricing', origin })}
+  return html`${siteHead({ title: 'Pricing', description: 'Grapim plans: Free, Team at $20 and Governance at $40 per seat a month ($16 and $32 billed yearly), and Enterprise. Nothing is charged during early access.', path: '/pricing', origin })}
 <body class="site">
 <a class="skip" href="#main">Skip to content</a>
 ${siteBar({ current: 'pricing', signedIn })}
@@ -417,17 +421,25 @@ ${siteBar({ current: 'pricing', signedIn })}
   <div class="wrap">
     <h1 id="pricing-title" class="sec-title">Pricing</h1>
     <p class="sec-lede">Free while in early access: nothing is charged yet. These are the prices once billing opens.</p>
+    <fieldset class="cycle">
+      <legend class="sr-only">Billing</legend>
+      <input type="radio" name="cycle" id="cycle-month" value="month"><label for="cycle-month">Monthly</label>
+      <input type="radio" name="cycle" id="cycle-year" value="year" checked><label for="cycle-year">Yearly <span class="cycle-save">Save 20%</span></label>
+    </fieldset>
     <div class="plans">
       ${PLANS.map((p) => html`<section class="plan${p.mark ? ' plan-mark' : ''}" aria-labelledby="plan-${p.name.toLowerCase()}">
         <h2 id="plan-${p.name.toLowerCase()}">${p.name}</h2>
-        <p class="plan-price"><span class="num">${p.price}</span>${p.per ? html`<span class="plan-per">${p.per}</span>` : ''}</p>
+        ${p.year
+          ? html`<p class="plan-price"><span class="num by-year">${p.year.price}</span><span class="num by-month">${p.price}</span><span class="plan-per">${p.per}</span></p>
+        <p class="plan-bill"><span class="by-year">${p.year.bill}</span><span class="by-month">Billed monthly</span></p>`
+          : html`<p class="plan-price"><span class="num">${p.price}</span>${p.per ? html`<span class="plan-per">${p.per}</span>` : ''}</p>
+        <p class="plan-bill">${p.bill}</p>`}
         <p class="plan-lede">${p.lede}</p>
         ${p.name === 'Free' ? html`<a class="btn plan-cta" href="${SIGN_IN}" rel="nofollow">Start with GitHub</a>` : p.name === 'Enterprise' || p.mark ? html`<a class="btn${p.mark ? ' btn-primary' : ''} plan-cta" href="/docs/support">${p.mark ? 'Ask for a pilot' : 'Talk to us'}</a>` : html`<a class="btn plan-cta" href="${SIGN_IN}" rel="nofollow">Start with GitHub</a>`}
         <ul>${p.items.map((i) => html`<li>${ICON.check}<span>${i}</span></li>`)}</ul>
       </section>`)}
     </div>
-    <p class="fine">Prices in US dollars. Yearly: Team $192 and Governance $384 per seat.</p>
-    <p class="fine">Cloud review is included in each plan’s monthly review credit; the pull request counts assume about $0.18 a review. Grapim Review in your own CI runs on your own model account, billed by your provider.</p>
+    <p class="fine">Prices in US dollars. Cloud review is included in each plan’s monthly review credit; the pull request counts assume about $0.18 a review. Grapim Review in your own CI runs on your own model account, billed by your provider.</p>
   </div>
 </section>
 

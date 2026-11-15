@@ -136,7 +136,7 @@ section { scroll-margin-top: var(--bar-h); }
 
 /* Pricing. */
 .pricing { padding: clamp(72px, 10vw, 120px) 0; background: var(--stage); border-top: 1px solid var(--border); }
-.plans { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 48px; }
+.plans { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
 .plan { background: var(--page); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
 .plan-mark { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .plan h3, .plan h2 { margin: 0; font-size: 16px; font-weight: 620; letter-spacing: 0; }
@@ -145,6 +145,18 @@ section { scroll-margin-top: var(--bar-h); }
 .plan-price { margin: 14px 0 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .plan-price .num { font-size: 32px; line-height: 1; font-weight: 650; letter-spacing: -0.03em; }
 .plan-per { font-size: 13px; color: var(--text-3); }
+.plan-bill { margin: 6px 0 0; font-size: 13px; color: var(--text-3); }
+/* Monthly or yearly: two radios and CSS, no script. Yearly is the default;
+   a browser without :has() keeps showing the yearly prices. */
+.cycle { display: inline-flex; gap: 2px; margin: 32px 0 0; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--page); }
+.cycle input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.cycle label { display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px; border-radius: 999px; font-size: 14px; font-weight: 560; color: var(--text-2); cursor: pointer; }
+.cycle input:checked + label { background: var(--text); color: var(--page); }
+.cycle input:focus-visible + label { outline: 2px solid var(--focus); outline-offset: 2px; }
+.cycle-save { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--accent); color: var(--on-accent); }
+.pricing .by-month { display: none; }
+.pricing:has(#cycle-month:checked) .by-month { display: inline; }
+.pricing:has(#cycle-month:checked) .by-year { display: none; }
 .plan-lede { margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: var(--text-2); min-height: 3em; }
 .plan ul { list-style: none; margin: 18px 0 0; padding: 18px 0 0; border-top: 1px solid var(--border); display: grid; gap: 9px; font-size: 14px; }
 .plan li { display: flex; gap: 8px; }

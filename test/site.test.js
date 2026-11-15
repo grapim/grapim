@@ -85,6 +85,12 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   assert.match(pricing, /nothing is charged yet/);
   assert.match(pricing, /<details open><summary>Does our code have to leave our machines\?/, 'the data question is answered open');
   assert.match(pricing, /Cloud review is included in each plan’s monthly review credit/);
+  // Monthly or yearly: a toggle above the plans, yearly by default, no script; no yearly prices in a footnote.
+  assert.match(pricing, /<input type="radio" name="cycle" id="cycle-year" value="year" checked>/);
+  assert.match(pricing, /<span class="num by-year">\$16<\/span><span class="num by-month">\$20<\/span>/);
+  assert.match(pricing, /<span class="by-year">Billed yearly, \$384 per seat<\/span>/);
+  assert.match(pricing, /Save 20%/);
+  assert.ok(!/Yearly: Team/.test(pricing), 'yearly prices are not a footnote');
   for (const p of ['free', 'team', 'governance', 'enterprise']) assert.match(pricing, new RegExp(`<h2 id="plan-${p}">`));
   for (const b of [body, pricing]) assert.ok(!/start (your )?(free )?trial|buy now|checkout\.stripe/i.test(b));
 
