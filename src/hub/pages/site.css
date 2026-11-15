@@ -110,7 +110,9 @@ p { text-wrap: pretty; }
   font-size: 13px; color: var(--text); text-decoration: none;
   transition: border-color var(--dur-fast) var(--ease-out);
 }
-.eyebrow b { font-weight: 600; }
+.eyebrow b { font-weight: 600; color: var(--accent-text); }
+/* The one coloured phrase on the page: what Grapim knows that others do not. */
+.hero h1 .hl { color: var(--accent-text); }
 .eyebrow span { padding-left: 10px; border-left: 1px solid var(--border-strong); color: var(--text-3); line-height: 14px; }
 .eyebrow .i { width: 14px; height: 14px; color: var(--text-3); transition: transform var(--dur) var(--ease-out); }
 .eyebrow:hover { border-color: var(--border-strong); }

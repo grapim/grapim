@@ -58,7 +58,7 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   assert.match(out.headers.get('content-type'), /text\/html/);
   assert.match(out.headers.get('content-security-policy'), /script-src 'self'/);
   const body = await out.text();
-  assert.match(body, /Code review that knows what your agents were asked\./);
+  assert.match(body, /Code review that knows what <span class="hl">your agents<\/span> were asked\./);
   assert.match(body, /class="btn btn-primary btn-lg" href="\/hub\/auth\/github">Start free</, 'the primary action starts cloud review');
   assert.match(body, /href="\/docs\/review#run-it-in-your-own-ci">Run it in your own CI</, 'the self-hosted path is one click away');
   assert.match(body, /Your code was sent only to Amazon Bedrock \(us-east-1\)\. Grapim received nothing\./, 'the summary line, as the Action writes it');

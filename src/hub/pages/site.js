@@ -335,7 +335,7 @@ ${siteBar({ current: 'home' })}
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-text">
     <a class="eyebrow" href="${REVIEW_DOCS}"><b>Grapim Review</b><span>Early access</span>${ICON.arrow}</a>
-    <h1 id="hero-title">Code review that knows what your agents were asked.</h1>
+    <h1 id="hero-title">Code review that knows what <span class="hl">your agents</span> were asked.</h1>
     <p class="hero-sub">Install the GitHub App and every pull request is reviewed in about a minute. Grapim checks agent code against the request and flags what nobody asked for.</p>
     <div class="cta">
       <a class="btn btn-primary btn-lg" href="${SIGN_IN}">Start free</a>

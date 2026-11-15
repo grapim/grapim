@@ -1,4 +1,4 @@
-# Grapim brand: monochrome
+# Grapim brand: monochrome with grape
 
 Chosen by the founder on 2026-11-14 from three directions (reports/brand-2026-11, research in research.md). Made black and white the same day (below). For the regulated buyer: calm, exact, unhurried. No brand hue: black, white and greys carry the brand, and the product supplies the only colour. This file is the short spec; the tokens live in `ui/tokens.css` (shared by the hub, the review desk and the public site), and picture rules in `design/illustration.md`.
 
@@ -9,7 +9,10 @@ Chosen by the founder on 2026-11-14 from three directions (reports/brand-2026-11
 - Two families, no more. Both self-hosted with `font-display: swap`; pages preload Public Sans and Plex Mono 400. Licences sit beside the files (`ui/fonts/LICENSE-*`).
 - Small caps labels ("Works with", "Also in Grapim", footer column heads): 12 px, 500, uppercase, +0.08em, --text-3.
 
-## Monochrome
+## Monochrome with one hue: grape
+
+Grape replaced pure black as the accent on 2026-11-15 (founder's call). On Mobbin the references turned out not to be pure black and white: Vercel puts colour in one hero visual, Supabase uses one green on the primary button and one headline phrase, Linear keeps colour for status. Grapim's own version: the structure stays neutral, and one hue, grape (the name is grape), marks what a person can act on: the primary button, links, focus, the current page, key numbers, and one phrase in the hero ("your agents"). Grape is far from the red of a Blocker and the green of a pass, so colour never blurs meaning. Warning is amber again.
+
 
 Black and white replaced cobalt on 2026-11-14 (founder's call, the same day cobalt was chosen). The references were Vercel, Linear, OpenAI and Notion: a white page, near-black pill buttons, tight black display type, hairlines instead of boxes, and the real product as the picture. Grapim's own version keeps Public Sans and Plex Mono, the black band, and adds the broken path in #where. With no brand hue, the coral of a Blocker is the one colour on the first screen, which is the point: the product's finding is what the eye lands on.
 
@@ -19,15 +22,16 @@ Black and white replaced cobalt on 2026-11-14 (founder's call, the same day coba
 | `--surface-2` / `-3` | #fafafa / #f2f2f2 | #111111 / #1a1a1a | stage panels, file heads, code chips, the closing band |
 | `--border` / `-strong` | #ebebeb / #d4d4d4 | #1f1f1f / #2e2e2e | hairlines, outline buttons |
 | `--text` / `-2` / `-3` | #0a0a0a / #4d4d4d / #6b6b6b | #ededed / #a1a1a1 / #8f8f8f | pure greys, no tint |
-| `--accent` | #0a0a0a | #ededed | primary buttons (black pill, white in dark), links, focus |
-| `--accent-bg` | #f2f2f2 | #1a1a1a | selected rows, callouts, badges |
+| `--accent` | #6d3ce8 | #9b7cff | primary buttons (grape pill; dark text in dark), links, focus |
+| `--accent-text` / `--accent-bg` | #6131df / #f1ecfe | #b9a3ff / grape 14% | accent words, the hero phrase; selected rows, callouts |
+| `--warn-*` | text #8a5a00 on #fdf3dc | #f0c060 on amber 12% | Warning findings and notices |
 | `--band` | #0a0a0a | #0a0a0a | the one black band: hub sidebar, landing #where, share image |
 | `--coral` | #e0533b | #e0533b | **Blocker only** (failing check mark, flagged line) |
 | `--danger` | #c13c25 | #ff7a62 | danger text: Blocker titles, rejections, destructive buttons |
 | `--warn-text` | #4d4d4d grey | #a1a1a1 | warnings and "needs review"; never amber, never a hue |
 | `--ok-text` | #0f6a4f green | #6fd0a8 | OK, passed, approved, added lines (status, not brand) |
 
-- Band surfaces: `--band-raise` #141414, `--band-head` #1c1c1c, borders #2e2e2e. Hover `--accent-hover` #2e2e2e light, #ffffff dark.
+- Band surfaces: `--band-raise` #141414, `--band-head` #1c1c1c, borders #2e2e2e. Hover `--accent-hover` #5a2bd0 light, #b39cff dark.
 - Neutrals are pure greys. No blue, green or warm tint in any grey.
 - The only colours: coral for a Blocker, danger red for destructive actions, green for passed, approved and added lines, the diff's red and green washes, and the agent data colours (`--a0` to `--a7`, report charts), which are data, never decoration.
 - Syntax is quiet: keywords and names in the text colour, strings dark green, comments grey.
@@ -53,7 +57,7 @@ The last line of every review summary, "Your code was sent only to … Grapim re
 ## Do
 
 - Show the real product, rebuilt in HTML, with its real words.
-- Keep the brand black and white; keep green for OK, passed and approved only; keep coral for Blocker.
+- Keep the structure black and white with grape as the only brand hue; keep green for OK, passed and approved only; keep coral for Blocker; amber for Warning.
 - Separate with 1 px hairlines, not boxed grey cards.
 - Use one black band per page; a #fafafa band may separate the closing section.
 
