@@ -33,6 +33,7 @@
 import { tx } from '../db.js';
 import { HttpError, readBody, redirect, sendHtml, sendJson } from '../http.js';
 import { html } from '../pages/html.js';
+import { appInstalledPage } from '../pages/layout.js';
 import { PathRules } from '../rules.js';
 import { hmac } from '../secure.js';
 import { csvTable } from '../reports/csv.js';
@@ -542,14 +543,17 @@ export function createGitHubApp(hub, options = {}) {
         if (!cfg.configured) throw notConfigured();
         const q = ctx.url.searchParams;
         const id = installationId(q.get('installation_id') ?? '');
-        const user = ctx.session.user;
         const state = q.get('state');
         if (!state) {
-          // "Redirect on update" from GitHub's settings carries no state.
+          // Installed or updated straight from GitHub, no team behind it: public
+          // repositories are reviewed free from now on, no account needed.
+          const user = ctx.session?.user ?? null;
           const row = installs.get(id);
-          if (row?.team_id && teams.membership(row.team_id, user.id)) return redirect(ctx.res, `/hub/teams/${row.team_id}/github?done=updated`);
-          throw new HttpError(400, 'bad_state', 'Start from your team: Settings, GitHub, Install on GitHub.');
+          if (user && row?.team_id && teams.membership(row.team_id, user.id)) return redirect(ctx.res, `/hub/teams/${row.team_id}/github?done=updated`);
+          return sendHtml(ctx.res, 200, appInstalledPage({ user, csrf: ctx.session?.csrf ?? null }));
         }
+        if (!ctx.session) return redirect(ctx.res, `/hub/login?next=${encodeURIComponent(`${ctx.url.pathname}${ctx.url.search}`)}`);
+        const user = ctx.session.user;
         const { teamId } = installs.consumeState(state, user.id);
         if (teams.membership(teamId, user.id)?.role !== 'owner') throw new HttpError(403, 'forbidden', 'Only a team owner can link GitHub.');
         let row = installs.get(id);
@@ -572,7 +576,7 @@ export function createGitHubApp(hub, options = {}) {
         }
         throw new HttpError(403, 'forbidden', 'Another GitHub account installed this. The person who installed the App has to link it.');
       },
-      { auth: 'session', rate: 'auth' },
+      { rate: 'auth' },
     );
 
     router.get('/hub/teams/:team/github', (ctx) => render(ctx), TEAM_PAGE);

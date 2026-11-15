@@ -312,6 +312,23 @@ export function errorPage({ status, message, user = null, csrf = null }) {
   });
 }
 
+// After installing the GitHub App straight from GitHub, with no team behind it:
+// public repositories are reviewed free from now on (cloud-review.js).
+export function appInstalledPage({ user = null, csrf = null }) {
+  return layout({
+    title: 'Grapim is installed',
+    user,
+    csrf,
+    body: html`<section class="empty-page">
+  <p class="muted num">GitHub App</p>
+  <h1>Grapim is installed</h1>
+  <p class="lede">Pull requests on your public repositories are now reviewed free. Open one, or push to one, and a Grapim Review check appears within a minute or two. Pull requests opened by bots are skipped.</p>
+  <p class="lede">Private repositories need a team with cloud review on.</p>
+  <p>${user ? html`<a class="btn btn-primary" href="/hub">Connect it to a team</a>` : html`<a class="btn btn-primary" href="/hub/login">Sign in for private repositories</a>`} <a class="btn btn-ghost" href="/docs/review#free-for-open-source">How free reviews work</a></p>
+</section>`,
+  });
+}
+
 // A write refused in a demo session (src/hub/demo.js): what to do instead.
 export function demoReadOnlyPage({ user = null, csrf = null, teamId }) {
   return layout({

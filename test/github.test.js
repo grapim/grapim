@@ -1058,3 +1058,19 @@ test('cloud review: an owner turns it on in Settings, GitHub; pull request event
   assert.equal((await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '0' })).status, 303);
   assert.equal(h.hub.github.cloud.enabled(T), false);
 });
+
+test('installed straight from GitHub, no team: the setup page says public repositories are reviewed free, signed in or not', async (t) => {
+  const h = await startHub();
+  t.after(h.close);
+  const anon = new Browser(h.base);
+  const r = await anon.req('/hub/github/setup?installation_id=182&setup_action=install');
+  assert.equal(r.status, 200);
+  assert.match(r.text, /Grapim is installed/);
+  assert.match(r.text, /public repositories are now reviewed free/);
+  const bob = await signIn(h, 'oss-bob');
+  const s = await bob.req('/hub/github/setup?installation_id=182&setup_action=install');
+  assert.equal(s.status, 200);
+  assert.match(s.text, /Connect it to a team/);
+  // A state still needs a session.
+  assert.match((await anon.req('/hub/github/setup?installation_id=182&state=x')).location, /^\/hub\/login/);
+});
