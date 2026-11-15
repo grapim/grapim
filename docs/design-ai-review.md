@@ -4,7 +4,7 @@ Direction chosen 2026-11-14 ("2+4"): sell to teams that are not allowed to send 
 
 1. **Runs inside the customer's own CI** (a GitHub Action, or `grapim review --ai` locally). The code goes only to the model endpoint the customer chooses: the Anthropic API, Amazon Bedrock in their own AWS account, Google Vertex AI in their own project, or Microsoft Foundry. It never reaches Grapim's servers. Grapim stores no code and no diffs.
 2. **Knows which agent wrote each line, and what it was asked to do** (the provenance notes, `docs/provenance.md`). This is what no other reviewer has. For lines from an agent run, the reviewer gets the run's prompt (intent) and checks: does the change do what was asked, and nothing else? (Scope creep, deleted tests, weakened checks, secrets, destructive migrations, and changes far from the request.)
-3. **Spends review effort where risk is.** Agent-written lines on sensitive paths get the deepest review; human-only low-risk files are skipped by default.
+3. **Spends review effort where risk is.** Agent-written lines on sensitive paths get the deepest review; every changed line is reviewed by default, and `ai-and-sensitive` skips human-only low-risk files to cut cost.
 
 ## Pieces
 
@@ -53,7 +53,7 @@ Provenance notes give the prompt of each agent run, but most repos have no notes
 ```json
 {
   "model": "claude-opus-5-5",
-  "review": "ai-and-sensitive",          // "ai-and-sensitive" (default) | "all" | "ai-only"
+  "review": "all",                       // "all" (default) | "ai-and-sensitive" | "ai-only"
   "sensitive": ["**/migrations/**", "**/auth/**", "**/infra/**", "**/*.sql", ".github/workflows/**"],
   "ignore": ["**/*.lock", "**/dist/**", "**/*.snap"],
   "instructions": "Our services must never log account numbers.",

@@ -234,11 +234,13 @@ const humanReason = (mode, sensitive) =>
 // small enough to send whole.
 export function planReview(changes, config, { limits = {}, fileText = () => null } = {}) {
   const lim = { ...DEFAULT_LIMITS, ...limits };
-  // A repository with no Grapim notes at all says nothing about who wrote what:
-  // its lines are unknown, not human. The default would then skip nearly every
-  // line (a team's first review would cover only the sensitive paths), so
-  // without notes it reviews everything. "ai-only" stays as asked.
-  const asked = config.review ?? 'ai-and-sensitive';
+  // The default reviews every changed line: a commit without a Grapim note is
+  // not known to be human (an agent nobody recorded wrote it, as often as not),
+  // and skipping it reviewed 0 of 17 hunks on a real pull request. A team that
+  // asks for "ai-and-sensitive" in a repository with no notes at all still gets
+  // everything, since there nobody is known to have written anything.
+  // "ai-only" stays as asked.
+  const asked = config.review ?? 'all';
   const noNotes = changes.hasNotes === false;
   const mode = asked === 'ai-and-sensitive' && noNotes ? 'all' : asked;
   const skipped = [];

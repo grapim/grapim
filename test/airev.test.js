@@ -84,6 +84,8 @@ function fakeFetch(respond) {
 
 const textOf = (body) => body.messages[0].content.map((b) => b.text).join('\n');
 const finding = (path, line, severity = 'warning', extra = {}) => ({ path, line, end_line: line, severity, category: 'correctness', title: `Problem at ${path}:${line}`, body: 'Explain and fix.', ...extra });
+// The selective mode, named: the default reviews every changed line.
+const SELECTIVE = { ...DEFAULT_CONFIG, review: 'ai-and-sensitive' };
 
 // ---------------------------------------------------------------- config
 
@@ -234,7 +236,7 @@ test('depth per hunk follows provenance and sensitive paths', () => {
   assert.deepEqual(login.runs[0].intents, [INTENT]);
   assert.ok(!byPath['migrations/001.sql'].hunks[0].ai, 'lines without a note are human');
 
-  const plan = planReview(changes, DEFAULT_CONFIG);
+  const plan = planReview(changes, SELECTIVE);
   const units = plan.batches.flatMap((b) => b.units.map((u) => [u.path, b.effort]));
   assert.deepEqual(units, [['src/auth/login.js', 'high'], ['migrations/001.sql', 'medium'], ['src/app.js', 'medium']]);
   const reasons = Object.fromEntries(plan.skipped.map((s) => [s.path, s.reason]));
@@ -246,6 +248,9 @@ test('depth per hunk follows provenance and sensitive paths', () => {
   assert.deepEqual(aiOnly.batches.flatMap((b) => b.units.map((u) => u.path)).sort(), ['src/app.js', 'src/auth/login.js']);
   const all = planReview(changes, { ...DEFAULT_CONFIG, review: 'all' });
   assert.deepEqual(all.batches.map((b) => b.effort), ['high', 'medium', 'low']);
+  // The default is every line: a commit with no note is not known to be human.
+  assert.equal(DEFAULT_CONFIG.review, 'all');
+  assert.deepEqual(planReview(changes, DEFAULT_CONFIG).batches.map((b) => b.effort), ['high', 'medium', 'low']);
   const capped = planReview(changes, { ...DEFAULT_CONFIG, maxFiles: 1 });
   assert.deepEqual(capped.batches.flatMap((b) => b.units.map((u) => u.path)), ['src/auth/login.js']);
   assert.ok(capped.skipped.some((s) => s.reason === 'over the maxFiles limit (1)'));
@@ -421,7 +426,7 @@ test('reviewChanges: findings validated, runs attached, summary says where the c
   });
   const provider = anthropicProvider({ apiKey: 'sk-test', model: 'claude-opus-5-5' });
   const logs = [];
-  const res = await reviewChanges({ cwd: dir, base, head, config: DEFAULT_CONFIG, provider, fetchImpl: f, log: (m) => logs.push(m) });
+  const res = await reviewChanges({ cwd: dir, base, head, config: SELECTIVE, provider, fetchImpl: f, log: (m) => logs.push(m) });
   assert.equal(f.calls.length, 2);
   assert.deepEqual(res.findings.map((x) => [x.path, x.line, x.severity]), [['migrations/001.sql', 2, 'blocker'], ['src/auth/login.js', 2, 'warning'], ['src/app.js', 3, 'nit']]);
   assert.equal(res.findings[0].run, undefined, 'a human line has no run');
@@ -461,7 +466,7 @@ test('reviewChanges: a refusal skips the batch with its category; max_tokens spl
     const t = textOf(body);
     return t.includes('path="src/app.js"') ? message([finding('src/app.js', 4, 'warning')]) : message([], { stop: 'max_tokens' });
   });
-  const res = await reviewChanges({ cwd: dir, base, head, config: DEFAULT_CONFIG, provider, fetchImpl: f, concurrency: 1 });
+  const res = await reviewChanges({ cwd: dir, base, head, config: SELECTIVE, provider, fetchImpl: f, concurrency: 1 });
   assert.equal(mediumCalls, 3, 'one batch, then its two halves, each once');
   const reasons = Object.fromEntries(res.skipped.map((s) => [s.path, s.reason]));
   assert.equal(reasons['src/auth/login.js'], 'the model declined to review it (category: cyber)');
@@ -477,7 +482,7 @@ test('reviewChanges: retries a 529, stops on bad credentials, honours maxComment
   const waits = [];
   const f = fakeFetch(() => (n++ === 0 ? { status: 529, json: { type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' } } } : message([finding('src/auth/login.js', 2, 'nit'), finding('src/auth/login.js', 5, 'blocker'), finding('src/app.js', 3, 'warning')])));
   const provider = anthropicProvider({ apiKey: 'sk-test', model: 'claude-opus-5-5' });
-  const res = await reviewChanges({ cwd: dir, base, head, config: { ...DEFAULT_CONFIG, maxComments: 1 }, provider, fetchImpl: f, concurrency: 1, sleep: async (ms) => waits.push(ms) });
+  const res = await reviewChanges({ cwd: dir, base, head, config: { ...SELECTIVE, maxComments: 1 }, provider, fetchImpl: f, concurrency: 1, sleep: async (ms) => waits.push(ms) });
   assert.deepEqual(waits, [2000]);
   assert.deepEqual(res.findings.map((x) => [x.line, x.severity]), [[5, 'blocker']]);
   assert.equal(res.stats.omittedFindings, 2);

@@ -18,7 +18,7 @@ export const FAIL_ON = Object.freeze(['blocker', 'never']);
 
 export const DEFAULT_CONFIG = Object.freeze({
   model: DEFAULT_MODEL,
-  review: 'ai-and-sensitive',
+  review: 'all',
   // Anywhere in the tree: monorepos keep these under packages/ or services/.
   sensitive: Object.freeze(['**/migrations/**', '**/auth/**', '**/infra/**', '**/*.sql', '.github/workflows/**']),
   ignore: Object.freeze(['**/*.lock', '**/dist/**', '**/*.snap']),

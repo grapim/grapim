@@ -208,7 +208,7 @@ If no review appears, open the job's log in the **Actions** tab. Each problem is
 ```json .grapim/review.json
 {
   "model": "claude-opus-5-5",
-  "review": "ai-and-sensitive",
+  "review": "all",
   "sensitive": ["**/migrations/**", "**/auth/**", "**/infra/**", "**/*.sql", ".github/workflows/**"],
   "ignore": ["**/*.lock", "**/dist/**", "**/*.snap"],
   "instructions": "Our services must never log account numbers.",
@@ -222,7 +222,7 @@ If no review appears, open the job's log in the **Actions** tab. Each problem is
 | Key | Default | What it does |
 |---|---|---|
 | `model` | `claude-opus-5-5` | The Claude model id in your account. |
-| `review` | `ai-and-sensitive` | `ai-and-sensitive` reviews agent-written lines and any line on a `sensitive` path. `all` reviews every changed line. `ai-only` reviews agent-written lines only. |
+| `review` | `all` | `all` reviews every changed line. `ai-and-sensitive` reviews agent-written lines and any line on a `sensitive` path, which costs less. `ai-only` reviews agent-written lines only. |
 | `sensitive` | as above | Paths that always get a review. Agent-written lines on these paths get the deepest one. Your list replaces the default. |
 | `ignore` | as above | Paths never sent to the model. Your list replaces the default. |
 | `instructions` | empty | Your team's own rules, added to every review. |
@@ -280,7 +280,7 @@ It exits with code 1 when it finds a blocker. Options are in the [CLI reference]
 ## Limits and costs
 
 - **Model costs are yours.** Every request goes to your model account and is billed there by the provider. Grapim does not charge for the review or see your usage. The summary comment lists the tokens each review used.
-- **What gets reviewed.** Under the default, human-written lines outside `sensitive` paths are skipped, which keeps the cost down. `"review": "all"` reviews everything. A repository with no Grapim notes yet has no known authors, so the default reviews every changed line there.
+- **What gets reviewed.** By default every changed line. `"review": "ai-and-sensitive"` skips human-written lines outside `sensitive` paths to keep the cost down; a repository with no Grapim notes yet has no known authors, so it reviews every changed line there too.
 - **What gets posted.** The reviewer rates how sure it is of each finding. High and medium findings become inline comments. Low ones are listed in the summary under "Worth a look", one line each.
 - **Size.** Up to `maxFiles` files per review, riskiest first. A review sends at most about 600,000 input tokens. Files over the limit are listed as not reviewed.
 - **When a request fails.** A request that still fails after retries, or that the model declines, is listed under not reviewed in the summary. Rejected credentials or a model that is not enabled stop the job with a failure.

@@ -179,7 +179,7 @@ The reviewer reports only a concrete mismatch (asked for X, the change does Y; o
 ```json
 {
   "model": "claude-opus-5-5",
-  "review": "ai-and-sensitive",
+  "review": "all",
   "sensitive": ["**/migrations/**", "**/auth/**", "**/infra/**", "**/*.sql", ".github/workflows/**"],
   "ignore": ["**/*.lock", "**/dist/**", "**/*.snap"],
   "instructions": "Our services must never log account numbers.",
@@ -190,8 +190,8 @@ The reviewer reports only a concrete mismatch (asked for X, the change does Y; o
 }
 ```
 
-- `review`: `ai-and-sensitive` (default) reviews agent-written lines and any lines on `sensitive` paths; `all` reviews every changed line; `ai-only` reviews agent-written lines only.
-- Agent-written lines on sensitive paths get the deepest review; human-written lines outside sensitive paths are skipped under the default. A repository with no Grapim notes has no known authors, so the default reviews all of it.
+- `review`: `all` (default) reviews every changed line; `ai-and-sensitive` reviews agent-written lines and any lines on `sensitive` paths, which costs less; `ai-only` reviews agent-written lines only.
+- Agent-written lines on sensitive paths get the deepest review. Under `ai-and-sensitive`, human-written lines outside sensitive paths are skipped; a repository with no Grapim notes has no known authors, so it reviews all of it.
 - Each finding carries a confidence. High and medium findings are posted as inline comments; low ones are listed in the summary under "Worth a look".
 - `maxComments` keeps the most severe findings; `maxFiles` caps the files reviewed.
 - `passes` (1 to 3, default 1) is how many times each request is reviewed. Two passes of the same prompt do not notice exactly the same things, so a second pass can find a problem the first missed. The findings are merged: a problem both passes raise is posted once. Expect a few more comments, about a third more cost (a later pass reads the prompt from the cache) and twice the time; in our own measurements the extra problems found were few.
