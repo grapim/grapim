@@ -5,7 +5,7 @@ import { safeNext } from './auth.js';
 import { HttpError, redirect, sendHtml } from './http.js';
 import { invitePage, pickerPage, signInPage } from './pages/account.js';
 import { repoPage, runPage } from './pages/repo.js';
-import { overviewPage, reposPage, reviewsPage, settingsPage } from './pages/team.js';
+import { overviewPage, pullRequestsPage, reposPage, reviewsPage, settingsPage } from './pages/team.js';
 import { SETTINGS_PAGES } from './pages/layout.js';
 import { SCOPE_ROWS, WORKSPACE_TABS, workspacePage, workspacesPage } from './pages/workspaces.js';
 import { getReview } from '../review.js';
@@ -273,6 +273,7 @@ export function pageRoutes(router, hub) {
       const userId = ctx.session.user.id;
       const setup = ov.setup(team);
       const runs = setup.empty ? [] : ov.runs(team, userId);
+      const reviews = ov.reviewStats(team);
       let teaser = null;
       try {
         teaser = setup.empty ? null : hub.reports.teaser(team);
@@ -289,7 +290,9 @@ export function pageRoutes(router, hub) {
           role: ctx.member.role,
           origin: config.origin,
           setup,
-          cloud: setup.empty ? (hub.github?.cloudInfo?.(team) ?? null) : null,
+          cloud: hub.github?.cloudInfo?.(team) ?? null,
+          reviews,
+          recent: reviews.any ? ov.reviewedPulls(team, { limit: 5 }).list : [],
           waiting: runs.filter((r) => r.waiting && !r.mine),
           mine: runs.filter((r) => r.waiting && r.mine),
           pulls: setup.empty ? { enforced: false, list: [] } : ov.pulls(team),
@@ -311,6 +314,20 @@ export function pageRoutes(router, hub) {
       const waiting = new Map();
       for (const r of hub.overview.runs(team, ctx.session.user.id)) if (r.waiting) waiting.set(r.repo_id, (waiting.get(r.repo_id) ?? 0) + 1);
       html(ctx, reposPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, repos: read.repos(team), origin: config.origin, limits: limits(team), waiting }));
+    },
+    TEAM,
+  );
+
+  // Cloud review: the team's reviewed pull requests, one row each (its newest
+  // review), newest first. ?f=blockers | failed narrows it; capped at 100 rows.
+  router.get(
+    '/hub/teams/:team/pull-requests',
+    (ctx) => {
+      const team = teams.get(ctx.member.team.id);
+      const f = ctx.url.searchParams.get('f');
+      const filter = ['blockers', 'failed'].includes(f) ? f : 'all';
+      const { list, counts } = hub.overview.reviewedPulls(team, { filter, limit: 100 });
+      html(ctx, pullRequestsPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, filter, rows: list, counts }));
     },
     TEAM,
   );

@@ -365,6 +365,32 @@ export async function seedTeamExtras(hub, { teamId, users, machines, installatio
     const merged = db.prepare('INSERT OR IGNORE INTO gh_merged_runs (team_id, run, owner, name, number, head_sha, merged_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
     const done = db.prepare("SELECT DISTINCT r.run, r.reviewed_at FROM hub_reviews r WHERE r.team_id = ? AND r.status = 'approved' ORDER BY r.reviewed_at DESC LIMIT 40").all(TEAM);
     done.forEach((r, i) => merged.run(TEAM, r.run, org, i % 2 ? 'web-app' : 'shop-api', 380 + Math.floor(i / 2), sha1(`m${i}`), r.reviewed_at + 2 * 60 * MIN));
+
+    // Cloud review on, with three weeks of reviews (src/hub/github/cloud-review.js),
+    // for the Overview's tiles and the Reviews page. Written again on every seed.
+    if (hub.github?.cloud) {
+      db.prepare('INSERT OR REPLACE INTO cloud_review_settings (team_id, enabled, updated_by, updated_at) VALUES (?, 1, ?, ?)').run(TEAM, String(owner.id), now - 20 * DAY);
+      db.prepare('DELETE FROM cloud_reviews WHERE team_id = ?').run(TEAM);
+      const putReview = db.prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, finished_at, findings, blockers, input_tokens, output_tokens, cost_micros, error, oss) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)');
+      // [repo, pull request, hours ago, status, findings, blockers]; a pull request reviewed again after a push repeats.
+      const REVIEWS = [
+        ['shop-api', 412, 0.3, 'running', 0, 0], ['shop-api', 412, 2, 'done', 4, 1], ['web-app', 97, 3.5, 'done', 2, 0], ['billing-svc', 233, 9, 'done', 3, 2],
+        ['web-app', 96, 20, 'done', 0, 0], ['shop-api', 409, 27, 'failed', 0, 0], ['shop-api', 408, 30, 'done', 5, 0], ['infra', 61, 49, 'done', 1, 0],
+        ['billing-svc', 231, 70, 'done', 2, 1], ['billing-svc', 231, 74, 'done', 4, 2], ['web-app', 94, 96, 'done', 1, 0], ['shop-api', 404, 130, 'done', 0, 0],
+        ['web-app', 92, 170, 'done', 3, 0], ['shop-api', 401, 220, 'no_credit', 0, 0], ['infra', 60, 300, 'done', 2, 1], ['shop-api', 398, 410, 'done', 1, 0],
+      ];
+      for (const [name, number, hours, status, findings, blockers] of REVIEWS) {
+        const started = now - hours * HOUR;
+        const cost = status === 'done' ? 90_000 + findings * 25_000 : status === 'failed' ? 30_000 : 0;
+        putReview.run(TEAM, org, name, number, sha1(`${name}#${number}@${hours}`), status, started, status === 'running' ? null : started + 2 * MIN, findings, blockers, cost ? 40_000 : 0, cost ? 3_000 : 0, cost, status === 'failed' ? 'The model call timed out.' : null);
+      }
+      // Agent-written: the pull requests whose provenance Grapim found.
+      const repoIds = { 'shop-api': ghShop, 'web-app': ghWeb };
+      const putRepo = db.prepare('INSERT OR REPLACE INTO gh_installation_repos (installation_id, repo_id, full_name) VALUES (?, ?, ?)');
+      for (const [name, id] of Object.entries(repoIds)) putRepo.run(inst, id, `${org}/${name}`);
+      const putProv = db.prepare('INSERT OR REPLACE INTO cloud_provenance (installation_id, repo_gh_id, number, head_sha, markdown, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
+      for (const [name, number] of [['shop-api', 412], ['web-app', 97], ['shop-api', 408], ['web-app', 92]]) putProv.run(inst, repoIds[name], number, sha1(`${name}#${number}`), '_Agent runs in this pull request._', now);
+    }
   });
 
   // A cloud workspace with agent activity, written as agents with a

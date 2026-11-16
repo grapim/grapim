@@ -9,7 +9,7 @@ import { icon } from './icons.js';
 import { agent, code, delta, emptyState, phoneMeta, plural, reviewBadge, runHref } from './parts.js';
 import { REVIEW_PROVIDERS, WORKFLOW_PATH } from './review-setup.js';
 
-const TITLES = { overview: 'Overview', reviews: 'Approvals', repos: 'Repos', workspaces: 'Workspaces', reports: 'Reports', settings: 'Settings', platform: 'Platform' };
+const TITLES = { overview: 'Overview', 'pull-requests': 'Reviews', reviews: 'Approvals', repos: 'Repos', workspaces: 'Workspaces', reports: 'Reports', settings: 'Settings', platform: 'Platform' };
 
 // The page heading. The sidebar says which section this is; the heading names it.
 export function head(team, current, { sub = null, actions = null, title = null } = {}) {
@@ -188,7 +188,7 @@ function cloudSetup({ team, csrf, role, cloud }) {
         (r) => html`<li class="plain-row"><a class="plain-main link" href="https://github.com/${r.owner}/${r.name}/pull/${r.number}" rel="noopener noreferrer">${r.owner}/${r.name}#${r.number}</a><span class="muted small">${r.status === 'running' ? 'reviewing' : r.status === 'failed' ? 'could not finish' : r.blockers ? plural(r.blockers, 'blocker') : r.findings ? plural(r.findings, 'finding') : 'no findings'}</span>${time(r.finished_at ?? r.started_at)}</li>`,
       )}</ul>`
     : '';
-  return html`<ol class="steps-list" aria-label="Set up cloud review">
+  return html`<ol class="steps-list" id="setup" aria-label="Set up cloud review">
   ${step(
     1,
     linked,
@@ -249,57 +249,69 @@ function shareBlock(team, teaser) {
 </section>`;
 }
 
-export function overviewPage({ toast = null, user, csrf, team, role, origin, setup, cloud = null, waiting, mine, pulls, teaser, active, activity, repos, workspaces }) {
+// ---------------------------------------------------------------- cloud reviews
+//
+// What Grapim's cloud review did for the team, the way review bots lay out
+// their dashboards: four numbers for the last 30 days, then the reviewed pull
+// requests, one row each (its newest review). Rows come from
+// overview.reviewedPulls; the Overview shows the newest five.
+
+// status: running | done | failed | no_credit (cloud_reviews.status).
+const REVIEW_STATUS = { done: ['Done', 'badge-ok'], running: ['Reviewing', 'badge-pending'], failed: ['Failed', 'badge-warn'], no_credit: ['No credit', 'badge-outline'] };
+const reviewStatus = (s, error = null) => {
+  const [label, cls] = REVIEW_STATUS[s] ?? [s, ''];
+  return html`<span class="badge ${cls}" title="${s === 'failed' && error ? String(error).slice(0, 200) : null}">${label}</span>`;
+};
+const blockerCount = (n) => (n > 0 ? html`<span class="badge badge-danger num" title="${plural(n, 'blocker')}">${n}</span>` : html`<span class="muted">0</span>`);
+const usd = (n) => `$${n.toFixed(2)}`;
+
+function pullsTable(rows, caption) {
+  return html`<div class="table-wrap">
+<table class="table pulls-table">
+  <caption class="sr-only">${caption}</caption>
+  <thead><tr><th scope="col">Pull request</th><th scope="col" class="num hide-sm">Comments</th><th scope="col" class="num">Blockers</th><th scope="col" class="hide-sm">Status</th><th scope="col">When</th><th scope="col" class="num hide-sm">Reviews</th></tr></thead>
+  <tbody>
+  ${rows.map(
+    (r) => html`<tr>
+    <th scope="row" class="cell-run">${r.url ? html`<a class="run-link" href="${r.url}" rel="noopener noreferrer" title="${r.owner}/${r.name}#${r.number}"><span class="run-intent">${r.name} #${r.number}</span></a>` : html`<span class="run-link" title="${r.owner}/${r.name}#${r.number}"><span class="run-intent">${r.name} #${r.number}</span></span>`}<span class="run-sub hide-sm"><span class="muted">${r.owner}</span>${r.agent ? html`<span class="muted">Agent-written</span>` : ''}</span>${phoneMeta(reviewStatus(r.status, r.error), r.status === 'done' ? html`<span class="muted">${plural(r.findings, 'comment')}</span>` : '', r.agent ? html`<span class="muted">Agent-written</span>` : '')}</th>
+    <td class="num hide-sm">${r.status === 'done' ? r.findings : html`<span class="muted">—</span>`}</td>
+    <td class="num">${r.status === 'done' ? blockerCount(r.blockers) : html`<span class="muted">—</span>`}</td>
+    <td class="hide-sm">${reviewStatus(r.status, r.error)}</td>
+    <td>${time(r.ts)}</td>
+    <td class="num hide-sm">${r.reviews}</td>
+  </tr>`,
+  )}
+  </tbody>
+</table>
+</div>`;
+}
+
+const NO_REVIEWS = 'Open a pull request in a connected repository and the first review appears here in a minute or two.';
+const noReviews = (team) => emptyState('No reviews yet', NO_REVIEWS, html`<p class="empty-actions"><a class="link" href="/hub/teams/${team.id}#setup">See the setup steps</a></p>`);
+
+// The four tiles. s: overview.reviewStats(team).
+function reviewTiles(s) {
+  const tile = (label, value, sub, extra = '') => html`<div class="kpi"><dt>${label}</dt><dd><span class="kpi-v${extra}">${value}</span><span class="kpi-s kpi-note">${sub}</span></dd></div>`;
+  const u = s.usage;
+  return html`<dl class="kpis review-kpis">
+  ${tile('Pull requests reviewed', s.pulls.toLocaleString('en-US'), 'Pull requests with a finished review.')}
+  ${tile('Comments posted', s.comments.toLocaleString('en-US'), 'Findings Grapim left on those pull requests.')}
+  ${tile('Blockers', s.blockers.toLocaleString('en-US'), 'Findings that fail the check until fixed.', s.blockers > 0 ? ' kpi-blocker' : '')}
+  ${tile('Review spend', u ? html`${usd(u.spent)}<span class="kpi-of"> of ${usd(u.budget)}</span>` : html`<span class="muted">—</span>`, u ? 'Credit used this calendar month. Public repositories are free.' : 'Cloud review is not set up on this hub.')}
+</dl>`;
+}
+
+// When every cloud setup step is done: one line instead of the checklist.
+function setupDoneLine(team, cloud, role) {
+  return html`<p class="setup-done" role="status">${icon('check')}<span>Setup done: GitHub connected to <span class="strong">${cloud.linked.join(', ')}</span>, cloud review on.${role === 'owner' ? html` <a class="link" href="/hub/teams/${team.id}/settings/github">Settings</a>` : ''}</span></p>`;
+}
+
+// The approvals widgets (agent runs synced by the CLI): what needs me now,
+// pull requests with unapproved agent work, activity, and the side column.
+function approvalsBody({ team, csrf, role, origin, setup, waiting, mine, pulls, teaser, active, activity, repos, workspaces }) {
   const base = `/hub/teams/${team.id}`;
-  if (setup.empty && cloud?.available) {
-    return layout({
-      title: team.name,
-      user,
-      csrf,
-      team,
-      toast,
-      crumbs: [{ label: 'Overview' }],
-      body: html`${head(team, 'overview', { title: cloud.enabled && cloud.recent.length ? team.name : `Set up ${team.name}`, sub: 'Install the GitHub App and Grapim reviews every pull request in about a minute. It knows what each agent was asked and flags what nobody asked for.' })}
-${cloudSetup({ team, csrf, role, cloud })}
-<details class="setup-more">
-  <summary><span class="setup-more-title">Or run it in your own CI</span><span class="muted small">Your model account, nothing reaches Grapim</span></summary>
-  <p class="setup-more-text">The same review as a GitHub Action on your runner. Your code goes only to the model account you choose.</p>
-  ${reviewSetup()}
-</details>
-<details class="setup-more">
-  <summary><span class="setup-more-title">Also record every agent run (CLI)</span><span class="muted small">Optional</span></summary>
-  <p class="setup-more-text"><code>grapim init</code> records each coding agent session as a run: the agent, what it was asked and the lines it changed. Grapim Review then knows which agent wrote each line. Sync the runs here so a teammate can approve them, and undo one run without touching the rest.</p>
-  ${checklist({ team, csrf, role, origin, setup })}
-</details>`,
-    });
-  }
-  if (setup.empty) {
-    return layout({
-      title: team.name,
-      user,
-      csrf,
-      team,
-      toast,
-      crumbs: [{ label: 'Overview' }],
-      body: html`${head(team, 'overview', { title: `Set up ${team.name}`, sub: 'Grapim Review comments on every pull request from your own GitHub Actions. Your code goes only to the model account you choose.' })}
-${reviewSetup()}
-<details class="setup-more" ${setup.done ? html`open` : ''}>
-  <summary><span class="setup-more-title">Also record every agent run (CLI)</span><span class="muted small">Optional</span></summary>
-  <p class="setup-more-text"><code>grapim init</code> records each coding agent session as a run: the agent, what it was asked and the lines it changed. Grapim Review then knows which agent wrote each line. Sync the runs here so a teammate can approve them, and undo one run without touching the rest.</p>
-  ${checklist({ team, csrf, role, origin, setup })}
-</details>`,
-    });
-  }
   const left = setup.steps.some((s) => !s.done);
-  return layout({
-    title: team.name,
-    user,
-    csrf,
-    team,
-    wide: true,
-    crumbs: [{ label: 'Overview' }],
-    body: html`${head(team, 'overview', { sub: html`<span class="plan">${team.plan}</span> plan${waiting.length ? html` · <a class="link" href="${base}/reviews">${plural(waiting.length, 'run')} waiting for your approval</a>` : ' · nothing waiting for you'}` })}
-<div class="overview">
+  return html`<div class="overview">
   <div class="ov-main">
     <section class="panel" aria-labelledby="needs-title">
       <div class="panel-head"><h2 id="needs-title" class="panel-title">Needs your approval <span class="num muted">${waiting.length}</span></h2><a class="link small" href="${base}/reviews">All approvals</a></div>
@@ -342,7 +354,111 @@ ${reviewSetup()}
     </section>
     ${left ? checklist({ team, csrf, role, origin, setup, compact: true }) : ''}
   </div>
-</div>`,
+</div>`;
+}
+
+// The Overview once the hub offers cloud review (or the team has reviews):
+// setup while it is not done, the 30-day tiles, the newest reviews, then the
+// approvals widgets when the team syncs agent runs.
+function reviewOverview(p) {
+  const { toast, user, csrf, team, role, origin, setup, cloud, reviews, recent, waiting } = p;
+  const base = `/hub/teams/${team.id}`;
+  const offered = !!cloud?.available;
+  const stepsDone = offered && cloud.linked.length > 0 && cloud.enabled && reviews.any;
+  const showSteps = offered && !stepsDone;
+  const sub = showSteps
+    ? 'Install the GitHub App and Grapim reviews every pull request in about a minute. It knows what each agent was asked and flags what nobody asked for.'
+    : html`<span class="plan">${team.plan}</span> plan${waiting.length ? html` · <a class="link" href="${base}/reviews">${plural(waiting.length, 'run')} waiting for your approval</a>` : ''}`;
+  return layout({
+    title: team.name,
+    user,
+    csrf,
+    team,
+    toast,
+    wide: true,
+    crumbs: [{ label: 'Overview' }],
+    body: html`${head(team, 'overview', { title: showSteps && !reviews.any ? `Set up ${team.name}` : team.name, sub })}
+${showSteps ? cloudSetup({ team, csrf, role, cloud }) : stepsDone ? setupDoneLine(team, cloud, role) : ''}
+${showSteps && setup.empty
+  ? html`<details class="setup-more">
+  <summary><span class="setup-more-title">Or run it in your own CI</span><span class="muted small">Your model account, nothing reaches Grapim</span></summary>
+  <p class="setup-more-text">The same review as a GitHub Action on your runner. Your code goes only to the model account you choose.</p>
+  ${reviewSetup()}
+</details>
+<details class="setup-more">
+  <summary><span class="setup-more-title">Also record every agent run (CLI)</span><span class="muted small">Optional</span></summary>
+  <p class="setup-more-text"><code>grapim init</code> records each coding agent session as a run: the agent, what it was asked and the lines it changed. Grapim Review then knows which agent wrote each line. Sync the runs here so a teammate can approve them, and undo one run without touching the rest.</p>
+  ${checklist({ team, csrf, role, origin, setup })}
+</details>`
+  : ''}
+<section class="review-home" aria-labelledby="reviews-title">
+  <h2 id="reviews-title" class="sub-title">Cloud review, last ${reviews.days} days</h2>
+  ${reviews.any
+    ? html`${reviewTiles(reviews)}
+  <div class="panel-head panel-head-bare"><h2 class="panel-title">Recent reviews</h2><a class="link small" href="${base}/pull-requests">All reviews</a></div>
+  ${pullsTable(recent, 'The newest reviewed pull requests')}`
+    : noReviews(team)}
+</section>
+${setup.empty
+  ? ''
+  : html`<h2 class="sub-title ov-approvals-title">Agent runs and approvals</h2>
+${approvalsBody(p)}`}`,
+  });
+}
+
+export function overviewPage({ toast = null, user, csrf, team, role, origin, setup, cloud = null, reviews = null, recent = [], waiting, mine, pulls, teaser, active, activity, repos, workspaces }) {
+  const base = `/hub/teams/${team.id}`;
+  if (reviews && (cloud?.available || reviews.any)) {
+    return reviewOverview({ toast, user, csrf, team, role, origin, setup, cloud, reviews, recent, waiting, mine, pulls, teaser, active, activity, repos, workspaces });
+  }
+  if (setup.empty && cloud?.available) {
+    return layout({
+      title: team.name,
+      user,
+      csrf,
+      team,
+      toast,
+      crumbs: [{ label: 'Overview' }],
+      body: html`${head(team, 'overview', { title: cloud.enabled && cloud.recent.length ? team.name : `Set up ${team.name}`, sub: 'Install the GitHub App and Grapim reviews every pull request in about a minute. It knows what each agent was asked and flags what nobody asked for.' })}
+${cloudSetup({ team, csrf, role, cloud })}
+<details class="setup-more">
+  <summary><span class="setup-more-title">Or run it in your own CI</span><span class="muted small">Your model account, nothing reaches Grapim</span></summary>
+  <p class="setup-more-text">The same review as a GitHub Action on your runner. Your code goes only to the model account you choose.</p>
+  ${reviewSetup()}
+</details>
+<details class="setup-more">
+  <summary><span class="setup-more-title">Also record every agent run (CLI)</span><span class="muted small">Optional</span></summary>
+  <p class="setup-more-text"><code>grapim init</code> records each coding agent session as a run: the agent, what it was asked and the lines it changed. Grapim Review then knows which agent wrote each line. Sync the runs here so a teammate can approve them, and undo one run without touching the rest.</p>
+  ${checklist({ team, csrf, role, origin, setup })}
+</details>`,
+    });
+  }
+  if (setup.empty) {
+    return layout({
+      title: team.name,
+      user,
+      csrf,
+      team,
+      toast,
+      crumbs: [{ label: 'Overview' }],
+      body: html`${head(team, 'overview', { title: `Set up ${team.name}`, sub: 'Grapim Review comments on every pull request from your own GitHub Actions. Your code goes only to the model account you choose.' })}
+${reviewSetup()}
+<details class="setup-more" ${setup.done ? html`open` : ''}>
+  <summary><span class="setup-more-title">Also record every agent run (CLI)</span><span class="muted small">Optional</span></summary>
+  <p class="setup-more-text"><code>grapim init</code> records each coding agent session as a run: the agent, what it was asked and the lines it changed. Grapim Review then knows which agent wrote each line. Sync the runs here so a teammate can approve them, and undo one run without touching the rest.</p>
+  ${checklist({ team, csrf, role, origin, setup })}
+</details>`,
+    });
+  }
+  return layout({
+    title: team.name,
+    user,
+    csrf,
+    team,
+    wide: true,
+    crumbs: [{ label: 'Overview' }],
+    body: html`${head(team, 'overview', { sub: html`<span class="plan">${team.plan}</span> plan${waiting.length ? html` · <a class="link" href="${base}/reviews">${plural(waiting.length, 'run')} waiting for your approval</a>` : ' · nothing waiting for you'}` })}
+${approvalsBody({ team, csrf, role, origin, setup, waiting, mine, pulls, teaser, active, activity, repos, workspaces })}`,
   });
 }
 
@@ -392,6 +508,39 @@ ${runs.length
       filter === 'yours' ? 'Your teammates’ agent runs show up here until someone approves or rejects them.' : filter === 'mine' ? 'Runs from your computer wait here until a teammate approves them.' : 'Approved and rejected runs show up here.',
     )}
 <p class="fine">Agent work in a <a href="/hub/teams/${team.id}/workspaces">workspace</a> is approved inside that workspace.</p>`,
+  });
+}
+
+// ---------------------------------------------------------------- reviewed pull requests
+
+// [key, label, empty title, empty text].
+const PULL_FILTERS = [
+  ['all', 'All', 'No reviews yet', NO_REVIEWS],
+  ['blockers', 'With blockers', 'No pull requests with blockers', 'When the newest review of a pull request finds a Blocker, the pull request shows up here.'],
+  ['failed', 'Failed', 'No failed reviews', 'A pull request whose newest review could not finish shows up here.'],
+];
+
+// rows: overview.reviewedPulls(team, { filter }).list; counts: its counts; limit: the cap.
+export function pullRequestsPage({ user, csrf, team, filter, rows, counts }) {
+  const base = `/hub/teams/${team.id}/pull-requests`;
+  const [, label, emptyTitle, emptyText] = PULL_FILTERS.find(([k]) => k === filter);
+  return layout({
+    title: `Reviews · ${team.name}`,
+    user,
+    csrf,
+    team,
+    wide: true,
+    crumbs: [{ label: 'Reviews' }],
+    body: html`${head(team, 'pull-requests', { sub: 'Every pull request Grapim reviewed, with its newest review. The comments themselves are on GitHub.' })}
+<nav class="seg" aria-label="Filter">
+  ${PULL_FILTERS.map(([k, l]) => html`<a class="seg-item" href="${k === 'all' ? base : `${base}?f=${k}`}" ${k === filter ? html`aria-current="page"` : ''}>${l} <span class="num muted">${counts[k]}</span></a>`)}
+</nav>
+${rows.length
+  ? html`${pullsTable(rows, `${label} reviewed pull requests, newest first`)}
+${counts[filter] > rows.length ? html`<p class="fine">Showing the newest ${rows.length} of ${counts[filter].toLocaleString('en-US')}.</p>` : ''}`
+  : filter === 'all'
+    ? noReviews(team)
+    : emptyState(emptyTitle, emptyText)}`,
   });
 }
 

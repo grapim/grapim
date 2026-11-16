@@ -36,13 +36,14 @@ export const SETTINGS_PAGES = [
 ];
 
 // The team's sections, in sidebar order. g: the second key of its "g" shortcut.
-// The review loop comes first. Workspaces and the platform API are secondary:
+// Cloud review comes first, then the approval loop. Workspaces and the platform API are secondary:
 // they sit below a divider, and Workspaces shows only once the team has one
 // (navLinks). secondary: below the divider.
 function sections(team, kind = team.kind) {
   const base = `/hub/teams/${team.id}`;
   const list = [
     { id: 'overview', label: 'Overview', href: base, icon: 'home', g: 'o' },
+    { id: 'pull-requests', label: 'Reviews', href: `${base}/pull-requests`, icon: 'pr', g: 'v' },
     { id: 'reviews', label: 'Approvals', href: `${base}/reviews`, icon: 'review', g: 'r' },
     { id: 'repos', label: 'Repos', href: `${base}/repos`, icon: 'repo', g: 'p' },
     { id: 'agents', label: 'Agents', href: `${base}/agents`, icon: 'agents', g: 'i' },

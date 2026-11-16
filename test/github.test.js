@@ -1087,3 +1087,112 @@ test('@grapim comments: only on pull requests, never from bots, only from people
   assert.equal((await hook(h, 'issue_comment', issue({ user: { login: 'author', type: 'User' } }))).body.ignored, 'unlinked', 'the author may ask');
   assert.equal((await hook(h, 'pull_request_review_comment', { ...base, action: 'edited', pull_request: { number: 3 }, comment: { id: 2, body: '@grapim x' } })).body.ignored, 'action');
 });
+
+test('cloud review pages: the Overview leads with 30-day tiles and recent reviews, Reviews lists one row per pull request, only to the team', async (t) => {
+  const h = await startHub({ env: { GRAPIM_REVIEW_ANTHROPIC_KEY: 'sk-test-cloud-key' }, github: { repoFor: () => null, provenanceFor: () => [], hasProvenance: () => false } });
+  t.after(h.close);
+  const owner = await signIn(h, 'rev-owner');
+  const T = await createTeam(owner, 'Reviewed');
+  const mallory = await signIn(h, 'rev-mallory');
+  const O = await createTeam(mallory, 'Other');
+  const team = h.hub.teams.get(T);
+
+  // No reviews yet: an honest empty state on both pages, pointing at the setup steps.
+  let ov = await owner.req(`/hub/teams/${T}`);
+  assert.equal(ov.status, 200);
+  assert.match(ov.text, /No reviews yet/);
+  assert.match(ov.text, /Open a pull request in a connected repository and the first review appears here in a minute or two\./);
+  assert.match(ov.text, new RegExp(`href="/hub/teams/${T}#setup"`));
+  assert.match(ov.text, /id="setup"/);
+  assert.doesNotMatch(ov.text, /Pull requests reviewed/);
+  assert.doesNotMatch(ov.text, /Needs your approval/, 'no agent runs: the approvals widgets stay hidden');
+  assert.match(ov.text, new RegExp(`<a class="nav-item" href="/hub/teams/${T}/pull-requests" data-g="v"`), 'Reviews sits in the sidebar');
+  let page = await owner.req(`/hub/teams/${T}/pull-requests`);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /<h1>Reviews<\/h1>/);
+  assert.match(page.text, /No reviews yet/);
+  assert.match(page.text, new RegExp(`href="/hub/teams/${T}/pull-requests" data-g="v" aria-current="page"`));
+  assert.deepEqual(h.hub.overview.reviewStats(team), { days: 30, pulls: 0, comments: 0, blockers: 0, reviews: 0, any: false, usage: h.hub.github.cloud.usage(team) });
+
+  await link(h, owner, T, 901);
+  assert.equal((await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '1' })).status, 303);
+
+  const now = h.hub.now();
+  const H = 60 * 60 * 1000;
+  const put = h.hub.db.prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, finished_at, findings, blockers, cost_micros, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const sha = 'a'.repeat(40);
+  put.run(T, 'acme', 'api', 7, sha, 'done', now - 5 * H, now - 5 * H + 60_000, 2, 0, 50_000, null);
+  put.run(T, 'acme', 'api', 7, sha, 'done', now - 2 * H, now - 2 * H + 60_000, 3, 1, 100_000, null); // the newest review of #7
+  put.run(T, 'acme', 'api', 7, sha, 'chat', now - 10 * 60_000, now - 9 * 60_000, 0, 0, 10_000, null); // an @grapim answer, not a review
+  put.run(T, 'acme', 'web', 3, sha, 'failed', now - H, now - H + 30_000, 0, 0, 0, 'timed out');
+  put.run(T, 'acme', 'api', 10, sha, 'no_credit', now - 30 * 60_000, now - 30 * 60_000, 0, 0, 0, null);
+  put.run(T, 'acme', 'api', 9, sha, 'done', now - 40 * 24 * H, now - 40 * 24 * H, 6, 2, 70_000, null); // outside the 30 days
+  put.run(O, 'acme', 'secret', 5, sha, 'done', now - H, now - H, 9, 9, 900_000, null); // another team's
+  // Provenance found for #7 (acme/api is repository 1 of installation 901); none for web#3.
+  const prov = h.hub.db.prepare('INSERT OR REPLACE INTO cloud_provenance (installation_id, repo_gh_id, number, head_sha, markdown, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
+  prov.run(901, 1, 7, sha, '| run | agent |', now);
+  prov.run(901, 1, 3, sha, null, now);
+
+  // The numbers: finished reviews in the last 30 days; spend is this month's own credit.
+  const stats = h.hub.overview.reviewStats(team);
+  assert.equal(stats.pulls, 1, 'distinct pull requests with a finished review');
+  assert.equal(stats.comments, 5);
+  assert.equal(stats.blockers, 1);
+  assert.equal(stats.any, true);
+  assert.equal(h.hub.overview.reviewStats(h.hub.teams.get(O)).blockers, 9, 'each team its own');
+  const usage = h.hub.github.cloud.usage(team);
+  const sameMonth = new Date(now - 5 * H).getUTCMonth() === new Date(now).getUTCMonth();
+  if (sameMonth) assert.equal(usage.spent.toFixed(2), '0.16');
+
+  // One row per pull request, its newest review, newest first.
+  const { list, counts } = h.hub.overview.reviewedPulls(team);
+  assert.deepEqual(list.map((r) => `${r.name}#${r.number}:${r.status}`), ['api#10:no_credit', 'web#3:failed', 'api#7:done', 'api#9:done']);
+  const seven = list.find((r) => r.number === 7);
+  assert.equal(seven.findings, 3);
+  assert.equal(seven.blockers, 1);
+  assert.equal(seven.reviews, 2, 'two reviews; the @grapim answer is not one');
+  assert.equal(seven.agent, true);
+  assert.equal(list.find((r) => r.number === 3).agent, false, 'a provenance row without agent work is not agent-written');
+  assert.equal(seven.url, 'https://github.com/acme/api/pull/7');
+  assert.deepEqual(counts, { all: 4, blockers: 2, failed: 1 }, 'older pull requests count too: the filters are not limited to 30 days');
+
+  // The Overview: setup collapsed to one line, the tiles, the newest reviews.
+  ov = await owner.req(`/hub/teams/${T}`);
+  assert.match(ov.text, /Setup done: GitHub connected to <span class="strong">acme<\/span>, cloud review on\./);
+  assert.doesNotMatch(ov.text, /id="setup"/);
+  assert.match(ov.text, /<dt>Pull requests reviewed<\/dt><dd><span class="kpi-v">1<\/span>/);
+  assert.match(ov.text, /<dt>Comments posted<\/dt><dd><span class="kpi-v">5<\/span>/);
+  assert.match(ov.text, /<dt>Blockers<\/dt><dd><span class="kpi-v kpi-blocker">1<\/span>/);
+  assert.ok(ov.text.includes(`$${usage.spent.toFixed(2)}<span class="kpi-of"> of $${usage.budget.toFixed(2)}</span>`));
+  assert.match(ov.text, /Recent reviews/);
+  assert.match(ov.text, new RegExp(`href="/hub/teams/${T}/pull-requests">All reviews`));
+  assert.match(ov.text, /href="https:\/\/github\.com\/acme\/api\/pull\/7"/);
+  assert.doesNotMatch(ov.text, /secret/);
+
+  // The Reviews page and its filters.
+  page = await owner.req(`/hub/teams/${T}/pull-requests`);
+  assert.equal((page.text.match(/<th scope="row" class="cell-run">/g) ?? []).length, 4);
+  assert.match(page.text, /Agent-written/);
+  assert.match(page.text, /badge badge-warn" title="timed out">Failed/);
+  assert.match(page.text, /No credit/);
+  assert.doesNotMatch(page.text, /secret/, 'another team’s reviews never show');
+  const blockers = await owner.req(`/hub/teams/${T}/pull-requests?f=blockers`);
+  assert.equal((blockers.text.match(/<th scope="row" class="cell-run">/g) ?? []).length, 2);
+  assert.match(blockers.text, /acme\/api#7[\s\S]*acme\/api#9/);
+  const failed = await owner.req(`/hub/teams/${T}/pull-requests?f=failed`);
+  assert.equal((failed.text.match(/<th scope="row" class="cell-run">/g) ?? []).length, 1);
+  assert.match(failed.text, /acme\/web#3/);
+  assert.match((await owner.req(`/hub/teams/${T}/pull-requests?f=nope`)).text, /href="\/hub\/teams\/[^"]+\/pull-requests" aria-current="page">All/);
+
+  // A non-member gets the same 404 as for any team page, with nothing of the team in it.
+  for (const p of [`/hub/teams/${T}/pull-requests`, `/hub/teams/${T}/pull-requests?f=failed`, `/hub/teams/${T}`]) {
+    const r = await mallory.req(p);
+    assert.equal(r.status, 404, p);
+    assert.doesNotMatch(r.text, /acme\/api|Reviewed/);
+  }
+  const theirs = await mallory.req(`/hub/teams/${O}/pull-requests`);
+  assert.match(theirs.text, /acme\/secret#5/);
+  assert.doesNotMatch(theirs.text, /acme\/api/);
+  // Signed out: to the sign-in page.
+  assert.match((await new Browser(h.base).req(`/hub/teams/${T}/pull-requests`)).location ?? '', /\/hub\/login/);
+});

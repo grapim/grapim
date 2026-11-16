@@ -659,6 +659,26 @@ a.chip:hover { color: var(--text); border-color: var(--border-strong); }
 .kpi-v { font-size: var(--fs-24); line-height: 30px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .kpi-s { color: var(--text-3); font-size: var(--fs-12); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* Cloud review on the Overview (team.js reviewOverview): the tiles' one-line
+   explanations wrap, the spend shows its credit small, blockers are the coral. */
+.kpi-note { white-space: normal; margin-top: 2px; line-height: 16px; }
+.kpi-of { display: block; font-size: var(--fs-12); line-height: 16px; font-weight: 400; letter-spacing: 0; color: var(--text-3); }
+.pulls-table .cell-run { max-width: none; width: auto; min-width: 180px; }
+.kpi-blocker { color: var(--danger); }
+.review-home { margin: 32px 0 24px; }
+.review-home > .sub-title { margin-top: 0; }
+.panel-head-bare { padding: 0 2px; border-bottom: 0; min-height: 36px; }
+.ov-approvals-title { margin-top: 8px; }
+.setup-done { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; margin-bottom: 24px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text-2); }
+.setup-done > .icon { flex: none; margin-top: 2px; color: var(--ok-text); }
+.pulls-table .badge.num { justify-content: center; min-width: 24px; padding: 0 7px; }
+@media (max-width: 640px) {
+  /* Pull request, Blockers and When on a phone; status and comments wrap under the name. */
+  .table.pulls-table tbody th.cell-run { white-space: normal; }
+  .pulls-table .run-sub-sm.show-sm { flex-wrap: wrap; row-gap: 4px; }
+  .table.pulls-table td, .table.pulls-table thead th + th { padding-left: 8px; padding-right: 8px; }
+}
+
 .chart-card { padding-bottom: 8px; }
 .chart-card.flush { padding: 0; overflow: hidden; }
 .chart-card.flush .card-head { padding: 12px 16px; border-bottom: 1px solid var(--border); }

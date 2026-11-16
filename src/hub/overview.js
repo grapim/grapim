@@ -162,6 +162,86 @@ export function createOverview(hub) {
     return { steps, done: steps.filter((s) => s.done).length, empty: repos === 0 && ws === 0, githubConfigured: gh !== null, members };
   }
 
+  // ---- Cloud reviews (cloud_reviews, src/hub/github/cloud-review.js) ----
+  // A hub without the GitHub App has no such table: every query answers as if
+  // the team had no reviews. @grapim answers (status 'chat') are not reviews.
+
+  // The last `days` days of a team's reviews, for the Overview's tiles. Pull
+  // requests, comments and blockers count finished reviews; spend is the
+  // team's own credit this month (public repositories are free), as Settings,
+  // GitHub shows it.
+  function reviewStats(team, days = 30) {
+    const from = hub.now() - days * 24 * 60 * 60 * 1000;
+    let r;
+    try {
+      r = q(
+        `SELECT COUNT(DISTINCT CASE WHEN status = 'done' THEN lower(owner) || '/' || lower(name) || '#' || number END) AS pulls,
+                COALESCE(SUM(CASE WHEN status = 'done' THEN findings END), 0) AS comments,
+                COALESCE(SUM(CASE WHEN status = 'done' THEN blockers END), 0) AS blockers,
+                COUNT(CASE WHEN status != 'no_credit' THEN 1 END) AS reviews
+         FROM cloud_reviews WHERE team_id = ? AND started_at >= ? AND status != 'chat'`,
+      ).get(team.id, from);
+    } catch {
+      return { days, pulls: 0, comments: 0, blockers: 0, reviews: 0, any: false, usage: null };
+    }
+    const any = !!q("SELECT 1 FROM cloud_reviews WHERE team_id = ? AND status != 'chat' LIMIT 1").get(team.id);
+    const usage = hub.github?.cloud?.usage?.(team) ?? null;
+    return { days, pulls: r.pulls, comments: r.comments, blockers: r.blockers, reviews: r.reviews, any, usage };
+  }
+
+  // Pull requests of the team whose agent provenance Grapim found, as
+  // "owner/name#number" in lower case. cloud_provenance is keyed by GitHub's
+  // repository id: the installation's repository list, or the pull request's
+  // recorded runs, give its name. Only installations linked to this team.
+  function agentWritten(team) {
+    try {
+      const rows = q(
+        `SELECT p.number, ir.full_name, pr.owner, pr.name
+         FROM cloud_provenance p
+         JOIN gh_installations i ON i.id = p.installation_id AND i.team_id = ?
+         LEFT JOIN gh_installation_repos ir ON ir.installation_id = p.installation_id AND ir.repo_id = p.repo_gh_id
+         LEFT JOIN (SELECT DISTINCT installation_id, repo_gh_id, owner, name FROM gh_pull_runs WHERE team_id = ?) pr
+           ON pr.installation_id = p.installation_id AND pr.repo_gh_id = p.repo_gh_id
+         WHERE p.markdown IS NOT NULL`,
+      ).all(team.id, team.id);
+      const set = new Set();
+      for (const r of rows) {
+        const repo = r.full_name ?? (r.owner && r.name ? `${r.owner}/${r.name}` : null);
+        if (repo) set.add(`${repo.toLowerCase()}#${r.number}`);
+      }
+      return set;
+    } catch {
+      return new Set();
+    }
+  }
+
+  const PULL_FILTERS = { all: '', blockers: "AND status = 'done' AND blockers > 0", failed: "AND status = 'failed'" };
+
+  // One row per reviewed pull request (its newest review), newest first, with
+  // how many reviews it had. filter: all | blockers | failed. counts: each filter's total.
+  function reviewedPulls(team, { filter = 'all', limit = 100 } = {}) {
+    const where = PULL_FILTERS[filter] ?? '';
+    const latest = `SELECT id, owner, name, number, status, findings, blockers, started_at, finished_at, error, oss,
+                           ROW_NUMBER() OVER (PARTITION BY lower(owner), lower(name), number ORDER BY started_at DESC, id DESC) AS rn,
+                           SUM(CASE WHEN status != 'no_credit' THEN 1 ELSE 0 END) OVER (PARTITION BY lower(owner), lower(name), number) AS reviews
+                    FROM cloud_reviews WHERE team_id = ? AND status != 'chat'`;
+    let rows;
+    let counts;
+    try {
+      rows = q(`SELECT * FROM (${latest}) WHERE rn = 1 ${where} ORDER BY started_at DESC, id DESC LIMIT ?`).all(team.id, limit);
+      counts = q(
+        `SELECT COUNT(*) AS all_, COALESCE(SUM(CASE WHEN status = 'done' AND blockers > 0 THEN 1 ELSE 0 END), 0) AS blockers,
+                COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed
+         FROM (${latest}) WHERE rn = 1`,
+      ).get(team.id);
+    } catch {
+      return { list: [], counts: { all: 0, blockers: 0, failed: 0 } };
+    }
+    const agents = rows.length ? agentWritten(team) : new Set();
+    const list = rows.map((r) => ({ ...r, url: pullUrl(r), agent: agents.has(`${r.owner.toLowerCase()}/${r.name.toLowerCase()}#${r.number}`), ts: r.finished_at ?? r.started_at }));
+    return { list, counts: { all: counts.all_, blockers: counts.blockers, failed: counts.failed } };
+  }
+
   // The teams the user belongs to, for the switcher (with created dates).
   function teamsOf(userId) {
     return q(
@@ -195,5 +275,5 @@ export function createOverview(hub) {
     };
   }
 
-  return { runs, pulls, activeAgents, activity, workspaces, workspaceActivity, setup, teamsOf, shell };
+  return { runs, pulls, activeAgents, activity, workspaces, workspaceActivity, setup, teamsOf, shell, reviewStats, reviewedPulls, agentWritten };
 }
