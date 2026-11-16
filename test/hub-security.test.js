@@ -174,7 +174,7 @@ async function getOnce(h, p, headers) {
   const stream = (res.headers.get('content-type') || '').startsWith('text/event-stream');
   const text = stream ? '' : await res.text();
   ac.abort();
-  return { status: res.status, text };
+  return { status: res.status, text, location: res.headers.get('location') };
 }
 
 const cookieOf = (b) => [...b.jar].map(([k, v]) => `${k}=${v}`).join('; ');
@@ -216,6 +216,7 @@ test('every team route (enumerated from the router) is guarded, and answers 404 
     user: String(alice.user.id),
     key: 'no-such-platform-key', // platform API keys (team A is not a platform; the team guard answers first)
     rule: '1', // a path rule id (src/hub/rules.js)
+    action: 'test', // a form's address opened in the browser (routes-pages.js, formPage): storage, Slack and connector forms
   };
 
   // Structural guarantees, for every route the hub serves.
@@ -278,8 +279,12 @@ test('every team route (enumerated from the router) is guarded, and answers 404 
       const ids = { ...idsA, team: M, repo: r.pattern.includes(':run') ? REPO_M : REPO_A };
       const q = fill(r.pattern, ids);
       const cross = r.method === 'GET' ? await getOnce(h, q, { Cookie: cookieOf(mallory) }) : await mallory.post(q, form);
+      // A form's address opened in the browser (routes-pages.js, formPage) only
+      // redirects to a page of her own team, whatever id is in it: the id is
+      // never read, and the redirect does not repeat it.
+      const ownPage = r.method === 'GET' && r.opts.formPage && cross.status === 303 && cross.location.startsWith(`/hub/teams/${M}/settings/`) && !cross.location.slice(`/hub/teams/${M}`.length).split('/').some((part) => [idsA.invite, idsA.token, idsA.ws, idsA.wstoken, idsA.repo, idsA.run].map(String).includes(part));
       const expected = READ_ONLY_STUB.test(r.pattern) ? [405] : [404];
-      assert.ok(expected.includes(cross.status), `mallory ${name} with team A's ids under her own team: ${cross.status}`);
+      assert.ok(ownPage || expected.includes(cross.status), `mallory ${name} with team A's ids under her own team: ${cross.status}`);
       assert.doesNotMatch(cross.text, LEAK, `nothing of team A leaks from ${name} with foreign ids`);
     }
     checked++;
@@ -293,7 +298,7 @@ test('every team route (enumerated from the router) is guarded, and answers 404 
   // /settings and the old /rules address redirect to a settings page.
   const REDIRECTS = new Set(['/hub/teams/:team/settings', '/hub/teams/:team/rules']);
   for (const r of teamRoutes.filter((x) => x.method === 'GET' && !x.pattern.endsWith('/stream'))) {
-    assert.equal((await getOnce(h, fill(r.pattern, idsA), { Cookie: cookieOf(alice) })).status, REDIRECTS.has(r.pattern) ? 303 : 200, `alice GET ${r.pattern}`);
+    assert.equal((await getOnce(h, fill(r.pattern, idsA), { Cookie: cookieOf(alice) })).status, REDIRECTS.has(r.pattern) || r.opts.formPage ? 303 : 200, `alice GET ${r.pattern}`);
   }
 });
 

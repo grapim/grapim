@@ -25,6 +25,7 @@ export { avatar };
 // not a platform team) is left out: see settingsPage in team.js.
 export const SETTINGS_PAGES = [
   { id: 'general', label: 'General' },
+  { id: 'review', label: 'Review' },
   { id: 'members', label: 'Members' },
   { id: 'rules', label: 'Approval rules' },
   { id: 'github', label: 'GitHub', owner: true },
@@ -36,24 +37,30 @@ export const SETTINGS_PAGES = [
 ];
 
 // The team's sections, in sidebar order. g: the second key of its "g" shortcut.
-// Cloud review comes first, then the approval loop. Workspaces and the platform API are secondary:
-// they sit below a divider, and Workspaces shows only once the team has one
-// (navLinks). secondary: below the divider.
-function sections(team, kind = team.kind) {
+// Cloud review comes first. The earlier product's sections show only when the
+// team uses them (overview.usage, as shell.use): Approvals and Agents once
+// it has synced agent runs, Workspaces once it has one, Platform
+// (owners) once it has platform keys, origins or a workspace. A hidden section
+// is left out of the sidebar, the palette and the "g" keys alike, unless you
+// are on it; its pages still open at their address. secondary: below a divider.
+function sections(team, shell) {
   const base = `/hub/teams/${team.id}`;
+  // Without usage (never in the app): everything, as before.
+  const use = shell.use ?? { runs: true, workspaces: true, platform: shell.teams.find((t) => t.id === team.id)?.kind === 'platform' };
+  const current = currentSection(team, shell.path);
   const list = [
     { id: 'overview', label: 'Overview', href: base, icon: 'home', g: 'o' },
     { id: 'pull-requests', label: 'Reviews', href: `${base}/pull-requests`, icon: 'pr', g: 'v' },
-    { id: 'reviews', label: 'Approvals', href: `${base}/reviews`, icon: 'review', g: 'r' },
+    { id: 'reviews', label: 'Approvals', href: `${base}/reviews`, icon: 'review', g: 'r', when: use.runs },
     { id: 'repos', label: 'Repos', href: `${base}/repos`, icon: 'repo', g: 'p' },
-    { id: 'agents', label: 'Agents', href: `${base}/agents`, icon: 'agents', g: 'i' },
+    { id: 'agents', label: 'Agents', href: `${base}/agents`, icon: 'agents', g: 'i', when: use.runs },
     { id: 'reports', label: 'Reports', href: `${base}/reports`, icon: 'reports', g: 'a' },
     { id: 'settings', label: 'Settings', href: `${base}/settings`, icon: 'settings', g: 's' },
-    { id: 'workspaces', label: 'Workspaces', href: `${base}/workspaces`, icon: 'workspace', g: 'w', secondary: true },
+    { id: 'workspaces', label: 'Workspaces', href: `${base}/workspaces`, icon: 'workspace', g: 'w', secondary: true, when: use.workspaces },
+    // API keys, webhooks and usage (docs/platform.md): its pages are owner only.
+    { id: 'platform', label: 'Platform', href: `${base}/platform`, icon: 'external', g: 'f', secondary: true, when: use.platform && shell.role === 'owner' },
   ];
-  // A platform team (docs/platform.md) gets its API keys, webhooks and usage as a section.
-  if (kind === 'platform') list.push({ id: 'platform', label: 'Platform', href: `${base}/platform`, icon: 'external', g: 'f', secondary: true });
-  return list;
+  return list.filter((s) => s.when !== false || s.id === current);
 }
 
 function currentSection(team, pathname = '') {
@@ -83,17 +90,14 @@ function teamMenu(shell, team) {
 }
 
 function navLinks(team, shell, current) {
-  const list = sections(team, shell.teams.find((t) => t.id === team.id)?.kind);
-  // A page without its own section (Platform before the team is one) is reached from Settings.
+  const list = sections(team, shell);
+  // A page without its own section (Settings pages, GitHub) is marked as Settings.
   if (!list.some((s) => s.id === current) && current) current = 'settings';
-  // Workspaces is drawn once the team has one, or while you are on its pages.
-  // Before that its link stays hidden, so "g w" and the palette still reach it.
-  const shown = (s) => s.id !== 'workspaces' || shell.palette.workspaces.length > 0 || current === 'workspaces';
-  const link = (s) => html`<a class="nav-item" href="${s.href}" data-g="${s.g}" ${current === s.id ? html`aria-current="page"` : ''} ${shown(s) ? '' : html`hidden`}>${icon(s.icon)}<span class="nav-label">${s.label}</span>${
+  const link = (s) => html`<a class="nav-item" href="${s.href}" data-g="${s.g}" ${current === s.id ? html`aria-current="page"` : ''}>${icon(s.icon)}<span class="nav-label">${s.label}</span>${
     s.id === 'reviews' && shell.reviews ? html`<span class="count num" title="${`${shell.reviews} run${shell.reviews === 1 ? '' : 's'} waiting for your approval`}">${shell.reviews}</span>` : ''
   }</a>`;
   const more = list.filter((s) => s.secondary);
-  return html`${list.filter((s) => !s.secondary).map(link)}${more.some(shown) ? html`<div class="nav-sep" role="separator"></div>` : ''}${more.map(link)}`;
+  return html`${list.filter((s) => !s.secondary).map(link)}${more.length ? html`<div class="nav-sep" role="separator"></div>` : ''}${more.map(link)}`;
 }
 
 // What Ctrl/Cmd K can jump to, as plain links hub.js reads (no inline data).
@@ -102,7 +106,7 @@ function paletteSource(team, shell) {
   const item = (group, href, label, sub = '', hint = '') => html`<a href="${href}" data-group="${group}" data-sub="${sub}" data-hint="${hint}">${label}</a>`;
   const owner = shell.role === 'owner';
   return html`<template id="palette-src">
-  ${sections(team, shell.teams.find((t) => t.id === team.id)?.kind).map((s) => item('Go to', s.href, s.label, '', `g ${s.g}`))}
+  ${sections(team, shell).map((s) => item('Go to', s.href, s.label, '', `g ${s.g}`))}
   ${shell.palette.runs.map((r) => item('Runs to approve', `${base}/repos/${r.repo_id}/runs/${encodeURIComponent(r.run)}?machine=${encodeURIComponent(r.machine)}`, r.intent || r.label, `${r.label} · ${r.repo}`))}
   ${shell.palette.repos.map((r) => item('Repos', `${base}/repos/${r.id}`, r.name))}
   ${shell.palette.workspaces.map((w) => item('Workspaces', `${base}/workspaces/${w.id}`, w.name, 'workspace'))}
@@ -164,7 +168,7 @@ function profileMenu({ user, team, me, csrf, shell }) {
       </div>
       <a class="menu-item" href="${base}/settings">${icon('settings')}<span class="menu-title">Team settings</span></a>
       <a class="menu-item" href="${base}/settings/plan">${icon('usage')}<span class="menu-title">Plan and usage</span></a>
-      <a class="menu-item" href="${base}/settings/machines">${icon('key')}<span class="menu-title">Machine tokens</span></a>
+      ${!shell.settings || shell.settings.includes('machines') ? html`<a class="menu-item" href="${base}/settings/machines">${icon('key')}<span class="menu-title">Machine tokens</span></a>` : ''}
       <a class="menu-item" href="/docs">${icon('repo')}<span class="menu-title">Docs</span></a>
       <a class="menu-item" href="/hub/support">${icon('help')}<span class="menu-title">Help and feedback</span></a>
       <div class="menu-sep" role="separator"></div>

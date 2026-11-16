@@ -1,15 +1,17 @@
 // Grapim Review in the cloud, one pull request: run by cloud-review.js as a
 // child process, so the engine's git calls (synchronous) and its memory never
 // block or bloat the hub. Reads one JSON job on stdin:
-//   { dir, base, head, model, request, limits, feedback, discussion, verify }
+//   { dir, base, head, model, request, limits, feedback, discussion, verify, teamConfig }
 // takes the model key from ANTHROPIC_API_KEY in its own environment, and
 // writes one JSON line on stdout: { ok: true, result } or { ok: false, error, config }.
 // Progress goes to stderr. It never runs code from the repository.
 
-import { anthropicProvider, ConfigError, loadConfig, reviewChanges, validateConfig } from '../../airev/index.js';
+import { anthropicProvider, ConfigError, reviewChanges, validateConfig } from '../../airev/index.js';
+import { CONFIG_FILE, parseConfigText } from '../../airev/config.js';
 import { pathToFileURL } from 'node:url';
 import { verifyFindings } from '../../airev/verify.js';
 import { git } from '../../provenance/pr.js';
+import { mergeReviewConfig } from './review-config.js';
 
 async function readStdin() {
   const chunks = [];
@@ -22,20 +24,22 @@ async function main() {
   let config;
   try {
     // The base commit's .grapim/review.json (a pull request cannot loosen its
-    // own review), with the model the cloud review pays for.
-    config = validateConfig({ ...loadConfig(job.dir, { rev: job.base }), model: job.model });
+    // own review) over the team's settings from Settings, Review, with the
+    // model the cloud review pays for (review-config.js: defaults < team <
+    // repository file, per field).
     // A team that turned cloud review on expects every pull request reviewed.
     // The engine's default skips lines it takes for human-written outside
     // sensitive paths, and in a repository that has notes, every commit made
     // without Grapim looks human-written: twfly104/grapim#5 got 0 of 17 hunks
     // reviewed. So the cloud reviews everything unless the repository's own
     // .grapim/review.json picks a mode.
-    const raw = git(job.dir, ['cat-file', 'blob', `${job.base}:.grapim/review.json`], { allowFail: true });
-    let picked = false;
-    try {
-      picked = raw !== null && Object.hasOwn(JSON.parse(String(raw).replace(/^﻿/, '')), 'review');
-    } catch {}
-    if (!picked) config = validateConfig({ ...config, review: 'all' });
+    const raw = git(job.dir, ['cat-file', 'blob', `${job.base}:${CONFIG_FILE}`], { allowFail: true });
+    let repo = null;
+    if (raw !== null) {
+      parseConfigText(String(raw)); // a ConfigError says what to fix in the file
+      repo = JSON.parse(String(raw).replace(/^﻿/, ''));
+    }
+    config = mergeReviewConfig({ team: job.teamConfig ?? null, repo, model: job.model });
     // The team's reactions and replies on earlier Grapim comments
     // (review-memory.js), after the repository's own instructions.
     if (typeof job.feedback === 'string' && job.feedback.trim()) {

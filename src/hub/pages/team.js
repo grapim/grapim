@@ -303,7 +303,7 @@ function reviewTiles(s) {
 
 // When every cloud setup step is done: one line instead of the checklist.
 function setupDoneLine(team, cloud, role) {
-  return html`<p class="setup-done" role="status">${icon('check')}<span>Setup done: GitHub connected to <span class="strong">${cloud.linked.join(', ')}</span>, cloud review on.${role === 'owner' ? html` <a class="link" href="/hub/teams/${team.id}/settings/github">Settings</a>` : ''}</span></p>`;
+  return html`<p class="setup-done" role="status">${icon('check')}<span>Setup done: GitHub connected to <span class="strong">${cloud.linked.join(', ')}</span>, cloud review on. <a class="link" href="/hub/teams/${team.id}/settings/review">Review settings</a>${role === 'owner' ? html` · <a class="link" href="/hub/teams/${team.id}/settings/github">GitHub</a>` : ''}</span></p>`;
 }
 
 // The approvals widgets (agent runs synced by the CLI): what needs me now,
@@ -722,7 +722,9 @@ function codeStorageSection({ team, csrf, role, info }) {
 </section>`;
 }
 
-function generalCards({ team, role, csrf }) {
+// use: overview.usage(team). The platform teaser is for teams that already
+// run workspaces or keys, not for a team that only has its pull requests reviewed.
+function generalCards({ team, role, csrf, use = null }) {
   const owner = role === 'owner';
   return html`<section class="card" id="general" aria-labelledby="general-title">
   <div class="card-head"><h2 id="general-title" class="card-title">Team</h2></div>
@@ -733,7 +735,7 @@ function generalCards({ team, role, csrf }) {
     <div><dt>Your role</dt><dd>${owner ? 'Owner' : 'Member'}</dd></div>
     <div><dt>Plan</dt><dd><span class="badge badge-plan">${team.plan}</span> <a class="link small" href="/hub/teams/${team.id}/settings/plan">Plan and usage</a></dd></div>
   </dl>
-  ${owner && team.kind !== 'platform'
+  ${owner && team.kind !== 'platform' && use?.platform
     ? html`<p class="fine">Run agents for your own customers? A platform (beta) gives each one a workspace. <a class="link" href="/hub/teams/${team.id}/platform">Set it up</a></p>`
     : ''}
 </section>
@@ -837,6 +839,7 @@ function platformCard({ team }) {
 
 // Under each page's title: what the page is for, in one line.
 const SETTINGS_SUBS = {
+  review: 'How Grapim reviews this team’s pull requests in the cloud.',
   members: 'Who can see this team and approve its agent runs.',
   rules: (team) => html`Decide which agent runs pass on their own and which need a person. <a class="link" href="/docs/rules">How rules work</a>`,
   github: 'Pull request comments and the Grapim check.',
@@ -848,13 +851,14 @@ const SETTINGS_SUBS = {
 };
 
 // section: one of SETTINGS_PAGES; pages: the ids this person can open here.
-export function settingsPage({ section = 'general', pages = ['general'], user, csrf, team, role, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, policy = null, notifications = null, rules = null, storage = null, codeStorage = null, revealed = null, notice = null, error = null, toast = null, capError = null }) {
+export function settingsPage({ section = 'general', pages = ['general'], user, csrf, team, role, use = null, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, review = null, policy = null, notifications = null, rules = null, storage = null, codeStorage = null, revealed = null, notice = null, error = null, toast = null, capError = null }) {
   const base = `/hub/teams/${team.id}/settings`;
   const page = SETTINGS_PAGES.find((p) => p.id === section) ?? SETTINGS_PAGES[0];
   const shown = SETTINGS_PAGES.filter((p) => pages.includes(p.id));
   const sub = typeof SETTINGS_SUBS[page.id] === 'function' ? SETTINGS_SUBS[page.id](team) : SETTINGS_SUBS[page.id] ?? null;
   const cards = {
-    general: () => generalCards({ team, role, csrf }),
+    general: () => generalCards({ team, role, csrf, use }),
+    review: () => review ?? '',
     members: () => memberCards({ user, team, role, csrf, members, invites, limits, seatsUsed, revealed }),
     rules: () => html`${policy ?? ''}${rules ?? ''}`,
     github: () => github ?? '',

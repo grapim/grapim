@@ -44,9 +44,10 @@ import { HubReviews, MAX_NOTE } from '../reviews.js';
 import { AppAuth } from './auth.js';
 import { githubConfig } from './config.js';
 import { Installations } from './link.js';
-import { githubPage, githubSection, policyCard } from './page.js';
+import { githubPage, githubSection, policyCard, reviewSettingsCard } from './page.js';
 import { CHECK_NAME, processPullRequest } from './pull.js';
-import { createCloudReview } from './cloud-review.js';
+import { CLOUD_CHECK, createCloudReview } from './cloud-review.js';
+import { parseTeamForm, TeamConfigError, teamFormValues } from './review-config.js';
 import { JobQueue } from './queue.js';
 import { GITHUB_SCHEMA, migrateGitHubSchema } from './schema.js';
 import { provenanceSource } from './source.js';
@@ -659,8 +660,31 @@ export function createGitHubApp(hub, options = {}) {
         if (on && !cloud.config.configured) throw new HttpError(503, 'not_configured', 'Cloud review is not set up on this hub.');
         if (on && !installs.forTeam(team.id).length) throw new HttpError(409, 'not_linked', 'Connect the GitHub App first.');
         cloud.setEnabled(team.id, on, ctx.session.user.id);
-        // From the setup page on the overview, back to it.
-        redirect(ctx.res, ctx.form?.from === 'overview' ? `/hub/teams/${team.id}` : `/hub/teams/${team.id}/settings/github#cloud-review`);
+        // From the setup page on the overview, or Settings, Review: back to it.
+        const from = ctx.form?.from;
+        redirect(ctx.res, from === 'overview' ? `/hub/teams/${team.id}` : from === 'review' ? `/hub/teams/${team.id}/settings/review?done=${on ? 'cloud_on' : 'cloud_off'}` : `/hub/teams/${team.id}/settings/github#cloud-review`);
+      },
+      TEAM_FORM,
+    );
+
+    // Settings, Review (owners): how cloud review reviews this team's pull
+    // requests. A mistake is shown on the page, with what was typed.
+    router.post(
+      '/hub/teams/:team/settings/review',
+      (ctx) => {
+        const team = teams.get(ctx.member.team.id);
+        let value;
+        try {
+          value = parseTeamForm(ctx.form);
+        } catch (err) {
+          if (!(err instanceof TeamConfigError)) throw err;
+          if (!hub.renderSettings) throw new HttpError(400, 'bad_request', err.message);
+          const draft = { failOn: ctx.form.failOn === 'blocker' ? 'blocker' : 'never', maxComments: String(ctx.form.maxComments ?? '').slice(0, 10), ignore: String(ctx.form.ignore ?? '').slice(0, 20_000).split(/\r\n?|\n/), instructions: String(ctx.form.instructions ?? '').slice(0, 4000) };
+          return hub.renderSettings(ctx, { section: 'review', error: err.message, review: reviewSettingsSection(team, ctx.session.csrf, 'owner', draft) }, 400);
+        }
+        cloud.setTeamConfig(team.id, value, ctx.session.user.id);
+        log('review settings saved');
+        redirect(ctx.res, `/hub/teams/${team.id}/settings/review?done=review_saved`);
       },
       TEAM_FORM,
     );
@@ -848,6 +872,19 @@ export function createGitHubApp(hub, options = {}) {
 ${cfg.configured ? cloud.card(team, csrf) : ''}`;
   }
 
+  // Settings, Review: every member reads it, owners change it. draft: what
+  // was typed, shown again with the error that refused it.
+  function reviewSettingsSection(team, csrf, role, draft = null) {
+    return reviewSettingsCard({
+      team,
+      csrf,
+      owner: role === 'owner',
+      cloud: { available: cfg.configured && cloud.config.configured, linked: installs.forTeam(team.id).length > 0, enabled: cloud.enabled(team.id) },
+      values: draft ?? teamFormValues(cloud.teamConfig(team.id)),
+      checkName: CLOUD_CHECK,
+    });
+  }
+
   const notifySection = (team, csrf) => (hub.notify ? notifyCard({ team, csrf, info: hub.notify.info(team.id) }) : null);
   const rulesSection = (team, csrf, role) => rulesCard({ team, csrf, role, rules: rules.list(team.id), members: teams.members(team.id), allowed: governance(team) });
   // Require review before merge, on Settings, Review rules (owners).
@@ -896,6 +933,7 @@ ${cfg.configured ? cloud.card(team, csrf) : ''}`;
     queue,
     routes,
     settingsSection,
+    reviewSettingsSection,
     policySection,
     reviewPanel,
     notifySection,

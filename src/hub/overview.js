@@ -252,21 +252,52 @@ export function createOverview(hub) {
     ).all(userId);
   }
 
+  // What the team uses of the earlier product, so the shell shows only those
+  // sections (pages/layout.js) and settings pages (routes-pages.js). Every
+  // page still opens at its address.
+  //   runs: synced agent runs (a synced repo or a run): Approvals, Agents,
+  //         Settings, Approval rules and Machines
+  //   tokens: a live machine token (CLI set up, nothing synced yet): Machines
+  //   workspaces: at least one cloud workspace
+  //   platform: a platform team, platform keys or embedding origins, or a workspace
+  function usage(team) {
+    const has = (sql, ...args) => {
+      try {
+        return !!q(sql).get(...args);
+      } catch {
+        return false; // a table this hub does not have
+      }
+    };
+    const id = team.id;
+    const runs = has('SELECT 1 FROM repos WHERE team_id = ? LIMIT 1', id) || has('SELECT 1 FROM h_runs WHERE team_id = ? LIMIT 1', id);
+    const tokens = has('SELECT 1 FROM machine_tokens WHERE team_id = ? AND revoked_at IS NULL LIMIT 1', id);
+    const workspaces = hub.workspaces.count(id) > 0;
+    const kind = team.kind ?? q('SELECT kind FROM teams WHERE id = ?').get(id)?.kind;
+    const platform =
+      kind === 'platform' ||
+      workspaces ||
+      has('SELECT 1 FROM platform_keys WHERE team_id = ? LIMIT 1', id) ||
+      has("SELECT 1 FROM platform_settings WHERE team_id = ? AND embed_allowed_origins NOT IN ('', '[]') LIMIT 1", id);
+    return { runs, tokens, workspaces, platform };
+  }
+
   // Everything the team shell draws around a page: the switcher, the review
-  // count, and the palette's jump targets.
+  // count, which sections the team uses, and the palette's jump targets.
   function shell(user, team, pathname, role = 'member') {
-    const all = runs(team, user.id);
+    const use = usage(team);
+    const all = use.runs ? runs(team, user.id) : [];
     const waiting = all.filter((r) => r.waiting && !r.mine);
     return {
       path: pathname,
       role,
+      use,
       teams: teamsOf(user.id),
       reviews: waiting.length,
       // Ask Grapim's entry points: null hides them (a member, before it is set up).
       // In the public demo it is shown with a note instead (no model calls; src/hub/demo.js).
       agent: user.demo ? { configured: false, demo: true } : (hub.agent?.shellInfo(role) ?? null),
       // The settings pages this person can open (src/hub/routes-pages.js), for the palette.
-      settings: hub.settingsPages?.(team, role) ?? null,
+      settings: hub.settingsShown?.(team, role, use) ?? null,
       palette: {
         repos: q('SELECT id, COALESCE(github, name) AS name FROM repos WHERE team_id = ? ORDER BY COALESCE(last_sync_at, created_at) DESC LIMIT 50').all(team.id),
         workspaces: hub.workspaces.live(team.id).slice(0, 50).map((w) => ({ id: w.id, name: w.name })),
@@ -275,5 +306,5 @@ export function createOverview(hub) {
     };
   }
 
-  return { runs, pulls, activeAgents, activity, workspaces, workspaceActivity, setup, teamsOf, shell, reviewStats, reviewedPulls, agentWritten };
+  return { runs, pulls, activeAgents, activity, workspaces, workspaceActivity, setup, teamsOf, usage, shell, reviewStats, reviewedPulls, agentWritten };
 }

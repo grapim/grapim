@@ -50,6 +50,7 @@ import { html } from '../pages/html.js';
 import { GitHubClient } from './client.js';
 import { JobQueue } from './queue.js';
 import { parseComment, repeats, teamFeedback } from './review-memory.js';
+import { cleanTeamConfig } from './review-config.js';
 
 export const CLOUD_CHECK = 'Grapim Review (cloud)';
 export const CLOUD_MARKER = '<!-- grapim:review:cloud -->';
@@ -88,6 +89,15 @@ export const CLOUD_SCHEMA = `
 CREATE TABLE IF NOT EXISTS cloud_review_settings (
   team_id     TEXT PRIMARY KEY,
   enabled     INTEGER NOT NULL DEFAULT 0,
+  updated_by  TEXT,
+  updated_at  INTEGER
+);
+-- A team's review settings (Settings, Review; review-config.js): JSON of
+-- failOn, maxComments, ignore and instructions. A repository's
+-- .grapim/review.json still wins, field by field.
+CREATE TABLE IF NOT EXISTS cloud_review_config (
+  team_id     TEXT PRIMARY KEY,
+  json        TEXT NOT NULL,
   updated_by  TEXT,
   updated_at  INTEGER
 );
@@ -289,6 +299,22 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     db
       .prepare('INSERT INTO cloud_review_settings (team_id, enabled, updated_by, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(team_id) DO UPDATE SET enabled = excluded.enabled, updated_by = excluded.updated_by, updated_at = excluded.updated_at')
       .run(teamId, on ? 1 : 0, userId, now());
+
+  // The team's review settings (review-config.js), checked again on the way
+  // out: a row that no longer validates gives way to the defaults.
+  function teamConfig(teamId) {
+    const row = db.prepare('SELECT json FROM cloud_review_config WHERE team_id = ?').get(teamId);
+    if (!row) return null;
+    try {
+      return cleanTeamConfig(JSON.parse(row.json));
+    } catch {
+      return null;
+    }
+  }
+  const setTeamConfig = (teamId, value, userId) =>
+    db
+      .prepare('INSERT INTO cloud_review_config (team_id, json, updated_by, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(team_id) DO UPDATE SET json = excluded.json, updated_by = excluded.updated_by, updated_at = excluded.updated_at')
+      .run(teamId, JSON.stringify(cleanTeamConfig(value)), userId == null ? null : String(userId), now());
 
   function budgetOf(team) {
     return Math.round((cfg.credit[team?.plan] ?? cfg.credit.free ?? DEFAULT_CREDIT.free) * MICROS);
@@ -537,7 +563,8 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       const request = await statedRequest({ pr, repo, request: (method, url) => client.request(method, url), lib: { closingIssues }, log: () => {} });
       const feedback = await repoFeedback(client, repo);
       const discussion = await prDiscussion(client, repo, job.number, pr?.user?.login ?? null);
-      const out = await runWorker({ dir, base, head, model: cfg.model, request, limits: REVIEW_LIMITS, discussion, ...(feedback.text ? { feedback: feedback.text } : {}) }, { key: cfg.key, baseUrl: cfg.baseUrl, signal, timeoutMs: cfg.jobMs, log });
+      const teamSettings = team ? teamConfig(team.id) : null;
+      const out = await runWorker({ dir, base, head, model: cfg.model, request, limits: REVIEW_LIMITS, discussion, ...(teamSettings ? { teamConfig: teamSettings } : {}), ...(feedback.text ? { feedback: feedback.text } : {}) }, { key: cfg.key, baseUrl: cfg.baseUrl, signal, timeoutMs: cfg.jobMs, log });
       if (!out?.ok) {
         const msg = String(out?.error ?? 'The review failed.').split(cfg.key).join('***');
         finish({ status: 'failed', error: msg.slice(0, 500) });
@@ -728,8 +755,9 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     return queue.push(`${job.installationId}:${job.repoId}:${job.number}`, job, String(job.installationId));
   }
 
-  // Settings, GitHub (owners): on or off, and this month's use.
-  function card(team, csrf) {
+  // Settings, GitHub and Settings, Review (owners): on or off, and this
+  // month's use. from: the page the switch sends you back to.
+  function card(team, csrf, { from = null } = {}) {
     const linked = installs.forTeam(team.id).length > 0;
     const on = enabled(team.id);
     const u = usage(team);
@@ -740,6 +768,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     <form method="post" action="/hub/teams/${team.id}/github/cloud-review" class="inline-form">
       ${csrfField(csrf)}
       <input type="hidden" name="enabled" value="${on ? '0' : '1'}">
+      ${from ? html`<input type="hidden" name="from" value="${from}">` : ''}
       <span class="badge ${on ? 'badge-ok' : ''}">${on ? 'On' : 'Off'}</span>
       <button class="btn btn-sm" type="submit" ${!on && !allowed ? html`disabled aria-disabled="true"` : ''}>${on ? 'Turn off' : 'Turn on'}</button>
     </form>
@@ -776,5 +805,5 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     return r && r.head_sha === job.headSha ? r.markdown : undefined;
   }
 
-  return { config: cfg, enabled, setEnabled, usage, recent, card, onPullRequest, onComment, chat, review, queue, on, saveProvenance, provenanceFor, close: () => queue.close() };
+  return { config: cfg, enabled, setEnabled, teamConfig, setTeamConfig, usage, recent, card, onPullRequest, onComment, chat, review, queue, on, saveProvenance, provenanceFor, close: () => queue.close() };
 }

@@ -22,6 +22,8 @@ It runs in one of two ways:
 
 Each review fetches the pull request's base branch, its head and the Grapim notes into a temporary folder on Grapim's server, sends the changes to Anthropic (Claude Opus 5.5) for the review, and deletes the folder when it ends. The App's token is used only for that pull request. Your `.grapim/review.json` on the base branch applies, as in CI.
 
+Owners set the team's defaults in **Settings**, **Review**: whether a blocker fails the check, how many comments a pull request gets, paths to skip, and notes for the reviewer. A repository's `.grapim/review.json` overrides them, key by key.
+
 Each plan includes a monthly review credit (Free: about 50 pull requests). Settings, GitHub shows how much is used. When it runs out, the check says so and nothing is sent to the model until the next month.
 
 ### Free for open source

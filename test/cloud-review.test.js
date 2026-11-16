@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { CLOUD_CHECK, CLOUD_MARKER, cloudConfig, costMicros, createCloudReview, DEFAULT_MODEL, provenanceSection } from '../src/hub/github/cloud-review.js';
+import { cleanTeamConfig, mergeReviewConfig, parseTeamForm, TeamConfigError } from '../src/hub/github/review-config.js';
 
 const TOKEN = 'ghs_cloudtest_secret_token';
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
@@ -403,4 +404,72 @@ test('@grapim: a question under a Grapim comment gets an answer in that thread, 
   // Twenty a day per pull request.
   for (let i = 0; i < 18; i++) db.prepare("INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at) VALUES ('team1', 'acme', 'api', 7, '-', 'chat', ?)").run(Date.now());
   assert.equal((await cloud.chat({ ...job, kind: 'issue', commentId: 4545, user: 'dev', body: '@grapim-test again' }, AbortSignal.timeout(30_000))).skipped, 'chat_limit');
+});
+
+test('team review settings: defaults < team (Settings, Review) < the repository\'s .grapim/review.json, field by field', () => {
+  // No team settings, no file: the engine's defaults, everything reviewed, the cloud's model.
+  const plain = mergeReviewConfig({ model: 'claude-opus-5-5' });
+  assert.equal(plain.review, 'all');
+  assert.equal(plain.failOn, 'blocker');
+  assert.equal(plain.maxComments, 15);
+  assert.deepEqual([...plain.ignore], ['**/*.lock', '**/dist/**', '**/*.snap']);
+  assert.equal(plain.instructions, '');
+  // The team's settings replace the defaults.
+  const team = { failOn: 'never', maxComments: 5, ignore: ['docs/**'], instructions: 'We use Postgres; flag missing indexes on new queries.' };
+  const t1 = mergeReviewConfig({ team, model: 'claude-opus-5-5' });
+  assert.deepEqual({ failOn: t1.failOn, maxComments: t1.maxComments, ignore: [...t1.ignore], instructions: t1.instructions }, team);
+  assert.equal(t1.passes, 1, 'what the team cannot set stays the default');
+  // The repository's file wins for each key it sets, and only those; a list replaces the team's list.
+  const r = mergeReviewConfig({ team, repo: { failOn: 'blocker', ignore: ['vendor/**'], review: 'ai-and-sensitive', model: 'claude-sonnet-5-5' }, model: 'claude-opus-5-5' });
+  assert.equal(r.failOn, 'blocker');
+  assert.deepEqual([...r.ignore], ['vendor/**']);
+  assert.equal(r.review, 'ai-and-sensitive', 'a file that picks a mode keeps it');
+  assert.equal(r.maxComments, 5, 'the team value where the file says nothing');
+  assert.equal(r.instructions, team.instructions);
+  assert.equal(r.model, 'claude-opus-5-5', 'the cloud pays for its own model');
+  // A stored row that no longer validates is dropped field by field, never an error.
+  const odd = mergeReviewConfig({ team: { failOn: 'always', maxComments: 500, ignore: ['../x'], instructions: 'x'.repeat(2001), extra: 1 } });
+  assert.equal(odd.failOn, 'blocker');
+  assert.equal(odd.maxComments, 15);
+  assert.deepEqual([...odd.ignore], ['**/*.lock', '**/dist/**', '**/*.snap']);
+  assert.equal(odd.instructions, '');
+  assert.deepEqual(cleanTeamConfig('nope'), {});
+
+  // The form: checked and capped.
+  assert.deepEqual(parseTeamForm({ failOn: 'blocker', maxComments: '50', ignore: ' a/**\r\n\r\nb/*.js\na/** ', instructions: ' hi\r\n ' }), { failOn: 'blocker', maxComments: 50, ignore: ['a/**', 'b/*.js'], instructions: 'hi' });
+  assert.equal(parseTeamForm({ maxComments: '1' }).failOn, 'never', 'an unticked box');
+  for (const form of [{ maxComments: '0' }, { maxComments: '51' }, { maxComments: '-3' }, { maxComments: '1e1' }, { maxComments: '15', ignore: 'a\n'.repeat(51) }, { maxComments: '15', ignore: 'x'.repeat(201) }, { maxComments: '15', ignore: 'a/../b' }, { maxComments: '15', instructions: 'y'.repeat(2001) }]) {
+    assert.throws(() => parseTeamForm(form), TeamConfigError, JSON.stringify(form).slice(0, 60));
+  }
+});
+
+test('a cloud review runs with the team\'s settings, and the repository\'s .grapim/review.json still wins', async (t) => {
+  const { cloud, gh, model, job, src } = await setup(t);
+  cloud.setEnabled('team1', true, 'u1');
+  // The team: a blocker does not fail the check, and a note for the reviewer.
+  cloud.setTeamConfig('team1', { failOn: 'never', maxComments: 3, ignore: [], instructions: 'TEAM-NOTE: we use Postgres.' }, 'u1');
+  let r = await cloud.review(job, AbortSignal.timeout(60_000));
+  assert.equal(r.done, true, JSON.stringify(r));
+  assert.equal(r.counts.blocker, 1);
+  let check = gh.s.checks.filter((c) => c.name === CLOUD_CHECK).at(-1);
+  assert.equal(check.conclusion, 'success', 'failOn never: the blocker is a comment, the check passes');
+  assert.ok(model.s.requests.some((q) => q.text.includes('TEAM-NOTE: we use Postgres.')), 'the team note reaches the reviewer');
+
+  // The repository's file on the base branch says failOn blocker: it wins over the team.
+  git(src.dir, 'checkout', '-q', 'main');
+  fs.mkdirSync(path.join(src.dir, '.grapim'));
+  fs.writeFileSync(path.join(src.dir, '.grapim/review.json'), JSON.stringify({ failOn: 'blocker' }));
+  git(src.dir, 'add', '.');
+  git(src.dir, 'commit', '-q', '-m', 'config');
+  git(src.dir, 'checkout', '-q', '-b', 'feature2');
+  fs.writeFileSync(path.join(src.dir, 'src/small.js'), 'export const a = 11;\nexport const b = 22;\n');
+  git(src.dir, 'commit', '-qam', 'change again');
+  const head = git(src.dir, 'rev-parse', 'HEAD');
+  git(src.dir, 'update-ref', 'refs/pull/7/head', head);
+  const asked = model.s.requests.length;
+  r = await cloud.review({ ...job, headSha: head }, AbortSignal.timeout(60_000));
+  assert.equal(r.done, true, JSON.stringify(r));
+  check = gh.s.checks.filter((c) => c.name === CLOUD_CHECK).at(-1);
+  assert.equal(check.conclusion, 'failure', 'the file\'s failOn beats the team\'s');
+  assert.ok(model.s.requests.slice(asked).some((q) => q.text.includes('TEAM-NOTE')), 'the team note stays where the file says nothing');
 });

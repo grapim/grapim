@@ -202,7 +202,8 @@ test('platforms are gated by HUB_TEAM_CREATORS, and keys are shown once, hashed,
   const page = await alice.req(`/hub/teams/${team}/platform`);
   assert.equal(page.status, 200);
   assert.match(page.text, /Turn into a platform/);
-  assert.match((await alice.req(`/hub/teams/${team}/settings/general`)).text, /\/platform">Set it up/);
+  // General offers a platform only to a team that already runs workspaces (or keys): not to a new one.
+  assert.doesNotMatch((await alice.req(`/hub/teams/${team}/settings/general`)).text, /\/platform">Set it up/);
   // Keys need a platform first.
   assert.equal((await alice.post(`/hub/teams/${team}/platform/keys`, { name: 'x', mode: 'live' })).status, 409);
 

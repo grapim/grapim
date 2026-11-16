@@ -69,6 +69,9 @@ const DONE = {
   rule_removed: 'Rule removed.',
   policy_saved: 'Review policy saved.',
   scan_started: 'History scan started. It reads the last 90 days of merged pull requests.',
+  review_saved: 'Review settings saved. They apply from the next review.',
+  cloud_on: 'Cloud review is on. The next pull request in a connected repository gets a review.',
+  cloud_off: 'Cloud review is off. Pull requests are no longer reviewed in the cloud.',
   code_storage_on: 'No code storage is on. New syncs keep no file contents.',
   code_storage_off: 'No code storage is off. New syncs keep file contents again.',
   contents_deleted: 'Stored file contents deleted.',
@@ -80,15 +83,24 @@ export function pageRoutes(router, hub) {
   const html = (ctx, body, status = 200, headers = {}) => sendHtml(ctx.res, status, body, headers);
 
   // The settings pages a person can open (SETTINGS_PAGES in pages/layout.js):
-  // GitHub and Notifications need the App and an owner, Platform a platform team.
+  // GitHub, Review and Notifications need the App (GitHub and Notifications an
+  // owner too), Platform a platform team.
   function settingsPages(team, role) {
     const owner = role === 'owner';
     const kind = team.kind ?? teams.get(team.id)?.kind;
     return SETTINGS_PAGES.filter((p) => owner || !p.owner)
-      .filter((p) => (p.id === 'github' ? !!hub.github : p.id === 'notifications' ? !!(hub.github && hub.notify) : p.id === 'platform' ? kind === 'platform' : true))
+      .filter((p) => (p.id === 'github' || p.id === 'review' ? !!hub.github : p.id === 'notifications' ? !!(hub.github && hub.notify) : p.id === 'platform' ? kind === 'platform' : true))
       .map((p) => p.id);
   }
   hub.settingsPages = settingsPages;
+
+  // Of those, the ones the sub-nav and the palette list. Approval rules and
+  // Machines belong to synced agent runs (the earlier product): they show once
+  // the team has runs (or a machine token), and still open at their address.
+  function settingsShown(team, role, use = hub.overview.usage(team)) {
+    return settingsPages(team, role).filter((id) => (id === 'rules' ? use.runs : id === 'machines' ? use.runs || use.tokens : true));
+  }
+  hub.settingsShown = settingsShown;
 
   // Which settings page a form belongs to, from its address: an error it
   // raises is shown there, with the form (renderSettings without a section).
@@ -116,9 +128,12 @@ export function pageRoutes(router, hub) {
     const fresh = teams.get(team.id);
     const actor = { role, userId };
     const owner = role === 'owner';
-    const pages = settingsPages(fresh, role);
     const section = extra.section ?? sectionOf(ctx);
-    if (!pages.includes(section)) throw new HttpError(404, 'not_found', 'Not found.');
+    if (!settingsPages(fresh, role).includes(section)) throw new HttpError(404, 'not_found', 'Not found.');
+    const use = hub.overview.usage(fresh);
+    // The sub-nav: the pages this team uses, and the one you are on.
+    const shown = settingsShown(fresh, role, use);
+    const pages = shown.includes(section) ? shown : [...shown, section];
     const csrf = ctx.session.csrf;
     // Only what the page shows is read.
     const on = (id, fn) => (section === id ? fn() : null);
@@ -137,6 +152,7 @@ export function pageRoutes(router, hub) {
         csrf,
         team: fresh,
         role,
+        use,
         members: teams.members(team.id),
         invites: owner ? teams.invites(team.id) : [],
         tokens: on('machines', () => teams.tokens(team.id, actor)) ?? [],
@@ -146,6 +162,8 @@ export function pageRoutes(router, hub) {
         origin: config.origin,
         agent: on('plan', () => (hub.agent?.config.configured ? hub.agent.usageInfo(fresh, { people: owner }) : null)),
         github: on('github', () => (owner ? hub.github?.settingsSection(fresh, csrf) : null)),
+        // How cloud review reviews (src/hub/github/review-config.js): members read, owners change.
+        review: on('review', () => hub.github?.reviewSettingsSection?.(fresh, csrf, role) ?? null),
         // Require review before merge: owners, where the GitHub App is part of the hub.
         policy: on('rules', () => (owner ? (hub.github?.policySection?.(fresh, csrf) ?? null) : null)),
         notifications: on('notifications', () => (owner ? (hub.github?.notifySection?.(fresh, csrf) ?? null) : null)),
@@ -742,4 +760,50 @@ export function pageRoutes(router, hub) {
     }),
     { ...FORM, team: 'form', owner: true },
   );
+
+  // ---- A form's address opened in the browser ----
+  //
+  // Some forms show their result or their error in place, so the address bar
+  // keeps the form's address; a reload, a bookmark or a typed URL then sends a
+  // GET there. Answer it with the page that holds the form (303), never
+  // "Method not allowed". Nothing is done: these are only redirects.
+  const t = (ctx) => `/hub/teams/${encodeURIComponent(ctx.member.team.id)}`;
+  const ws = (ctx) => `${t(ctx)}/workspaces/${encodeURIComponent(ctx.params.ws)}`;
+  const toSettings = (section) => (ctx) => `${t(ctx)}/settings/${section}`;
+  const FORM_PAGES = [
+    ['/hub/teams', () => '/hub', {}],
+    ['/hub/logout', () => '/hub', {}],
+    ['/hub/invite/accept', () => '/hub', {}],
+    ['/hub/billing/checkout', () => '/hub', {}],
+    ['/hub/billing/portal', () => '/hub', {}],
+    ['/hub/teams/:team/leave', toSettings('general')],
+    ['/hub/teams/:team/invites', toSettings('members')],
+    ['/hub/teams/:team/invites/:invite/revoke', toSettings('members')],
+    ['/hub/teams/:team/members/:user/remove', toSettings('members')],
+    ['/hub/teams/:team/tokens', toSettings('machines')],
+    ['/hub/teams/:team/tokens/:token/revoke', toSettings('machines')],
+    ['/hub/teams/:team/code-storage', toSettings('data')],
+    ['/hub/teams/:team/code-storage/delete', toSettings('data')],
+    ['/hub/teams/:team/storage', toSettings('data')],
+    ['/hub/teams/:team/storage/:action', toSettings('data')],
+    ['/hub/teams/:team/github/cloud-review', toSettings('review')],
+    ['/hub/teams/:team/github/policy', toSettings('rules')],
+    ['/hub/teams/:team/github/install', (ctx) => `${t(ctx)}/github`],
+    ['/hub/teams/:team/github/link', (ctx) => `${t(ctx)}/github`],
+    ['/hub/teams/:team/github/unlink', (ctx) => `${t(ctx)}/github`],
+    ['/hub/teams/:team/github/history/scan', (ctx) => `${t(ctx)}/github/history`],
+    ['/hub/teams/:team/rules/starter', toSettings('rules')],
+    ['/hub/teams/:team/rules/:rule/delete', toSettings('rules')],
+    ['/hub/teams/:team/notifications/slack', toSettings('notifications')],
+    ['/hub/teams/:team/notifications/slack/:action', toSettings('notifications')],
+    ['/hub/teams/:team/platform/keys', (ctx) => `${t(ctx)}/platform`],
+    ['/hub/teams/:team/platform/keys/:key/revoke', (ctx) => `${t(ctx)}/platform`],
+    ['/hub/teams/:team/platform/origins', (ctx) => `${t(ctx)}/platform`],
+    ['/hub/teams/:team/workspaces/:ws/rename', (ctx) => `${ws(ctx)}/settings`, WS],
+    ['/hub/teams/:team/workspaces/:ws/delete', (ctx) => `${ws(ctx)}/settings`, WS],
+    ['/hub/teams/:team/workspaces/:ws/tokens/:wstoken/revoke', (ctx) => `${ws(ctx)}/tokens`, WS],
+    ['/hub/teams/:team/workspaces/:ws/connectors/:action', (ctx) => `${ws(ctx)}/integrations`, WS],
+  ];
+  // formPage: a redirect only (test/hub-security.test.js reads it).
+  for (const [pattern, to, opts = TEAM] of FORM_PAGES) router.get(pattern, (ctx) => redirect(ctx.res, to(ctx)), { ...opts, formPage: true });
 }

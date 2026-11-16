@@ -147,3 +147,61 @@ ${!configured
 </section>`,
   });
 }
+
+// Settings, Review: cloud review on or off, then how it reviews (a few of the
+// engine's options, review-config.js). Owners change them; members read them.
+// values: the form's fields (teamFormValues, or what was typed after an error).
+export function reviewSettingsCard({ team, csrf, owner, cloud, values, checkName }) {
+  const on = !!cloud.enabled;
+  const allowed = cloud.available && cloud.linked;
+  const lock = owner ? '' : html`disabled`;
+  return html`<section class="card" id="cloud-review" aria-labelledby="cloud-review-title">
+  <div class="card-head">
+    <h2 id="cloud-review-title" class="card-title">Cloud review</h2>
+    ${owner
+      ? html`<form method="post" action="/hub/teams/${team.id}/github/cloud-review" class="inline-form">
+      ${csrfField(csrf)}
+      <input type="hidden" name="enabled" value="${on ? '0' : '1'}">
+      <input type="hidden" name="from" value="review">
+      <span class="badge ${on ? 'badge-ok' : ''}">${on ? 'On' : 'Off'}</span>
+      <button class="btn btn-sm" type="submit" ${!on && !allowed ? html`disabled aria-disabled="true"` : ''}>${on ? 'Turn off' : 'Turn on'}</button>
+    </form>`
+      : html`<span class="badge ${on ? 'badge-ok' : ''}">${on ? 'On' : 'Off'}</span>`}
+  </div>
+  <p class="card-sub">${!cloud.available
+    ? 'Cloud review is not set up on this hub. These settings apply once it is.'
+    : !cloud.linked
+      ? html`Connect the GitHub App first, in <a class="link" href="/hub/teams/${team.id}/settings/github">Settings, GitHub</a>.`
+      : on
+        ? html`Grapim reviews every pull request in the connected repositories and posts a <code>${checkName}</code> check.`
+        : 'Pull requests are not reviewed in the cloud until an owner turns this on.'}</p>
+</section>
+
+<section class="card review-settings" id="review-settings" aria-labelledby="review-settings-title">
+  <div class="card-head"><h2 id="review-settings-title" class="card-title">How Grapim reviews</h2></div>
+  <form method="post" action="/hub/teams/${team.id}/settings/review">
+    ${csrfField(csrf)}
+    <fieldset class="setting-rows" ${lock}>
+      <legend class="sr-only">Review settings</legend>
+      <div class="policy-row">
+        <div class="setting-text"><label class="strong" for="rs-fail">Block merging on blockers</label><p class="fine">On: a blocker fails the <code>${checkName}</code> check, so a branch rule that requires it stops the merge. Off: the check passes and the findings stay as comments.</p></div>
+        <label class="toggle"><input id="rs-fail" type="checkbox" name="failOn" value="blocker" ${values.failOn === 'blocker' ? html`checked` : ''}> Fail the check</label>
+      </div>
+      <div class="policy-row">
+        <div class="setting-text"><label class="strong" for="rs-max">Comments per pull request</label><p class="fine">The most serious findings are posted, up to this many. From 1 to 50.</p></div>
+        <input id="rs-max" class="input-narrow" type="number" name="maxComments" min="1" max="50" step="1" inputmode="numeric" value="${values.maxComments}" required>
+      </div>
+      <div class="policy-row setting-row-wide">
+        <div class="setting-text"><label class="strong" for="rs-ignore">Paths to skip</label><p class="fine">One pattern per line, like <code>docs/**</code> or <code>*.min.js</code>. These files are never sent to the model. Up to 50 lines.</p></div>
+        <textarea id="rs-ignore" name="ignore" rows="4" spellcheck="false" autocapitalize="off">${values.ignore.join('\n')}</textarea>
+      </div>
+      <div class="policy-row setting-row-wide">
+        <div class="setting-text"><label class="strong" for="rs-notes">Review notes for Grapim</label><p class="fine">What the reviewer should know about your code, added to every review. Up to 2,000 characters.</p></div>
+        <textarea id="rs-notes" name="instructions" rows="4" maxlength="2000" placeholder="We use Postgres; flag missing indexes on new queries.">${values.instructions}</textarea>
+      </div>
+    </fieldset>
+    ${owner ? html`<div class="setting-foot"><button class="btn btn-primary" type="submit">Save</button></div>` : ''}
+  </form>
+  <p class="fine">A repository's <code>.grapim/review.json</code> overrides these. <a class="link" href="/docs/review#the-config-file">The config file</a>${owner ? '' : html`<br>Only an owner can change these.`}</p>
+</section>`;
+}

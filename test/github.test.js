@@ -1196,3 +1196,123 @@ test('cloud review pages: the Overview leads with 30-day tiles and recent review
   // Signed out: to the sign-in page.
   assert.match((await new Browser(h.base).req(`/hub/teams/${T}/pull-requests`)).location ?? '', /\/hub\/login/);
 });
+
+test('Settings, Review: owners save the review settings, members read them; input is checked, capped and escaped; the cloud switch lives here too', async (t) => {
+  const h = await startHub({ env: { GRAPIM_REVIEW_ANTHROPIC_KEY: 'sk-test-cloud-key' }, github: { repoFor: () => null, provenanceFor: () => [], hasProvenance: () => false } });
+  t.after(h.close);
+  const owner = await signIn(h, 'rs-owner');
+  const T = await createTeam(owner, 'Reviewy');
+  const url = `/hub/teams/${T}/settings/review`;
+  const cloud = h.hub.github.cloud;
+
+  // The defaults, before anything is saved; the switch cannot turn on before GitHub is connected.
+  let page = await owner.req(url);
+  assert.equal(page.status, 200);
+  assert.match(page.text, /<h1>Review<\/h1>/);
+  assert.match(page.text, new RegExp(`href="${url}" aria-current="page"`), 'in the sub-nav');
+  assert.match(page.text, /name="failOn" value="blocker" checked/);
+  assert.match(page.text, /name="maxComments" min="1" max="50" step="1" inputmode="numeric" value="15"/);
+  assert.match(page.text, /name="ignore" rows="4" spellcheck="false" autocapitalize="off">\*\*\/\*\.lock\n\*\*\/dist\/\*\*\n\*\*\/\*\.snap<\/textarea>/, 'the default paths are shown');
+  assert.match(page.text, /placeholder="We use Postgres; flag missing indexes on new queries\."><\/textarea>/);
+  assert.match(page.text, /A repository's <code>\.grapim\/review\.json<\/code> overrides these\./);
+  assert.match(page.text, /Connect the GitHub App first/);
+  assert.match(page.text, /<button class="btn btn-sm" type="submit" disabled aria-disabled="true">Turn on<\/button>/);
+  assert.equal(cloud.teamConfig(T), null);
+
+  // Saved: back on the page with a toast, the values shown, stored as JSON.
+  const saved = await owner.post(url, { failOn: 'blocker', maxComments: '7', ignore: 'docs/**\r\n  *.min.js \n\ndocs/**\n', instructions: '  We use Postgres; flag missing indexes on new queries.\r\n' });
+  assert.equal(saved.status, 303, saved.text);
+  assert.equal(saved.location, `${url}?done=review_saved`);
+  assert.match((await owner.req(saved.location)).text, /Review settings saved/);
+  assert.deepEqual(cloud.teamConfig(T), { failOn: 'blocker', maxComments: 7, ignore: ['docs/**', '*.min.js'], instructions: 'We use Postgres; flag missing indexes on new queries.' });
+  const row = h.hub.db.prepare('SELECT json, updated_by, updated_at FROM cloud_review_config WHERE team_id = ?').get(T);
+  assert.equal(row.updated_by, String(owner.user.id));
+  assert.ok(row.updated_at > 0);
+  // An unticked box: the check never fails on a blocker.
+  assert.equal((await owner.post(url, { maxComments: '7', ignore: '', instructions: '' })).status, 303);
+  assert.deepEqual(cloud.teamConfig(T), { failOn: 'never', maxComments: 7, ignore: [], instructions: '' });
+  page = await owner.req(url);
+  assert.match(page.text, /name="failOn" value="blocker" >/);
+  assert.match(page.text, /value="7"/);
+
+  // Refused, on the page, with what was typed: nothing is stored.
+  const before = cloud.teamConfig(T);
+  const bad = async (form, re) => {
+    const r = await owner.post(url, { failOn: 'blocker', maxComments: '10', ignore: '', instructions: '', ...form });
+    assert.equal(r.status, 400, JSON.stringify(form).slice(0, 80));
+    assert.match(r.text, /<h1>Review<\/h1>/);
+    assert.match(r.text, re);
+    assert.deepEqual(cloud.teamConfig(T), before);
+    return r;
+  };
+  await bad({ maxComments: '0' }, /Comments per pull request must be a whole number from 1 to 50/);
+  await bad({ maxComments: '51' }, /from 1 to 50/);
+  await bad({ maxComments: '2.5' }, /from 1 to 50/);
+  await bad({ maxComments: '' }, /from 1 to 50/);
+  await bad({ ignore: Array.from({ length: 51 }, (_, i) => `p${i}/**`).join('\n') }, /51 lines; at most 50/);
+  await bad({ ignore: `src/${'a'.repeat(200)}` }, /204 characters long; keep each under 200/);
+  await bad({ ignore: '../secrets/**' }, /is not a path pattern Grapim understands/);
+  await bad({ instructions: 'x'.repeat(2001) }, /2,001 characters long; keep them under 2,000/);
+  // What was typed comes back escaped, never as markup.
+  const evil = await bad({ maxComments: '99', ignore: 'docs/**', instructions: '</textarea><script>alert(1)</script>' }, /from 1 to 50/);
+  assert.doesNotMatch(evil.text, /<script>alert/);
+  assert.match(evil.text, /&lt;\/textarea&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;<\/textarea>/);
+  assert.match(evil.text, /value="99"/);
+  // Saved notes are escaped on the page too.
+  assert.equal((await owner.post(url, { failOn: 'blocker', maxComments: '15', ignore: '', instructions: '<img src=x onerror=alert(1)> & "quotes"' })).status, 303);
+  page = await owner.req(url);
+  assert.doesNotMatch(page.text, /<img src=x/);
+  assert.match(page.text, /&lt;img src=x onerror=alert\(1\)&gt; &amp; &quot;quotes&quot;<\/textarea>/);
+
+  // CSRF: a post without the session token is refused.
+  const forged = await owner.req(url, { method: 'POST', form: { failOn: 'never', maxComments: '3', ignore: '', instructions: '' } });
+  assert.equal(forged.status, 403);
+  assert.equal(cloud.teamConfig(T).maxComments, 15);
+
+  // A member reads the settings but cannot change them, nor flip the switch.
+  const bob = await signIn(h, 'rs-member');
+  await join(owner, bob, T);
+  const asMember = await bob.req(url);
+  assert.equal(asMember.status, 200);
+  assert.match(asMember.text, /<fieldset class="setting-rows" disabled>/);
+  assert.match(asMember.text, /Only an owner can change these\./);
+  assert.doesNotMatch(asMember.text, /github\/cloud-review/);
+  assert.doesNotMatch(asMember.text, />Save<\/button>/);
+  assert.match(asMember.text, /href="\/hub\/teams\/[^"]+\/settings\/review"/, 'Review is in a member’s sub-nav');
+  assert.equal((await bob.post(url, { failOn: 'never', maxComments: '1', ignore: '', instructions: '' })).status, 403);
+  assert.equal((await bob.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '1', from: 'review' })).status, 403);
+  assert.equal(cloud.teamConfig(T).maxComments, 15);
+  // Another team: not found.
+  const mallory = await signIn(h, 'rs-mallory');
+  assert.equal((await mallory.req(url)).status, 404);
+  assert.equal((await mallory.post(url, { maxComments: '1' })).status, 404);
+
+  // Connected: the switch on this page turns cloud review on and off, the same switch as Settings, GitHub.
+  await link(h, owner, T, 931);
+  const on = await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '1', from: 'review' });
+  assert.equal(on.location, `${url}?done=cloud_on`);
+  assert.equal(cloud.enabled(T), true);
+  page = await owner.req(on.location);
+  assert.match(page.text, /Cloud review is on\./);
+  assert.match(page.text, /<input type="hidden" name="enabled" value="0">\s*<input type="hidden" name="from" value="review">/);
+  assert.match((await owner.req(`/hub/teams/${T}/settings/github`)).text, /<span class="badge badge-ok">On<\/span>/, 'Settings, GitHub shows the same state');
+  assert.equal((await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '0', from: 'review' })).location, `${url}?done=cloud_off`);
+  assert.equal(cloud.enabled(T), false);
+
+  // The form addresses opened in the browser go to this page.
+  assert.equal((await owner.req(`/hub/teams/${T}/github/cloud-review`)).location, url);
+  assert.equal((await owner.req(`/hub/teams/${T}/github/link`)).location, `/hub/teams/${T}/github`);
+});
+
+test('the Overview\'s "Setup done" line links to Settings, Review', async (t) => {
+  const h = await startHub({ env: { GRAPIM_REVIEW_ANTHROPIC_KEY: 'sk-test-cloud-key' }, github: { repoFor: () => null, provenanceFor: () => [], hasProvenance: () => false } });
+  t.after(h.close);
+  const owner = await signIn(h, 'done-owner');
+  const T = await createTeam(owner, 'Donesy');
+  await link(h, owner, T, 932);
+  assert.equal((await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '1' })).status, 303);
+  h.hub.db.prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(T, 'acme', 'api', 1, 'a'.repeat(40), 'done', h.hub.now(), h.hub.now());
+  const ov = await owner.req(`/hub/teams/${T}`);
+  assert.match(ov.text, /Setup done: GitHub connected to/);
+  assert.match(ov.text, new RegExp(`<a class="link" href="/hub/teams/${T}/settings/review">Review settings</a>`));
+});

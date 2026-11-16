@@ -1056,3 +1056,98 @@ test('settings: one page per topic under /settings/<page>; forms land back on th
   assert.match(bad.text, /<h1>Members<\/h1>/);
   assert.match(bad.text, /notice-error" role="alert">Unknown member/);
 });
+
+test('sidebar: a new team sees only what it uses (Overview, Reviews, Repos, Reports, Settings); runs and workspaces bring their sections back, in the palette and "g" keys too', async (t) => {
+  const h = await startHub();
+  t.after(h.close);
+  const owner = await signIn(h, 'nav-owner');
+  const team = await createTeam(owner, 'Navvy');
+  const base = `/hub/teams/${team}`;
+  // The sidebar's links (data-g), and the palette's "Go to" entries, of one page.
+  const nav = (text) => [...text.matchAll(/<a class="nav-item" href="([^"]+)" data-g="([a-z])"/g)].map((m) => m[1].slice(base.length) || '/');
+  const palette = (text) => [...text.split('<template id="palette-src">')[1].matchAll(/<a href="([^"]+)" data-group="Go to"/g)].map((m) => m[1].slice(base.length) || '/');
+  const subnav = (text) => [...text.matchAll(/<a class="subnav-item" href="[^"]+\/settings\/([a-z]+)"/g)].map((m) => m[1]);
+
+  const fresh = (await owner.req(base)).text;
+  const NEW = ['/', '/pull-requests', '/repos', '/reports', '/settings'];
+  assert.deepEqual(nav(fresh), [...NEW, ...NEW], 'sidebar and phone menu: Overview, Reviews, Repos, Reports, Settings');
+  assert.deepEqual(palette(fresh), NEW);
+  assert.doesNotMatch(fresh, /Approvals|>Agents<|>Workspaces<|>Platform<|nav-sep/);
+  assert.doesNotMatch(fresh, /menu-title">Machine tokens/, 'the profile menu leaves out Machine tokens too');
+  const general = (await owner.req(`${base}/settings/general`)).text;
+  assert.deepEqual(subnav(general), ['general', 'review', 'members', 'github', 'notifications', 'data', 'plan']);
+  assert.doesNotMatch(general, /Run agents for your own customers/, 'no platform teaser for a team without platform use');
+
+  // Every hidden page still opens at its address, and shows its own link while you are on it.
+  for (const p of ['/reviews', '/repos', '/agents', '/reports', '/workspaces']) {
+    const r = await owner.req(`${base}${p}`);
+    assert.equal(r.status, 200, p);
+    assert.ok(nav(r.text).includes(p), `${p} is in the sidebar while open`);
+  }
+  for (const s of ['rules', 'machines']) {
+    const r = await owner.req(`${base}/settings/${s}`);
+    assert.equal(r.status, 200, s);
+    assert.ok(subnav(r.text).includes(s), `${s} is in the sub-nav while open`);
+  }
+
+  // A machine token (the CLI is being set up): Machines shows in Settings, nothing else yet.
+  const token = await createToken(owner, team);
+  let page = (await owner.req(`${base}/settings/general`)).text;
+  assert.deepEqual(subnav(page), ['general', 'review', 'members', 'github', 'notifications', 'machines', 'data', 'plan']);
+  assert.deepEqual(nav(page).slice(0, 5), NEW);
+
+  // Synced agent runs: Approvals, Agents, Approval rules.
+  assert.equal((await sync(h, token, batch())).status, 200);
+  page = (await owner.req(base)).text;
+  assert.deepEqual(nav(page).slice(0, 7), ['/', '/pull-requests', '/reviews', '/repos', '/agents', '/reports', '/settings']);
+  assert.deepEqual(palette(page), ['/', '/pull-requests', '/reviews', '/repos', '/agents', '/reports', '/settings']);
+  assert.match(page, /menu-title">Machine tokens/);
+  assert.deepEqual(subnav((await owner.req(`${base}/settings/general`)).text), ['general', 'review', 'members', 'rules', 'github', 'notifications', 'machines', 'data', 'plan']);
+
+  // A workspace: Workspaces and (owners) Platform below the divider, and the platform teaser.
+  assert.equal((await owner.post(`${base}/workspaces`, { name: 'notes' })).status, 303);
+  page = (await owner.req(base)).text;
+  assert.deepEqual(nav(page).slice(0, 9), ['/', '/pull-requests', '/reviews', '/repos', '/agents', '/reports', '/settings', '/workspaces', '/platform']);
+  assert.match(page, /<div class="nav-sep" role="separator"><\/div>/);
+  assert.match((await owner.req(`${base}/settings/general`)).text, /Run agents for your own customers/);
+  assert.deepEqual(h.hub.overview.usage(h.hub.teams.get(team)), { runs: true, tokens: true, workspaces: true, platform: true });
+
+  // A member sees the same sections, but not Platform (its pages are owner only).
+  const member = await signIn(h, 'nav-member');
+  await joinTeam(owner, member, team);
+  const asMember = (await member.req(base)).text;
+  assert.ok(nav(asMember).includes('/workspaces'));
+  assert.ok(!nav(asMember).includes('/platform'));
+});
+
+test('a form address opened in the browser redirects to its page: GET /hub/teams goes to the team list, not a 405', async (t) => {
+  const h = await startHub();
+  t.after(h.close);
+  const owner = await signIn(h, 'get-owner');
+  const team = await createTeam(owner, 'Gotten');
+  const base = `/hub/teams/${team}`;
+  const teamsList = await owner.req('/hub/teams');
+  assert.equal(teamsList.status, 303);
+  assert.equal(teamsList.headers.get('location'), '/hub');
+  assert.equal((await owner.req('/hub/teams/')).headers.get('location'), '/hub');
+  // Signed out too: the team list asks you to sign in.
+  assert.equal((await new Browser(h.base).req('/hub/teams')).headers.get('location'), '/hub');
+  for (const [p, to] of [
+    [`${base}/invites`, `${base}/settings/members`],
+    [`${base}/tokens`, `${base}/settings/machines`],
+    [`${base}/code-storage`, `${base}/settings/data`],
+    [`${base}/leave`, `${base}/settings/general`],
+    ['/hub/logout', '/hub'],
+  ]) {
+    const r = await owner.req(p);
+    assert.equal(r.status, 303, p);
+    assert.equal(r.headers.get('location'), to, p);
+  }
+  // Nothing happened: still signed in, still in the team.
+  assert.equal((await owner.req(base)).status, 200);
+  // Another team's form address is a 404, as its page is.
+  const mallory = await signIn(h, 'get-mallory');
+  assert.equal((await mallory.req(`${base}/invites`)).status, 404);
+  // An address that is not a form still says what it is.
+  assert.equal((await owner.req('/hub/api/sync')).status, 405);
+});
