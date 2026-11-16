@@ -217,7 +217,7 @@ export async function createHub(options = {}) {
   }
 
   // Where a request to the marketing domain belongs, or null to serve it here.
-  const SITE_PATH = /^\/(?:pricing|changelog|docs|support|terms|privacy|robots\.txt|sitemap\.xml)(?:\/|$)|^\/hub\/static\//;
+  const SITE_PATH = /^\/(?:pricing|changelog|docs|notes|support|terms|privacy|robots\.txt|sitemap\.xml)(?:\/|$)|^\/hub\/static\//;
   const HUB_PATH = /^\/(?:hub|v1|w|demo|api)(?:\/|$)/;
   function siteHostRedirect(req, pathname) {
     if (!config.siteOrigin) return null;

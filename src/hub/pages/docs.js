@@ -27,6 +27,9 @@ export const ORDER = NAV.flatMap((g) => g.pages);
 // The legal pages: Markdown in the same folder, served at /terms and /privacy
 // on their own (no docs nav), linked from the site footer and sign-in.
 export const LEGAL = ['terms', 'privacy'];
+// Field notes at /notes/<slug> (src/hub/docs/notes): one column, like the legal pages.
+export const NOTES = ['claude-code-prs'];
+export const NOTES_DIR = path.join(DOCS_DIR, 'notes');
 export const docPath = (slug) => (slug === ORDER[0] ? '/docs' : `/docs/${slug}`);
 
 // ---- Markdown ----
@@ -339,10 +342,10 @@ ${siteFooter()}
 }
 
 // /terms and /privacy: one column of prose, the site's bar and footer.
-export function legalPage({ pages, slug, origin, signedIn = false }) {
+export function legalPage({ pages, slug, origin, signedIn = false, path: at = `/${slug}` }) {
   const page = pages.get(slug);
   const { html: body } = renderMarkdown(page.body);
-  return html`${siteHead({ title: page.title, description: page.description, path: `/${slug}`, origin })}
+  return html`${siteHead({ title: page.title, description: page.description, path: at, origin })}
 <body class="site">
 <a class="skip" href="#main">Skip to content</a>
 ${siteBar({ current: slug, signedIn })}

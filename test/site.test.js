@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHub } from '../src/hub/server.js';
-import { cliHelp, docPath, LEGAL, loadDocs, ORDER, parseHelp, renderMarkdown } from '../src/hub/pages/docs.js';
+import { cliHelp, docPath, LEGAL, loadDocs, NOTES, ORDER, parseHelp, renderMarkdown } from '../src/hub/pages/docs.js';
 import { REVIEW_PROVIDERS } from '../src/hub/pages/review-setup.js';
 
 const ORIGIN = 'http://localhost:7998';
@@ -39,7 +39,7 @@ function signedInCookie() {
   return h.hub.auth.createSession(4242).cookie.split(';')[0];
 }
 
-const PAGES = ['/', '/pricing', '/changelog', ...ORDER.map(docPath), ...LEGAL.map((s) => `/${s}`)];
+const PAGES = ['/', '/pricing', '/changelog', ...ORDER.map(docPath), ...LEGAL.map((s) => `/${s}`), ...NOTES.map((s) => `/notes/${s}`)];
 
 function assertCspClean(body, where) {
   // A JSON-LD data block is never run, so CSP does not apply to it.

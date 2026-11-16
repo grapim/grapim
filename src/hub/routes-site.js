@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { notFound, redirect } from './http.js';
-import { docPath, docsPage, legalPage, LEGAL, loadDocs, ORDER } from './pages/docs.js';
+import { docPath, docsPage, legalPage, LEGAL, loadDocs, NOTES, NOTES_DIR, ORDER } from './pages/docs.js';
 import { changelogPage, landingPage, pricingPage } from './pages/site.js';
 
 const PAGES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'pages');
@@ -39,6 +39,7 @@ export function siteRoutes(router, hub) {
   const origin = hub.config.siteOrigin ?? hub.config.origin;
   const pages = loadDocs();
   const legal = loadDocs(undefined, LEGAL);
+  const notes = loadDocs(NOTES_DIR, NOTES);
   const landing = landingPage({ origin, demo: !!hub.config.demo });
 
   router.get('/', (ctx) => {
@@ -59,13 +60,15 @@ export function siteRoutes(router, hub) {
   router.get('/support', (ctx) => redirect(ctx.res, '/docs/support'));
   for (const slug of LEGAL) router.get(`/${slug}`, (ctx) => send(ctx, legalPage({ pages: legal, slug, origin, signedIn: !!ctx.session })));
 
+  for (const slug of NOTES) router.get(`/notes/${slug}`, (ctx) => send(ctx, legalPage({ pages: notes, slug, origin, signedIn: !!ctx.session, path: `/notes/${slug}` })));
+
   router.get('/robots.txt', (ctx) => {
-    const body = ['User-agent: *', 'Allow: /$', 'Allow: /pricing', 'Allow: /changelog', 'Allow: /docs', ...LEGAL.map((s) => `Allow: /${s}`), 'Allow: /hub/static/', 'Disallow: /hub/', 'Disallow: /w/', 'Disallow: /v1/', `Sitemap: ${origin}/sitemap.xml`, ''].join('\n');
+    const body = ['User-agent: *', 'Allow: /$', 'Allow: /pricing', 'Allow: /changelog', 'Allow: /docs', ...LEGAL.map((s) => `Allow: /${s}`), 'Allow: /notes/', 'Allow: /hub/static/', 'Disallow: /hub/', 'Disallow: /w/', 'Disallow: /v1/', `Sitemap: ${origin}/sitemap.xml`, ''].join('\n');
     send(ctx, body, 'text/plain; charset=utf-8');
   });
 
   router.get('/sitemap.xml', (ctx) => {
-    const urls = ['/', '/pricing', '/changelog', ...ORDER.map(docPath), ...LEGAL.map((s) => `/${s}`)];
+    const urls = ['/', '/pricing', '/changelog', ...ORDER.map(docPath), ...LEGAL.map((s) => `/${s}`), ...NOTES.map((s) => `/notes/${s}`)];
     const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${origin}${u}</loc></url>`).join('\n')}\n</urlset>\n`;
     send(ctx, body, 'application/xml; charset=utf-8');
   });
