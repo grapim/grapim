@@ -34,7 +34,9 @@ function send(ctx, body, type = 'text/html; charset=utf-8') {
 }
 
 export function siteRoutes(router, hub) {
-  const origin = hub.config.origin;
+  // Canonical, Open Graph, robots and sitemap name the marketing domain when
+  // there is one, so search engines index grapim.com rather than the hub host.
+  const origin = hub.config.siteOrigin ?? hub.config.origin;
   const pages = loadDocs();
   const legal = loadDocs(undefined, LEGAL);
   const landing = landingPage({ origin, demo: !!hub.config.demo });

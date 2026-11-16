@@ -55,3 +55,16 @@ test('the hub origin itself is unchanged', async () => {
   assert.equal((await ask('localhost:7997', '/')).status, 200);
   assert.equal((await ask('localhost:7997', '/old-product-page')).status, 404);
 });
+
+test('public pages name the marketing domain as canonical, from either host', async () => {
+  for (const host of ['grapim.example', 'localhost:7997']) {
+    const page = await (await fetch(`http://127.0.0.1:${h.port}/pricing`, { headers: { host } })).text();
+    assert.ok(page.includes(`<link rel="canonical" href="${SITE}/pricing">`), host);
+    assert.ok(!page.includes(`href="${HUB}/pricing"`), host);
+  }
+  const robots = await (await fetch(`http://127.0.0.1:${h.port}/robots.txt`)).text();
+  assert.match(robots, new RegExp(`^Sitemap: ${SITE}/sitemap.xml$`, 'm'));
+  const sitemap = await (await fetch(`http://127.0.0.1:${h.port}/sitemap.xml`)).text();
+  assert.ok(sitemap.includes(`<loc>${SITE}/</loc>`));
+  assert.ok(!sitemap.includes(HUB));
+});
