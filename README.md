@@ -6,6 +6,8 @@
 
 **Code review that knows what your agents were asked.**
 
+**[Install the GitHub App](https://github.com/apps/grapim)**: free on public repositories, no account needed, and the first review lands on your next pull request.
+
 Grapim reviews every pull request and comments on the lines that need attention. When Claude Code, Codex, Cursor or Gemini CLI wrote the change, it knows which run wrote each line and what that run was asked to do, so it also flags work nobody asked for: a dropped column, a deleted test, a weakened check.
 
 It runs two ways:
@@ -18,6 +20,8 @@ Setup for both: [app.grapim.com/docs/review](https://app.grapim.com/docs/review)
 ## Free for open source
 
 Install the [GitHub App](https://github.com/apps/grapim) on a public repository and every pull request is reviewed free, with no account to create. Each repository gets about 50 free reviews a month, and pull requests opened by bots are skipped. Private repositories need a team with cloud review on. Details: [Free for open source](https://grapim.com/docs/review#free-for-open-source).
+
+If a review caught something for you, a star on this repository helps other maintainers find it.
 
 ## The Grapim CLI: runs, blame and undo
 

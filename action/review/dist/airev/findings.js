@@ -146,7 +146,7 @@ const OWN_SOURCE = /^(issue #[1-9][0-9]{0,9}|PR description|PR title)$/;
 // customer's CI, so the last line must not say Grapim received nothing.
 export function renderReviewSummary({ findings, stats, skipped, runs, providerText, requests, deletedTests = [], held = [], hosted = false }) {
   const n = (s) => findings.filter((f) => f.severity === s).length;
-  const lines = ['### Grapim Review', ''];
+  const lines = ['### <a href="https://github.com/grapim/grapim">Grapim Review</a>', ''];
   const files = new Set(findings.map((f) => f.path)).size;
   if (findings.length) lines.push(`**${plural(n('blocker'), 'blocker')}, ${plural(n('warning'), 'warning')}, ${plural(n('nit'), 'nit')}** in ${plural(files, 'file')}.`);
   else if (stats.reviewedHunks) lines.push('**No problems found** in the reviewed changes.');
