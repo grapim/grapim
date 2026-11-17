@@ -81,7 +81,7 @@ export const DEFAULT_SEAT_CREDIT = Object.freeze({ team: 10, governance: 20 });
 // (@grapim review), not on every push, unless its owner is in `allow`.
 // hourly: free reviews per pull request author per repository in an hour.
 export const DEFAULT_OSS = Object.freeze({ monthly: 200, repoMonthly: 10, minStars: 10, hourly: 5, allow: Object.freeze(['grapim', 'grapim-bench']) });
-const OSS_FOOTER = '\n\n<sub>Grapim Review is free for public repositories. <a href="https://grapim.com">grapim.com</a></sub>\n';
+const OSS_FOOTER = '\n\n<sub>Grapim Review is open source and free for public repositories. <a href="https://github.com/grapim/grapim">github.com/grapim/grapim</a></sub>\n';
 export const JOB_MS = 30 * 60 * 1000;
 const MICROS = 1_000_000;
 const NAME = /^[A-Za-z0-9_.-]{1,100}$/;
@@ -448,7 +448,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       client.request('POST', `/repos/${repo}/pulls/${number}/reviews`, {
         commit_id: head,
         event: 'COMMENT',
-        body: `${INLINE_MARKER}\n**Grapim Review**: ${countText(counts(list))} on ${head.slice(0, 7)}${list.length < findings.length ? `, ${plural(findings.length - list.length, 'more finding')} in the summary comment` : ''}.`,
+        body: `${INLINE_MARKER}\n**<a href="https://github.com/grapim/grapim">Grapim Review</a>**: ${countText(counts(list))} on ${head.slice(0, 7)}${list.length < findings.length ? `, ${plural(findings.length - list.length, 'more finding')} in the summary comment` : ''}.`,
         comments: list.map((f) => toComment(f, md)),
       });
     let r = await send(inline);
