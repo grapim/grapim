@@ -336,9 +336,12 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     return Math.round((cfg.credit[team?.plan] ?? floor) * MICROS);
   }
   // Seats the team pays for: the seats it bought, or its members if more.
+  // A team object without `seats` (a session's copy) is read again from the
+  // teams table, so a paid team never falls back to one seat.
   function seatsOf(team) {
+    const bought = 'seats' in team ? team.seats : teams?.get?.(team.id)?.seats;
     const members = teams?.seatsUsed?.(team.id) ?? 0;
-    return Math.max(Number.isInteger(team.seats) ? team.seats : 0, members, 1);
+    return Math.max(Number.isInteger(bought) ? bought : 0, members, 1);
   }
   function month(teamId) {
     const from = monthStart(now());
