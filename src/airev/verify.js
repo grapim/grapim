@@ -134,6 +134,20 @@ export function buildVerifyRequest({ findings, context, model, request, tools = 
   };
 }
 
+// Each tool round resends everything before it. Cache breakpoints on the
+// system prompt, the gathered context and the newest tool results (three of
+// the four allowed) let every round read the earlier ones from the cache.
+const EPHEMERAL = Object.freeze({ type: 'ephemeral' });
+function cached(body, messages) {
+  const mark = (blocks) => blocks.map((b, i) => (i === blocks.length - 1 ? { ...b, cache_control: EPHEMERAL } : b));
+  const last = messages.length - 1;
+  return {
+    ...body,
+    system: mark(body.system),
+    messages: messages.map((m, i) => (i === 0 || (i === last && i > 0) ? { ...m, content: mark(m.content) } : m)),
+  };
+}
+
 // -> { kept, dropped: [{ finding, reason }], usage: { input, output }, checked }
 // tools: let the model search the repository (see VERIFY_TOOLS_PROMPT). A
 // provider that runs the tool loop itself (the bench's CLI stand-in) gets
@@ -155,18 +169,16 @@ export async function verifyFindings({ findings, git, base, head, provider, mode
   try {
     const messages = [...body.messages];
     for (let turn = 0; ; turn++) {
-      msg = await provider.send({ ...body, messages }, { repo: { base, head, dir: repoDir } });
+      // The last round may not call a tool, so it has to give its verdicts.
+      const final = tools && turn >= MAX_TOOL_TURNS;
+      msg = await provider.send({ ...(tools ? cached(body, messages) : { ...body, messages }), ...(final ? { tool_choice: { type: 'none' } } : {}) }, { repo: { base, head, dir: repoDir } });
       count(msg);
       searches += Number(msg?.tool_rounds) || 0; // a provider that ran the tools itself
       const uses = (msg?.content ?? []).filter((b) => b?.type === 'tool_use');
-      if (!tools || !uses.length || msg.stop_reason !== 'tool_use' || turn > MAX_TOOL_TURNS) break;
+      if (!tools || !uses.length || msg.stop_reason !== 'tool_use' || final) break;
       searches += uses.length;
-      const last = turn === MAX_TOOL_TURNS;
       messages.push({ role: 'assistant', content: msg.content });
-      messages.push({
-        role: 'user',
-        content: uses.map((u) => ({ type: 'tool_result', tool_use_id: u.id, content: last ? 'No more tool rounds: give your verdicts now.' : runRepoTool(git, head, u.name, u.input) })),
-      });
+      messages.push({ role: 'user', content: uses.map((u) => ({ type: 'tool_result', tool_use_id: u.id, content: runRepoTool(git, head, u.name, u.input) })) });
     }
   } catch (err) {
     log(`Second look failed (${err?.message ?? err}); posting every finding.`);

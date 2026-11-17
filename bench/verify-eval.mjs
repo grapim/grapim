@@ -62,8 +62,14 @@ function discussionBefore(repo, n, at, author) {
 }
 
 const label = (url, f) => labels.find((l) => l.url === url && l.path === f.path && l.line === f.line && (!l.title || f.title.startsWith(l.title)))?.label ?? null;
-// Rows of an earlier, interrupted run with the same --out are kept.
+// Rows of an earlier, interrupted run with the same --out are kept; a PR is
+// skipped only when its rows came from the same mode and model.
 const rows = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : [];
+const sameMode = (x) => Boolean(x.tools) === Boolean(withTools) && x.model === MODEL;
+const save = () => {
+  fs.writeFileSync(`${out}.tmp`, JSON.stringify(rows, null, 1));
+  fs.renameSync(`${out}.tmp`, out);
+};
 for (const file of fs.readdirSync(dir).sort()) {
   const r = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
   if (!(r.findings ?? []).length) continue;
@@ -75,7 +81,7 @@ for (const file of fs.readdirSync(dir).sort()) {
   // changed (cloud review fetches the full tree and searches all of it, so
   // this measures the second look with less context than it really has).
   const changed = (lib.git(gitDir, ['diff', '--name-only', pr.base_sha, pr.head_sha], { allowFail: true }) ?? '').split('\n').filter(Boolean);
-  if (rows.some((x) => x.url === r.url)) continue; // done in an earlier run (--out kept)
+  if (rows.some((x) => x.url === r.url && sameMode(x))) continue; // done in an earlier run of this mode
   if (withTools) {
     // Fetches every file of the head in one go. The checkout itself can fail
     // on Windows (long or odd paths) after the files arrived; the tools read
@@ -96,15 +102,17 @@ for (const file of fs.readdirSync(dir).sort()) {
   const request = { text: `${pr.title}\n\n${pr.body ?? ''}` };
   const v = await verifyFindings({ findings: r.findings, git, base: pr.base_sha, head: pr.head_sha, provider, model: MODEL, request, discussion, tools: withTools, repoDir: gitDir, log: (l) => console.error(`${pr.repo}#${pr.number}: ${l}`) });
   const dropped = new Map(v.dropped.map((d) => [d.finding, d.reason]));
-  for (const f of r.findings) rows.push({ url: r.url, path: f.path, line: f.line, title: f.title, label: label(r.url, f), verdict: dropped.has(f) ? 'drop' : 'keep', reason: dropped.get(f) ?? '' });
-  fs.writeFileSync(out, JSON.stringify(rows, null, 1));
+  for (const f of r.findings) rows.push({ url: r.url, tools: Boolean(withTools), model: MODEL, path: f.path, line: f.line, title: f.title, label: label(r.url, f), verdict: dropped.has(f) ? 'drop' : 'keep', reason: dropped.get(f) ?? '' });
+  save();
   console.error(`${pr.repo}#${pr.number}: ${v.checked} checked, ${v.dropped.length} dropped, ${v.usage.input} in / ${v.usage.output} out tokens${withTools ? `, ${v.searches} tool calls` : ''}`);
 }
-fs.writeFileSync(out, JSON.stringify(rows, null, 1));
+save();
 
-const n = (lab, ver) => rows.filter((x) => x.label === lab && x.verdict === ver).length;
+// Only this mode's rows count.
+const mine = rows.filter(sameMode);
+const n = (lab, ver) => mine.filter((x) => x.label === lab && x.verdict === ver).length;
 console.log(`false findings dropped: ${n('false', 'drop')} of ${n('false', 'drop') + n('false', 'keep')}`);
 console.log(`real findings kept:     ${n('real', 'keep')} of ${n('real', 'keep') + n('real', 'drop')}`);
-console.log(`unlabelled: ${rows.filter((x) => !x.label).length}`);
-for (const x of rows.filter((x) => (x.label === 'real' && x.verdict === 'drop') || (x.label === 'false' && x.verdict === 'keep'))) console.log(`MISS ${x.label}/${x.verdict} ${x.url} ${x.path}:${x.line} ${x.title}${x.reason ? `\n   reason: ${x.reason}` : ''}`);
+console.log(`unlabelled: ${mine.filter((x) => !x.label).length}`);
+for (const x of mine.filter((x) => (x.label === 'real' && x.verdict === 'drop') || (x.label === 'false' && x.verdict === 'keep'))) console.log(`MISS ${x.label}/${x.verdict} ${x.url} ${x.path}:${x.line} ${x.title}${x.reason ? `\n   reason: ${x.reason}` : ''}`);
 provider.close?.();

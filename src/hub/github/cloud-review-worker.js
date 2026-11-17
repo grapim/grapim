@@ -70,7 +70,8 @@ async function main() {
   if (job.verify !== false && result.findings?.length) {
     const v = await verifyFindings({
       findings: result.findings,
-      git: (args) => git(job.dir, args, { allowFail: true }),
+      // A model-chosen search must not hang the job: 15 s per git call.
+      git: (args) => git(job.dir, args, { allowFail: true, timeout: 15_000 }),
       base: job.base,
       head: job.head,
       provider,

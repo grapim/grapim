@@ -62,6 +62,16 @@ export const REPO_TOOLS = Object.freeze([
 
 const clip = (s) => (s.length > MAX_OUT ? `${s.slice(0, MAX_OUT)}\n… (cut)` : s);
 const cleanPath = (p) => String(p ?? '').replace(/^\.?\/+/, '').replace(/\\/g, '/');
+// A quick check with JavaScript's parser, close enough to ERE for unbalanced
+// brackets and dangling quantifiers.
+const badEre = (p) => {
+  try {
+    new RegExp(p);
+    return false;
+  } catch {
+    return true;
+  }
+};
 const badPath = (p) => p.split('/').includes('..') || p.startsWith('-');
 
 // -> text for the model. Never throws.
@@ -74,7 +84,9 @@ export function runRepoTool(git, head, name, input = {}) {
       if (path && badPath(path)) return 'That path is not allowed.';
       const args = ['grep', '-n', '-I', '-E', '--max-count=8', ...(input.ignore_case ? ['-i'] : []), '-e', pattern, head, '--', ...(path ? [path] : [])];
       const out = git(args);
-      if (out == null || !out.trim()) return 'No matches.';
+      // git grep exits 1 for no match and 128 for a bad pattern; the caller's
+      // git() returns null for both, so say both and how to escape.
+      if (out == null || !out.trim()) return badEre(pattern) ? 'That pattern is not a valid extended regular expression: escape ( ) [ ] { } . * + ? | with a backslash, then search again.' : 'No matches (if the pattern has ( ) [ ] { } . * + ? |, escape them with a backslash).';
       const lines = out.split('\n').filter(Boolean).map((l) => (l.startsWith(`${head}:`) ? l.slice(head.length + 1) : l));
       const more = lines.length > MAX_HITS ? `\n… ${lines.length - MAX_HITS} more matches; narrow the pattern or the path.` : '';
       return clip(lines.slice(0, MAX_HITS).map((l) => (l.length > 300 ? `${l.slice(0, 300)}…` : l)).join('\n') + more);

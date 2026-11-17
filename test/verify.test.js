@@ -63,7 +63,7 @@ test('with tools, the model can search the repository before its verdicts', asyn
   const provider = {
     send: async (body) => {
       sent.push(body);
-      if (turn++ === 0) return { content: [{ type: 'tool_use', id: 't1', name: 'search', input: { pattern: 'loadUser\(' } }, { type: 'tool_use', id: 't2', name: 'read_file', input: { path: 'src/b.js' } }], stop_reason: 'tool_use', usage: { input_tokens: 50, output_tokens: 5 } };
+      if (turn++ === 0) return { content: [{ type: 'tool_use', id: 't1', name: 'search', input: { pattern: 'loadUser\\(' } }, { type: 'tool_use', id: 't2', name: 'read_file', input: { path: 'src/b.js' } }], stop_reason: 'tool_use', usage: { input_tokens: 50, output_tokens: 5 } };
       return { ...reply([{ id: 0, verdict: 'drop', reason: 'src/b.js:10 returns DEFAULT when there is no user.' }]), stop_reason: 'end_turn' };
     },
   };
@@ -85,11 +85,25 @@ test('without tools no tool is offered, and the tool rounds are capped', async (
   await verifyFindings({ findings: [F()], git: fakeGit({}), base: 'B', head: 'H', provider: { send: async (b) => (plain.push(b), reply([])) }, model: 'm' });
   assert.equal(plain[0].tools, undefined);
   assert.doesNotMatch(plain[0].system[0].text, /tools/);
-  let n = 0;
-  const looping = { send: async () => (n++, { content: [{ type: 'tool_use', id: `t${n}`, name: 'list_files', input: {} }], stop_reason: 'tool_use' }) };
+  const bodies = [];
+  const looping = { send: async (b) => (bodies.push(b), { content: [{ type: 'tool_use', id: `t${bodies.length}`, name: 'list_files', input: {} }], stop_reason: 'tool_use' }) };
   const v = await verifyFindings({ findings: [F()], git: () => 'a.js', base: 'B', head: 'H', provider: looping, model: 'm', tools: true });
-  assert.ok(n <= 26, `stopped after ${n} requests`);
+  assert.equal(bodies.length, 25, '24 tool rounds, then one that must answer');
+  assert.deepEqual(bodies.at(-1).tool_choice, { type: 'none' }, 'the last request may not call a tool');
+  assert.equal(bodies[0].tool_choice, undefined);
   assert.equal(v.kept.length, 1, 'no verdict keeps the finding');
+  // Cache breakpoints: system, the context message, the newest tool results; never more than 4.
+  const marks = (b) => [...b.system, ...b.messages.flatMap((m) => (Array.isArray(m.content) ? m.content : []))].filter((x) => x.cache_control).length;
+  for (const b of bodies) assert.ok(marks(b) <= 4, `${marks(b)} breakpoints`);
+  assert.ok(bodies[3].system.at(-1).cache_control && bodies[3].messages[0].content.at(-1).cache_control && bodies[3].messages.at(-1).content.at(-1).cache_control);
+  assert.equal(bodies[3].messages[2].content.at(-1).cache_control, undefined, 'older tool results carry no breakpoint');
+});
+
+test('a search with an invalid pattern says so instead of "No matches"', async () => {
+  const { runRepoTool } = await import('../src/airev/repo-tools.js');
+  assert.match(runRepoTool(() => null, 'H', 'search', { pattern: 'loadUser(' }), /not a valid extended regular expression/);
+  assert.match(runRepoTool(() => null, 'H', 'search', { pattern: 'loadUser\\(' }), /^No matches/);
+  assert.match(runRepoTool(() => { throw new Error('git grep: spawnSync git ETIMEDOUT'); }, 'H', 'search', { pattern: 'x' }), /The tool failed/);
 });
 
 test('repository tools refuse paths outside the repository', async () => {
