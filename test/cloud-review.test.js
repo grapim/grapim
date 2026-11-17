@@ -110,7 +110,7 @@ function fakeAnthropic({ text = null } = {}) {
   }).then((srv) => ({ ...srv, s }));
 }
 
-async function setup(t, { plan = 'free', credit = null, env: extra = {}, isPrivate = true, userType = 'User', modelText = null } = {}) {
+async function setup(t, { plan = 'free', credit = null, env: extra = {}, isPrivate = true, userType = 'User', modelText = null, members = 0, seats = null } = {}) {
   const src = sourceRepo();
   const gh = await fakeGitHub(src.head, { isPrivate, userType });
   const model = await fakeAnthropic({ text: modelText });
@@ -120,7 +120,7 @@ async function setup(t, { plan = 'free', credit = null, env: extra = {}, isPriva
   });
   const db = new DatabaseSync(':memory:');
   const logs = [];
-  const hub = { db, now: () => Date.now(), log: (l) => logs.push(l), teams: { get: (id) => ({ id, plan }) } };
+  const hub = { db, now: () => Date.now(), log: (l) => logs.push(l), teams: { get: (id) => ({ id, plan, seats }), seatsUsed: () => members } };
   const env = { GRAPIM_REVIEW_ANTHROPIC_KEY: 'sk-test-cloud', ANTHROPIC_BASE_URL: model.base, ...(credit ? { GRAPIM_REVIEW_MONTHLY_CREDIT: JSON.stringify(credit) } : {}), ...extra };
   const cloud = createCloudReview(hub, {
     auth: { installationToken: async () => TOKEN },
@@ -146,6 +146,30 @@ test('config: Opus 5.5 by default (the benchmarked model), its price, the key ne
   assert.ok(!JSON.stringify(c).includes('sk-secret-xyz'));
   assert.equal(cloudConfig({}).configured, false);
   assert.equal(costMicros(c.price, 1_000_000, 0), 4_000_000, '$4 per million input tokens');
+});
+
+test('review credit: Team and Governance get it per seat, never below the free plan', async (t) => {
+  const { cloud } = await setup(t, { env: { GRAPIM_REVIEW_MONTHLY_CREDIT: '{"free":10}' } });
+  const budget = (team) => cloud.usage(team).budget;
+  assert.equal(budget({ id: 'team1', plan: 'free' }), 10);
+  assert.equal(budget({ id: 'team1', plan: 'team', seats: 5 }), 50, '$10 a seat');
+  assert.equal(budget({ id: 'team1', plan: 'governance', seats: 5 }), 100, '$20 a seat');
+  assert.equal(budget({ id: 'team1', plan: 'team', seats: 0 }), 10, 'one seat at least, and the free credit as a floor');
+  assert.equal(budget({ id: 'team1', plan: 'enterprise' }), 1000, 'Enterprise stays a flat credit');
+  const c = cloudConfig({ GRAPIM_REVIEW_SEAT_CREDIT: '{"team":12,"governance":-1}' });
+  assert.equal(c.seatCredit.team, 12);
+  assert.equal(c.seatCredit.governance, 20, 'a bad value keeps the default');
+});
+
+test('review credit counts members when they outnumber the seats bought', async (t) => {
+  const { cloud } = await setup(t, { members: 8 });
+  assert.equal(cloud.usage({ id: 'team1', plan: 'team', seats: 5 }).budget, 80);
+  assert.equal(cloud.usage({ id: 'team1', plan: 'team', seats: 12 }).budget, 120);
+});
+
+test('review credit reads the seats bought from the teams table when the team object lacks them', async (t) => {
+  const { cloud } = await setup(t, { seats: 6 });
+  assert.equal(cloud.usage({ id: 'team1', plan: 'team' }).budget, 60);
 });
 
 test('a pull request is reviewed in the cloud: check in progress, inline review, summary, blocker fails the check, cost counted', async (t) => {

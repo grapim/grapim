@@ -224,7 +224,7 @@ const PLANS = [
     per: 'per seat a month',
     year: { price: '$16', bill: 'Billed yearly, $192 per seat' },
     lede: 'For a team whose agents ship code every day.',
-    items: ['Everything in Free', 'Cloud review of about 500 pull requests a month', 'As many seats as you need', 'Unlimited repos', '90 days of history'],
+    items: ['Everything in Free', 'Cloud review of about 55 pull requests a month per seat', 'As many seats as you need', 'Unlimited repos', '90 days of history'],
   },
   {
     name: 'Governance',
@@ -232,7 +232,7 @@ const PLANS = [
     per: 'per seat a month',
     year: { price: '$32', bill: 'Billed yearly, $384 per seat' },
     lede: 'When a person must approve what agents change.',
-    items: ['Everything in Team', 'Cloud review of about 1,500 pull requests a month', 'Path rules: auto-approve or named reviewer', 'Required PR check that blocks merging', 'Reports and CSV export'],
+    items: ['Everything in Team', 'Cloud review of about 110 pull requests a month per seat', 'Path rules: auto-approve or named reviewer', 'Required PR check that blocks merging', 'Reports and CSV export'],
     mark: true,
   },
   {
@@ -248,7 +248,7 @@ const PLANS = [
 // The first answer is open: it is the question a security reviewer asks first.
 const FAQ = [
   ['Does our code have to leave our machines?', 'Not if you choose so. Run Grapim Review in your own CI and it sends changes only to your Anthropic API key, Amazon Bedrock, Google Vertex AI or Microsoft Foundry, and Grapim’s servers receive nothing. The cloud review on the GitHub App fetches each pull request into a temporary folder on Grapim’s server, sends it to Anthropic for the review, and deletes it when the review ends.'],
-  ['What does a cloud review use up?', 'Each plan includes a monthly review credit. A typical pull request uses about $0.18 of it, so Free covers about 50 a month. When it runs out, the check says so and reviews wait for the next month or a bigger plan.'],
+  ['What does a cloud review use up?', 'Each plan includes a monthly review credit: $10 on Free, $10 a seat on Team and $20 a seat on Governance. A typical pull request uses about $0.18 of it, so Free covers about 50 a month and each Team seat about 55. When it runs out, the check says so and reviews wait for the next month or a bigger plan.'],
   ['Is it free for open source?', 'Yes. Install the GitHub App on a public repository and every pull request is reviewed free, about 50 a month per repository, with no account to create. Pull requests opened by bots are skipped, and a repository with fewer than 10 stars is reviewed when someone comments @grapim review.'],
   ['Is anything charged today?', 'No. Grapim is in early access and has no checkout. These are the prices we intend to charge once billing opens, and we will tell every team before that happens.'],
   ['Can we try Governance now?', 'Yes. Design partners get Governance as a pilot at no charge, set by us for your team. Talk to us and say which repos you want to start with.'],
