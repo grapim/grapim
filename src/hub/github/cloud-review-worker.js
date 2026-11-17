@@ -77,9 +77,11 @@ async function main() {
       model: job.model,
       request: job.request ?? null,
       discussion: typeof job.discussion === 'string' ? job.discussion : '',
+      // Search the repository at the head before keeping a finding (repo-tools.js).
+      tools: job.verifyTools !== false,
       log: (line) => process.stderr.write(`${line}\n`),
     });
-    result.stats = { ...result.stats, inputTokens: (result.stats?.inputTokens ?? 0) + v.usage.input, outputTokens: (result.stats?.outputTokens ?? 0) + v.usage.output, secondLook: { checked: v.checked, dropped: v.dropped.length } };
+    result.stats = { ...result.stats, inputTokens: (result.stats?.inputTokens ?? 0) + v.usage.input, outputTokens: (result.stats?.outputTokens ?? 0) + v.usage.output, secondLook: { checked: v.checked, dropped: v.dropped.length, searches: v.searches ?? 0 } };
     if (v.dropped.length) {
       result.findings = v.kept;
       result.summary = withCounts(result.summary, v.kept, v.dropped.length);
