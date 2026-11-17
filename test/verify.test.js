@@ -53,3 +53,49 @@ test('the summary counts are redone after a drop, and the drop is said once', ()
   assert.match(s, /dropped 2 findings before posting/);
   assert.match(withCounts('**1 blocker, 0 warnings, 0 nits**', [], 1), /\*\*No problems found\*\*/);
 });
+
+test('with tools, the model can search the repository before its verdicts', async () => {
+  const { REPO_TOOLS } = await import('../src/airev/repo-tools.js');
+  const calls = [];
+  const git = (args) => (calls.push(args), args[0] === 'grep' ? 'H:src/b.js:10:  if (!user) return DEFAULT;' : args[0] === 'show' && args[1] === 'H:src/b.js' ? 'a\nb' : null);
+  const sent = [];
+  let turn = 0;
+  const provider = {
+    send: async (body) => {
+      sent.push(body);
+      if (turn++ === 0) return { content: [{ type: 'tool_use', id: 't1', name: 'search', input: { pattern: 'loadUser\(' } }, { type: 'tool_use', id: 't2', name: 'read_file', input: { path: 'src/b.js' } }], stop_reason: 'tool_use', usage: { input_tokens: 50, output_tokens: 5 } };
+      return { ...reply([{ id: 0, verdict: 'drop', reason: 'src/b.js:10 returns DEFAULT when there is no user.' }]), stop_reason: 'end_turn' };
+    },
+  };
+  const v = await verifyFindings({ findings: [F()], git, base: 'B', head: 'H', provider, model: 'm', tools: true });
+  assert.deepEqual(sent[0].tools.map((t) => t.name), REPO_TOOLS.map((t) => t.name));
+  assert.match(sent[0].system[0].text, /search and read the whole repository/);
+  const results = sent[1].messages.at(-1).content;
+  assert.equal(results[0].tool_use_id, 't1');
+  assert.match(results[0].content, /^src\/b\.js:10:/, 'the head prefix is cut');
+  assert.match(results[1].content, /1  a/);
+  assert.ok(calls.some((a) => a[0] === 'grep' && a.includes('-E') && a.includes('H')));
+  assert.equal(v.dropped.length, 1);
+  assert.equal(v.searches, 2);
+  assert.deepEqual(v.usage, { input: 150, output: 25 });
+});
+
+test('without tools no tool is offered, and the tool rounds are capped', async () => {
+  const plain = [];
+  await verifyFindings({ findings: [F()], git: fakeGit({}), base: 'B', head: 'H', provider: { send: async (b) => (plain.push(b), reply([])) }, model: 'm' });
+  assert.equal(plain[0].tools, undefined);
+  assert.doesNotMatch(plain[0].system[0].text, /tools/);
+  let n = 0;
+  const looping = { send: async () => (n++, { content: [{ type: 'tool_use', id: `t${n}`, name: 'list_files', input: {} }], stop_reason: 'tool_use' }) };
+  const v = await verifyFindings({ findings: [F()], git: () => 'a.js', base: 'B', head: 'H', provider: looping, model: 'm', tools: true });
+  assert.ok(n <= 26, `stopped after ${n} requests`);
+  assert.equal(v.kept.length, 1, 'no verdict keeps the finding');
+});
+
+test('repository tools refuse paths outside the repository', async () => {
+  const { runRepoTool } = await import('../src/airev/repo-tools.js');
+  const git = () => 'x';
+  assert.match(runRepoTool(git, 'H', 'read_file', { path: '../etc/passwd' }), /Give a file path/);
+  assert.match(runRepoTool(git, 'H', 'search', { pattern: 'x', path: '--output=/tmp/x' }), /not allowed/);
+  assert.match(runRepoTool(git, 'H', 'nope', {}), /No tool/);
+});

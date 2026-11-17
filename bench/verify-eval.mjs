@@ -1,7 +1,11 @@
 // Does the second look (src/airev/verify.js) drop false findings and keep
 // real ones? Runs it on review results whose findings people checked by hand.
 //
-//   node bench/verify-eval.mjs --data <prs.json> --results <dir with grapim-lean/*.json> --labels <labels.json> [--via-cli]
+//   node bench/verify-eval.mjs --data <prs.json> --results <dir with grapim-lean/*.json> --labels <labels.json> [--via-cli] [--tools]
+//
+// --tools: the second look may search and read the whole repository at the
+// head (src/airev/repo-tools.js). The head is checked out once first so its
+// files are local (the bench clones are partial).
 //
 // labels.json: [{ url, path, line, title, label: "real" | "false" | "unsure" }]
 // The pull request discussion is read from GitHub (read only) and cut at the
@@ -22,6 +26,7 @@ const opt = (k, d) => {
   return i >= 0 ? argv[i + 1] : d;
 };
 const viaCli = argv.includes('--via-cli');
+const withTools = argv.includes('--tools');
 // The git cache of the checkout that ran the reviews (a worktree has none).
 const lib = await import(pathToFileURL(opt('bench-lib', path.join(here, 'lib', 'git.mjs'))).href);
 const MODEL = process.env.BENCH_MODEL || 'claude-opus-5-5';
@@ -33,7 +38,7 @@ const out = opt('out', path.join(opt('results'), 'verify-eval.json'));
 
 let provider;
 if (viaCli) {
-  const { claudeCliProvider } = await import(pathToFileURL(path.join(path.dirname(opt('bench-lib', path.join(here, 'lib', 'git.mjs'))), 'cli-provider.mjs')).href);
+  const { claudeCliProvider } = await import(pathToFileURL(path.join(here, 'lib', 'cli-provider.mjs')).href);
   provider = claudeCliProvider({ model: MODEL });
 } else provider = anthropicProvider({ apiKey: process.env.ANTHROPIC_API_KEY, model: MODEL });
 
@@ -57,7 +62,8 @@ function discussionBefore(repo, n, at, author) {
 }
 
 const label = (url, f) => labels.find((l) => l.url === url && l.path === f.path && l.line === f.line && (!l.title || f.title.startsWith(l.title)))?.label ?? null;
-const rows = [];
+// Rows of an earlier, interrupted run with the same --out are kept.
+const rows = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : [];
 for (const file of fs.readdirSync(dir).sort()) {
   const r = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
   if (!(r.findings ?? []).length) continue;
@@ -69,13 +75,30 @@ for (const file of fs.readdirSync(dir).sort()) {
   // changed (cloud review fetches the full tree and searches all of it, so
   // this measures the second look with less context than it really has).
   const changed = (lib.git(gitDir, ['diff', '--name-only', pr.base_sha, pr.head_sha], { allowFail: true }) ?? '').split('\n').filter(Boolean);
-  const git = (args) => (args[0] === 'grep' ? (changed.length ? lib.git(gitDir, [...args, '--', ...changed], { allowFail: true, noLazy: true }) : null) : lib.git(gitDir, args, { allowFail: true }));
+  if (rows.some((x) => x.url === r.url)) continue; // done in an earlier run (--out kept)
+  if (withTools) {
+    // Fetches every file of the head in one go. The checkout itself can fail
+    // on Windows (long or odd paths) after the files arrived; the tools read
+    // from git objects, not the checkout, so carry on.
+    try {
+      lib.worktree(pr, gitDir);
+    } catch (err) {
+      console.error(`${pr.repo}#${pr.number}: checkout failed, using git objects (${String(err.message).slice(0, 120)})`);
+    }
+  }
+  // The fixed context's own name lookups (gatherContext) pass no pathspec;
+  // without --tools they search only the changed files (see above).
+  const git = (args) => {
+    if (args[0] !== 'grep' || withTools) return lib.git(gitDir, args, { allowFail: true });
+    return changed.length ? lib.git(gitDir, [...args, '--', ...changed], { allowFail: true, noLazy: true }) : null;
+  };
   const discussion = discussionBefore(pr.repo, pr.number, r.at, pr.author);
   const request = { text: `${pr.title}\n\n${pr.body ?? ''}` };
-  const v = await verifyFindings({ findings: r.findings, git, base: pr.base_sha, head: pr.head_sha, provider, model: MODEL, request, discussion, log: (l) => console.error(`${pr.repo}#${pr.number}: ${l}`) });
+  const v = await verifyFindings({ findings: r.findings, git, base: pr.base_sha, head: pr.head_sha, provider, model: MODEL, request, discussion, tools: withTools, repoDir: gitDir, log: (l) => console.error(`${pr.repo}#${pr.number}: ${l}`) });
   const dropped = new Map(v.dropped.map((d) => [d.finding, d.reason]));
   for (const f of r.findings) rows.push({ url: r.url, path: f.path, line: f.line, title: f.title, label: label(r.url, f), verdict: dropped.has(f) ? 'drop' : 'keep', reason: dropped.get(f) ?? '' });
-  console.error(`${pr.repo}#${pr.number}: ${v.checked} checked, ${v.dropped.length} dropped, ${v.usage.input} in / ${v.usage.output} out tokens`);
+  fs.writeFileSync(out, JSON.stringify(rows, null, 1));
+  console.error(`${pr.repo}#${pr.number}: ${v.checked} checked, ${v.dropped.length} dropped, ${v.usage.input} in / ${v.usage.output} out tokens${withTools ? `, ${v.searches} tool calls` : ''}`);
 }
 fs.writeFileSync(out, JSON.stringify(rows, null, 1));
 
