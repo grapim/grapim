@@ -148,9 +148,11 @@ test('review action: one review with inline comments, then one summary comment',
   assert.deepEqual({ path: c2.path, line: c2.line, side: c2.side }, { path: 'src/util.js', line: 3, side: 'RIGHT' });
   assert.equal(c2.start_line, undefined);
   assert.ok(c1.body.startsWith('**Blocker · Deletes the refund check**\n\n'), c1.body);
-  assert.match(c1.body, /\n\n_Written by Claude Code run: “Rename amount to total .*”_$/);
-  // Untrusted text is inert: no mentions, links or HTML.
-  assert.doesNotMatch(c1.body, /@octocat|@team|\]\(|https:\/\/|<b>/);
+  const [shown, prompt] = c1.body.split('\n\n<details>\n<summary>Prompt for AI agents</summary>\n\n');
+  assert.match(shown, /\n\n_Written by Claude Code run: “Rename amount to total .*”_$/);
+  // Untrusted text is inert: no mentions, links or HTML. The agent prompt is a fenced code block.
+  assert.doesNotMatch(shown, /@octocat|@team|\]\(|https:\/\/|<b>/);
+  assert.match(prompt, /^```text\n[\s\S]*\n```\n\n<\/details>$/);
   assert.match(c1.body, /The run was asked to rename a field&#46;\n\nIt also removed the check/);
   assert.ok(c2.body.startsWith('**Nit · Unused import**'));
   assert.doesNotMatch(c2.body, /Written by/);
