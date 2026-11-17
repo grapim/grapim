@@ -1,0 +1,74 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "head_sha": "ce2dcc537b4b1f98a335e88cfe8e0b804483252a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:27:22.470Z",
+ "seconds": 34.868,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/RecoveryAuthnCodesFormAuthenticator.java",
+   "line": 80,
+   "end_line": 80,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A credential from user storage can now be passed to `removeStoredCredentialById`, which only works on the local store.",
+   "body": "`RecoveryAuthnCodesUtils.getCredential` now returns the user-storage credential first. When that credential's codes are all used, the next lines call `removeStoredCredentialById(recoveryCodeCredentialModel.getId())`. That method only deletes from the local Keycloak DB.\n\nFor a user-storage credential the id is not a local id and can be null. The test provider's `getCredentials` builds the model with `createFromValues`, which sets no id. So once the last code is used, one of two things happens:\n- the delete silently does nothing, and the credential stays in user storage;\n- or the local store rejects a null id, and the login fails at that point.\n\nI could not see how the JPA store handles a null id.\n\n**Fix:** only call `removeStoredCredentialById` when the credential came from local storage. For user-storage credentials, ask the provider to remove or disable them instead, for example with `disableCredentialType`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 24244,
+  "cacheRead": 3262,
+  "output": 2725,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 22,
+   "reviewedHunks": 21,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 27508,
+   "outputTokens": 2725,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java",
+    "line": 231,
+    "end_line": 235,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`getCredentials` throws a NullPointerException when the user is not in the provider's map.",
+    "body": "`getMyUser(user)` can return null; other methods in this class, such as `isConfiguredFor` and `getDisableableCredentialTypesStream`, check for that. The new `getCredentials` reads `myUser.recoveryCodes` directly, so a call for a user that is not in `users` throws a NullPointerException. Add `if (myUser == null) return Stream.empty();`."
+   }
+  ]
+ },
+ "cost_usd": 0.1763804
+}

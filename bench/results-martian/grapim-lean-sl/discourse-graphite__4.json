@@ -1,0 +1,148 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "head_sha": "4f8aed295a29954023b2849c060ef4fb299d1b5d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:38:28.715Z",
+ "seconds": 79.436,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/controllers/embed_controller.rb",
+   "line": 15,
+   "end_line": 15,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Anonymous visitors can make the forum fetch pages and create a topic for any URL on the embeddable host.",
+   "body": "Any request with a matching (spoofable) Referer and an unknown `embed_url` enqueues `retrieve_topic`. The throttle is keyed on the exact URL string, so changing a query string (`?a=1`, `?a=2`, ...) skips it. Each such request fetches the page and creates a new topic as `embed_by_username`, so anyone can flood the forum with topics and outbound requests. Fix: normalise the URL (drop the query and fragment), add a per-IP rate limit, and/or only create topics for URLs listed in the configured feed."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 11,
+   "end_line": 22,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Remote and feed HTML is stored as raw_html and served unsanitised on the forum origin.",
+   "body": "Feed content (after `CGI.unescapeHTML`) and fetched page content are saved with `cook_method: raw_html`. `Post#cook` then returns `raw` unchanged, and `best.html.erb` renders it with `raw post.cooked`. Any `<script>`, event handler or `javascript:` link in a feed item or on a page of the embeddable host is therefore served from the Discourse origin, which is stored XSS.\n\nThe `url` check makes this worse. `/^https?:\\/\\//` only anchors to the start of a line, so a value like `\"javascript:alert(1)\\nhttp://x\"` passes. The URL is also put into `href='#{url}'` without escaping, so a `'` in it breaks out of the attribute.\n\nFix: run the imported HTML through a whitelist sanitiser before storing it, use `\\A` in the regex, and escape `url` (`ERB::Util.h`). I could not check whether PostsController lets clients pass `cook_method`. If it does, any user can post raw HTML."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 64,
+   "end_line": 72,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Protocol-relative URLs are rewritten into broken same-host paths.",
+   "body": "`href.start_with?('/')` also matches protocol-relative URLs such as `//cdn.example.com/img.png`. `sub(/^\\/+/, '')` then strips both slashes, giving `http://host/cdn.example.com/img.png`, so images and links to other hosts break. Fix: leave values starting with `//` alone, or resolve them with `URI.join(url, href)`."
+  },
+  {
+   "path": "lib/tasks/disqus.thor",
+   "line": 148,
+   "end_line": 148,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The Disqus import loses its `--category` option and the original thread dates, and now fetches every thread over HTTP.",
+   "body": "The change removes the `--category` option and the `created_at`/`category` that were passed to PostCreator. Imported topics now land in the default category and are dated now instead of the thread's original date. `import_remote` also downloads every thread link, so one unreachable or 404 page raises and aborts the whole import. Nothing in the request asks for this. Fix: keep the category and the creation date, and rescue fetch errors (falling back to the old permalink body)."
+  },
+  {
+   "path": "app/jobs/scheduled/poll_feed.rb",
+   "line": 35,
+   "end_line": 36,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Feed items without a `content` element crash the whole poll.",
+   "body": "Many RSS 2.0 items only have `<description>` and no `content`/`content:encoded`. For those, SimpleRSS returns `nil` for `i.content`, and `nil.scrub` raises NoMethodError. The poll aborts on the first such item, no item is imported, and the job has retry disabled. The same exception also reaches `TopicRetriever#perform_retrieve`, which calls this job inline. Fix: fall back to `i.description`, skip items with no content, and rescue errors per item."
+  },
+  {
+   "path": "db/migrate/20131223171005_create_top_topics.rb",
+   "line": 3,
+   "end_line": 3,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "destructive_migration",
+   "title": "An unrelated, already-shipped migration is changed to `force: true`.",
+   "body": "Adding `force: true` to `create_top_topics` makes it silently drop and recreate an existing `top_topics` table, along with its data, whenever it runs (for example a rerun or a schema rebuild). This is not part of the embedding feature. Fix: revert the change."
+  },
+  {
+   "path": "app/jobs/scheduled/poll_feed.rb",
+   "line": 29,
+   "end_line": 29,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "security",
+   "title": "`Kernel#open` on a configurable URL can run shell commands.",
+   "body": "`open(SiteSetting.feed_polling_url)` uses `Kernel#open`. A setting value that starts with `|` runs a shell command, so anyone who can change site settings gets command execution on the server. `import_remote` uses `open(url)` the same way, and the Disqus task passes it links taken from the XML file. Fix: use `URI.parse(url).open` / `OpenURI.open_uri` and only accept http(s) URLs."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 32,
+   "end_line": 36,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The update path crashes when the embed's post no longer exists.",
+   "body": "If the post behind an embed has been deleted, `embed.post` is nil. When the content changes, `PostRevisor.new(nil).revise!` then raises NoMethodError, which breaks every later feed poll at that item. Fix: guard against `post.nil?` and either recreate the post or remove the stale embed."
+  },
+  {
+   "path": "app/views/embed/best.html.erb",
+   "line": 6,
+   "end_line": 6,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`<%- end if %>` turns the next template output into the condition of the block.",
+   "body": "In the compiled ERB, `end if` applies a postfix `if` whose condition is the following buffer append. That append therefore runs before the if/else body, which only renders correctly by accident. Fix: use `<%- end %>`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 22928,
+  "cacheRead": 3262,
+  "output": 6433,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 28,
+   "hunks": 36,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 6,
+   "inputTokens": 26192,
+   "outputTokens": 6433,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 27,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "Gemfile_rails4.lock",
+    "reason": "ignored by .grapim/review.json"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2439604
+}

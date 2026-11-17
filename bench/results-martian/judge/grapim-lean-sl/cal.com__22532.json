@@ -1,0 +1,54 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The updateManyByCredentialId call uses an empty data object, which prevents Prisma's @updatedAt decorator from updating the updatedAt timestamp. This results in inaccurate cache status tracking, as the timestamp isn't updated when the cache is refreshed. To fix this, explicitly set the updatedAt field.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the empty data object or updatedAt not being refreshed."
+  },
+  {
+   "comment": "logic: macOS-specific sed syntax with empty string after -i flag will fail on Linux systems",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same macOS-only sed -i '' problem that breaks on Linux."
+  },
+  {
+   "comment": "Throwing a generic Error for authentication failures results in a 500 response in tRPC. Instead, it should return a structured TRPCError with an appropriate code, such as FORBIDDEN, to accurately reflect the error type.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    5
+   ],
+   "confidence": 0.93,
+   "reasoning": "C5 says a generic Error is thrown and tRPC reports it as a 500, and suggests throwing a TRPCError instead."
+  },
+  {
+   "comment": "Date is formatted with hardcoded 'en-US' locale instead of using the user's locale from useLocale, which can lead to incorrect date representation for users in different locales.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 flags the hardcoded en-US locale and suggests using the locale from useLocale."
+  }
+ ],
+ "candidates": [
+  "scripts/test-gcal-webhooks.sh:68 - `sed -i ''` only works with BSD/macOS sed and fails on Linux.. GNU sed reads `-i ''` as in-place editing with the empty string as the script. It then treats the `s|...|` expression as a file name and exits with an error, so on Linux `GOOGLE_WEBHOOK_URL` is never updated when the key already exists. The script still prints \"✅ Updated\" because the sed exit status is never checked. Fix: write to a temp file and move it into place, or detect the platform and choose `sed -i` or `sed -i ''`.",
+  "scripts/test-gcal-webhooks.sh:5 - ENV_FILE is resolved against the current directory, not the script's location.. `ENV_FILE=\"../.env\"` depends on where the script is run from. Run from the repo root (`./scripts/test-gcal-webhooks.sh`), it creates or edits a `.env` in the folder above the repository, and the app never sees the webhook URL. Resolve it from the script's directory instead, for example `ENV_FILE=\"$(cd \"$(dirname \"$0\")/..\" && pwd)/.env\"`.",
+  "packages/features/apps/components/CredentialActionsDropdown.tsx:89 - The cache timestamp is always formatted with the \"en-US\" locale.. The date ignores the user's locale and time format, so non-US users see dates like MM/DD/YY next to otherwise localised text. Use the locale from `useLocale()` (`i18n.language`) when building the formatter.",
+  "scripts/test-gcal-webhooks.sh:17 - Failures exit with status 0.. `cleanup` always runs `exit 0`, including the rate-limit path and the \"Failed to extract Tunnelmole URL\" path. Callers and CI see these failures as success. Pass an exit code to `cleanup` and use a non-zero code on the error paths.",
+  "packages/trpc/server/routers/viewer/calendars/deleteCache.handler.ts:24 - Access denial throws a plain Error, which tRPC reports as a 500.. Passing a credential the user does not own throws a generic `Error`. tRPC turns this into INTERNAL_SERVER_ERROR instead of NOT_FOUND or FORBIDDEN, so it is logged as a server fault. Throw `new TRPCError({ code: \"NOT_FOUND\" })` instead."
+ ]
+}

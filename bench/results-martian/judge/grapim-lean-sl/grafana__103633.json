@@ -1,0 +1,42 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The Check operation exhibits asymmetric cache trust logic: cached permission grants are trusted and returned immediately, but cached denials from the same permission cache are ignored, leading to a fresh database lookup. This allows stale cached grants to provide access to revoked resources, posing a security risk. ",
+   "severity": "High",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G1 is about stale cached grants being trusted while cached denials are ignored, which keeps access to revoked resources. C2 is about the opposite problem: stale cached denials keep blocking access after permissions are granted. Neither candidate raises the asymmetric trust that lets stale grants through."
+  },
+  {
+   "comment": "The test comment says the cached permissions 'allow access', but the map stores false for dashboards:uid:dash1, so checkPermission will still treat this scope as not allowed.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same mismatch: the test comment says the cached permissions allow access, but the map stores false for dashboards:uid:dash1."
+  },
+  {
+   "comment": "The cache key construction in `userPermDenialCacheKey` uses simple string concatenation with underscores, which can lead to ambiguous keys and collision risks when any component contains underscores or is empty. This could result in incorrect denial cache hits, affecting user permissions.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 describes the same problem: joining the denial cache key parts with underscores makes keys ambiguous and lets them collide."
+  }
+ ],
+ "candidates": [
+  "pkg/services/authz/rbac/service_test.go:981 - The denial-cache test passes even without the denial cache.. The comment says the test grants access \"to prove this is not checked\", but the code sets `\"dashboards:uid:dash1\": false`. The cached permissions therefore deny, the fallback goes to the empty `fakeStore`, and that denies too. `resp.Allowed` comes out false whether or not the denial-cache short-circuit exists, so the test checks nothing about it. Set the cached permission to `true` (and/or put the permission in the store) so the test only passes if the denial cache is consulted first.",
+  "pkg/services/authz/rbac/service.go:153 - Denials are cached with no invalidation, so a resource can stay denied after access is granted.. Any `Check` that ends in `allowed == false` stores a denial for `shortCacheTTL`, and nothing clears it when permissions change. Line 117 returns that denial before the cached or DB permissions are looked at again. This brings back the bug the PR is meant to fix. For example, a check on a dashboard or folder name (or a create check with an empty name in a parent folder) runs before the creator's permission is written, perhaps from an existence probe or a check made during creation. The user is then denied the new resource until the TTL runs out, even though the DB now allows it. The same thing happens when an admin grants access to someone who was just denied. I can't see the create flow from here, so I can't confirm such a check runs first. Fix: invalidate denial entries when permissions are written, make the denial TTL much shorter, or don't cache denials for resources that might have been created moments ago.",
+  "pkg/services/authz/rbac/cache.go:30 - An ambiguous denial cache key lets one resource's denial apply to another.. `name` and `parent` are joined with `_`, and both can contain underscores. So different pairs give the same key: for example, name `a_` with parent `b`, and name `a` with parent `_b`, both produce `..._a__b`. A denial cached for one resource then wrongly denies the other until the TTL expires. Use a separator that UIDs can't contain, or escape/length-prefix the parts."
+ ]
+}

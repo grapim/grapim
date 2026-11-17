@@ -1,0 +1,32 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "keycloak__40940",
+ "url": "https://github.com/keycloak/keycloak/pull/40940",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returning null from getSubGroupsCount() violates the GroupModel contract (Javadoc says it never returns null) and may lead to NPEs in callers that expect a non-null count.",
+   "severity": "Critical",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention getSubGroupsCount returning null."
+  },
+  {
+   "comment": "The reader thread isn’t waited for; flipping deletedAll to true and asserting immediately can race and miss exceptions added just after the flag change, making this test flaky.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out the same problem: the reader thread is never joined, so the assertion runs before the thread finishes and can miss exceptions. C1 suggests joining the thread too, but its main concern is the thread being left running when a delete fails."
+  }
+ ],
+ "candidates": [
+  "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java:139 - The reader thread keeps running forever if a delete throws.. `deletedAll.set(true)` only runs if every `remove()` call succeeds. If one delete throws (for example a 404 or a server error), the test fails but the reader thread keeps calling the admin API in a tight loop until the JVM exits. That load and noise spill into every later test. Put `deletedAll.set(true)` in a `finally` block, then join the thread. Making it a daemon thread would also help.",
+  "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java:155 - The test checks for errors without waiting for the reader thread to finish.. `deletedAll.set(true)` is followed straight away by `assertThat(caughtExceptions, empty())`. The reader thread may still be inside `groups(...)` at that moment. If its last request fails, which is the request most likely to hit the half-deleted state, the exception is added after the assertion has already passed. The test then passes even though the error it is meant to catch happened. Keep a reference to the thread and call `join()` (with a timeout) before asserting.",
+  "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java:122 - Groups created so far are left in the shared realm if creation fails partway.. If `fail(...)` is hit partway through the creation loop, the groups already created are never deleted. They stay in the realm that the other `GroupTest` methods share, which can break tests that count or list groups. Delete the created groups in a `finally` block, or register them for cleanup through the managed realm."
+ ]
+}

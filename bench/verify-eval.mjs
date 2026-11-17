@@ -1,7 +1,7 @@
 // Does the second look (src/airev/verify.js) drop false findings and keep
 // real ones? Runs it on review results whose findings people checked by hand.
 //
-//   node bench/verify-eval.mjs --data <prs.json> --results <dir with grapim-lean/*.json> --labels <labels.json> [--via-cli] [--tools]
+//   node bench/verify-eval.mjs --data <prs.json> --results <dir with grapim-lean/*.json> --labels <labels.json> [--via-cli] [--tools] [--no-discussion]
 //
 // --tools: the second look may search and read the whole repository at the
 // head (src/airev/repo-tools.js). The head is checked out once first so its
@@ -27,6 +27,9 @@ const opt = (k, d) => {
 };
 const viaCli = argv.includes('--via-cli');
 const withTools = argv.includes('--tools');
+// --no-discussion: no pull request discussion (Martian's PRs: the original
+// discussion holds the human review the golden comments came from).
+const noDiscussion = argv.includes('--no-discussion');
 // The git cache of the checkout that ran the reviews (a worktree has none).
 const lib = await import(pathToFileURL(opt('bench-lib', path.join(here, 'lib', 'git.mjs'))).href);
 const MODEL = process.env.BENCH_MODEL || 'claude-opus-5-5';
@@ -98,7 +101,7 @@ for (const file of fs.readdirSync(dir).sort()) {
     if (args[0] !== 'grep' || withTools) return lib.git(gitDir, args, { allowFail: true });
     return changed.length ? lib.git(gitDir, [...args, '--', ...changed], { allowFail: true, noLazy: true }) : null;
   };
-  const discussion = discussionBefore(pr.repo, pr.number, r.at, pr.author);
+  const discussion = noDiscussion ? '' : discussionBefore(pr.repo, pr.number, r.at, pr.author);
   const request = { text: `${pr.title}\n\n${pr.body ?? ''}` };
   const v = await verifyFindings({ findings: r.findings, git, base: pr.base_sha, head: pr.head_sha, provider, model: MODEL, request, discussion, tools: withTools, repoDir: gitDir, log: (l) => console.error(`${pr.repo}#${pr.number}: ${l}`) });
   const dropped = new Map(v.dropped.map((d) => [d.finding, d.reason]));

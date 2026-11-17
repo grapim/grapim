@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "head_sha": "7562f37880367411a62304bcdcdc178bced23906",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:49:13.879Z",
+ "seconds": 41.353,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/services/authz/rbac/service_test.go",
+   "line": 981,
+   "end_line": 982,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The denial-cache test passes even without the denial cache.",
+   "body": "The comment says the test grants access \"to prove this is not checked\", but the code sets `\"dashboards:uid:dash1\": false`. The cached permissions therefore deny, the fallback goes to the empty `fakeStore`, and that denies too. `resp.Allowed` comes out false whether or not the denial-cache short-circuit exists, so the test checks nothing about it. Set the cached permission to `true` (and/or put the permission in the store) so the test only passes if the denial cache is consulted first."
+  },
+  {
+   "path": "pkg/services/authz/rbac/service.go",
+   "line": 153,
+   "end_line": 155,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Denials are cached with no invalidation, so a resource can stay denied after access is granted.",
+   "body": "Any `Check` that ends in `allowed == false` stores a denial for `shortCacheTTL`, and nothing clears it when permissions change. Line 117 returns that denial before the cached or DB permissions are looked at again. This brings back the bug the PR is meant to fix. For example, a check on a dashboard or folder name (or a create check with an empty name in a parent folder) runs before the creator's permission is written, perhaps from an existence probe or a check made during creation. The user is then denied the new resource until the TTL runs out, even though the DB now allows it. The same thing happens when an admin grants access to someone who was just denied. I can't see the create flow from here, so I can't confirm such a check runs first. Fix: invalidate denial entries when permissions are written, make the denial TTL much shorter, or don't cache denials for resources that might have been created moments ago."
+  },
+  {
+   "path": "pkg/services/authz/rbac/cache.go",
+   "line": 30,
+   "end_line": 32,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "An ambiguous denial cache key lets one resource's denial apply to another.",
+   "body": "`name` and `parent` are joined with `_`, and both can contain underscores. So different pairs give the same key: for example, name `a_` with parent `b`, and name `a` with parent `_b`, both produce `..._a__b`. A denial cached for one resource then wrongly denies the other until the TTL expires. Use a separator that UIDs can't contain, or escape/length-prefix the parts."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 15151,
+  "cacheRead": 3262,
+  "output": 3220,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 13,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 18415,
+   "outputTokens": 3220,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1408154
+}
