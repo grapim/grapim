@@ -27,7 +27,8 @@
 // env:
 //   GRAPIM_REVIEW_ANTHROPIC_KEY   the key cloud reviews use (else ANTHROPIC_API_KEY)
 //   GRAPIM_REVIEW_MODEL           default claude-opus-5-5
-//   GRAPIM_REVIEW_MONTHLY_CREDIT  JSON { plan: dollars }, e.g. {"free":10,"team":100}
+//   GRAPIM_REVIEW_MONTHLY_CREDIT  JSON { plan: dollars }, e.g. {"free":10,"enterprise":1000}
+//   GRAPIM_REVIEW_SEAT_CREDIT     JSON { plan: dollars per seat }, default {"team":10,"governance":20}
 //   GRAPIM_REVIEW_OSS_MONTHLY     dollars a month for all public repositories, default 200; 0 turns it off
 //   GRAPIM_REVIEW_OSS_REPO_MONTHLY  dollars a month per public repository, default 10
 //   GRAPIM_REVIEW_OSS_MIN_STARS   below this, a public repository is reviewed on request only, default 10
@@ -69,8 +70,12 @@ export const PRICES = Object.freeze({
   'claude-sonnet-5-5': Object.freeze({ input: 2, output: 10 }),
 });
 // Dollars of review per month, by plan. An Opus 5.5 review of a typical pull
-// request costs about $0.20, so the free plan's $10 is about 50 reviews.
-export const DEFAULT_CREDIT = Object.freeze({ free: 10, team: 100, governance: 300, enterprise: 1000 });
+// request costs about $0.18, so the free plan's $10 is about 50 reviews.
+// Team and Governance get SEAT_CREDIT per seat instead (seats bought, or
+// members if more), never less than the free plan: a team's credit grows with
+// the team, so the plan price always covers the reviews it includes.
+export const DEFAULT_CREDIT = Object.freeze({ free: 10, team: 10, governance: 20, enterprise: 1000 });
+export const DEFAULT_SEAT_CREDIT = Object.freeze({ team: 10, governance: 20 });
 // Public repositories: about 1,000 reviews a month in all, about 50 per repository.
 // minStars: a public repository with fewer stars is reviewed on request
 // (@grapim review), not on every push, unless its owner is in `allow`.
@@ -171,6 +176,13 @@ export function cloudConfig(env = process.env) {
       if (Number.isFinite(n) && n >= 0 && n <= 1e6) credit[plan] = n;
     }
   } catch {}
+  const seatCredit = { ...DEFAULT_SEAT_CREDIT };
+  try {
+    for (const [plan, v] of Object.entries(JSON.parse(env.GRAPIM_REVIEW_SEAT_CREDIT || '{}') ?? {})) {
+      const n = Number(v);
+      if (Number.isFinite(n) && n >= 0 && n <= 1e5) seatCredit[plan] = n;
+    }
+  } catch {}
   const dollarsEnv = (v, d) => {
     const n = v === undefined || v === '' ? NaN : Number(v);
     return Number.isFinite(n) && n >= 0 && n <= 1e6 ? n : d;
@@ -200,6 +212,7 @@ export function cloudConfig(env = process.env) {
     modelName: MODEL_NAMES[model] ?? model,
     baseUrl: String(env.ANTHROPIC_BASE_URL ?? '').trim() || null,
     credit: Object.freeze(credit),
+    seatCredit: Object.freeze(seatCredit),
     oss,
     price: Object.freeze(price),
     jobMs: int(env.GRAPIM_REVIEW_JOB_MS, JOB_MS, 60_000, 3_600_000),
@@ -317,7 +330,15 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       .run(teamId, JSON.stringify(cleanTeamConfig(value)), userId == null ? null : String(userId), now());
 
   function budgetOf(team) {
-    return Math.round((cfg.credit[team?.plan] ?? cfg.credit.free ?? DEFAULT_CREDIT.free) * MICROS);
+    const floor = cfg.credit.free ?? DEFAULT_CREDIT.free;
+    const perSeat = cfg.seatCredit[team?.plan];
+    if (team && perSeat !== undefined) return Math.round(Math.max(floor, perSeat * seatsOf(team)) * MICROS);
+    return Math.round((cfg.credit[team?.plan] ?? floor) * MICROS);
+  }
+  // Seats the team pays for: the seats it bought, or its members if more.
+  function seatsOf(team) {
+    const members = teams?.seatsUsed?.(team.id) ?? 0;
+    return Math.max(Number.isInteger(team.seats) ? team.seats : 0, members, 1);
   }
   function month(teamId) {
     const from = monthStart(now());

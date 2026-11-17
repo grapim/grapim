@@ -24,7 +24,7 @@ Each review fetches the pull request's base branch, its head and the Grapim note
 
 Owners set the team's defaults in **Settings**, **Review**: whether a blocker fails the check, how many comments a pull request gets, paths to skip, and notes for the reviewer. A repository's `.grapim/review.json` overrides them, key by key.
 
-Each plan includes a monthly review credit (Free: about 50 pull requests). Settings, GitHub shows how much is used. When it runs out, the check says so and nothing is sent to the model until the next month.
+Each plan includes a monthly review credit: Free about 50 pull requests, Team about 55 per seat, Governance about 110 per seat. Settings, GitHub shows how much is used. When it runs out, the check says so and nothing is sent to the model until the next month.
 
 ### Free for open source
 
