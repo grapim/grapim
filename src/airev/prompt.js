@@ -28,7 +28,7 @@ export const FINDINGS_SCHEMA = Object.freeze({
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['path', 'line', 'end_line', 'severity', 'confidence', 'category', 'title', 'body'],
+        required: ['path', 'line', 'end_line', 'severity', 'confidence', 'category', 'title', 'body', 'suggestion'],
         properties: {
           path: { type: 'string', description: 'The file path exactly as given in the DIFF block header.' },
           line: { type: 'integer', description: 'A line number from the NEW column of a line marked "+" in that file\'s diff.' },
@@ -38,6 +38,7 @@ export const FINDINGS_SCHEMA = Object.freeze({
           category: { type: 'string', enum: [...CATEGORIES] },
           title: { type: 'string', description: 'One short sentence naming the defect.' },
           body: { type: 'string', description: 'What goes wrong, when, and the fix. A few sentences of plain Markdown.' },
+          suggestion: { type: 'string', description: 'The exact new text for lines line to end_line, with their indentation, when the fix fits inside those lines and you are sure it is complete. Otherwise an empty string.' },
         },
       },
     },
@@ -83,7 +84,7 @@ How the input is laid out:
 - RUNS blocks list the AI agent runs that wrote some of the hunks, with the prompts they were given. A hunk header names who wrote it: "agent run R1", or "no agent run recorded" (a person, or an agent whose work was not recorded).
 - The task lists the files and hunks to review and the review depth. Review only those hunks.
 
-Output: JSON matching the given schema. Each finding names the file path exactly as in the DIFF header, and "line" is a NEW-column number of a "+" line in that file's listed hunks; "end_line" is the last "+" line of the same problem in the same hunk (equal to "line" for one line). Put each problem on the line where it happens. One finding per problem; do not repeat a problem for each line it touches. Title: one short sentence. Body: what goes wrong and what triggers it, then the fix, in a few plain sentences; a short code suggestion is fine.`;
+Output: JSON matching the given schema. Each finding names the file path exactly as in the DIFF header, and "line" is a NEW-column number of a "+" line in that file's listed hunks; "end_line" is the last "+" line of the same problem in the same hunk (equal to "line" for one line). Put each problem on the line where it happens. One finding per problem; do not repeat a problem for each line it touches. Title: one short sentence. Body: what goes wrong and what triggers it, then the fix, in a few plain sentences; a short code suggestion is fine. Suggestion: when the whole fix replaces exactly the lines line to end_line, give those lines as they should read (same indentation, nothing else around them), so the author can apply it with one click; otherwise leave it empty. Never put a fix there that needs changes elsewhere.`;
 
 const nonceFor = (texts) => {
   for (;;) {

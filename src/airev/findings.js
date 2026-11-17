@@ -30,6 +30,7 @@ export function parseFindingsText(message) {
   return v && typeof v === 'object' ? v : null;
 }
 
+const MAX_SUGGESTION = 4000;
 const clean = (s, max) => String(s).replace(/\u0000/g, '').trim().slice(0, max);
 
 // Keeps the findings that are well formed and sit on an added line of a hunk
@@ -57,6 +58,10 @@ export function validateFindings(parsed, allowed) {
     const finding = { path: f.path, line: f.line, side: 'RIGHT', severity: f.severity, confidence: CONFIDENCES.includes(f.confidence) ? f.confidence : 'high', category: CATEGORIES.includes(f.category) ? f.category : 'other', title: clean(f.title, MAX_TITLE), body: clean(f.body, MAX_BODY) };
     // A multi-line finding ends on an added line of the same hunk.
     if (Number.isSafeInteger(f.end_line) && f.end_line > f.line && hunk.added.has(f.end_line)) finding.endLine = f.end_line;
+    // A one-click fix for exactly those lines; kept only when the range the
+    // comment covers is the range the model gave.
+    const sameRange = (finding.endLine ?? finding.line) === (Number.isSafeInteger(f.end_line) && f.end_line >= f.line ? f.end_line : f.line);
+    if (typeof f.suggestion === 'string' && f.suggestion.trim() && f.suggestion.length <= MAX_SUGGESTION && sameRange) finding.suggestion = f.suggestion.replace(/\u0000/g, '').replace(/\s+$/, '');
     out.push(finding);
   }
   return { findings: out, dropped };
