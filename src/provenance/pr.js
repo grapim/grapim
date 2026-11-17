@@ -17,8 +17,9 @@ const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
 export class GitError extends Error {}
 
-export function git(cwd, args, { input, allowFail = false, encoding = 'utf8' } = {}) {
-  const r = spawnSync('git', ['-c', 'core.quotePath=false', ...args], { cwd, input, encoding: encoding === 'buffer' ? undefined : encoding, maxBuffer: MAX_BUFFER, windowsHide: true });
+// timeout (ms): kill git after that long; it then throws a GitError.
+export function git(cwd, args, { input, allowFail = false, encoding = 'utf8', timeout } = {}) {
+  const r = spawnSync('git', ['-c', 'core.quotePath=false', ...args], { cwd, input, encoding: encoding === 'buffer' ? undefined : encoding, maxBuffer: MAX_BUFFER, windowsHide: true, ...(timeout ? { timeout, killSignal: 'SIGKILL' } : {}) });
   if (r.error) throw new GitError(`git ${args[0]}: ${r.error.message}`);
   if (r.status !== 0) {
     if (allowFail) return null;
