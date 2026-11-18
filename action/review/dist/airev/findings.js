@@ -181,7 +181,7 @@ export function renderReviewSummary({ findings, stats, skipped, runs, providerTe
   const detail = [`Reviewed ${plural(stats.reviewedHunks, 'hunk')} of ${stats.hunks} changed (${who}) in ${plural(stats.reviewedFiles, 'file')} of ${stats.files}.`];
   // The sources are Grapim's own labels ("issue #12", "PR description"), except
   // a caller-named source, which goes through md().
-  if (stats.comparedWith?.length) lines.push(`**Compared with:** ${stats.comparedWith.map((s) => (OWN_SOURCE.test(s) ? s : md(s, 60))).join(', ')}.`);
+  if (stats.comparedWith?.length) lines.push('', `**Compared with:** ${stats.comparedWith.map((s) => (OWN_SOURCE.test(s) ? s : md(s, 60))).join(', ')}.`);
 
   if (deletedTests.length) {
     lines.push('', `**Tests deleted:** this pull request deletes ${plural(deletedTests.length, 'test file')}: ${deletedTests.slice(0, 5).map(code).join(', ')}${deletedTests.length > 5 ? ` and ${plural(deletedTests.length - 5, 'more')}` : ''}. Check that was intended.`);
