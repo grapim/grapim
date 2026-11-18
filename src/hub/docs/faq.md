@@ -41,4 +41,4 @@ Grapim gives you evidence that change-management controls usually ask for: who a
 
 ## Can we self-host?
 
-Not as a product today. [Talk to us](/docs/support) if it matters for you.
+The review, yes: [Grapim Review in your own CI](/docs/review) runs as a GitHub Action on your runner with your own model account, and Grapim receives nothing. The hub (the web app) is hosted by Grapim; [talk to us](/docs/support) if you need it on your own servers.

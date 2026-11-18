@@ -161,6 +161,8 @@ export function pageRoutes(router, hub) {
         billing: { enabled: !!hub.billing, intervals: config.billingIntervals, governanceIntervals: config.governanceIntervals ?? [] },
         origin: config.origin,
         agent: on('plan', () => (hub.agent?.config.configured ? hub.agent.usageInfo(fresh, { people: owner }) : null)),
+        // Cloud review credit this month, where cloud review is offered.
+        reviewUsage: on('plan', () => (hub.github?.cloud?.config?.configured ? (hub.github.cloud.usage?.(fresh) ?? null) : null)),
         github: on('github', () => (owner ? hub.github?.settingsSection(fresh, csrf) : null)),
         // How cloud review reviews (src/hub/github/review-config.js): members read, owners change.
         review: on('review', () => hub.github?.reviewSettingsSection?.(fresh, csrf, role) ?? null),

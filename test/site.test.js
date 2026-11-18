@@ -158,8 +158,11 @@ test('docs: pages, prev and next, the quickstart redirect, and a 404 for unknown
   const quick = await get('/docs/quickstart');
   assert.equal(quick.status, 303);
   assert.equal(quick.headers.get('location'), '/docs');
-  const last = await (await get('/docs/support')).text();
-  assert.match(last, /class="pager-prev" href="\/docs\/faq"/);
+  // Reference ends the review docs; the agent-run pages follow in their own group.
+  const support = await (await get('/docs/support')).text();
+  assert.match(support, /class="pager-prev" href="\/docs\/faq"/);
+  assert.match(support, /class="pager-next" href="\/docs\/concepts"/);
+  const last = await (await get('/docs/compare')).text();
   assert.ok(!last.includes('pager-next'));
   assert.equal((await get('/docs/no-such-page')).status, 404);
   assert.equal((await get('/docs/..%2Fsite')).status, 404);
@@ -168,8 +171,8 @@ test('docs: pages, prev and next, the quickstart redirect, and a 404 for unknown
 
 test('docs: code blocks get a copy button, output blocks do not', async () => {
   const body = await (await get('/docs/undo')).text();
-  assert.match(body, /<button class="copy" type="button" data-copy hidden>Copy<\/button><\/div><pre><code>grapim undo 7f3e21aa<\/code>/);
-  assert.match(body, /<div class="code code-out"><pre><code>Undo claude 7f3e21aa/);
+  assert.match(body, /<button class="copy" type="button" data-copy hidden>Copy<\/button><\/div><pre><code class="lang-sh">grapim undo 7f3e21aa<\/code>/);
+  assert.match(body, /<div class="code code-out"><pre><code class="lang-output">Undo claude 7f3e21aa/);
 });
 
 test('support: signed out it leads to sign-in and then the form; signed in straight to the form', async () => {

@@ -97,15 +97,15 @@ export function siteFooter() {
   <div class="foot-in">
     <div class="foot-brand">
       <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
-      <p>AI code review that runs in your own CI.</p>
+      <p>Code review for the pull requests your agents write.</p>
       <p class="foot-social"><a href="https://www.linkedin.com/company/grapim" rel="noopener">LinkedIn</a><a href="https://github.com/grapim" rel="noopener">GitHub</a></p>
       <p class="foot-legal">© 2026 Grapim<a href="/terms">Terms</a><a href="/privacy">Privacy</a></p>
       <div class="theme-seg" role="group" aria-label="Theme">${theme('system', 'System', 'system')}${theme('light', 'Light', 'sun')}${theme('dark', 'Dark', 'moon')}</div>
     </div>
     <nav class="foot-cols" aria-label="Footer">
-      <div><h2>Product</h2><a href="/#how">How it works</a><a href="/docs/concepts">Supported agents</a><a href="/docs/security">Security</a><a href="/pricing">Pricing</a><a href="/changelog">Changelog</a><a href="/notes/claude-code-prs">69 Claude Code PRs</a></div>
-      <div><h2>Docs</h2><a href="/docs/review">Grapim Review</a><a href="/docs">Quickstart</a><a href="/docs/github">GitHub App and PR check</a><a href="/docs/cli">CLI reference</a><a href="/docs/security">Security and privacy</a></div>
-      <div><h2>Help</h2><a href="/docs/support">Support</a><a href="/docs/faq">FAQ</a><a href="mailto:support@grapim.com">support@grapim.com</a></div>
+      <div><h2>Product</h2><a href="/#how">How it works</a><a href="/docs/security">Security</a><a href="/pricing">Pricing</a><a href="/changelog">Changelog</a><a href="/notes/claude-code-prs">69 Claude Code PRs</a></div>
+      <div><h2>Docs</h2><a href="/docs/review">Grapim Review</a><a href="/docs">Quickstart</a><a href="/docs/security">Security and privacy</a><a href="/docs/faq">FAQ</a></div>
+      <div><h2>Help</h2><a href="/docs/support">Support</a><a href="/docs/cli">CLI reference</a><a href="mailto:support@grapim.com">support@grapim.com</a></div>
     </nav>
   </div>
 </footer>`;
@@ -136,10 +136,11 @@ const brand = (key, label) => key === 'openai'
 // action/review/README.md. One scenario throughout, the one in
 // scripts/review-demo-pr.sh: a Claude Code run asked only to "Add pagination
 // to the users list endpoint". The Action posts with the workflow's own token,
-// so on GitHub the author is github-actions, not a Grapim account.
+// The GitHub App posts as its own bot (grapim[bot]) with the "Grapim Review
+// (cloud)" check, which is what the hero copy sells (install the App).
 const RUN_PROMPT = 'Add pagination to the users list endpoint';
 
-const actionsBot = (verb) => html`<div class="gh-who"><span class="gh-av" aria-hidden="true">${brand('github', '')}</span><b>github-actions</b><span class="gh-bot">bot</span><span class="muted">${verb}</span></div>`;
+const actionsBot = (verb) => html`<div class="gh-who"><span class="gh-av" aria-hidden="true">${LOGO}</span><b>grapim</b><span class="gh-bot">bot</span><span class="muted">${verb}</span></div>`;
 
 // The hero: the inline comment on the migration line, in the PR's diff, and
 // the PR's check row below it. The markup is the finished state; with motion
@@ -171,7 +172,7 @@ function reviewComment() {
     </div>
     <div class="gh-checks">
       <span class="ck-ico"><span class="ck-spin" aria-hidden="true"></span><span class="ck-x">${ICON.x}</span></span>
-      <span class="ck-text"><b>Grapim Review / review (pull_request)</b><span class="ck-state"><span class="ck-run" aria-hidden="true">In progress</span><span class="ck-fail">Failing after 52s</span></span></span>
+      <span class="ck-text"><b>Grapim Review (cloud)</b><span class="ck-state"><span class="ck-run" aria-hidden="true">In progress</span><span class="ck-fail">Failing after 52s</span></span></span>
     </div>
   </div></div>
   <figcaption><span>A demo pull request.</span><button type="button" class="replay" data-replay hidden>Replay</button></figcaption>
@@ -209,14 +210,28 @@ function summaryEnd() {
   </div>`;
 }
 
+// The plan table under the cards, as Vercel and Cloudflare lay theirs out.
+// Each cell is the same fact as the cards above (and src/hub/plans.js limits);
+// true draws a check, false a dash.
+const COMPARE = [
+  ['Cloud review a month', 'About 50 pull requests', 'About 55 per seat', 'About 110 per seat', 'Agreed with you'],
+  ['Public repositories', 'Reviewed free', 'Reviewed free', 'Reviewed free', 'Reviewed free'],
+  ['Grapim Review in your own CI', true, true, true, true],
+  ['People', 'Up to 3', 'As many as you need', 'As many as you need', 'As agreed'],
+  ['Repos', '2', 'Unlimited', 'Unlimited', 'Unlimited'],
+  ['History', '7 days', '90 days', '365 days', '365 days'],
+  ['Path rules and required approval', false, false, true, true],
+  ['Reports and CSV export', false, false, true, true],
+];
+
 const PLANS = [
   {
     name: 'Free',
     price: '$0',
     per: '',
-    bill: 'Free forever',
+    bill: 'Free during early access',
     lede: 'For one team trying it on a repo.',
-    items: ['Cloud review of about 50 pull requests a month', 'Public repositories reviewed free, no account needed', 'Grapim Review in your own CI, free', 'Up to 3 people', '2 repos, 7 days of history', 'Every run recorded, and undo'],
+    items: ['Cloud review of about 50 pull requests a month', 'Public repositories reviewed free, no account needed', 'Grapim Review in your own CI, free', 'Up to 3 people', '2 repos, 7 days of history'],
   },
   {
     name: 'Team',
@@ -225,6 +240,7 @@ const PLANS = [
     year: { price: '$16', bill: 'Billed yearly, $192 per seat' },
     lede: 'For a team whose agents ship code every day.',
     items: ['Everything in Free', 'Cloud review of about 55 pull requests a month per seat', 'As many seats as you need', 'Unlimited repos', '90 days of history'],
+    mark: true,
   },
   {
     name: 'Governance',
@@ -232,8 +248,7 @@ const PLANS = [
     per: 'per seat a month',
     year: { price: '$32', bill: 'Billed yearly, $384 per seat' },
     lede: 'When a person must approve what agents change.',
-    items: ['Everything in Team', 'Cloud review of about 110 pull requests a month per seat', 'Path rules: auto-approve or named reviewer', 'Required PR check that blocks merging', 'Reports and CSV export'],
-    mark: true,
+    items: ['Everything in Team', 'Cloud review of about 110 pull requests a month per seat', 'Path rules: auto-approve or named reviewer', 'Merging waits until a person approves agent work', 'Reports and CSV export'],
   },
   {
     name: 'Enterprise',
@@ -311,7 +326,7 @@ const REVIEW_DOCS = '/docs/review';
 // the agents in src/hub/github/agents.js, and the Action that calls only
 // api.github.com and the provider's endpoint (action/review/index.mjs).
 const FACTS = [
-  ['About a minute.', 'From push to review.'],
+  ['A minute or two.', 'From push to review.'],
   ['Knows the agent.', 'And what each run was asked.'],
   ['Free each month.', 'Review credit on every plan.'],
   ['Or in your own CI.', 'Nothing reaches Grapim.'],
@@ -328,7 +343,7 @@ function pathLine() {
       ${stop('Grapim', 'receives nothing', ' path-off')}
     </ol>`;
 }
-const description = 'Grapim reviews every pull request in about a minute and comments on the lines that need attention. It knows which agent wrote each line and what it was asked to do, and flags the changes nobody asked for. Install the GitHub App, or run it in your own CI on your own model account.';
+const description = 'Grapim reviews every pull request in a minute or two and comments on the lines that need attention. It knows which agent wrote each line and what it was asked to do, and flags the changes nobody asked for. Install the GitHub App, or run it in your own CI on your own model account.';
 
 export function landingPage({ origin }) {
   return html`${siteHead({ title: 'Grapim: code review that knows what your agents were asked', description, path: '/', origin })}
@@ -341,7 +356,7 @@ ${siteBar({ current: 'home' })}
   <div class="hero-text">
     <a class="eyebrow" href="${REVIEW_DOCS}"><b>Grapim Review</b><span>Early access</span>${ICON.arrow}</a>
     <h1 id="hero-title">Code review that knows what <span class="hl">your agents</span> were asked.</h1>
-    <p class="hero-sub">Install the GitHub App and every pull request is reviewed in about a minute. Grapim checks agent code against the request and flags what nobody asked for.</p>
+    <p class="hero-sub">Install the GitHub App and every pull request is reviewed in a minute or two. Grapim checks the change against what was asked, in the pull request, its issue or the agent’s own prompt, and flags what nobody asked for.</p>
     <div class="cta">
       <a class="btn btn-primary btn-lg" href="${SIGN_IN}">Start free</a>
       <a class="btn btn-lg" href="${REVIEW_DOCS}#run-it-in-your-own-ci">Run it in your own CI</a>
@@ -387,7 +402,6 @@ ${siteBar({ current: 'home' })}
         <p>The deepest review goes where agents touch sensitive code.</p>
       </div>
     </div>
-    <p class="also-line"><span class="also-label">Also in Grapim</span><a href="/docs/concepts">Run records</a><a href="/docs/undo">Undo one run</a><a href="/docs/rules">Merge checks</a></p>
   </div>
 </section>
 
@@ -435,11 +449,16 @@ ${siteBar({ current: 'pricing', signedIn })}
           : html`<p class="plan-price"><span class="num">${p.price}</span>${p.per ? html`<span class="plan-per">${p.per}</span>` : ''}</p>
         <p class="plan-bill">${p.bill}</p>`}
         <p class="plan-lede">${p.lede}</p>
-        ${p.name === 'Free' ? html`<a class="btn plan-cta" href="${SIGN_IN}" rel="nofollow">Start with GitHub</a>` : p.name === 'Enterprise' || p.mark ? html`<a class="btn${p.mark ? ' btn-primary' : ''} plan-cta" href="/docs/support">${p.mark ? 'Ask for a pilot' : 'Talk to us'}</a>` : html`<a class="btn plan-cta" href="${SIGN_IN}" rel="nofollow">Start with GitHub</a>`}
+        ${p.name === 'Enterprise' || p.name === 'Governance' ? html`<a class="btn plan-cta" href="/docs/support">${p.name === 'Governance' ? 'Ask for a pilot' : 'Talk to us'}</a>` : html`<a class="btn${p.mark ? ' btn-primary' : ''} plan-cta" href="${SIGN_IN}" rel="nofollow">Start with GitHub</a>`}
         <ul>${p.items.map((i) => html`<li>${ICON.check}<span>${i}</span></li>`)}</ul>
       </section>`)}
     </div>
     <p class="fine">Cloud review is included in each plan’s monthly review credit; the pull request counts assume about $0.18 a review. Grapim Review in your own CI runs on your own model account, billed by your provider.</p>
+    <h2 class="compare-title">Compare plans</h2>
+    <div class="compare-scroll"><table class="compare">
+      <thead><tr><th scope="col"><span class="sr-only">Feature</span></th>${PLANS.map((p) => html`<th scope="col">${p.name}</th>`)}</tr></thead>
+      <tbody>${COMPARE.map(([label, ...cells]) => html`<tr><th scope="row">${label}</th>${cells.map((c) => html`<td>${c === true ? html`<span class="compare-yes" aria-label="Included">${ICON.check}</span>` : c === false ? html`<span class="compare-no" aria-label="Not included">—</span>` : c}</td>`)}</tr>`)}</tbody>
+    </table></div>
   </div>
 </section>
 

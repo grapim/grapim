@@ -578,7 +578,7 @@ ${repos.length
 // and GitHub lay out theirs: a sub-nav on the left, the page title is the
 // section's name, one to three cards under it.
 
-function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
+function billingSection({ team, role, csrf, limits, seatsUsed, billing, use = null }) {
   const owner = role === 'owner';
   const fmt = (n) => (Number.isFinite(n) ? n : 'Unlimited');
   const paid = team.plan !== 'free';
@@ -591,7 +591,7 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
     <div><dt>Seats</dt><dd>${seatsUsed} / ${fmt(limits.seats)}</dd></div>
     <div><dt>History</dt><dd>${limits.historyDays} days</dd></div>
     <div><dt>Repos</dt><dd>${fmt(limits.repos)}</dd></div>
-    <div><dt>Workspaces</dt><dd>${fmt(limits.workspaces ?? 1)}</dd></div>
+    ${use?.workspaces ? html`<div><dt>Workspaces</dt><dd>${fmt(limits.workspaces ?? 1)}</dd></div>` : ''}
     ${team.period_end ? html`<div><dt>Renews</dt><dd>${date(team.period_end)}</dd></div>` : ''}
   </dl>
   ${!billing.enabled
@@ -627,6 +627,27 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing }) {
     </form>`
       : ''}
   </div>`}
+</section>`;
+}
+
+// Cloud review's monthly credit: what the team's reviews cost this month
+// against the plan's credit (cloud-review.js usage()). Public repositories are
+// free and do not count. Only drawn where cloud review is set up.
+function reviewCreditSection({ team, review: r }) {
+  if (!r) return '';
+  const usd = (n) => '$' + n.toFixed(2);
+  const renews = new Date(r.resets_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
+  const pct = r.budget > 0 ? Math.min(1, r.spent / r.budget) : 1;
+  return html`<section class="card" id="review-credit" aria-labelledby="review-credit-title">
+  <div class="card-head">
+    <h2 id="review-credit-title" class="card-title">Cloud review</h2>
+    <span class="muted small">Renews ${renews}</span>
+  </div>
+  <div class="ask-meter">
+    <p class="ask-meter-num"><strong>${usd(r.spent)}</strong> <span class="muted">of ${usd(r.budget)} used this month</span></p>
+    <progress class="ask-meter-bar${pct >= 0.9 ? ' is-high' : ''}" max="1" value="${pct.toFixed(3)}" aria-label="Cloud review credit used this month">${Math.round(pct * 100)}%</progress>
+    <p class="muted small">${r.reviews} ${r.reviews === 1 ? 'review' : 'reviews'} this month on private repositories. Public repositories are reviewed free and do not count. When the credit runs out, reviews pause until it renews.</p>
+  </div>
 </section>`;
 }
 
@@ -829,18 +850,18 @@ function platformCard({ team }) {
 // Under each page's title: what the page is for, in one line.
 const SETTINGS_SUBS = {
   review: 'How Grapim reviews this team’s pull requests in the cloud.',
-  members: 'Who can see this team and approve its agent runs.',
+  members: 'Who can see this team, its reviews and, if you record agent runs, approve them.',
   rules: (team) => html`Decide which agent runs pass on their own and which need a person. <a class="link" href="/docs/rules">How rules work</a>`,
   github: 'Pull request comments and the Grapim check.',
   notifications: 'Slack messages about agent runs and failed checks.',
   machines: 'Connect the computers your agents run on.',
   data: 'What Grapim keeps, and where.',
-  plan: 'Your plan, its limits and Ask Grapim credit.',
+  plan: 'Your plan, its limits and what this month used.',
   platform: 'Workspaces for your own customers, through an API.',
 };
 
 // section: one of SETTINGS_PAGES; pages: the ids this person can open here.
-export function settingsPage({ section = 'general', pages = ['general'], user, csrf, team, role, use = null, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, github = null, review = null, policy = null, notifications = null, rules = null, storage = null, codeStorage = null, revealed = null, notice = null, error = null, toast = null, capError = null }) {
+export function settingsPage({ section = 'general', pages = ['general'], user, csrf, team, role, use = null, members, invites, tokens, limits, seatsUsed, billing, origin, agent = null, reviewUsage = null, github = null, review = null, policy = null, notifications = null, rules = null, storage = null, codeStorage = null, revealed = null, notice = null, error = null, toast = null, capError = null }) {
   const base = `/hub/teams/${team.id}/settings`;
   const page = SETTINGS_PAGES.find((p) => p.id === section) ?? SETTINGS_PAGES[0];
   const shown = SETTINGS_PAGES.filter((p) => pages.includes(p.id));
@@ -854,7 +875,7 @@ export function settingsPage({ section = 'general', pages = ['general'], user, c
     notifications: () => notifications ?? '',
     machines: () => machineCards({ team, role, csrf, tokens, origin, revealed }),
     data: () => html`${codeStorageSection({ team, csrf, role, info: codeStorage })}${storage ?? ''}`,
-    plan: () => html`${billingSection({ team, role, csrf, limits, seatsUsed, billing })}${askSection({ team, role, csrf, agent, members, capError })}`,
+    plan: () => html`${reviewCreditSection({ team, review: reviewUsage })}${billingSection({ team, role, csrf, limits, seatsUsed, billing, use })}${askSection({ team, role, csrf, agent, members, capError })}`,
     platform: () => platformCard({ team }),
   };
   return layout({

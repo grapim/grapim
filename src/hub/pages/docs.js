@@ -18,10 +18,12 @@ const DOCS_DIR = path.join(HERE, '..', 'docs');
 const CLI_SOURCE = path.join(HERE, '..', '..', 'cli.js');
 
 // The nav, in reading order. The first page is /docs itself.
+// Review first, as the product is sold; the agent-run pages (CLI, approvals,
+// undo, workspaces) keep their addresses in a group of their own at the end.
 export const NAV = [
-  { group: 'Get started', pages: ['quickstart', 'review', 'concepts', 'compare'] },
-  { group: 'Using Grapim', pages: ['reviews', 'github', 'history', 'rules', 'notifications', 'undo', 'reports', 'inventory', 'ask-grapim', 'workspaces'] },
-  { group: 'Reference', pages: ['cli', 'security', 'data-handling', 'faq', 'support'] },
+  { group: 'Get started', pages: ['quickstart', 'review'] },
+  { group: 'Reference', pages: ['security', 'data-handling', 'faq', 'support'] },
+  { group: 'Agent runs (CLI)', pages: ['concepts', 'cli', 'reviews', 'github', 'history', 'rules', 'notifications', 'undo', 'reports', 'inventory', 'ask-grapim', 'workspaces', 'compare'] },
 ];
 export const ORDER = NAV.flatMap((g) => g.pages);
 // The legal pages: Markdown in the same folder, served at /terms and /privacy
@@ -62,14 +64,23 @@ function inline(text) {
     .join('');
 }
 
+// Quiet colour, as the landing's code panel does: comments dimmed, keys in
+// YAML and JSON in the text colour, the rest a step lighter. Escaped first.
+const YAML_KEY = /^(\s*(?:- )?)([\w.-]+)(:)(?=\s|$)/;
+const JSON_KEY = /^(\s*)("[^"\n]+")(\s*:)/;
+function highlight(lang, l) {
+  if (['sh', 'bash', 'yaml', 'yml'].includes(lang) && /^\s*#/.test(l)) return `<span class="c">${esc(l)}</span>`;
+  const m = ['yaml', 'yml'].includes(lang) ? YAML_KEY.exec(l) : lang === 'json' ? JSON_KEY.exec(l) : null;
+  if (!m) return esc(l);
+  return `${esc(m[1])}<span class="k">${esc(m[2])}</span>${esc(m[3])}${esc(l.slice(m[0].length))}`;
+}
+
 function codeBlock(info, lines) {
   const [lang = '', ...rest] = info.trim().split(/\s+/);
   const title = rest.join(' ');
   const copy = !['text', 'output'].includes(lang);
-  const body = lines
-    .map((l) => (lang === 'sh' && /^\s*#/.test(l) ? `<span class="c">${esc(l)}</span>` : esc(l)))
-    .join('\n');
-  return `<div class="code${copy ? '' : ' code-out'}">${title || copy ? `<div class="code-head"><span>${esc(title || (lang === 'sh' ? 'Terminal' : lang))}</span>${copy ? '<button class="copy" type="button" data-copy hidden>Copy</button>' : ''}</div>` : ''}<pre><code>${body}</code></pre></div>`;
+  const body = lines.map((l) => highlight(lang, l)).join('\n');
+  return `<div class="code${copy ? '' : ' code-out'}">${title || copy ? `<div class="code-head"><span>${esc(title || (lang === 'sh' ? 'Terminal' : lang))}</span>${copy ? '<button class="copy" type="button" data-copy hidden>Copy</button>' : ''}</div>` : ''}<pre><code class="lang-${esc(lang)}">${body}</code></pre></div>`;
 }
 
 function table(rows) {
