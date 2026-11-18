@@ -542,7 +542,10 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     return inline.map((finding) => {
       const want = inlineComment(finding);
       const title = parseComment(want.body)?.title;
-      const i = comments.findIndex((c, j) => !used.has(j) && c?.path === want.path && (c.line ?? c.original_line) === want.line && parseComment(c.body)?.title === title);
+      // GitHub's per-review listing leaves line and original_line null (it
+      // still uses the old diff position), so a line is compared only when given.
+      const lineOk = (c) => { const l = c.line ?? c.original_line; return l == null || l === want.line; };
+      const i = comments.findIndex((c, j) => !used.has(j) && c?.path === want.path && lineOk(c) && parseComment(c.body)?.title === title);
       if (i === -1) return { finding, url: null };
       used.add(i);
       return { finding, url: comments[i].html_url ?? null };
