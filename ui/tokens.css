@@ -62,8 +62,8 @@
   --ok-bg: #e1f1ea;
 
   /* The fixed brand colours, the same in light and dark: the coral of a
-     Blocker, and the black band (the hub sidebar, the landing's #where
-     section) with its raised surfaces. */
+     Blocker, and the black band (the landing's #where section) with its
+     raised surfaces. */
   --coral: #e0533b;
   --band: #0a0a0a;
   --band-raise: #141414;
@@ -98,9 +98,10 @@
 }
 
 /* Dark: from [data-theme], from the system, and always inside the black
-   band (.side, .sidebar, .where), which reads as dark in both themes. */
+   band (the landing's .where), which reads as dark in both themes. The app
+   sidebars follow the page theme, a quiet grey rail like Linear and Vercel. */
 :root[data-theme="dark"],
-:is(.side, .sidebar, .where) {
+.where {
   color-scheme: dark;
   --bg: #000000;
   --surface: #0a0a0a;

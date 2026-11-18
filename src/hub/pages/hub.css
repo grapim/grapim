@@ -87,7 +87,7 @@ kbd {
 .side {
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
   display: flex; flex-direction: column; gap: 12px;
-  padding: 16px 12px; border-right: 0; background: var(--band);
+  padding: 16px 12px; border-right: 1px solid var(--border); background: var(--surface-2);
 }
 .brand { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; color: var(--text); font-weight: 600; font-size: var(--fs-14); letter-spacing: -0.01em; flex: none; border-radius: var(--radius); }
 .logo { width: 18px; height: 18px; color: var(--text); flex: none; }
@@ -132,10 +132,10 @@ kbd {
 
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-item { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px; border-radius: var(--radius); color: var(--text-2); font-weight: 500; }
-.nav-item:hover { background: var(--surface-2); color: var(--text); }
-.nav-item[aria-current="page"] { background: var(--band-head); color: #fff; }
+.nav-item:hover { background: var(--surface-3); color: var(--text); }
+.nav-item[aria-current="page"] { background: var(--border); color: var(--text); }
 .nav-item .icon { color: var(--text-3); }
-.nav-item[aria-current="page"] .icon { color: #fff; }
+.nav-item[aria-current="page"] .icon { color: var(--text); }
 .nav-item[hidden] { display: none; }
 .nav-sep { height: 1px; background: var(--border); margin: 6px 8px; }
 .nav-item .count { margin-left: auto; color: var(--accent-text); font-size: var(--fs-12); font-weight: 600; }
@@ -677,8 +677,6 @@ a.chip:hover { color: var(--text); border-color: var(--border-strong); }
 .review-home > .sub-title { margin-top: 0; }
 .panel-head-bare { padding: 0 2px; border-bottom: 0; min-height: 36px; }
 .ov-approvals-title { margin-top: 8px; }
-.setup-done { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; margin-bottom: 24px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text-2); }
-.setup-done > .icon { flex: none; margin-top: 2px; color: var(--ok-text); }
 .pulls-table .badge.num { justify-content: center; min-width: 24px; padding: 0 7px; }
 @media (max-width: 640px) {
   /* Pull request, Blockers and When on a phone; status and comments wrap under the name. */

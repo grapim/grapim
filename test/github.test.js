@@ -1097,12 +1097,11 @@ test('cloud review pages: the Overview leads with 30-day tiles and recent review
   const O = await createTeam(mallory, 'Other');
   const team = h.hub.teams.get(T);
 
-  // No reviews yet: an honest empty state on both pages, pointing at the setup steps.
+  // No reviews yet: the Overview shows only the setup steps (no second, empty
+  // review block); the Reviews page has the empty state, pointing at them.
   let ov = await owner.req(`/hub/teams/${T}`);
   assert.equal(ov.status, 200);
-  assert.match(ov.text, /No reviews yet/);
-  assert.match(ov.text, /Open a pull request in a connected repository and the first review appears here in a minute or two\./);
-  assert.match(ov.text, new RegExp(`href="/hub/teams/${T}#setup"`));
+  assert.doesNotMatch(ov.text, /No reviews yet/);
   assert.match(ov.text, /id="setup"/);
   assert.doesNotMatch(ov.text, /Pull requests reviewed/);
   assert.doesNotMatch(ov.text, /Needs your approval/, 'no agent runs: the approvals widgets stay hidden');
@@ -1156,9 +1155,9 @@ test('cloud review pages: the Overview leads with 30-day tiles and recent review
   assert.equal(seven.url, 'https://github.com/acme/api/pull/7');
   assert.deepEqual(counts, { all: 4, blockers: 2, failed: 1 }, 'older pull requests count too: the filters are not limited to 30 days');
 
-  // The Overview: setup collapsed to one line, the tiles, the newest reviews.
+  // The Overview once set up: no setup steps or setup line, the tiles, the newest reviews.
   ov = await owner.req(`/hub/teams/${T}`);
-  assert.match(ov.text, /Setup done: GitHub connected to <span class="strong">acme<\/span>, cloud review on\./);
+  assert.doesNotMatch(ov.text, /Setup done/);
   assert.doesNotMatch(ov.text, /id="setup"/);
   assert.match(ov.text, /<dt>Pull requests reviewed<\/dt><dd><span class="kpi-v">1<\/span>/);
   assert.match(ov.text, /<dt>Comments posted<\/dt><dd><span class="kpi-v">5<\/span>/);
@@ -1313,6 +1312,6 @@ test('the Overview\'s "Setup done" line links to Settings, Review', async (t) =>
   assert.equal((await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '1' })).status, 303);
   h.hub.db.prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(T, 'acme', 'api', 1, 'a'.repeat(40), 'done', h.hub.now(), h.hub.now());
   const ov = await owner.req(`/hub/teams/${T}`);
-  assert.match(ov.text, /Setup done: GitHub connected to/);
-  assert.match(ov.text, new RegExp(`<a class="link" href="/hub/teams/${T}/settings/review">Review settings</a>`));
+  assert.doesNotMatch(ov.text, /Setup done|id="setup"/);
+  assert.match(ov.text, /Recent reviews/);
 });

@@ -273,7 +273,7 @@ function pullsTable(rows, caption) {
   <tbody>
   ${rows.map(
     (r) => html`<tr>
-    <th scope="row" class="cell-run">${r.url ? html`<a class="run-link" href="${r.url}" rel="noopener noreferrer" title="${r.owner}/${r.name}#${r.number}"><span class="run-intent">${r.name} #${r.number}</span></a>` : html`<span class="run-link" title="${r.owner}/${r.name}#${r.number}"><span class="run-intent">${r.name} #${r.number}</span></span>`}<span class="run-sub hide-sm"><span class="muted">${r.owner}</span>${r.agent ? html`<span class="muted">Agent-written</span>` : ''}</span>${phoneMeta(reviewStatus(r.status, r.error), r.status === 'done' ? html`<span class="muted">${plural(r.findings, 'comment')}</span>` : '', r.agent ? html`<span class="muted">Agent-written</span>` : '')}</th>
+    <th scope="row" class="cell-run">${r.url ? html`<a class="run-link" href="${r.url}" rel="noopener noreferrer" title="${r.owner}/${r.name}#${r.number}"><span class="run-intent">${r.title || `${r.name} #${r.number}`}</span></a>` : html`<span class="run-link" title="${r.owner}/${r.name}#${r.number}"><span class="run-intent">${r.title || `${r.name} #${r.number}`}</span></span>`}<span class="run-sub hide-sm"><span class="muted">${r.title ? `${r.owner}/${r.name} #${r.number}` : r.owner}</span>${r.agent ? html`<span class="muted">Agent-written</span>` : ''}</span>${phoneMeta(reviewStatus(r.status, r.error), r.status === 'done' ? html`<span class="muted">${plural(r.findings, 'comment')}</span>` : '', r.agent ? html`<span class="muted">Agent-written</span>` : '')}</th>
     <td class="num hide-sm">${r.status === 'done' ? r.findings : html`<span class="muted">—</span>`}</td>
     <td class="num">${r.status === 'done' ? blockerCount(r.blockers) : html`<span class="muted">—</span>`}</td>
     <td class="hide-sm">${reviewStatus(r.status, r.error)}</td>
@@ -301,16 +301,11 @@ function reviewTiles(s) {
 </dl>`;
 }
 
-// When every cloud setup step is done: one line instead of the checklist.
-function setupDoneLine(team, cloud, role) {
-  return html`<p class="setup-done" role="status">${icon('check')}<span>Setup done: GitHub connected to <span class="strong">${cloud.linked.join(', ')}</span>, cloud review on. <a class="link" href="/hub/teams/${team.id}/settings/review">Review settings</a>${role === 'owner' ? html` · <a class="link" href="/hub/teams/${team.id}/settings/github">GitHub</a>` : ''}</span></p>`;
-}
-
 // The approvals widgets (agent runs synced by the CLI): what needs me now,
 // pull requests with unapproved agent work, activity, and the side column.
-function approvalsBody({ team, csrf, role, origin, setup, waiting, mine, pulls, teaser, active, activity, repos, workspaces }) {
+function approvalsBody({ team, csrf, role, origin, setup, waiting, mine, pulls, teaser, active, activity, hideChecklist = false }) {
   const base = `/hub/teams/${team.id}`;
-  const left = setup.steps.some((s) => !s.done);
+  const left = !hideChecklist && setup.steps.some((s) => !s.done);
   return html`<div class="overview">
   <div class="ov-main">
     <section class="panel" aria-labelledby="needs-title">
@@ -344,14 +339,6 @@ function approvalsBody({ team, csrf, role, origin, setup, waiting, mine, pulls, 
         ? html`<ul class="plain-list">${active.map((a) => html`<li class="plain-row"><span class="live" aria-hidden="true"></span><span class="plain-main">${agent(a.label, a.kind)}<span class="muted small truncate" title="${a.intent || a.repo}">${a.intent || a.repo}</span></span>${time(a.last_seen)}</li>`)}</ul>`
         : html`<p class="panel-empty">No agent has changed code in the last hour.</p>`}
     </section>
-    <section class="panel" aria-labelledby="where-title">
-      <div class="panel-head"><h2 id="where-title" class="panel-title">Where agents work</h2></div>
-      <ul class="plain-list">
-        ${repos.slice(0, 6).map((r) => html`<li class="plain-row">${icon('repo')}<a class="plain-main link-quiet" href="${base}/repos/${r.id}">${r.name}</a>${time(r.last_change_ts ?? r.last_sync_at)}</li>`)}
-        ${workspaces.slice(0, 6).map((w) => html`<li class="plain-row">${icon('workspace')}<a class="plain-main link-quiet" href="${base}/workspaces/${w.id}">${w.name}</a>${time(w.last_activity)}</li>`)}
-      </ul>
-      ${repos.length > 6 || workspaces.length > 6 ? html`<p class="panel-foot"><a class="link small" href="${base}/repos">All repos</a> · <a class="link small" href="${base}/workspaces">All workspaces</a></p>` : ''}
-    </section>
     ${left ? checklist({ team, csrf, role, origin, setup, compact: true }) : ''}
   </div>
 </div>`;
@@ -378,7 +365,7 @@ function reviewOverview(p) {
     wide: true,
     crumbs: [{ label: 'Overview' }],
     body: html`${head(team, 'overview', { title: showSteps && !reviews.any ? `Set up ${team.name}` : team.name, sub })}
-${showSteps ? cloudSetup({ team, csrf, role, cloud }) : stepsDone ? setupDoneLine(team, cloud, role) : ''}
+${showSteps ? cloudSetup({ team, csrf, role, cloud }) : ''}
 ${showSteps && setup.empty
   ? html`<details class="setup-more">
   <summary><span class="setup-more-title">Or run it in your own CI</span><span class="muted small">Your model account, nothing reaches Grapim</span></summary>
@@ -391,18 +378,20 @@ ${showSteps && setup.empty
   ${checklist({ team, csrf, role, origin, setup })}
 </details>`
   : ''}
-<section class="review-home" aria-labelledby="reviews-title">
+${showSteps && !reviews.any
+  ? ''
+  : html`<section class="review-home" aria-labelledby="reviews-title">
   <h2 id="reviews-title" class="sub-title">Cloud review, last ${reviews.days} days</h2>
   ${reviews.any
     ? html`${reviewTiles(reviews)}
   <div class="panel-head panel-head-bare"><h2 class="panel-title">Recent reviews</h2><a class="link small" href="${base}/pull-requests">All reviews</a></div>
   ${pullsTable(recent, 'The newest reviewed pull requests')}`
     : noReviews(team)}
-</section>
+</section>`}
 ${setup.empty
   ? ''
   : html`<h2 class="sub-title ov-approvals-title">Agent runs and approvals</h2>
-${approvalsBody(p)}`}`,
+${approvalsBody({ ...p, hideChecklist: showSteps })}`}`,
   });
 }
 
