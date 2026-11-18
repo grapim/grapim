@@ -191,6 +191,11 @@ test('a pull request is reviewed in the cloud: check in progress, inline review,
   assert.equal(gh.s.reviews[0].comments[0].path, 'src/small.js');
   assert.equal(gh.s.comments.length, 1);
   assert.ok(gh.s.comments[0].body.startsWith(CLOUD_MARKER));
+  // Short check, the verdict up front, the commit in the footer, feedback explained inline.
+  assert.match(check.output.summary, /^Reviewed \d+ files? at [0-9a-f]{7}: 1 blocker\. The comments and the summary are on the pull request\.$/);
+  assert.match(gh.s.comments[0].body, /\*\*Fix before merging:\*\*/);
+  assert.match(gh.s.comments[0].body, /<sub>Reviewed by <a href="https:\/\/github\.com\/grapim\/grapim">Grapim<\/a> at commit <code>[0-9a-f]{7}<\/code><\/sub>\n$/);
+  assert.match(gh.s.reviews[0].comments[0].body, /React 👍 or 👎, or reply/);
   assert.ok(!JSON.stringify({ checks: gh.s.checks, reviews: gh.s.reviews, comments: gh.s.comments }).includes(TOKEN), 'the token never reaches a comment or check');
   assert.ok(gh.s.auth.every((a) => a === `Bearer ${TOKEN}`), 'every API call uses the installation token');
 

@@ -142,19 +142,43 @@ export const isTestFile = (p) => TEST_FILE.test(String(p ?? ''));
 
 const OWN_SOURCE = /^(issue #[1-9][0-9]{0,9}|PR description|PR title)$/;
 
+// The bold counts at the top of the summary, only the severities found:
+// **2 blockers, 1 warning** or **No problems found**. COUNTS_RE matches either,
+// so the cloud worker can recount after the second look (withCounts).
+export function countsBold(n) {
+  const parts = [n.blocker && plural(n.blocker, 'blocker'), n.warning && plural(n.warning, 'warning'), n.nit && plural(n.nit, 'nit')].filter(Boolean);
+  return parts.length ? `**${parts.join(', ')}**` : '**No problems found**';
+}
+export const COUNTS_RE = /\*\*(?:No problems found|\d[\d,]* (?:blockers?|warnings?|nits?)(?:, \d[\d,]* (?:blockers?|warnings?|nits?))*)\*\*/;
+
+// The verdict under the counts: what to fix before merging, from the blocker
+// titles (no model call). Empty when there is no blocker. Titles go through md().
+export const VERDICT_RE = /\n\n\*\*Fix before merging:\*\*[^\n]*/;
+export function verdictLine(findings) {
+  const blockers = findings.filter((f) => f.severity === 'blocker');
+  if (!blockers.length) return '';
+  const shown = blockers.slice(0, 3).map((f) => md(String(f.title ?? '').replace(/[.\s]+$/, ''), 120));
+  return `\n\n**Fix before merging:** ${shown.join('; ')}${blockers.length > 3 ? `; and ${plural(blockers.length - 3, 'more')}` : ''}.`;
+}
+
 // hosted: the review ran on Grapim's server (cloud review), not in the
 // customer's CI, so the last line must not say Grapim received nothing.
+// Up front: the counts and the verdict, what the agents were asked, tests
+// deleted and points to check. The mechanics (what was reviewed or skipped,
+// model, tokens, where the code went on Grapim's server) sit in a collapsed
+// "Review details", as the leading review bots do. In your own CI the last
+// line stays visible: your code went only to your model account.
 export function renderReviewSummary({ findings, stats, skipped, runs, providerText, requests, deletedTests = [], held = [], hosted = false }) {
   const n = (s) => findings.filter((f) => f.severity === s).length;
   const lines = ['### <a href="https://github.com/grapim/grapim">Grapim Review</a>', ''];
   const files = new Set(findings.map((f) => f.path)).size;
-  if (findings.length) lines.push(`**${plural(n('blocker'), 'blocker')}, ${plural(n('warning'), 'warning')}, ${plural(n('nit'), 'nit')}** in ${plural(files, 'file')}.`);
+  if (findings.length) lines.push(`${countsBold({ blocker: n('blocker'), warning: n('warning'), nit: n('nit') })} in ${plural(files, 'file')}.${verdictLine(findings)}`);
   else if (stats.reviewedHunks) lines.push('**No problems found** in the reviewed changes.');
   else lines.push('**Nothing was reviewed.**');
   const human = stats.reviewedHunks - stats.reviewedAiHunks;
   // Without notes nobody is known to have written anything: do not call it human.
   const who = stats.noNotes ? 'no agent notes in this repository, so every changed line was a candidate' : `${stats.reviewedAiHunks} written by agent runs, ${human} human-written`;
-  lines.push(`Reviewed ${plural(stats.reviewedHunks, 'hunk')} of ${stats.hunks} changed (${who}) in ${plural(stats.reviewedFiles, 'file')} of ${stats.files}.`);
+  const detail = [`Reviewed ${plural(stats.reviewedHunks, 'hunk')} of ${stats.hunks} changed (${who}) in ${plural(stats.reviewedFiles, 'file')} of ${stats.files}.`];
   // The sources are Grapim's own labels ("issue #12", "PR description"), except
   // a caller-named source, which goes through md().
   if (stats.comparedWith?.length) lines.push(`**Compared with:** ${stats.comparedWith.map((s) => (OWN_SOURCE.test(s) ? s : md(s, 60))).join(', ')}.`);
@@ -176,7 +200,7 @@ export function renderReviewSummary({ findings, stats, skipped, runs, providerTe
   }
 
   if (skipped.length) {
-    lines.push('', '**Not reviewed**');
+    detail.push('', '**Not reviewed**');
     const byReason = new Map();
     for (const s of skipped) {
       if (!byReason.has(s.reason)) byReason.set(s.reason, []);
@@ -184,15 +208,16 @@ export function renderReviewSummary({ findings, stats, skipped, runs, providerTe
     }
     for (const [reason, paths] of byReason) {
       const shown = paths.slice(0, 5).map(code).join(', ');
-      lines.push(`- ${reason}: ${shown}${paths.length > 5 ? ` and ${plural(paths.length - 5, 'more file')}` : ''}`);
+      detail.push(`- ${reason}: ${shown}${paths.length > 5 ? ` and ${plural(paths.length - 5, 'more file')}` : ''}`);
     }
   }
 
   const notes = [];
   if (stats.droppedFindings) notes.push(`${plural(stats.droppedFindings, 'finding')} dropped (not on a changed line)`);
   if (stats.omittedFindings) notes.push(`${plural(stats.omittedFindings, 'finding')} left out over the comment limit`);
-  lines.push('', `Model: ${stats.model} on ${providerText}. ${plural(requests, 'request')}${stats.passes > 1 ? ` (${stats.passes} passes over each change)` : ''}, ${stats.inputTokens.toLocaleString('en-US')} input and ${stats.outputTokens.toLocaleString('en-US')} output tokens.${notes.length ? ` ${notes.join('; ')}.` : ''}`);
-  if (hosted) lines.push('', `This review ran on Grapim's server: the code was fetched into a temporary folder there, ${requests ? `sent only to ${providerText}` : 'sent to no model'}, and deleted when the review ended.`);
-  else lines.push('', requests ? `Your code was sent only to ${providerText}. Grapim received nothing.` : 'No code was sent to any model. Grapim received nothing.');
+  detail.push('', `Model: ${stats.model} on ${providerText}. ${plural(requests, 'request')}${stats.passes > 1 ? ` (${stats.passes} passes over each change)` : ''}, ${stats.inputTokens.toLocaleString('en-US')} input and ${stats.outputTokens.toLocaleString('en-US')} output tokens.${notes.length ? ` ${notes.join('; ')}.` : ''}`);
+  if (hosted) detail.push('', `This review ran on Grapim's server: the code was fetched into a temporary folder there, ${requests ? `sent only to ${providerText}` : 'sent to no model'}, and deleted when the review ended.`);
+  lines.push('', '<details><summary>Review details</summary>', '', ...detail, '', '</details>');
+  if (!hosted) lines.push('', requests ? `Your code was sent only to ${providerText}. Grapim received nothing.` : 'No code was sent to any model. Grapim received nothing.');
   return lines.join('\n');
 }

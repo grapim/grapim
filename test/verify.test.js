@@ -47,11 +47,15 @@ test('a failed or unreadable answer keeps every finding', async () => {
   assert.equal((await verifyFindings({ findings: [], git: fakeGit({}), base: 'B', head: 'H', provider: {}, model: 'm' })).kept.length, 0);
 });
 
-test('the summary counts are redone after a drop, and the drop is said once', () => {
-  const s = withCounts('### Grapim Review\n\n**2 blockers, 1 warning, 0 nits** in 2 files.', [F({ severity: 'blocker' })], 2);
-  assert.match(s, /\*\*1 blocker, 0 warnings, 0 nits\*\* in 2 files\./);
+test('the summary counts and the verdict are redone after a drop, and the drop is said once', () => {
+  const before = '### Grapim Review\n\n**2 blockers, 1 warning** in 2 files.\n\n**Fix before merging:** Old one; Old two.\n\n<details><summary>Review details</summary>\n\nx\n\n</details>';
+  const s = withCounts(before, [F({ severity: 'blocker', title: 'Kept blocker' })], 2);
+  assert.match(s, /\*\*1 blocker\*\* in 2 files\.\n\n\*\*Fix before merging:\*\* Kept blocker\.\n\n<details>/);
+  assert.doesNotMatch(s, /Old one/);
   assert.match(s, /dropped 2 findings before posting/);
-  assert.match(withCounts('**1 blocker, 0 warnings, 0 nits**', [], 1), /\*\*No problems found\*\*/);
+  const none = withCounts('**1 blocker** in 1 file.\n\n**Fix before merging:** Gone.', [], 1);
+  assert.match(none, /\*\*No problems found\*\* in 1 file\./);
+  assert.doesNotMatch(none, /Fix before merging/);
 });
 
 test('with tools, the model can search the repository before its verdicts', async () => {
