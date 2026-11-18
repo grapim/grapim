@@ -125,7 +125,8 @@ CREATE TABLE IF NOT EXISTS cloud_reviews (
   output_tokens INTEGER NOT NULL DEFAULT 0,
   cost_micros   INTEGER NOT NULL DEFAULT 0,
   error         TEXT,
-  oss           INTEGER NOT NULL DEFAULT 0
+  oss           INTEGER NOT NULL DEFAULT 0,
+  title         TEXT                    -- the pull request's title when reviewed
 );
 CREATE INDEX IF NOT EXISTS cloud_reviews_team ON cloud_reviews (team_id, started_at);
 -- The provenance section of a pull request whose team has cloud review on
@@ -303,6 +304,8 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
   if (!cols.includes('oss')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN oss INTEGER NOT NULL DEFAULT 0');
   // The pull request's author, for the hourly limit on free reviews.
   if (!cols.includes('author')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN author TEXT');
+  // The pull request's title, for the Reviews list.
+  if (!cols.includes('title')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN title TEXT');
   db.exec('CREATE INDEX IF NOT EXISTS cloud_reviews_oss ON cloud_reviews (oss, started_at)');
   const cfg = cloudConfig(env);
   const remote = gitUrl ?? ((owner, name) => `${apiBase === 'https://api.github.com' ? 'https://github.com' : apiBase.replace(/\/api\/v3$/, '')}/${owner}/${name}.git`);
@@ -557,6 +560,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grapim-review-'));
     try {
       const pr = await client.rest('GET', `/repos/${repo}/pulls/${job.number}`);
+      if (typeof pr?.title === 'string' && pr.title) db.prepare('UPDATE cloud_reviews SET title = ? WHERE id = ?').run(pr.title.slice(0, 300), rowId);
       if (pr?.state !== 'open') {
         finish({ status: 'failed', error: 'closed' });
         await check(client, repo, checkId, { status: 'completed', conclusion: 'skipped', output: { title: 'Pull request closed', summary: 'Nothing was reviewed.' } });

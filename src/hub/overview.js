@@ -221,7 +221,9 @@ export function createOverview(hub) {
   // how many reviews it had. filter: all | blockers | failed. counts: each filter's total.
   function reviewedPulls(team, { filter = 'all', limit = 100 } = {}) {
     const where = PULL_FILTERS[filter] ?? '';
+    // title: the newest title any review of the pull request saw (older rows have none).
     const latest = `SELECT id, owner, name, number, status, findings, blockers, started_at, finished_at, error, oss,
+                           FIRST_VALUE(title) OVER (PARTITION BY lower(owner), lower(name), number ORDER BY title IS NULL, started_at DESC, id DESC) AS title,
                            ROW_NUMBER() OVER (PARTITION BY lower(owner), lower(name), number ORDER BY started_at DESC, id DESC) AS rn,
                            SUM(CASE WHEN status != 'no_credit' THEN 1 ELSE 0 END) OVER (PARTITION BY lower(owner), lower(name), number) AS reviews
                     FROM cloud_reviews WHERE team_id = ? AND status != 'chat'`;

@@ -371,7 +371,14 @@ export async function seedTeamExtras(hub, { teamId, users, machines, installatio
     if (hub.github?.cloud) {
       db.prepare('INSERT OR REPLACE INTO cloud_review_settings (team_id, enabled, updated_by, updated_at) VALUES (?, 1, ?, ?)').run(TEAM, String(owner.id), now - 20 * DAY);
       db.prepare('DELETE FROM cloud_reviews WHERE team_id = ?').run(TEAM);
-      const putReview = db.prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, finished_at, findings, blockers, input_tokens, output_tokens, cost_micros, error, oss) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)');
+      const putReview = db.prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, finished_at, findings, blockers, input_tokens, output_tokens, cost_micros, error, oss, title) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)');
+      const TITLES = {
+        'shop-api#412': 'Add idempotency keys to POST /orders', 'web-app#97': 'Split the checkout page into server components', 'billing-svc#233': 'Retry failed Stripe webhooks with backoff',
+        'web-app#96': 'Fix date formatting on invoices', 'shop-api#409': 'Move invoice PDFs to the new storage bucket', 'shop-api#408': 'Write tests for the refund webhook',
+        'infra#61': 'Raise the worker pool to 8', 'billing-svc#231': 'Fix the race in the cart total recalculation', 'web-app#94': 'Clean up the feature flag for the old search',
+        'shop-api#404': 'Add an index for the orders by customer query', 'web-app#92': 'Lazy-load the product gallery', 'shop-api#401': 'Bump express to 5.1',
+        'infra#60': 'Rotate the staging database password', 'shop-api#398': 'Log slow queries over 500 ms',
+      };
       // [repo, pull request, hours ago, status, findings, blockers]; a pull request reviewed again after a push repeats.
       const REVIEWS = [
         ['shop-api', 412, 0.3, 'running', 0, 0], ['shop-api', 412, 2, 'done', 4, 1], ['web-app', 97, 3.5, 'done', 2, 0], ['billing-svc', 233, 9, 'done', 3, 2],
@@ -382,7 +389,7 @@ export async function seedTeamExtras(hub, { teamId, users, machines, installatio
       for (const [name, number, hours, status, findings, blockers] of REVIEWS) {
         const started = now - hours * HOUR;
         const cost = status === 'done' ? 90_000 + findings * 25_000 : status === 'failed' ? 30_000 : 0;
-        putReview.run(TEAM, org, name, number, sha1(`${name}#${number}@${hours}`), status, started, status === 'running' ? null : started + 2 * MIN, findings, blockers, cost ? 40_000 : 0, cost ? 3_000 : 0, cost, status === 'failed' ? 'The model call timed out.' : null);
+        putReview.run(TEAM, org, name, number, sha1(`${name}#${number}@${hours}`), status, started, status === 'running' ? null : started + 2 * MIN, findings, blockers, cost ? 40_000 : 0, cost ? 3_000 : 0, cost, status === 'failed' ? 'The model call timed out.' : null, TITLES[`${name}#${number}`] ?? null);
       }
       // Agent-written: the pull requests whose provenance Grapim found.
       const repoIds = { 'shop-api': ghShop, 'web-app': ghWeb };

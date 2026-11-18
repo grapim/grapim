@@ -53,8 +53,8 @@ kbd {
   position: sticky; top: 0; height: 100vh;
   display: flex; flex-direction: column; gap: 16px;
   padding: 16px 12px;
-  border-right: 0;
-  background: var(--band);
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
 }
 .brand { display: flex; align-items: center; gap: 8px; padding: 0 8px; height: 28px; }
 /* The product mark: the hub's diamond, the same everywhere. */
@@ -80,8 +80,8 @@ kbd {
 }
 .nav a:hover { background: var(--surface-2); color: var(--text); }
 .nav a[aria-current="page"] { background: var(--surface-3); color: var(--text); }
-.sidebar .nav a[aria-current="page"] { background: rgb(255 255 255 / 0.08); color: #fff; }
-.sidebar .nav a[aria-current="page"] .icon { color: var(--accent-text); }
+.sidebar .nav a:hover { background: var(--surface-3); }
+.sidebar .nav a[aria-current="page"] { background: var(--border); color: var(--text); }
 .nav .icon { color: var(--text-3); }
 .nav a[aria-current="page"] .icon { color: var(--text); }
 .nav .label { flex: 1; }
