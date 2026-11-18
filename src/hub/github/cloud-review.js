@@ -81,7 +81,17 @@ export const DEFAULT_SEAT_CREDIT = Object.freeze({ team: 10, governance: 20 });
 // (@grapim review), not on every push, unless its owner is in `allow`.
 // hourly: free reviews per pull request author per repository in an hour.
 export const DEFAULT_OSS = Object.freeze({ monthly: 200, repoMonthly: 10, minStars: 10, hourly: 5, allow: Object.freeze(['grapim', 'grapim-bench']) });
-const OSS_FOOTER = '\n\n<sub>Grapim Review is open source and free for public repositories. <a href="https://github.com/grapim/grapim">github.com/grapim/grapim</a></sub>\n';
+// The summary's last line, as Greptile and Bugbot end theirs: which commit
+// was reviewed. head is a validated SHA. FOOTER_MAX bounds its length.
+const FOOTER_MAX = 200;
+const footer = (head, oss) => `\n\n<sub>Reviewed by <a href="https://github.com/grapim/grapim">Grapim</a> at commit <code>${String(head).slice(0, 7)}</code>${oss ? ' · free for public repositories' : ''}</sub>\n`;
+// Under each inline comment: the reactions and replies are read on later
+// reviews (feedback.js), so say so, as Greptile does.
+const FEEDBACK_HINT = '<sub>React 👍 or 👎, or reply: Grapim takes it into account on later reviews in this repository.</sub>';
+const inlineComment = (f) => {
+  const c = toComment(f, md);
+  return { ...c, body: `${c.body}\n\n${FEEDBACK_HINT}` };
+};
 export const JOB_MS = 30 * 60 * 1000;
 const MICROS = 1_000_000;
 const NAME = /^[A-Za-z0-9_.-]{1,100}$/;
@@ -452,7 +462,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
         commit_id: head,
         event: 'COMMENT',
         body: `${INLINE_MARKER}\n**<a href="https://github.com/grapim/grapim">Grapim Review</a>**: ${countText(counts(list))} on ${head.slice(0, 7)}${list.length < findings.length ? `, ${plural(findings.length - list.length, 'more finding')} in the summary comment` : ''}.`,
-        comments: list.map((f) => toComment(f, md)),
+        comments: list.map(inlineComment),
       });
     let r = await send(inline);
     if (r.status === 422) {
@@ -465,7 +475,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       }
       const lines = diffLines(files);
       const fits = (c) => (lines[c.path] ?? []).some((h) => h.has(c.line) && (c.start_line === undefined || h.has(c.start_line)));
-      const keep = inline.filter((f) => fits(toComment(f, md)));
+      const keep = inline.filter((f) => fits(inlineComment(f)));
       moved = inline.filter((f) => !keep.includes(f));
       inline = keep;
       r = keep.length ? await send(keep) : null;
@@ -621,7 +631,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
         feedback.signals ? `This review took the team's reactions and replies on ${plural(feedback.signals, 'earlier Grapim comment')} into account.` : '',
       ].filter(Boolean);
       if (notes.length) result.summary = `${String(result.summary ?? '').trimEnd()}\n\n${notes.map((l) => `_${l}_`).join('\n')}`;
-      const text = `${summaryMarkdown({ summary: prov ? `${result.summary}\n\n${prov}` : result.summary, extra: posted.moved, heading: 'Not on a changed line', md, limit: LIMIT - OSS_FOOTER.length }).replace(MARKER, CLOUD_MARKER).trimEnd()}${oss ? OSS_FOOTER : '\n'}`;
+      const text = `${summaryMarkdown({ summary: prov ? `${result.summary}\n\n${prov}` : result.summary, extra: posted.moved, heading: 'Not on a changed line', md, limit: LIMIT - FOOTER_MAX }).replace(MARKER, CLOUD_MARKER).trimEnd()}${footer(head, oss)}`;
       await summary(client, repo, job.number, text);
       const failOn = result.failOn === 'never' ? 'never' : 'blocker';
       // A review that looked at nothing must not pass as "No findings".
@@ -629,7 +639,11 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       await check(client, repo, checkId, {
         status: 'completed',
         conclusion: nothing ? 'neutral' : failOn === 'blocker' && n.blocker ? 'failure' : 'success',
-        output: { title: nothing ? 'Nothing reviewed' : `${countText(n)[0].toUpperCase()}${countText(n).slice(1)}`, summary: text.replace(CLOUD_MARKER, '').trim().slice(0, LIMIT) },
+        // Short, as the other review checks are: the full summary is the PR comment.
+        output: {
+          title: nothing ? 'Nothing reviewed' : `${countText(n)[0].toUpperCase()}${countText(n).slice(1)}`,
+          summary: nothing ? 'No changed lines were reviewed. The summary comment on the pull request says why.' : `Reviewed ${plural(st.reviewedFiles ?? 0, 'file')} at ${head.slice(0, 7)}: ${countText(n)}. The comments and the summary are on the pull request.`,
+        },
       });
       return { done: true, counts: n, cost };
     } catch (err) {

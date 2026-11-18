@@ -209,5 +209,8 @@ test('summary: says where the code went, for a review in CI and for one on Grapi
   // Cloud review: the code was on Grapim's server, so the line must say so.
   const hosted = await reviewChanges({ cwd: dir, base, head, config: DEFAULT_CONFIG, provider, fetchImpl: fakeFetch(() => []), hosted: true });
   assert.ok(!hosted.summary.includes('Grapim received nothing'));
-  assert.ok(hosted.summary.endsWith("This review ran on Grapim's server: the code was fetched into a temporary folder there, sent only to the Anthropic API, and deleted when the review ended."));
+  // There it sits in the collapsed Review details, which end the summary.
+  assert.ok(hosted.summary.includes("This review ran on Grapim's server: the code was fetched into a temporary folder there, sent only to the Anthropic API, and deleted when the review ended."));
+  assert.ok(hosted.summary.endsWith('</details>'));
+  assert.match(inCi.summary, /<details><summary>Review details<\/summary>[^]*Model: claude-opus-5-5[^]*<\/details>/, 'the mechanics are collapsed');
 });

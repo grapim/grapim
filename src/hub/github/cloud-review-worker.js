@@ -10,6 +10,7 @@ import { anthropicProvider, ConfigError, reviewChanges, validateConfig } from '.
 import { CONFIG_FILE, parseConfigText } from '../../airev/config.js';
 import { pathToFileURL } from 'node:url';
 import { verifyFindings } from '../../airev/verify.js';
+import { COUNTS_RE, VERDICT_RE, countsBold, verdictLine } from '../../airev/findings.js';
 import { git } from '../../provenance/pr.js';
 import { mergeReviewConfig } from './review-config.js';
 
@@ -97,11 +98,16 @@ const plural = (n, one) => `${n} ${one}${n === 1 ? '' : 's'}`;
 export function withCounts(summary, kept, droppedCount) {
   const n = { blocker: 0, warning: 0, nit: 0 };
   for (const f of kept) if (f.severity in n) n[f.severity]++;
-  const counts = kept.length ? `**${plural(n.blocker, 'blocker')}, ${plural(n.warning, 'warning')}, ${plural(n.nit, 'nit')}**` : '**No problems found**';
   const note = `_A second look at the code and the discussion dropped ${plural(droppedCount, 'finding')} before posting._`;
-  const text = String(summary ?? '');
-  const re = /\*\*\d+ blockers?, \d+ warnings?, \d+ nits?\*\*/;
-  return `${re.test(text) ? text.replace(re, counts) : text}\n\n${note}`;
+  let text = String(summary ?? '').replace(VERDICT_RE, '');
+  // The counts line, then the verdict from the blockers that are left.
+  const m = text.match(COUNTS_RE);
+  if (m) {
+    const end = text.indexOf('\n', m.index);
+    const line = text.slice(m.index, end === -1 ? undefined : end).replace(COUNTS_RE, countsBold(n));
+    text = `${text.slice(0, m.index)}${line}${verdictLine(kept)}${end === -1 ? '' : text.slice(end)}`;
+  }
+  return `${text}\n\n${note}`;
 }
 
 // Only as a program (cloud-review.js spawns it); importing it runs nothing.
