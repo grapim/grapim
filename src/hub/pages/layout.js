@@ -38,8 +38,8 @@ export const SETTINGS_PAGES = [
 
 // The team's sections, in sidebar order. g: the second key of its "g" shortcut.
 // Cloud review comes first. The earlier product's sections show only when the
-// team uses them (overview.usage, as shell.use): Approvals and Agents once
-// it has synced agent runs, Workspaces once it has one, Platform
+// team uses them (overview.usage, as shell.use): Approvals, Repos, Agents and
+// Reports (all about recorded agent runs) once it has synced agent runs, Workspaces once it has one, Platform
 // (owners) once it has platform keys, origins or a workspace. A hidden section
 // is left out of the sidebar, the palette and the "g" keys alike, unless you
 // are on it; its pages still open at their address. secondary: below a divider.
@@ -52,9 +52,9 @@ function sections(team, shell) {
     { id: 'overview', label: 'Overview', href: base, icon: 'home', g: 'o' },
     { id: 'pull-requests', label: 'Reviews', href: `${base}/pull-requests`, icon: 'pr', g: 'v' },
     { id: 'reviews', label: 'Approvals', href: `${base}/reviews`, icon: 'review', g: 'r', when: use.runs },
-    { id: 'repos', label: 'Repos', href: `${base}/repos`, icon: 'repo', g: 'p' },
+    { id: 'repos', label: 'Repos', href: `${base}/repos`, icon: 'repo', g: 'p', when: use.runs },
     { id: 'agents', label: 'Agents', href: `${base}/agents`, icon: 'agents', g: 'i', when: use.runs },
-    { id: 'reports', label: 'Reports', href: `${base}/reports`, icon: 'reports', g: 'a' },
+    { id: 'reports', label: 'Reports', href: `${base}/reports`, icon: 'reports', g: 'a', when: use.runs },
     { id: 'settings', label: 'Settings', href: `${base}/settings`, icon: 'settings', g: 's' },
     { id: 'workspaces', label: 'Workspaces', href: `${base}/workspaces`, icon: 'workspace', g: 'w', secondary: true, when: use.workspaces },
     // API keys, webhooks and usage (docs/platform.md): its pages are owner only.

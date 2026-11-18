@@ -1057,7 +1057,7 @@ test('settings: one page per topic under /settings/<page>; forms land back on th
   assert.match(bad.text, /notice-error" role="alert">Unknown member/);
 });
 
-test('sidebar: a new team sees only what it uses (Overview, Reviews, Repos, Reports, Settings); runs and workspaces bring their sections back, in the palette and "g" keys too', async (t) => {
+test('sidebar: a new team sees only what it uses (Overview, Reviews, Settings); runs and workspaces bring their sections back, in the palette and "g" keys too', async (t) => {
   const h = await startHub();
   t.after(h.close);
   const owner = await signIn(h, 'nav-owner');
@@ -1069,8 +1069,8 @@ test('sidebar: a new team sees only what it uses (Overview, Reviews, Repos, Repo
   const subnav = (text) => [...text.matchAll(/<a class="subnav-item" href="[^"]+\/settings\/([a-z]+)"/g)].map((m) => m[1]);
 
   const fresh = (await owner.req(base)).text;
-  const NEW = ['/', '/pull-requests', '/repos', '/reports', '/settings'];
-  assert.deepEqual(nav(fresh), [...NEW, ...NEW], 'sidebar and phone menu: Overview, Reviews, Repos, Reports, Settings');
+  const NEW = ['/', '/pull-requests', '/settings'];
+  assert.deepEqual(nav(fresh), [...NEW, ...NEW], 'sidebar and phone menu: Overview, Reviews, Settings (Repos and Reports are about recorded runs)');
   assert.deepEqual(palette(fresh), NEW);
   assert.doesNotMatch(fresh, /Approvals|>Agents<|>Workspaces<|>Platform<|nav-sep/);
   assert.doesNotMatch(fresh, /menu-title">Machine tokens/, 'the profile menu leaves out Machine tokens too');
@@ -1094,7 +1094,7 @@ test('sidebar: a new team sees only what it uses (Overview, Reviews, Repos, Repo
   const token = await createToken(owner, team);
   let page = (await owner.req(`${base}/settings/general`)).text;
   assert.deepEqual(subnav(page), ['general', 'review', 'members', 'github', 'notifications', 'machines', 'data', 'plan']);
-  assert.deepEqual(nav(page).slice(0, 5), NEW);
+  assert.deepEqual(nav(page).slice(0, NEW.length), NEW);
 
   // Synced agent runs: Approvals, Agents, Approval rules.
   assert.equal((await sync(h, token, batch())).status, 200);
