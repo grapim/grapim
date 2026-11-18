@@ -45,7 +45,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { closingIssues } from '../../airev/index.js';
 import { md } from '../../provenance/render.js';
-import { counts, countText, diffLines, MARKER, statedRequest, summaryMarkdown, toComment } from '../../../action/review/index.mjs';
+import { counts, countText, diffLines, MARKER, SEVERITY, statedRequest, summaryMarkdown, toComment } from '../../../action/review/index.mjs';
+import { COUNTS_RE, VERDICT_RE } from '../../airev/findings.js';
 import { csrfField } from '../pages/layout.js';
 import { html } from '../pages/html.js';
 import { GitHubClient } from './client.js';
@@ -92,6 +93,45 @@ const inlineComment = (f) => {
   const c = toComment(f, md);
   return { ...c, body: `${c.body}\n\n${FEEDBACK_HINT}` };
 };
+// The findings posted inline, as a numbered list under the counts in the
+// summary comment, each linking to its inline comment (as Greptile does).
+// Titles are model text and go through md(); a link is used only when it came
+// from GitHub and points at the web host, otherwise the row has no link.
+const LIST_MAX = 10;
+const LIST_ORDER = { blocker: 0, warning: 1, nit: 2 };
+export function findingsList(rows, web = 'https://github.com') {
+  if (!rows.length) return '';
+  const hosts = [...new Set(['https://github.com/', `${String(web).replace(/\/+$/, '')}/`])];
+  const safeUrl = (u) => typeof u === 'string' && u.length <= 500 && hosts.some((h) => u.startsWith(h)) && /^[^\s()<>[\]"'`\\]+$/.test(u);
+  const sorted = [...rows].sort((a, b) => (LIST_ORDER[a.finding.severity] ?? 3) - (LIST_ORDER[b.finding.severity] ?? 3));
+  const lines = sorted.slice(0, LIST_MAX).map(({ finding: f, url }, i) => {
+    const title = md(String(f.title ?? '').replace(/[.\s]+$/, ''), 120) || 'Finding';
+    const end = Number.isSafeInteger(f.endLine) && f.endLine > f.line ? `-${f.endLine}` : '';
+    const where = `${String(f.path ?? '').replace(/[`\r\n]/g, '').slice(0, 300)}:${f.line}${end}`;
+    return `${i + 1}. **${SEVERITY[f.severity] ?? 'Note'}** · ${safeUrl(url) ? `[${title}](${url})` : title} · \`${where}\``;
+  });
+  if (sorted.length > LIST_MAX) lines.push(`\nand ${sorted.length - LIST_MAX} more.`);
+  return lines.join('\n');
+}
+// The list goes right under the counts paragraph (and the "Fix before
+// merging" line after it); with no counts line, after the first paragraph.
+export function withFindingsList(summary, list) {
+  const text = String(summary ?? '');
+  if (!list) return text;
+  const m = text.match(COUNTS_RE);
+  let at;
+  if (m) {
+    at = text.indexOf('\n', m.index);
+    if (at === -1) at = text.length;
+    const v = text.slice(at).match(VERDICT_RE);
+    if (v && v.index === 0) at += v[0].length;
+  } else {
+    at = text.indexOf('\n\n');
+    if (at === -1) at = text.length;
+  }
+  const rest = text.slice(at).replace(/^\n+/, '');
+  return `${text.slice(0, at).trimEnd()}\n\n${list}${rest ? `\n\n${rest}` : ''}`;
+}
 export const JOB_MS = 30 * 60 * 1000;
 const MICROS = 1_000_000;
 const NAME = /^[A-Za-z0-9_.-]{1,100}$/;
@@ -318,7 +358,8 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
   if (!cols.includes('title')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN title TEXT');
   db.exec('CREATE INDEX IF NOT EXISTS cloud_reviews_oss ON cloud_reviews (oss, started_at)');
   const cfg = cloudConfig(env);
-  const remote = gitUrl ?? ((owner, name) => `${apiBase === 'https://api.github.com' ? 'https://github.com' : apiBase.replace(/\/api\/v3$/, '')}/${owner}/${name}.git`);
+  const webBase = apiBase === 'https://api.github.com' ? 'https://github.com' : String(apiBase ?? '').replace(/\/api\/v3$/, '');
+  const remote = gitUrl ?? ((owner, name) => `${webBase}/${owner}/${name}.git`);
 
   const enabled = (teamId) => !!db.prepare('SELECT enabled FROM cloud_review_settings WHERE team_id = ?').get(teamId)?.enabled;
   const setEnabled = (teamId, on, userId) =>
@@ -484,7 +525,28 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
         inline = [];
       }
     }
-    return { inline: inline.length, moved, repeated };
+    return { inline: inline.length, moved, repeated, links: r?.ok && inline.length ? await commentLinks(client, repo, number, r.json?.id, inline) : [] };
+  }
+
+  // Each inline finding with the html_url of its comment, from the review's
+  // comments (the POST answer has no comment ids). Matched by path, line and
+  // title. Listing failed: the rows have no link; the review goes on.
+  async function commentLinks(client, repo, number, reviewId, inline) {
+    let comments = [];
+    try {
+      if (Number.isSafeInteger(reviewId)) comments = await list(client, `/repos/${repo}/pulls/${number}/reviews/${reviewId}/comments`, 3);
+    } catch {
+      comments = [];
+    }
+    const used = new Set();
+    return inline.map((finding) => {
+      const want = inlineComment(finding);
+      const title = parseComment(want.body)?.title;
+      const i = comments.findIndex((c, j) => !used.has(j) && c?.path === want.path && (c.line ?? c.original_line) === want.line && parseComment(c.body)?.title === title);
+      if (i === -1) return { finding, url: null };
+      used.add(i);
+      return { finding, url: comments[i].html_url ?? null };
+    });
   }
 
   async function summary(client, repo, number, text) {
@@ -631,6 +693,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
         feedback.signals ? `This review took the team's reactions and replies on ${plural(feedback.signals, 'earlier Grapim comment')} into account.` : '',
       ].filter(Boolean);
       if (notes.length) result.summary = `${String(result.summary ?? '').trimEnd()}\n\n${notes.map((l) => `_${l}_`).join('\n')}`;
+      result.summary = withFindingsList(result.summary, findingsList(posted.links ?? [], webBase));
       const text = `${summaryMarkdown({ summary: prov ? `${result.summary}\n\n${prov}` : result.summary, extra: posted.moved, heading: 'Not on a changed line', md, limit: LIMIT - FOOTER_MAX }).replace(MARKER, CLOUD_MARKER).trimEnd()}${footer(head, oss)}`;
       await summary(client, repo, job.number, text);
       const failOn = result.failOn === 'never' ? 'never' : 'blocker';
