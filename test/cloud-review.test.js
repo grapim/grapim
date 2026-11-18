@@ -10,7 +10,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { CLOUD_CHECK, CLOUD_MARKER, cloudConfig, costMicros, createCloudReview, DEFAULT_MODEL, provenanceSection } from '../src/hub/github/cloud-review.js';
+import { CLOUD_CHECK, CLOUD_MARKER, cloudConfig, costMicros, createCloudReview, DEFAULT_MODEL, findingsList, provenanceSection, withFindingsList } from '../src/hub/github/cloud-review.js';
 import { cleanTeamConfig, mergeReviewConfig, parseTeamForm, TeamConfigError } from '../src/hub/github/review-config.js';
 
 const TOKEN = 'ghs_cloudtest_secret_token';
@@ -78,6 +78,14 @@ function fakeGitHub(head, { isPrivate = true, userType = 'User' } = {}) {
     if ((m = /^\/repos\/acme\/api\/check-runs\/(\d+)$/.exec(p))) {
       Object.assign(s.checks.find((c) => c.id === Number(m[1])), body);
       return send(200, {});
+    }
+    // One review's comments, with the html_url the summary links to.
+    // s.reviewCommentsFail: the listing fails; s.htmlUrl(id): a test's own URL.
+    if ((m = /^\/repos\/acme\/api\/pulls\/7\/reviews\/(\d+)\/comments$/.exec(p)) && req.method === 'GET') {
+      if (s.reviewCommentsFail) return send(404, { message: 'Not Found' });
+      const r = s.reviews.find((x) => x.id === Number(m[1]));
+      if (!r) return send(404, { message: 'Not Found' });
+      return send(200, (r.comments ?? []).map((c, i) => { const id = r.id * 100 + i; return { id, pull_request_review_id: r.id, path: c.path, line: c.line, body: c.body, html_url: s.htmlUrl ? s.htmlUrl(id) : `https://github.com/acme/api/pull/7#discussion_r${id}` }; }));
     }
     if (p === '/repos/acme/api/pulls/7/reviews') {
       if (req.method === 'GET') return send(200, s.reviews);
@@ -209,6 +217,54 @@ test('a pull request is reviewed in the cloud: check in progress, inline review,
   await cloud.review(job, AbortSignal.timeout(60_000));
   assert.equal(gh.s.reviews.length, 1);
   assert.equal(gh.s.comments.length, 1);
+});
+
+test('summary: a numbered list of the inline findings, each linking to its comment', async (t) => {
+  const { cloud, gh, job } = await setup(t);
+  cloud.setEnabled('team1', true, 'u1');
+  assert.equal((await cloud.review(job, AbortSignal.timeout(60_000))).done, true);
+  const id = gh.s.reviews[0].id * 100;
+  const body = gh.s.comments[0].body;
+  assert.ok(body.includes(`\n1. **Blocker** · [a is now 10](https://github.com/acme/api/pull/7#discussion_r${id}) · \`src/small.js:1\`\n`), body);
+  // Right under the counts and the verdict, before anything else.
+  assert.ok(body.indexOf('**Fix before merging:**') < body.indexOf('\n1. **Blocker**'));
+  assert.ok(body.indexOf('\n1. **Blocker**') < body.indexOf('<sub>Reviewed by'));
+  assert.ok(!/Not on a changed line/.test(body));
+});
+
+test('summary: the list still renders, without links, when listing the comments fails or the URL is not GitHub', async (t) => {
+  for (const mode of ['fail', 'url']) {
+    const { cloud, gh, job } = await setup(t);
+    if (mode === 'fail') gh.s.reviewCommentsFail = true;
+    else gh.s.htmlUrl = () => 'javascript:alert(1)';
+    cloud.setEnabled('team1', true, 'u1');
+    const r = await cloud.review(job, AbortSignal.timeout(60_000));
+    assert.equal(r.done, true, mode);
+    const body = gh.s.comments[0].body;
+    assert.match(body, /\n1\. \*\*Blocker\*\* · a is now 10 · `src\/small\.js:1`\n/, mode);
+    assert.ok(!body.includes('javascript:'), mode);
+    assert.equal(gh.s.checks.at(-1).conclusion, 'failure', mode);
+  }
+});
+
+test('findingsList: at most 10 rows, blockers first, titles escaped, then "and N more"', () => {
+  const rows = Array.from({ length: 12 }, (_, i) => ({ finding: { path: 'a.js', line: i + 1, severity: i === 11 ? 'blocker' : 'nit', title: i === 11 ? 'Off-by-one [x](http://evil) @team' : `n${i}` }, url: `https://github.com/o/r/pull/1#discussion_r${i}` }));
+  const out = findingsList(rows);
+  const lines = out.split('\n').filter(Boolean);
+  assert.equal(lines.length, 11);
+  assert.match(lines[0], /^1\. \*\*Blocker\*\* · \[Off/);
+  assert.ok(!lines[0].includes('[x]') && !lines[0].includes('(http://evil)'), 'model text cannot add a link');
+  assert.match(lines[0], /\(https:\/\/github\.com\/o\/r\/pull\/1#discussion_r11\) · `a\.js:12`$/);
+  assert.equal(lines.at(-1), 'and 2 more.');
+  assert.equal(findingsList([]), '');
+  // A GitHub Enterprise web host is accepted; another host is not.
+  assert.match(findingsList([{ finding: { path: 'a.js', line: 1, severity: 'warning', title: 't' }, url: 'https://ghe.acme.io/o/r/pull/1#discussion_r1' }], 'https://ghe.acme.io'), /\[t\]\(https:\/\/ghe\.acme\.io\//);
+  assert.doesNotMatch(findingsList([{ finding: { path: 'a.js', line: 1, severity: 'warning', title: 't' }, url: 'https://github.com.evil.io/x' }]), /\]\(/);
+  // Placement: after the counts and verdict; with no counts line, after the first paragraph.
+  assert.equal(withFindingsList('### Grapim Review\n\n**1 blocker** in 1 file.\n\n**Fix before merging:** x.\n\nMore.', 'LIST'), '### Grapim Review\n\n**1 blocker** in 1 file.\n\n**Fix before merging:** x.\n\nLIST\n\nMore.');
+  assert.equal(withFindingsList('**2 nits** in 1 file.', 'LIST'), '**2 nits** in 1 file.\n\nLIST');
+  assert.equal(withFindingsList('Intro.\n\nMore.', 'LIST'), 'Intro.\n\nLIST\n\nMore.');
+  assert.equal(withFindingsList('Intro.', ''), 'Intro.');
 });
 
 test('no credit left: a neutral check, and the model is never called', async (t) => {

@@ -22,7 +22,7 @@ const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 const BOT = 'github-actions[bot]';
 const LIMIT = 64_000; // a margin under GitHub's 65,536-character comment limit
-const SEVERITY = { blocker: 'Blocker', warning: 'Warning', nit: 'Nit' };
+export const SEVERITY = { blocker: 'Blocker', warning: 'Warning', nit: 'Nit' };
 const ORDER = { blocker: 0, warning: 1, nit: 2 };
 const AGENTS = { 'claude-code': 'Claude Code', codex: 'Codex', cursor: 'Cursor', gemini: 'Gemini CLI', 'gemini-cli': 'Gemini CLI', mcp: 'MCP agent', http: 'API agent', sync: 'sync', undo: 'undo', restore: 'restore' };
 // Never echoed, even inside an error message.
