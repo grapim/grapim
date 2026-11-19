@@ -70,6 +70,7 @@ const DONE = {
   policy_saved: 'Review policy saved.',
   scan_started: 'History scan started. It reads the last 90 days of merged pull requests.',
   review_saved: 'Review settings saved. They apply from the next review.',
+  gate_saved: 'Merge gate saved. It applies from the next review.',
   cloud_on: 'Cloud review is on. The next pull request in a connected repository gets a review.',
   cloud_off: 'Cloud review is off. Pull requests are no longer reviewed in the cloud.',
   code_storage_on: 'No code storage is on. New syncs keep no file contents.',

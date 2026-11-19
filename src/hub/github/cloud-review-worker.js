@@ -10,6 +10,7 @@ import { anthropicProvider, ConfigError, reviewChanges, validateConfig } from '.
 import { CONFIG_FILE, parseConfigText } from '../../airev/config.js';
 import { pathToFileURL } from 'node:url';
 import { verifyFindings } from '../../airev/verify.js';
+import { factsFromGit } from '../../airev/decision.js';
 import { git } from '../../provenance/pr.js';
 import { mergeReviewConfig } from './review-config.js';
 
@@ -88,7 +89,10 @@ async function main() {
       result.summary = withCounts(result.summary, v.kept, v.dropped.length);
     }
   }
-  return { ok: true, result: { ...result, failOn: config.failOn } };
+  // What the merge decision card needs (airev/decision.js): paths, counts, test
+  // skips, the runs and their prompts. Never fails the review.
+  const facts = factsFromGit({ cwd: job.dir, base: job.base, head: job.head, config, log: (line) => process.stderr.write(`${line}\n`) });
+  return { ok: true, result: { ...result, failOn: config.failOn, ...(facts ? { facts } : {}), gate: config.gate ?? null } };
 }
 
 const plural = (n, one) => `${n} ${one}${n === 1 ? '' : 's'}`;

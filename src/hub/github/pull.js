@@ -473,7 +473,7 @@ export async function processPullRequest(ctx, job) {
   const link = (place, run) => `${origin}/hub/teams/${seg(team.id)}/repos/${seg(place.repo_id)}/runs/${seg(run)}?machine=${seg(place.machine)}`;
   const reviewLinks = new Map([...places].map(([run, place]) => [run, link(place, run)]));
   const { markdown, stats } = renderSummary({ files, notesByCommit: notes, blameByFile, reviews, omittedFiles, reviewLinks });
-  if (merged) ctx.saveProvenance?.({ installationId: inst.id, repoId: job.repoId, number: job.number, headSha: head, markdown: noProvenance ? null : markdown });
+  if (merged) ctx.saveProvenance?.({ installationId: inst.id, repoId: job.repoId, number: job.number, headSha: head, markdown: noProvenance ? null : markdown, runs: noProvenance ? null : stats.runs });
   const comment = merged
     ? { action: 'merged' }
     : noProvenance

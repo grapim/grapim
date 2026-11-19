@@ -1316,3 +1316,52 @@ test('the Overview\'s "Setup done" line links to Settings, Review', async (t) =>
   assert.match(ov.text, /Setup done: GitHub connected to/);
   assert.match(ov.text, new RegExp(`<a class="link" href="/hub/teams/${T}/settings/review">Review settings</a>`));
 });
+
+test('Settings, Review, Merge gate: Governance owners save it, members read it and its decisions; CI events reach only reviewed heads', async (t) => {
+  let gov = false;
+  const h = await startHub({ env: { GRAPIM_REVIEW_ANTHROPIC_KEY: 'sk-test-cloud-key' }, github: { governance: () => gov, repoFor: () => null, provenanceFor: () => [], hasProvenance: () => false } });
+  t.after(h.close);
+  const owner = await signIn(h, 'mg-owner');
+  const T = await createTeam(owner, 'Gatey');
+  const url = `/hub/teams/${T}/settings/review`;
+  const gate = h.hub.github.gate;
+  let page = await owner.req(url);
+  assert.match(page.text, /<h2 id="merge-gate-title" class="card-title">Merge gate<\/h2><span class="badge">Governance<\/span>/);
+  assert.match(page.text, /The merge gate is on the Governance plan\./);
+  const form = { gateMode: 'suggest', gateMaxLines: '300', gateExclude: 'dependabot[bot]', gateReviewers: 'alice', gateRepos: 'acme/api auto-approve' };
+  assert.equal((await owner.post(`${url}/gate`, form)).status, 402, 'not without Governance');
+  assert.equal(gate.settings(T).mode, 'off');
+
+  gov = true;
+  const saved = await owner.post(`${url}/gate`, form);
+  assert.equal(saved.status, 303, saved.text);
+  assert.equal(saved.location, `${url}?done=gate_saved#merge-gate`);
+  assert.deepEqual(gate.settings(T), { mode: 'suggest', maxLines: 300, excludeAuthors: ['dependabot[bot]'], reviewers: ['alice'], repos: { 'acme/api': 'auto-approve' } });
+  page = await owner.req(`${url}?done=gate_saved`);
+  assert.match(page.text, /Merge gate saved\./);
+  assert.match(page.text, /<option value="suggest" selected>Suggest only<\/option>/);
+  assert.match(page.text, /acme\/api auto-approve<\/textarea>/);
+  // A mistake comes back on the page, escaped; nothing is stored.
+  const bad = await owner.post(`${url}/gate`, { ...form, gateRepos: '<script>x</script> yes' });
+  assert.equal(bad.status, 400);
+  assert.match(bad.text, /write one repository per line/);
+  assert.doesNotMatch(bad.text, /<script>x/);
+  assert.equal(gate.settings(T).repos['acme/api'], 'auto-approve');
+  // The audit trail shows on the page.
+  gate.record({ teamId: T, owner: 'acme', name: 'api', number: 4, headSha: 'a'.repeat(40), mode: 'auto-approve', risk: 'low', action: 'approved', reasons: ['safe to merge, CI passed, no sensitive path, 12 changed lines'] });
+  page = await owner.req(url);
+  assert.match(page.text, /acme\/api#4<\/span><span class="badge badge-ok">Approved<\/span>/);
+  // Members read, cannot change.
+  const bob = await signIn(h, 'mg-member');
+  await join(owner, bob, T);
+  assert.match((await bob.req(url)).text, /acme\/api#4/);
+  assert.equal((await bob.post(`${url}/gate`, form)).status, 403);
+
+  // CI events: a commit Grapim has no card for is ignored; our own check never counts.
+  await link(h, owner, T, 977);
+  const ev = (event, payload) => hook(h, event, { installation: { id: 977 }, repository: { id: 1, name: 'api', owner: { login: 'acme' } }, ...payload });
+  assert.deepEqual((await ev('check_run', { action: 'completed', check_run: { head_sha: 'b'.repeat(40), app: { slug: 'other' } } })).body, { ignored: 'no_card' });
+  assert.deepEqual((await ev('check_suite', { action: 'completed', check_suite: { head_sha: 'b'.repeat(40), app: { slug: 'other' } } })).body, { ignored: 'no_card' });
+  assert.deepEqual((await ev('status', { state: 'pending', sha: 'b'.repeat(40) })).body, { ignored: 'action' });
+  assert.deepEqual((await ev('check_suite', { action: 'completed', check_suite: { head_sha: 'not a sha' } })).body, { ignored: 'bad_event' });
+});

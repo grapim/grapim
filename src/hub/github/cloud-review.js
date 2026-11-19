@@ -52,6 +52,8 @@ import { GitHubClient } from './client.js';
 import { JobQueue } from './queue.js';
 import { parseComment, repeats, teamFeedback } from './review-memory.js';
 import { cleanTeamConfig } from './review-config.js';
+import { createMergeCard } from './merge-card.js';
+import { CHECK_NAME } from './pull.js';
 
 export const CLOUD_CHECK = 'Grapim Review (cloud)';
 export const CLOUD_MARKER = '<!-- grapim:review:cloud -->';
@@ -295,7 +297,7 @@ function runWorker(job, { key, baseUrl, signal, timeoutMs, log }) {
   });
 }
 
-export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, env = process.env, gitUrl = null, signal: stopSignal, provenanceWaitMs = 2000 } = {}) {
+export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, env = process.env, gitUrl = null, signal: stopSignal, provenanceWaitMs = 2000, gate = null } = {}) {
   const { db, now, log, teams } = hub;
   db.exec(CLOUD_SCHEMA);
   // Hubs created before the open-source pool: add the column.
@@ -304,6 +306,10 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
   // The pull request's author, for the hourly limit on free reviews.
   if (!cols.includes('author')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN author TEXT');
   db.exec('CREATE INDEX IF NOT EXISTS cloud_reviews_oss ON cloud_reviews (oss, started_at)');
+  // The runs (and prompts) the hub's synced notes name, for the merge decision card.
+  if (!db.prepare('PRAGMA table_info(cloud_provenance)').all().some((c) => c.name === 'runs')) db.exec('ALTER TABLE cloud_provenance ADD COLUMN runs TEXT');
+  // The merge decision card and the merge gate (merge-card.js, merge-gate.js).
+  const cards = createMergeCard({ db, now, log, slug, gate, teams, ownChecks: [CLOUD_CHECK, CHECK_NAME] });
   const cfg = cloudConfig(env);
   const remote = gitUrl ?? ((owner, name) => `${apiBase === 'https://api.github.com' ? 'https://github.com' : apiBase.replace(/\/api\/v3$/, '')}/${owner}/${name}.git`);
 
@@ -617,16 +623,27 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
         feedback.signals ? `This review took the team's reactions and replies on ${plural(feedback.signals, 'earlier Grapim comment')} into account.` : '',
       ].filter(Boolean);
       if (notes.length) result.summary = `${String(result.summary ?? '').trimEnd()}\n\n${notes.map((l) => `_${l}_`).join('\n')}`;
-      const text = `${summaryMarkdown({ summary: prov ? `${result.summary}\n\n${prov}` : result.summary, extra: posted.moved, heading: 'Not on a changed line', md, limit: LIMIT - OSS_FOOTER.length }).replace(MARKER, CLOUD_MARKER).trimEnd()}${oss ? OSS_FOOTER : '\n'}`;
+      // The merge decision card on top (merge-card.js): verdict, what was
+      // asked, what went beyond it, CI, and the merge gate.
+      const decision = await cards.prepare({ client, job, team, pr, findings, posted, result, request, hubRuns: provenanceRunsFor(job) }).catch((err) => {
+        log(`merge card failed: ${String(err?.message ?? err).slice(0, 200)}`);
+        return null;
+      });
+      const top = [decision?.markdown, result.summary].filter(Boolean).join('\n\n');
+      const text = `${summaryMarkdown({ summary: prov ? `${top}\n\n${prov}` : top, extra: posted.moved, heading: 'Not on a changed line', md, limit: LIMIT - OSS_FOOTER.length }).replace(MARKER, CLOUD_MARKER).trimEnd()}${oss ? OSS_FOOTER : '\n'}`;
       await summary(client, repo, job.number, text);
       const failOn = result.failOn === 'never' ? 'never' : 'blocker';
       // A review that looked at nothing must not pass as "No findings".
       const nothing = !(st.reviewedHunks > 0);
+      const baseCheck = { conclusion: nothing ? 'neutral' : failOn === 'blocker' && n.blocker ? 'failure' : 'success', title: nothing ? 'Nothing reviewed' : `${countText(n)[0].toUpperCase()}${countText(n).slice(1)}` };
+      // The merge gate (auto-approve) fails the check on a high-risk pull request.
+      const final = decision?.check ?? baseCheck;
       await check(client, repo, checkId, {
         status: 'completed',
-        conclusion: nothing ? 'neutral' : failOn === 'blocker' && n.blocker ? 'failure' : 'success',
-        output: { title: nothing ? 'Nothing reviewed' : `${countText(n)[0].toUpperCase()}${countText(n).slice(1)}`, summary: text.replace(CLOUD_MARKER, '').trim().slice(0, LIMIT) },
+        conclusion: final.conclusion,
+        output: { title: final.title, summary: text.replace(CLOUD_MARKER, '').trim().slice(0, LIMIT) },
       });
+      decision?.save(checkId, baseCheck, CLOUD_MARKER);
       return { done: true, counts: n, cost };
     } catch (err) {
       const msg = String(err?.message ?? err).split(token).join('***');
@@ -759,6 +776,11 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     log,
     run: async (job) => {
       const signal = stopSignal ? AbortSignal.any([stopSignal, AbortSignal.timeout(cfg.jobMs + 60_000)]) : AbortSignal.timeout(cfg.jobMs + 60_000);
+      if (job.ci) {
+        const c = await ciRefresh(job, signal).catch((err) => ({ failed: String(err?.message ?? err).slice(0, 200) }));
+        log(c.updated ? `merge card updated: CI ${c.ci}` : `merge card ${c.skipped ? `skipped: ${c.skipped}` : 'update failed'}`);
+        return c;
+      }
       if (job.chat) {
         const c = await chat(job, signal).catch((err) => ({ failed: String(err?.message ?? err).slice(0, 200) }));
         log(c.answered ? `cloud chat answered, ${dollars(c.cost)}` : `cloud chat ${c.skipped ? `skipped: ${c.skipped}` : 'failed'}`);
@@ -816,12 +838,45 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
   // pull.js hands over the provenance of a pull request whose team has cloud
   // review on; the review's summary carries it (provenanceSection).
   const on = (team) => cfg.configured && !!auth && enabled(team.id);
-  function saveProvenance({ installationId, repoId, number, headSha, markdown }) {
+  // runs: the agent runs the hub's notes name ({ id, kind, intent }), for the
+  // merge decision card's "Asked" line.
+  function saveProvenance({ installationId, repoId, number, headSha, markdown, runs = null }) {
     if (!Number.isSafeInteger(Number(repoId)) || !Number.isSafeInteger(number)) return;
+    const list = Array.isArray(runs) ? JSON.stringify(runs.slice(0, 50).map((r) => ({ id: String(r?.id ?? ''), kind: String(r?.kind ?? ''), intent: typeof r?.intent === 'string' ? r.intent.slice(0, 1000) : null }))) : null;
     db.prepare(
-      `INSERT INTO cloud_provenance (installation_id, repo_gh_id, number, head_sha, markdown, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(installation_id, repo_gh_id, number) DO UPDATE SET head_sha = excluded.head_sha, markdown = excluded.markdown, updated_at = excluded.updated_at`,
-    ).run(installationId, Number(repoId), number, headSha, markdown ?? null, now());
+      `INSERT INTO cloud_provenance (installation_id, repo_gh_id, number, head_sha, markdown, runs, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(installation_id, repo_gh_id, number) DO UPDATE SET head_sha = excluded.head_sha, markdown = excluded.markdown, runs = excluded.runs, updated_at = excluded.updated_at`,
+    ).run(installationId, Number(repoId), number, headSha, markdown ?? null, list, now());
+  }
+  // The runs the hub's notes name for this head.
+  function provenanceRunsFor(job) {
+    const r = db.prepare('SELECT head_sha, runs FROM cloud_provenance WHERE installation_id = ? AND repo_gh_id = ? AND number = ?').get(job.installationId, Number(job.repoId), job.number);
+    if (!r || r.head_sha !== job.headSha || !r.runs) return [];
+    try {
+      const list = JSON.parse(r.runs);
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // CI finished (or changed) on a commit: redo the merge decision card of the
+  // pull requests whose newest review was of that commit. From the App's
+  // check_run, check_suite and status events. True when a job was queued.
+  function onCiEvent({ installationId, headSha, appSlug = null }) {
+    if (!auth || (slug && appSlug === slug)) return false;
+    let queued = false;
+    for (const row of cards.cardsFor(installationId, headSha)) {
+      if (queue.push(`ci:${row.installation_id}:${row.repo_gh_id}:${row.number}`, { ci: true, installationId: row.installation_id, repoGhId: row.repo_gh_id, number: row.number, headSha }, String(row.installation_id))) queued = true;
+    }
+    return queued;
+  }
+  async function ciRefresh(job, signal) {
+    const row = cards.cardsFor(job.installationId, job.headSha).find((r) => r.repo_gh_id === job.repoGhId && r.number === job.number);
+    if (!row) return { skipped: 'no_card' };
+    const token = await auth.installationToken(job.installationId);
+    const client = new GitHubClient({ apiBase, token, fetch, now, signal });
+    return cards.refresh({ client, row });
   }
   function provenanceFor(job) {
     const r = db.prepare('SELECT head_sha, markdown FROM cloud_provenance WHERE installation_id = ? AND repo_gh_id = ? AND number = ?').get(job.installationId, Number(job.repoId), job.number);
@@ -829,5 +884,5 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     return r && r.head_sha === job.headSha ? r.markdown : undefined;
   }
 
-  return { config: cfg, enabled, setEnabled, teamConfig, setTeamConfig, usage, recent, card, onPullRequest, onComment, chat, review, queue, on, saveProvenance, provenanceFor, close: () => queue.close() };
+  return { config: cfg, enabled, onCiEvent, ciRefresh, cards, provenanceRunsFor, setEnabled, teamConfig, setTeamConfig, usage, recent, card, onPullRequest, onComment, chat, review, queue, on, saveProvenance, provenanceFor, close: () => queue.close() };
 }
