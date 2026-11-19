@@ -110,7 +110,17 @@ Mention the App in a comment: `@grapim is this really a problem?` under one of i
 
 ### It learns from your team
 
-Before each review, Grapim reads its recent comments in the repository back from GitHub: 👎 and 👍 on them, and the replies written under them by people with write access. That goes to the reviewer as guidance, so a kind of finding your team keeps dismissing comes up less. Nothing is stored on Grapim's side for this, and replies from people without write access are left out. A blocker is still reported.
+Before each review, Grapim reads its recent comments in the repository back from GitHub: 👎 and 👍 on them, and the replies written under them by people with write access. That goes to the reviewer as guidance, so a kind of finding your team keeps dismissing comes up less. Replies from people without write access are left out. A blocker is still reported.
+
+### Comment outcomes
+
+Each inline comment gets an outcome, shown as rates on the **Reviews** page (the last 30 days, overall and per severity):
+
+- **Accepted**: a later commit on the pull request changed the commented lines (or the two lines around them), the committable suggestion was committed, or the comment got more 👍 than 👎, or a thanks reply.
+- **Rejected**: more 👎 than 👍, a reply saying it is not an issue, or the thread resolved with no change to the lines.
+- **Ignored**: merged with none of these. **Pending**: the pull request is still open.
+
+Grapim keeps, per comment: the repository, pull request, commit, file and lines, severity, confidence, category and title, whether an agent wrote the lines, the reaction counts, the replies (at most three, cut to 280 characters), and these outcomes. No code: to tell whether lines changed, it reads the two versions of the file from GitHub and keeps nothing of them, and of a suggestion it keeps only a hash. Rows go after a year. Members can export the team's rows from the Reviews page (CSV) or `GET /hub/api/teams/<team>/review-outcomes` (JSON).
 
 ## Run it in your own CI
 

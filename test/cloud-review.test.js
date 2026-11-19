@@ -306,7 +306,7 @@ test('a pull request is reviewed in the cloud: check in progress, inline review,
   assert.doesNotMatch(gh.s.comments[0].body, /\*\*Fix before merging:\*\*/);
   assert.equal(gh.s.comments[0].body.match(/^### /gm).length, 2, 'the card, then the review: one verdict');
   assert.match(gh.s.comments[0].body, /<sub>Reviewed by <a href="https:\/\/github\.com\/grapim\/grapim">Grapim<\/a> at commit <code>[0-9a-f]{7}<\/code><\/sub>\n$/);
-  assert.match(gh.s.reviews[0].comments[0].body, /React 👍 or 👎, or reply/);
+  assert.match(gh.s.reviews[0].comments[0].body, /<sub>React 👍 if useful or 👎 if not, or reply\. Grapim takes it into account on later reviews here\.<\/sub>$/);
   assert.ok(!JSON.stringify({ checks: gh.s.checks, reviews: gh.s.reviews, comments: gh.s.comments }).includes(TOKEN), 'the token never reaches a comment or check');
   assert.ok(gh.s.auth.every((a) => a === `Bearer ${TOKEN}`), 'every API call uses the installation token');
 
@@ -316,10 +316,21 @@ test('a pull request is reviewed in the cloud: check in progress, inline review,
   assert.equal(row.cost_micros, costMicros(cloud.config.price, row.input_tokens, row.output_tokens));
   assert.equal(cloud.usage({ id: 'team1', plan: 'free' }).reviews, 1);
 
+  // The comment outcome log (outcomes.js): one row for the inline comment, pending.
+  const logged = db.prepare('SELECT * FROM review_findings').all();
+  assert.equal(logged.length, 1);
+  assert.deepEqual(
+    { team: logged[0].team_id, repo: logged[0].repo_gh_id, pr: logged[0].number, head: logged[0].head_sha, review: logged[0].gh_review_id, comment: logged[0].comment_id, row: logged[0].review_row },
+    { team: 'team1', repo: 99, pr: 7, head: job.headSha, review: gh.s.reviews[0].id, comment: gh.s.reviews[0].id * 100, row: row.id },
+  );
+  assert.deepEqual([logged[0].path, logged[0].line, logged[0].severity, logged[0].confidence, logged[0].category, logged[0].title, logged[0].model, logged[0].outcome], ['src/small.js', 1, 'blocker', 'high', 'correctness', 'a is now 10', 'claude-opus-5-5', 'pending']);
+  assert.equal(logged[0].agent_kind, null, 'no provenance notes: not agent-written');
+
   // Run again on the same head: the summary is updated, no second inline review.
   await cloud.review(job, AbortSignal.timeout(60_000));
   assert.equal(gh.s.reviews.length, 1);
   assert.equal(gh.s.comments.length, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM review_findings').get().n, 1, 'no second row');
 });
 
 test('summary: a numbered list of the inline findings, each linking to its comment', async (t) => {

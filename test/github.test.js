@@ -1379,3 +1379,68 @@ test('Settings, Review, Merge gate: Governance owners save it, members read it a
   assert.deepEqual((await ev('status', { state: 'pending', sha: 'b'.repeat(40) })).body, { ignored: 'action' });
   assert.deepEqual((await ev('check_suite', { action: 'completed', check_suite: { head_sha: 'not a sha' } })).body, { ignored: 'bad_event' });
 });
+
+test('comment outcomes: thread webhooks reach the log; the Reviews page shows the 30-day rates; the export is the team’s own', async (t) => {
+  const h = await startHub({ env: { GRAPIM_REVIEW_ANTHROPIC_KEY: 'sk-test-cloud-key' }, github: { repoFor: () => null, provenanceFor: () => [], hasProvenance: () => false } });
+  t.after(h.close);
+  const owner = await signIn(h, 'out-owner');
+  const T = await createTeam(owner, 'Measured');
+  const mallory = await signIn(h, 'out-mallory');
+  const O = await createTeam(mallory, 'Elsewhere');
+  await link(h, owner, T, 931);
+  const out = h.hub.github.cloud.outcomes;
+  const job = { installationId: 931, repoId: 1, owner: 'acme', name: 'api', number: 7, headSha: 'a'.repeat(40) };
+  const f = (line, severity, title) => ({ path: 'src/app.ts', line, severity, confidence: 'high', category: 'correctness', title });
+  out.record({ teamId: T, job, rows: [{ finding: f(1, 'blocker', 'Unchecked null'), commentId: 11 }, { finding: f(5, 'warning', 'Slow loop'), commentId: 12 }, { finding: f(9, 'nit', 'Name'), commentId: 13 }] });
+  out.record({ teamId: O, job: { ...job, installationId: 932, name: 'secret' }, rows: [{ finding: f(1, 'blocker', 'Their finding'), commentId: 11 }] });
+
+  // Reviews page, no signal yet: the block shows, every comment pending.
+  let page = await owner.req(`/hub/teams/${T}/pull-requests`);
+  assert.match(page.text, /Comment outcomes, last 30 days/);
+  assert.match(page.text, /<dt>All comments<\/dt><dd><span class="kpi-v"><span class="muted">—<\/span><\/span><span class="kpi-s kpi-note">3 pending<\/span>/);
+
+  // A resolved thread on Grapim's comment: rejected (no change to the lines).
+  const ev = (event, p) => hook(h, event, { installation: { id: 931 }, repository: { id: 1, name: 'api', owner: { login: 'acme' } }, pull_request: { number: 7, user: { login: 'dev' } }, ...p });
+  assert.deepEqual((await ev('pull_request_review_thread', { action: 'resolved', thread: { comments: [{ id: 11 }, { id: 77 }] } })).body, { ok: true, outcomes: 1 });
+  assert.deepEqual((await ev('pull_request_review_thread', { action: 'resolved', thread: { comments: [{ id: 99 }] } })).body, { ignored: 'not_ours' });
+  assert.deepEqual((await ev('pull_request_review_thread', { action: 'created', thread: { comments: [{ id: 12 }] } })).body, { ignored: 'action' });
+  assert.deepEqual((await hook(h, 'pull_request_review_thread', { action: 'resolved', installation: { id: 999 }, thread: { comments: [{ id: 12 }] } })).body, { ignored: 'unlinked' });
+  // A push: the commented file is read at both commits (this fake has none, so nothing is fixed).
+  await ev('pull_request', { action: 'synchronize', after: 'b'.repeat(40), pull_request: { number: 7, head: { sha: 'b'.repeat(40) }, user: { login: 'dev' } } });
+  await h.hub.github.cloud.outcomes.queue.idle();
+  assert.ok(h.gh.s.requests.includes('GET /repos/acme/api/contents/src/app.ts'), 'the push was checked for fixes');
+  // The merge: what is left is ignored; the 👍 has to come from GitHub, so none here.
+  await ev('pull_request', { action: 'closed', pull_request: { number: 7, merged: true, merged_at: new Date().toISOString(), head: { sha: 'a'.repeat(40) }, user: { login: 'dev' } } });
+  await h.hub.github.cloud.outcomes.queue.idle();
+  const rows = out.exportRows(T);
+  assert.deepEqual(rows.map((r) => `${r.severity}:${r.outcome}`).sort(), ['blocker:rejected', 'nit:ignored', 'warning:ignored']);
+  assert.equal(out.exportRows(O)[0].outcome, 'pending', 'another team’s pull request with the same number is untouched');
+
+  page = await owner.req(`/hub/teams/${T}/pull-requests`);
+  assert.match(page.text, /<dt>All comments<\/dt><dd><span class="kpi-v">0%<\/span><span class="kpi-s kpi-note">0 of 3 accepted · 1 rejected · 2 ignored<\/span>/);
+  assert.match(page.text, /<dt>Blockers<\/dt><dd><span class="kpi-v">0%<\/span><span class="kpi-s kpi-note">0 of 1 accepted · 1 rejected<\/span>/);
+  assert.match(page.text, new RegExp(`href="/hub/api/teams/${T}/review-outcomes.csv" download>Export CSV`));
+  assert.doesNotMatch(page.text, /Their finding/);
+  const theirs = await mallory.req(`/hub/teams/${O}/pull-requests`);
+  assert.match(theirs.text, /1 pending/);
+
+  // The export: members of the team, its rows only, JSON and CSV.
+  const json = await owner.req(`/hub/api/teams/${T}/review-outcomes`);
+  assert.equal(json.status, 200);
+  const body = JSON.parse(json.text);
+  assert.equal(body.findings.length, 3);
+  assert.ok(body.findings.every((r) => r.repo === 'acme/api'));
+  assert.equal(body.stats.all.rejected, 1);
+  assert.equal(body.findings.find((r) => r.severity === 'blocker').comment_url, `${h.gh.base}/acme/api/pull/7#discussion_r11`, 'on the GitHub host the App talks to');
+  const csv = await owner.req(`/hub/api/teams/${T}/review-outcomes.csv?days=30`);
+  assert.equal(csv.status, 200);
+  const lines = csv.text.trim().split('\r\n');
+  assert.equal(lines.length, 4);
+  assert.ok(lines[0].startsWith('id,repo,number,head_sha,review_id,comment_id,comment_url,path,line'));
+  assert.doesNotMatch(csv.text, /Their finding|secret/);
+  assert.equal((await mallory.req(`/hub/api/teams/${T}/review-outcomes`)).status, 404, 'not a member: not found');
+  assert.equal((await mallory.req(`/hub/api/teams/${T}/review-outcomes.csv`)).status, 404);
+  const hers = JSON.parse((await mallory.req(`/hub/api/teams/${O}/review-outcomes`)).text);
+  assert.deepEqual(hers.findings.map((r) => r.title), ['Their finding']);
+  assert.equal((await new Browser(h.base).req(`/hub/api/teams/${T}/review-outcomes`)).status, 401, 'signed out: refused');
+});

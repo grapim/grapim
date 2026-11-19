@@ -54,6 +54,7 @@ import { JobQueue } from './queue.js';
 import { parseComment, repeats, teamFeedback } from './review-memory.js';
 import { cleanTeamConfig } from './review-config.js';
 import { cardCheck, createMergeCard } from './merge-card.js';
+import { createOutcomes } from './outcomes.js';
 import { withoutVerdict } from '../../airev/decision.js';
 import { CHECK_NAME } from './pull.js';
 
@@ -100,8 +101,9 @@ export const DEFAULT_OSS = Object.freeze({ monthly: 200, repoMonthly: 10, minSta
 const FOOTER_MAX = 200;
 const footer = (head, oss) => `\n\n<sub>Reviewed by <a href="https://github.com/grapim/grapim">Grapim</a> at commit <code>${String(head).slice(0, 7)}</code>${oss ? ' · free for public repositories' : ''}</sub>\n`;
 // Under each inline comment: the reactions and replies are read on later
-// reviews (feedback.js), so say so, as Greptile does.
-const FEEDBACK_HINT = '<sub>React 👍 or 👎, or reply: Grapim takes it into account on later reviews in this repository.</sub>';
+// reviews (review-memory.js) and counted as the comment's outcome
+// (outcomes.js), so ask for them, as Greptile does.
+export const FEEDBACK_HINT = '<sub>React 👍 if useful or 👎 if not, or reply. Grapim takes it into account on later reviews here.</sub>';
 const inlineComment = (f) => {
   const c = toComment(f, md);
   return { ...c, body: `${c.body}\n\n${FEEDBACK_HINT}` };
@@ -395,6 +397,8 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
   const cards = createMergeCard({ db, now, log, slug, gate, teams, ownChecks: [CLOUD_CHECK, CHECK_NAME] });
   const cfg = cloudConfig(env);
   const webBase = apiBase === 'https://api.github.com' ? 'https://github.com' : String(apiBase ?? '').replace(/\/api\/v3$/, '');
+  // What happened to each inline comment (outcomes.js).
+  const outcomes = createOutcomes({ db, now, log, auth, apiBase, fetch, slug, signal: stopSignal });
   const remote = gitUrl ?? ((owner, name) => `${webBase}/${owner}/${name}.git`);
 
   const enabled = (teamId) => !!db.prepare('SELECT enabled FROM cloud_review_settings WHERE team_id = ?').get(teamId)?.enabled;
@@ -585,12 +589,13 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
         inline = [];
       }
     }
-    return { inline: inline.length, moved, repeated, links: r?.ok && inline.length ? await commentLinks(client, repo, number, r.json?.id, inline) : [] };
+    const reviewId = r?.ok && Number.isSafeInteger(r.json?.id) ? r.json.id : null;
+    return { inline: inline.length, moved, repeated, reviewId, links: r?.ok && inline.length ? await commentLinks(client, repo, number, r.json?.id, inline) : [] };
   }
 
-  // Each inline finding with the html_url of its comment, from the review's
-  // comments (the POST answer has no comment ids). Matched by path, line and
-  // title. Listing failed: the rows have no link; the review goes on.
+  // Each inline finding with the html_url and id of its comment, from the
+  // review's comments (the POST answer has no comment ids). Matched by path,
+  // line and title. Listing failed: the rows have no link; the review goes on.
   async function commentLinks(client, repo, number, reviewId, inline) {
     let comments = [];
     try {
@@ -606,9 +611,9 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       // still uses the old diff position), so a line is compared only when given.
       const lineOk = (c) => { const l = c.line ?? c.original_line; return l == null || l === want.line; };
       const i = comments.findIndex((c, j) => !used.has(j) && c?.path === want.path && lineOk(c) && parseComment(c.body)?.title === title);
-      if (i === -1) return { finding, url: null };
+      if (i === -1) return { finding, url: null, commentId: null };
       used.add(i);
-      return { finding, url: comments[i].html_url ?? null };
+      return { finding, url: comments[i].html_url ?? null, commentId: Number.isSafeInteger(comments[i].id) ? comments[i].id : null };
     });
   }
 
@@ -768,6 +773,14 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       finish({ status: 'done', findings: findings.length, blockers: n.blocker, input_tokens: st.inputTokens ?? 0, output_tokens: st.outputTokens ?? 0, cost_micros: cost });
 
       const posted = await post(client, repo, job.number, head, findings, prior);
+      // One outcome row per inline comment, filled in later (outcomes.js).
+      if (posted.inline && posted.links?.length) {
+        try {
+          outcomes.record({ teamId: team?.id ?? null, job: { ...job, headSha: head }, reviewRow: Number(rowId), ghReviewId: posted.reviewId, model: cfg.model, oss, rows: posted.links });
+        } catch (err) {
+          log(`comment outcomes: record failed: ${String(err?.message ?? err).slice(0, 200)}`);
+        }
+      }
       // One comment per pull request: the provenance section joins the review.
       // The provenance job runs on its own queue and is nearly always done by
       // now; wait for it briefly so the one comment is complete.
@@ -1056,5 +1069,11 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     return r && r.head_sha === job.headSha ? r.markdown : undefined;
   }
 
-  return { config: cfg, enabled, onCiEvent, ciRefresh, cards, provenanceRunsFor, setEnabled, teamConfig, setTeamConfig, usage, recent, card, onPullRequest, onComment, chat, review, queue, on, saveProvenance, provenanceFor, close: () => queue.close() };
+  return {
+    config: cfg, enabled, onCiEvent, ciRefresh, cards, outcomes, provenanceRunsFor, setEnabled, teamConfig, setTeamConfig, usage, recent, card, onPullRequest, onComment, chat, review, queue, on, saveProvenance, provenanceFor,
+    close: () => {
+      queue.close();
+      outcomes.close();
+    },
+  };
 }

@@ -362,6 +362,9 @@ export function createGitHubApp(hub, options = {}) {
         installs.repos(inst?.id, Array.isArray(p.repositories_added) ? p.repositories_added : [], Array.isArray(p.repositories_removed) ? p.repositories_removed : []);
         return { ok: true };
       case 'pull_request': {
+        // The comment outcome log (outcomes.js): a push may have fixed what a
+        // comment pointed at; a merge or close settles each comment's outcome.
+        outcomeEvent(p);
         if (p.action === 'closed') {
           // Its runs no longer need re-evaluation after a review. Merged: kept
           // as evidence that the runs reached the default branch's history.
@@ -407,8 +410,11 @@ export function createGitHubApp(hub, options = {}) {
       case 'issue_comment':
       case 'pull_request_review_comment': {
         // "@grapim ..." in a pull request (cloud-review.js onComment).
-        if (p.action !== 'created') return { ignored: 'action' };
         const review = event === 'pull_request_review_comment';
+        // A reply under a Grapim comment (any author, any action): its
+        // replies and reactions are read again for the outcome log.
+        if (review) outcomeActivity(p);
+        if (p.action !== 'created') return { ignored: 'action' };
         if (!review && !p.issue?.pull_request) return { ignored: 'not_a_pull_request' };
         const c = p.comment;
         if (!c || c.user?.type === 'Bot' || typeof c.body !== 'string') return { ignored: 'bot' };
@@ -437,6 +443,16 @@ export function createGitHubApp(hub, options = {}) {
         });
         return queued ? { queued: true, chat: true } : { ignored: 'no_mention' };
       }
+      // A review thread resolved or unresolved: Grapim's comment in it.
+      case 'pull_request_review_thread': {
+        if (p.action !== 'resolved' && p.action !== 'unresolved') return { ignored: 'action' };
+        const row = installs.get(inst?.id);
+        if (!row || row.deleted_at) return { ignored: 'unlinked' };
+        const ids = (Array.isArray(p.thread?.comments) ? p.thread.comments : []).map((c) => c?.id);
+        const changed = cloud.outcomes.onThread({ installationId: row.id, commentIds: ids, resolved: p.action === 'resolved' });
+        if (changed) outcomeActivity(p);
+        return changed ? { ok: true, outcomes: changed } : { ignored: 'not_ours' };
+      }
       case 'check_run':
         if (p.action === 'completed') return onCi(p, p.check_run?.head_sha, p.check_run?.app?.slug);
         return p.action === 'requested_action' ? onRequestedAction(p) : { ignored: 'action' };
@@ -449,6 +465,45 @@ export function createGitHubApp(hub, options = {}) {
         return p.state && p.state !== 'pending' ? onCi(p, p.sha, null) : { ignored: 'action' };
       default:
         return { ignored: 'event' };
+    }
+  }
+
+  // The pull request of an event, for the comment outcome log.
+  function outcomeKey(p) {
+    const row = installs.get(p?.installation?.id);
+    if (!row || row.deleted_at || row.suspended_at) return null;
+    const pr = p.pull_request;
+    return {
+      installationId: row.id,
+      repoGhId: p.repository?.id,
+      owner: String(p.repository?.owner?.login ?? ''),
+      name: String(p.repository?.name ?? ''),
+      number: pr?.number,
+      author: typeof pr?.user?.login === 'string' ? pr.user.login.slice(0, 100) : null,
+    };
+  }
+  function outcomeEvent(p) {
+    try {
+      const k = outcomeKey(p);
+      if (!k) return;
+      const pr = p.pull_request;
+      if (p.action === 'synchronize') cloud.outcomes.onPush({ ...k, headSha: String(p.after ?? pr?.head?.sha ?? '') });
+      else if (p.action === 'closed') cloud.outcomes.onClosed({ ...k, merged: pr?.merged === true, headSha: String(pr?.head?.sha ?? ''), at: Date.parse(pr?.merged_at ?? pr?.closed_at ?? '') || now() });
+      else if (p.action === 'reopened') cloud.outcomes.onReopened(k);
+    } catch (err) {
+      log(`comment outcomes: ${String(err?.message ?? err).slice(0, 200)}`);
+    }
+  }
+  function outcomeActivity(p) {
+    try {
+      // Grapim's own comments (a review being posted) change nothing.
+      if (p.comment?.user?.type === 'Bot') return;
+      const k = outcomeKey(p);
+      if (!k) return;
+      const reply = p.comment?.in_reply_to_id;
+      cloud.outcomes.onActivity({ ...k, ...(Number.isSafeInteger(reply) ? { commentId: reply } : {}) });
+    } catch (err) {
+      log(`comment outcomes: ${String(err?.message ?? err).slice(0, 200)}`);
     }
   }
 
@@ -846,6 +901,35 @@ export function createGitHubApp(hub, options = {}) {
       ctx.res.end(body);
     }, TEAM_VIEW);
 
+    // ---- The comment outcome log (outcomes.js): the team's rows ----
+    // JSON or CSV, members of the team only, newest first; ?days=1..365.
+    const outcomeDays = (ctx) => {
+      const d = Number(ctx.url.searchParams.get('days'));
+      return Number.isInteger(d) && d >= 1 && d <= 365 ? d : 365;
+    };
+    const webHost = apiBase === 'https://api.github.com' ? 'https://github.com' : apiBase.replace(/\/api\/v3$/, '');
+    router.get('/hub/api/teams/:team/review-outcomes', (ctx) => {
+      hub.limit(ctx, 'read', ctx.member.userId);
+      const days = outcomeDays(ctx);
+      const rows = cloud.outcomes.exportRows(ctx.member.team.id, { days, web: webHost });
+      ctx.res.setHeader('Cache-Control', 'no-store');
+      sendJson(ctx.res, 200, { days, stats: cloud.outcomes.stats(ctx.member.team.id, { days }), findings: rows });
+    }, TEAM_VIEW);
+    router.get('/hub/api/teams/:team/review-outcomes.csv', (ctx) => {
+      hub.limit(ctx, 'read', ctx.member.userId);
+      const rows = cloud.outcomes.exportRows(ctx.member.team.id, { days: outcomeDays(ctx), web: webHost });
+      const cols = cloud.outcomes.columns;
+      const cell = (v) => (Array.isArray(v) ? v.map((r) => `${r.who}: ${r.text}`).join(' | ') : typeof v === 'boolean' ? (v ? 'yes' : 'no') : v);
+      const body = csvTable(cols, rows.map((r) => cols.map((c) => cell(r[c]))));
+      ctx.res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Length': Buffer.byteLength(body),
+        'Content-Disposition': `attachment; filename="grapim-comment-outcomes-${new Date(now()).toISOString().slice(0, 10)}.csv"`,
+        'Cache-Control': 'no-store',
+      });
+      ctx.res.end(body);
+    }, TEAM_VIEW);
+
     // ---- Path rules ----
     // They live on Settings, Review rules (src/hub/routes-pages.js); the old
     // address goes there. A refusal is shown on that page, above the form.
@@ -961,6 +1045,7 @@ ${merge}`;
       db.prepare('DELETE FROM gh_pull_runs WHERE updated_at < ?').run(now() - PULL_DAYS * 24 * 60 * 60 * 1000);
       db.prepare('DELETE FROM gh_check_actions WHERE created_at < ?').run(now() - PULL_DAYS * 24 * 60 * 60 * 1000);
       cloud.cards.sweep(PULL_DAYS);
+      cloud.outcomes.sweep();
       for (const [k, v] of notices) if (now() - v.at >= NOTICE_MS) notices.delete(k);
     } catch {}
   }, 60 * 60 * 1000);
