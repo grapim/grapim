@@ -45,6 +45,7 @@ What still works without contents: the run list, prompts, files and line counts,
 These do not depend on the mode:
 
 - **The GitHub App**, if an owner installs it, reads pull request files and blame from GitHub to write its comment and check. It keeps the runs it found in each pull request, not the files.
+- **Cloud review comment outcomes**: for each inline comment cloud review posts, its place (repository, pull request, file and lines), severity, category and title, reaction counts, up to three replies cut to 280 characters, and whether the lines later changed, the thread was resolved and the pull request merged. No code; kept a year. See [Grapim Review](/docs/review).
 - **The 90-day history scan** keeps each merged pull request's repo, number, title, author, merge time and the AI signals found.
 - **Your GitHub profile** (id, login, name, avatar) from sign-in.
 
