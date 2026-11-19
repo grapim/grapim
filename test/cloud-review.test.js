@@ -81,11 +81,12 @@ function fakeGitHub(head, { isPrivate = true, userType = 'User' } = {}) {
     }
     // One review's comments, with the html_url the summary links to.
     // s.reviewCommentsFail: the listing fails; s.htmlUrl(id): a test's own URL.
+    // As on github.com, this listing gives line and original_line as null.
     if ((m = /^\/repos\/acme\/api\/pulls\/7\/reviews\/(\d+)\/comments$/.exec(p)) && req.method === 'GET') {
       if (s.reviewCommentsFail) return send(404, { message: 'Not Found' });
       const r = s.reviews.find((x) => x.id === Number(m[1]));
       if (!r) return send(404, { message: 'Not Found' });
-      return send(200, (r.comments ?? []).map((c, i) => { const id = r.id * 100 + i; return { id, pull_request_review_id: r.id, path: c.path, line: c.line, body: c.body, html_url: s.htmlUrl ? s.htmlUrl(id) : `https://github.com/acme/api/pull/7#discussion_r${id}` }; }));
+      return send(200, (r.comments ?? []).map((c, i) => { const id = r.id * 100 + i; return { id, pull_request_review_id: r.id, path: c.path, line: null, original_line: null, position: 1, body: c.body, html_url: s.htmlUrl ? s.htmlUrl(id) : `https://github.com/acme/api/pull/7#discussion_r${id}` }; }));
     }
     if (p === '/repos/acme/api/pulls/7/reviews') {
       if (req.method === 'GET') return send(200, s.reviews);
