@@ -23,7 +23,7 @@ The `grapim` CLI and the Grapim Review GitHub Action are open source under the [
 Grapim reviews pull requests with AI and keeps a record of what coding agents changed. It is in early access:
 
 - **It is free for now.** Nothing is charged. The prices on the [pricing page](/pricing) apply once billing opens. We will tell you before anything is charged, and you choose a paid plan yourself.
-- **Limits still apply.** Each plan has a monthly credit for cloud review and Ask Grapim, and limits on seats, repos and history. When a credit runs out, that feature stops until the next month.
+- **Limits still apply.** Each plan includes a monthly credit for cloud review and Ask Grapim, and limits on repos and history. When the credit runs out, the feature pauses until the next month. On a paid plan, an owner can allow extra reviews, which go on up to the limit the owner sets.
 - **Things will change.** We add, change and sometimes remove features while Grapim is in early access.
 
 ## Your account
