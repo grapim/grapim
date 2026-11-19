@@ -1,12 +1,14 @@
 // A second look before posting: every finding of a review goes back to the
 // model with the code around it, where the names it mentions are used in the
 // repository, the pull request's commit messages and its discussion. The model
-// keeps a finding the code supports and drops one the code or the discussion
+// keeps a finding the code supports, drops one the code or the discussion
 // contradicts (the author already explained it, the condition it needs cannot
-// happen here, the number it calls wrong is right).
+// happen here, the number it calls wrong is right) or that is a remark rather
+// than a defect (scope without a failure, docs wording), and calls unsure one
+// whose key fact it cannot settle; afterSecondLook decides what that means.
 //
-// Measured on 27 findings from 17 public pull requests that people checked
-// by hand (17 real, 9 false, 1 unsure): see bench/verify-eval.mjs.
+// Measured on the hand-checked real-repo set (bench/data/real-labels.json,
+// bench/real-score.mjs) and on Martian's dev half: see bench/README.md.
 //
 // One request per review, for all its findings together. The context is
 // gathered here with read-only git commands. With `tools: true` the model can
@@ -27,6 +29,10 @@ const MAX_CONTEXT_CHARS = 120_000;
 const MAX_DISCUSSION_CHARS = 12_000;
 const MAX_TOOL_TURNS = 24;
 
+// A verdict per finding: keep (the failure is supported by the code),
+// unsure (nothing found either way), drop (contradicted, or not a defect).
+export const VERDICTS = Object.freeze(['keep', 'unsure', 'drop']);
+
 export const VERIFY_SCHEMA = Object.freeze({
   type: 'object',
   additionalProperties: false,
@@ -40,7 +46,7 @@ export const VERIFY_SCHEMA = Object.freeze({
         required: ['id', 'verdict', 'reason'],
         properties: {
           id: { type: 'integer' },
-          verdict: { type: 'string', enum: ['keep', 'drop'] },
+          verdict: { type: 'string', enum: [...VERDICTS] },
           reason: { type: 'string' },
         },
       },
@@ -48,20 +54,35 @@ export const VERIFY_SCHEMA = Object.freeze({
   },
 });
 
-export const VERIFY_PROMPT = `You check another reviewer's findings on a pull request before they are posted. A wrong comment costs the author's time and trust, so you are skeptical; a missed real bug costs more, so you do not drop a finding on a hunch.
+export const VERIFY_PROMPT = `You check another reviewer's findings on a pull request before they are posted as comments. Most findings that reach you are wrong or not worth a comment, and every wrong comment teaches the team to ignore the reviewer; a real bug that you drop costs more, so you never drop one on a hunch. Decide each finding on the evidence.
 
 For each finding, read the code and context given and decide:
-- keep: the code shown supports the claim, or nothing shown contradicts it and the failure it describes can happen.
-- drop: something shown contradicts it. For example the author already explained or justified this exact point in the commit messages or the discussion; the condition it needs cannot happen in this code (the API it relies on is not exposed, every caller already sets the value, the input is validated earlier); the value or count it calls wrong is right; it describes code the pull request did not change and the change does not make worse; or it restates a style preference as a bug.
+- keep: the code supports the claim. You can follow the trigger the finding names to the failure it describes, and nothing on that path prevents it.
+- drop: something shown contradicts it. For example the author already explained or justified this exact point in the commit messages or the discussion; the condition it needs cannot happen in this code (nothing calls the code yet, every caller already sets the value, the input is validated earlier, the class or style it says is missing is defined); the value or count it calls wrong is right; the library or language does not behave the way it says; it describes code the pull request did not change and the change does not make worse.
+- drop also when it is a remark rather than a defect, even if it is true: the change does more than or something other than the description says, and nothing goes wrong because of it; the wording of docs, comments or messages; style or naming; a bookkeeping detail a tool fixes (a go.mod "indirect" comment, a lock file).
+- A small but real defect is a keep, not a remark: dead or discarded work, a wrong value passed along, an error that now surfaces as a crash or a 500, a narrow race. A narrow trigger is not a reason to drop: if the failure can happen, keep it.
+- unsure: the finding turns on a fact you could not check either way (a file or library version you cannot see, a runtime setting).
 
-Rules: judge only from what is shown. Do not drop a blocker unless the context clearly shows it is wrong. A "this change is outside the task" finding is a drop when the commit messages or discussion explain why the change is there. Give a one-sentence reason naming the line or text that decided it. Answer in JSON with one verdict per finding id.`;
+Rules: a finding that says "I could not see" or "if" about the fact it depends on is not settled by saying so: check that fact; if it is false, drop; if you cannot find it, unsure. Do not drop a blocker unless the context clearly shows it is wrong. Give a one-sentence reason naming the line or text that decided it. Answer in JSON with one verdict per finding id.`;
 
 export const VERIFY_TOOLS_PROMPT = `You can search and read the whole repository at the pull request head with the tools (search, read_file, list_files, history). Most wrong findings are wrong because of code outside the diff, so before you keep a finding, look for what would make it wrong:
 - the callers, and every other place that sets, checks or handles the same value, state or case (a guard, a conversion, a retry, a second code path that adds the missing item back);
-- the definition of each function, type or hook it relies on (does it really compare by identity, really throw, really return null);
+- the definition of each function, type, style or hook it relies on (does it really compare by identity, really throw, really return null, is the class really missing);
+- the project's dependencies and their pinned versions when it claims something about a library;
 - the project's convention: docs, comments and other modules doing the same thing on purpose;
 - whether the thing it calls unrequested or wrong also changed elsewhere (history).
-Judge from what is shown and what you find with the tools. Drop a finding when the repository shows the failure cannot happen or the behaviour is intended. Keep it when you looked and found nothing that contradicts it. Search in a few targeted steps per finding and stop as soon as you can decide; you have a limited number of tool rounds.`;
+Judge from what is shown and what you find with the tools. Drop a finding when the repository shows the failure cannot happen or the behaviour is intended. Keep it when you followed the path and the failure holds. Search in a few targeted steps per finding and stop as soon as you can decide; you have a limited number of tool rounds.`;
+
+// What happens to a finding after its verdict. keep: posted. drop: never
+// shown. unsure: posted only when the reviewer itself traced it (confidence
+// high) or it is a blocker; otherwise not shown. A finding with no verdict
+// (the check failed, or more findings than it checks) stays as it was.
+export function afterSecondLook(f, verdict) {
+  if (!verdict) return 'post';
+  if (verdict === 'keep') return 'post';
+  if (verdict === 'drop') return 'drop';
+  return f.severity === 'blocker' || f.confidence === 'high' ? 'post' : 'drop';
+}
 
 const NAME_IN_TICKS = /`([A-Za-z_$][\w$.:]{2,60})`/g;
 const IDENT = /^[A-Za-z_$][\w$]*$/;
@@ -101,22 +122,32 @@ export function gatherContext({ findings, git, base, head, discussion = '' }) {
   const log = git(['log', '--format=--- %h %s%n%b', `${base}..${head}`]);
   if (log) parts.push(`<commits>\n${clip(log.trim(), 6000)}\n</commits>`);
   if (discussion.trim()) parts.push(`<discussion>\n${clip(discussion.trim(), MAX_DISCUSSION_CHARS)}\n</discussion>`);
+  // Every finding's own text is always sent in full; only the code around it
+  // shares what is left of MAX_CONTEXT_CHARS. Cutting the whole context at the
+  // end lost the last findings of big reviews, and the model dropped them as
+  // unsupported (11/18 Martian run: 15 of 34 drops). A file's diff goes once.
+  const heads = findings.map((f, id) => [`<finding id="${id}">`, `${f.severity} (${f.confidence ?? 'high'}) ${f.path}:${f.line}${(f.endLine ?? f.end_line) && (f.endLine ?? f.end_line) !== f.line ? `-${f.endLine ?? f.end_line}` : ''}`, `Title: ${f.title}`, `Body: ${f.body}`].join('\n'));
+  const fixed = parts.join('\n\n').length + heads.join('\n').length + findings.length * 20;
+  const budget = Math.max(2000, Math.floor((MAX_CONTEXT_CHARS - fixed) / Math.max(1, findings.length)));
+  const diffSent = new Set();
   findings.forEach((f, id) => {
-    const block = [`<finding id="${id}">`, `${f.severity} (${f.confidence ?? 'high'}) ${f.path}:${f.line}${(f.endLine ?? f.end_line) && (f.endLine ?? f.end_line) !== f.line ? `-${f.endLine ?? f.end_line}` : ''}`, `Title: ${f.title}`, `Body: ${f.body}`];
-    const diff = git(['diff', '--unified=3', base, head, '--', f.path]);
-    if (diff) block.push(`<diff file="${f.path}">\n${clip(diff, 8000)}\n</diff>`);
+    const extra = [];
+    if (!diffSent.has(f.path)) {
+      diffSent.add(f.path);
+      const diff = git(['diff', '--unified=3', base, head, '--', f.path]);
+      if (diff) extra.push(`<diff file="${f.path}">\n${clip(diff, 8000)}\n</diff>`);
+    }
     const text = fileAt(f.path);
-    if (text != null) block.push(`<file path="${f.path}" at="head">\n${around(text, f.line, FILE_LINES)}\n</file>`);
+    if (text != null) extra.push(`<file path="${f.path}" at="head">\n${around(text, f.line, FILE_LINES)}\n</file>`);
     for (const name of namesIn(f)) {
       const hits = git(['grep', '-n', '-w', '-I', '--max-count=3', name, head]);
       if (!hits) continue;
       const lines = hits.split('\n').filter(Boolean).slice(0, GREP_HITS).map((l) => l.replace(`${head}:`, ''));
-      block.push(`<uses name="${name}">\n${lines.join('\n')}\n</uses>`);
+      extra.push(`<uses name="${name}">\n${lines.join('\n')}\n</uses>`);
     }
-    block.push('</finding>');
-    parts.push(block.join('\n'));
+    parts.push([heads[id], extra.length ? clip(extra.join('\n'), budget) : '', '</finding>'].filter(Boolean).join('\n'));
   });
-  return clip(parts.join('\n\n'), MAX_CONTEXT_CHARS);
+  return parts.join('\n\n');
 }
 
 export function buildVerifyRequest({ findings, context, model, request, tools = false }) {
@@ -148,7 +179,7 @@ function cached(body, messages) {
   };
 }
 
-// -> { kept, dropped: [{ finding, reason }], usage: { input, output }, checked }
+// -> { kept, dropped: [{ finding, reason }], verdicts: [{ finding, verdict, reason }], usage: { input, output }, checked }
 // tools: let the model search the repository (see VERIFY_TOOLS_PROMPT). A
 // provider that runs the tool loop itself (the bench's CLI stand-in) gets
 // { repo: { base, head, dir } } as the second argument of send().
@@ -185,16 +216,20 @@ export async function verifyFindings({ findings, git, base, head, provider, mode
     return { kept: findings, dropped: [], usage, checked: 0 };
   }
   const parsed = parseFindingsText(msg);
-  const verdicts = new Map();
-  for (const v of parsed?.verdicts ?? []) if (Number.isInteger(v?.id) && (v.verdict === 'keep' || v.verdict === 'drop')) verdicts.set(v.id, v);
+  const answers = new Map();
+  for (const v of parsed?.verdicts ?? []) if (Number.isInteger(v?.id) && VERDICTS.includes(v.verdict)) answers.set(v.id, v);
   const kept = [];
   const dropped = [];
+  const verdicts = [];
   checkNow.forEach((f, id) => {
-    const v = verdicts.get(id);
-    // A blocker is dropped only with a stated reason; no verdict keeps it.
-    if (v?.verdict === 'drop' && String(v.reason ?? '').trim()) dropped.push({ finding: f, reason: String(v.reason).trim().slice(0, 400) });
+    const v = answers.get(id);
+    const reason = String(v?.reason ?? '').trim().slice(0, 400);
+    // A drop needs a stated reason; no verdict keeps the finding.
+    const verdict = v && (v.verdict !== 'drop' || reason) ? v.verdict : null;
+    verdicts.push({ finding: f, verdict, reason });
+    if (afterSecondLook(f, verdict) === 'drop') dropped.push({ finding: f, reason: reason || `${verdict}: not confirmed` });
     else kept.push(f);
   });
   log(`Second look: ${checkNow.length} checked, ${dropped.length} dropped${tools ? `, ${searches} tool calls` : ''}.`);
-  return { kept: [...kept, ...rest], dropped, usage, checked: checkNow.length, searches };
+  return { kept: [...kept, ...rest], dropped, verdicts, usage, checked: checkNow.length, searches };
 }

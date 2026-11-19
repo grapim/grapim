@@ -25,6 +25,20 @@ test('context carries the commits, the discussion, the diff, the file around the
   for (const part of ['<commits>', 'caller guarantees', '<discussion>', 'never returns null', '<diff file="src/a.js">', '<file path="src/a.js"', '3  const x = loadUser();', '<uses name="loadUser">', 'src/b.js:10']) assert.ok(text.includes(part), part);
 });
 
+test('a big review still sends every finding in full; only the code around them is cut', () => {
+  const big = 'x'.repeat(200) + '\n';
+  const file = big.repeat(400);
+  const findings = Array.from({ length: 15 }, (_, i) => F({ line: 10 + i * 20, title: `Finding number ${i}`, body: `Body ${i} mentions \`loadUser\`.` }));
+  const git = (args) => (args[0] === 'show' ? file : args[0] === 'diff' ? big.repeat(100) : args[0] === 'grep' ? 'HEAD:src/b.js:1: loadUser()' : '');
+  const text = gatherContext({ findings, git, base: 'B', head: 'HEAD' });
+  assert.ok(text.length <= 125_000, `${text.length} chars`);
+  for (let i = 0; i < 15; i++) {
+    assert.ok(text.includes(`Title: Finding number ${i}`), `finding ${i} title`);
+    assert.ok(text.includes(`<finding id="${i}">`) && text.includes(`Body ${i} mentions`), `finding ${i} body`);
+  }
+  assert.equal(text.split('<diff file="src/a.js">').length - 1, 1, 'the diff of a file is sent once');
+});
+
 test('drops what the model rejects with a reason, keeps the rest, counts tokens', async () => {
   const findings = [F(), F({ line: 4, title: 'Second', severity: 'blocker' }), F({ line: 5, title: 'Third' })];
   const sent = [];
@@ -116,4 +130,37 @@ test('repository tools refuse paths outside the repository', async () => {
   assert.match(runRepoTool(git, 'H', 'read_file', { path: '../etc/passwd' }), /Give a file path/);
   assert.match(runRepoTool(git, 'H', 'search', { pattern: 'x', path: '--output=/tmp/x' }), /not allowed/);
   assert.match(runRepoTool(git, 'H', 'nope', {}), /No tool/);
+});
+
+test('after the second look: keep posts, drop hides, unsure posts only a blocker or a traced finding', async () => {
+  const { afterSecondLook } = await import('../src/airev/verify.js');
+  assert.equal(afterSecondLook(F(), 'keep'), 'post');
+  assert.equal(afterSecondLook(F(), 'drop'), 'drop');
+  assert.equal(afterSecondLook(F(), 'unsure'), 'drop');
+  assert.equal(afterSecondLook(F({ confidence: 'high' }), 'unsure'), 'post');
+  assert.equal(afterSecondLook(F({ severity: 'blocker' }), 'unsure'), 'post');
+  assert.equal(afterSecondLook(F(), null), 'post', 'no verdict leaves the finding as it was');
+});
+
+test('an unsure verdict hides a medium finding; the verdicts come back for every checked finding', async () => {
+  const findings = [F(), F({ line: 4, title: 'Sure one', confidence: 'high' })];
+  const provider = { send: async () => reply([{ id: 0, verdict: 'unsure', reason: 'Could not find the caller.' }, { id: 1, verdict: 'unsure', reason: 'Library not visible.' }]) };
+  const v = await verifyFindings({ findings, git: fakeGit({}), base: 'B', head: 'H', provider, model: 'm' });
+  assert.deepEqual(v.kept.map((f) => f.title), ['Sure one']);
+  assert.equal(v.dropped[0].reason, 'Could not find the caller.');
+  assert.deepEqual(v.verdicts.map((x) => x.verdict), ['unsure', 'unsure']);
+});
+
+test('cloud review: held points the second look confirms are posted, the rest leave the summary', async () => {
+  const { afterCheck } = await import('../src/hub/github/cloud-review-worker.js');
+  const { WORTH_RE } = await import('../src/airev/findings.js');
+  const posted = [F({ title: 'Posted, kept' }), F({ line: 7, title: 'Posted, dropped' })];
+  const held = [F({ line: 9, confidence: 'low', title: 'Held, confirmed' }), F({ line: 11, confidence: 'low', title: 'Held, unsure' }), F({ line: 13, confidence: 'low', title: 'Held, not checked' })];
+  const v = { kept: [posted[0], held[0], held[1], held[2]], verdicts: [{ finding: posted[0], verdict: 'keep' }, { finding: posted[1], verdict: 'drop' }, { finding: held[0], verdict: 'keep' }, { finding: held[1], verdict: 'unsure' }] };
+  const { posted: out, removed } = afterCheck(posted, held, v);
+  assert.deepEqual(out.map((f) => f.title).sort(), ['Held, confirmed', 'Posted, kept']);
+  assert.equal(removed, 1);
+  const summary = '**1 warning** in 1 file.\n\n**Worth a look** (2 points the review could not confirm from the code it saw, not posted inline)\n- <code>a</code> line 9: x\n- <code>a</code> line 11: y\n\n<details><summary>Review details</summary>';
+  assert.equal(summary.replace(WORTH_RE, ''), '**1 warning** in 1 file.\n\n<details><summary>Review details</summary>');
+  assert.doesNotMatch(withCounts(summary.replace(WORTH_RE, ''), out, 0), /second look/, 'nothing dropped, nothing said');
 });

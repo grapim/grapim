@@ -151,6 +151,9 @@ export function countsBold(n) {
 }
 export const COUNTS_RE = /\*\*(?:No problems found|\d[\d,]* (?:blockers?|warnings?|nits?)(?:, \d[\d,]* (?:blockers?|warnings?|nits?))*)\*\*/;
 
+// The "Worth a look" block of the summary (renderReviewSummary).
+export const WORTH_RE = /\n\n\*\*Worth a look\*\*[^\n]*(?:\n- [^\n]*)*/;
+
 // The verdict under the counts: what to fix before merging, from the blocker
 // titles (no model call). Empty when there is no blocker. Titles go through md().
 export const VERDICT_RE = /\n\n\*\*Fix before merging:\*\*[^\n]*/;
@@ -188,6 +191,7 @@ export function renderReviewSummary({ findings, stats, skipped, runs, providerTe
   }
 
   if (held.length) {
+    // WORTH_RE finds this block again (the cloud's second look replaces it).
     lines.push('', `**Worth a look** (${plural(held.length, 'point')} the review could not confirm from the code it saw, not posted inline)`);
     for (const f of held.slice(0, 5)) lines.push(`- ${code(f.path)} line ${f.line}: ${md(f.title, 160)}`);
     if (held.length > 5) lines.push(`- and ${plural(held.length - 5, 'more')}`);
