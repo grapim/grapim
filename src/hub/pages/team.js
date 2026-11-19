@@ -509,8 +509,31 @@ const PULL_FILTERS = [
   ['failed', 'Failed', 'No failed reviews', 'A pull request whose newest review could not finish shows up here.'],
 ];
 
+// What became of the comments cloud review posted (src/hub/github/outcomes.js):
+// the share accepted, overall and per severity, with the counts behind it.
+// o: outcomes.stats(team.id). Hidden until the team has a comment.
+const OUTCOME_TILES = [['all', 'All comments'], ['blocker', 'Blockers'], ['warning', 'Warnings'], ['nit', 'Nits']];
+export function outcomesBlock(team, o) {
+  if (!o?.all?.total) return '';
+  const api = `/hub/api/teams/${team.id}/review-outcomes`;
+  const rate = (b) => (b.rate === null ? null : `${Math.round(b.rate * 100)}%`);
+  const tile = ([key, label]) => {
+    const b = key === 'all' ? o.all : o.severity[key];
+    const sub = b.total
+      ? [b.decided ? `${b.accepted} of ${b.decided} accepted` : null, b.rejected ? `${b.rejected} rejected` : null, b.ignored ? `${b.ignored} ignored` : null, b.pending ? `${b.pending} pending` : null].filter(Boolean).join(' · ')
+      : 'None posted';
+    return html`<div class="kpi"><dt>${label}</dt><dd><span class="kpi-v">${rate(b) ?? html`<span class="muted">—</span>`}</span><span class="kpi-s kpi-note">${sub}</span></dd></div>`;
+  };
+  return html`<section class="review-home outcomes" aria-labelledby="outcomes-title">
+  <div class="panel-head panel-head-bare"><h2 id="outcomes-title" class="panel-title">Comment outcomes, last ${o.days} days</h2><span class="small"><a class="link" href="${api}.csv" download>Export CSV</a> · <a class="link" href="${api}">JSON</a></span></div>
+  <dl class="kpis">${OUTCOME_TILES.map(tile)}</dl>
+  <p class="fine">The share of decided comments that were accepted. Accepted: the commented lines changed in a later commit, the suggestion was committed, a 👍 or a thanks reply. Rejected: a 👎, a reply saying it is not an issue, or the thread resolved with no change. Ignored: merged with none of these. Pending: the pull request is still open.</p>
+</section>`;
+}
+
 // rows: overview.reviewedPulls(team, { filter }).list; counts: its counts; limit: the cap.
-export function pullRequestsPage({ user, csrf, team, filter, rows, counts }) {
+// outcomes: the comment outcome block's numbers (outcomesBlock).
+export function pullRequestsPage({ user, csrf, team, filter, rows, counts, outcomes = null }) {
   const base = `/hub/teams/${team.id}/pull-requests`;
   const [, label, emptyTitle, emptyText] = PULL_FILTERS.find(([k]) => k === filter);
   return layout({
@@ -521,6 +544,7 @@ export function pullRequestsPage({ user, csrf, team, filter, rows, counts }) {
     wide: true,
     crumbs: [{ label: 'Reviews' }],
     body: html`${head(team, 'pull-requests', { sub: 'Every pull request Grapim reviewed, with its newest review. The comments themselves are on GitHub.' })}
+${outcomesBlock(team, outcomes)}
 <nav class="seg" aria-label="Filter">
   ${PULL_FILTERS.map(([k, l]) => html`<a class="seg-item" href="${k === 'all' ? base : `${base}?f=${k}`}" ${k === filter ? html`aria-current="page"` : ''}>${l} <span class="num muted">${counts[k]}</span></a>`)}
 </nav>

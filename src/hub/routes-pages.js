@@ -348,7 +348,8 @@ export function pageRoutes(router, hub) {
       const f = ctx.url.searchParams.get('f');
       const filter = ['blockers', 'failed'].includes(f) ? f : 'all';
       const { list, counts } = hub.overview.reviewedPulls(team, { filter, limit: 100 });
-      html(ctx, pullRequestsPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, filter, rows: list, counts }));
+      const outcomes = hub.github?.cloud?.outcomes?.stats(team.id) ?? null;
+      html(ctx, pullRequestsPage({ user: ctx.session.user, csrf: ctx.session.csrf, team, filter, rows: list, counts, outcomes }));
     },
     TEAM,
   );

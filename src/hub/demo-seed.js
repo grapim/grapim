@@ -391,6 +391,50 @@ export async function seedTeamExtras(hub, { teamId, users, machines, installatio
         const cost = status === 'done' ? 90_000 + findings * 25_000 : status === 'failed' ? 30_000 : 0;
         putReview.run(TEAM, org, name, number, sha1(`${name}#${number}@${hours}`), status, started, status === 'running' ? null : started + 2 * MIN, findings, blockers, cost ? 40_000 : 0, cost ? 3_000 : 0, cost, status === 'failed' ? 'The model call timed out.' : null, TITLES[`${name}#${number}`] ?? null);
       }
+      // What became of the inline comments (src/hub/github/outcomes.js), for
+      // the Reviews page's comment outcome rates.
+      // [repo, pull request, hours ago, severity, category, title, reason].
+      if (hub.github.cloud.outcomes) {
+        db.prepare('DELETE FROM review_findings WHERE team_id = ?').run(TEAM);
+        const ghIds = { 'shop-api': ghShop, 'web-app': ghWeb, 'billing-svc': ghShop + 10, infra: ghShop + 11 };
+        const OUTCOMES = [
+          ['shop-api', 412, 2, 'blocker', 'correctness', 'A retried order with the same key creates a second charge', null],
+          ['shop-api', 412, 2, 'warning', 'reliability', 'The idempotency row is written after the charge', null],
+          ['web-app', 97, 3.5, 'warning', 'performance', 'Cart totals are fetched once per line item', 'fixed'],
+          ['billing-svc', 233, 9, 'blocker', 'correctness', 'Backoff retries a webhook whose signature failed', 'suggestion_applied'],
+          ['billing-svc', 233, 9, 'blocker', 'security', 'The retry queue logs the full webhook payload', 'fixed'],
+          ['billing-svc', 233, 9, 'nit', 'style', 'Name the retry limit', 'resolved_no_change'],
+          ['shop-api', 408, 30, 'warning', 'tests', 'The refund test never asserts the amount', 'thumbs_up'],
+          ['shop-api', 408, 30, 'warning', 'tests', 'A partial refund is not covered', 'fixed'],
+          ['shop-api', 408, 30, 'nit', 'style', 'Shared fixture could move to a helper', 'merged_unaddressed'],
+          ['infra', 61, 49, 'warning', 'reliability', 'Eight workers exceed the database connection limit', 'reply_not_an_issue'],
+          ['billing-svc', 231, 70, 'blocker', 'correctness', 'Two requests can both read the old total', 'fixed'],
+          ['billing-svc', 231, 70, 'warning', 'correctness', 'The lock is not released when recalculation throws', 'suggestion_applied'],
+          ['web-app', 94, 96, 'nit', 'maintainability', 'The old flag is still read in search.ts', 'thumbs_down'],
+          ['web-app', 92, 170, 'warning', 'performance', 'Every image loads eagerly above the fold', 'reply_thanks'],
+          ['web-app', 92, 170, 'nit', 'style', 'Alt text repeats the product name', 'merged_unaddressed'],
+          ['infra', 60, 300, 'blocker', 'security', 'The new password is echoed in the job log', 'fixed'],
+          ['infra', 60, 300, 'warning', 'reliability', 'The old password is revoked before the app restarts', 'merged_unaddressed'],
+          ['shop-api', 398, 410, 'nit', 'style', 'Use the logger’s duration field', 'thumbs_down'],
+        ];
+        const OUT = { fixed: 'accepted', suggestion_applied: 'accepted', thumbs_up: 'accepted', reply_thanks: 'accepted', thumbs_down: 'rejected', reply_not_an_issue: 'rejected', resolved_no_change: 'rejected', merged_unaddressed: 'ignored' };
+        const putOutcome = db.prepare(
+          `INSERT INTO review_findings (team_id, installation_id, repo_gh_id, owner, name, number, head_sha, comment_id, path, line, severity, confidence, category, title, model, created_at,
+             up, down, replies, reply_verdict, resolved, fixed_sha, fixed_at, suggestion_applied, pr_state, unaddressed_at_merge, outcome, outcome_reason, outcome_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'high', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        );
+        OUTCOMES.forEach(([name, number, hours, severity, category, title, reason], i) => {
+          const at = now - hours * HOUR;
+          const fixed = reason === 'fixed' || reason === 'suggestion_applied';
+          const merged = hours > 24;
+          putOutcome.run(
+            TEAM, inst, ghIds[name], org, name, number, sha1(`${name}#${number}@${hours}`), 9_000_000 + i, `src/${category}.ts`, 10 + i, severity, category, title, 'claude-opus-5-5', at,
+            reason === 'thumbs_up' ? 1 : 0, reason === 'thumbs_down' ? 1 : 0, reason?.startsWith('reply_') ? 1 : 0, reason === 'reply_thanks' ? 'agree' : reason === 'reply_not_an_issue' ? 'disagree' : null,
+            reason === 'resolved_no_change' ? 1 : 0, fixed ? sha1(`fix${i}`) : null, fixed ? at + HOUR : null, reason === 'suggestion_applied' ? 1 : 0,
+            merged ? 'merged' : 'open', merged ? (fixed || reason === 'resolved_no_change' ? 0 : 1) : null, OUT[reason] ?? 'pending', reason, at + HOUR, at + HOUR,
+          );
+        });
+      }
       // Agent-written: the pull requests whose provenance Grapim found.
       const repoIds = { 'shop-api': ghShop, 'web-app': ghWeb };
       const putRepo = db.prepare('INSERT OR REPLACE INTO gh_installation_repos (installation_id, repo_id, full_name) VALUES (?, ?, ?)');
