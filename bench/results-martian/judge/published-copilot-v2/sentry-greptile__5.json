@@ -1,0 +1,73 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The BrowserReportingCollectorEndpoint returns HttpResponse objects but the endpoint inherits from Endpoint which expects rest_framework.response.Response objects.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions HttpResponse vs Response."
+  },
+  {
+   "comment": "In BaseDetectorTypeValidator.update(), the validator incorrectly updates instance.type using validated_data.get('detector_type') instead of validated_data.get('type').",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers detector_type vs type."
+  },
+  {
+   "comment": "Using zip(error_ids, events.values()) assumes the get_multi result preserves the input order; dict value order is not guaranteed to match error_ids, so event data can be paired with the wrong ID (missing nodes also shift alignment).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same zip ordering issue."
+  },
+  {
+   "comment": "Hardcoded empty data passed to TableWidgetVisualization causes it to always render an empty table instead of displaying actual results when the feature flag is enabled.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same empty-table issue."
+  },
+  {
+   "comment": "Validation logic incorrectly uses .get('timestamp'), which treats a timestamp of 0 as absent. It should directly check 'timestamp' in self.initial_data to ensure proper field presence detection, preventing both 'age=0' and 'timestamp' from passing mutual-exclusion validation.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 describes the same timestamp=0 truthiness issue."
+  },
+  {
+   "comment": "Analytics events are recorded before the feature flag check, resulting in analytics being logged for all requests, including those that return 404 due to the feature being disabled. This can lead to misleading analytics data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions analytics being recorded before the flag check."
+  }
+ ],
+ "candidates": [
+  "fetch_error_details pairs error_ids with events.values() from nodestore.backend.get_multi() but if returned dict order differs, error IDs can be matched with wrong event payload - should look up by node_id",
+  "TableWidgetVisualization renders an empty table (columns=[], data/meta empty) when feature flag is enabled, hiding real table widget results - should be wired to result.data and result.meta like SimpleTableChart path",
+  "validate_age uses truthiness check on self.initial_data.get('timestamp') which incorrectly allows timestamp=0 to coexist with age - should use key presence or is not None",
+  "Custom head-cell override only respected when returning truthy value - returning valid React nodes like 0, empty string, or null incorrectly falls back to default renderer - should check cell !== undefined",
+  "Body-cell overrides ignored unless returning truthy value, making it impossible to intentionally render 0, empty string, or null - should use undefined check instead",
+  "Assertion indexing into data[message]['data'][0] but response shape is list of [time, attrs] pairs - checking membership against first pair will fail, should check attrs across all buckets",
+  "Same response-shape issue for 'Other' series: other['data'] is list of [time, attrs] pairs, assertion should check attrs across buckets rather than indexing [0]",
+  "PR title/description reference 'Replays Self-Serve Bulk Delete' but PR contains large Explore visualizes refactor and other unrelated changes - should split into separate PRs or update title/description"
+ ]
+}

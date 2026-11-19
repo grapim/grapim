@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "LNPANDY__NX2Apple__713",
+ "url": "https://github.com/LNPANDY/NX2Apple/pull/713",
+ "head_sha": "201c6dae4ca33fcafffe0cb02c793cb215a801e1",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:15:36.222Z",
+ "seconds": 50.751,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "patches/0073-shader-split-snowdrop-s-chained-lz4-entries-in-s.patch",
+   "line": 270,
+   "end_line": 271,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The new SDF_LZ4 branch takes over the return of the UE_IO branch, so IoStore jobs fall through.",
+   "body": "In `scan_file_in`, the two new lines go between `ue_io_shaders(path, rel, args[2][1], found)` and the 8-space `return rel, uniq_keys(found), …` context line. That return used to end the UE_IO branch. After this patch it sits under the new `if … == SDF_LZ4:` block, so the UE_IO branch no longer returns.\n\nEvery IoStore job from `ue_legacy_jobs` now runs on into the FB_CAS check and the rest of the function, including the loose scan of the container. Its shaders may then be duplicated or mis-keyed, or the job may fail. This affects games that already worked before this patch. It looks like a bad merge from the rebase onto the pin's IoStore reader, and the PR says the split was not rerun after the rebase.\n\nFix: keep the existing `return` as a context line right after `ue_io_shaders(...)`. Then add the SDF_LZ4 branch after it with its own `return rel, uniq_keys(found), var_pairs(found), trees`, and update the hunk header and diffstat counts to match."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 13870,
+  "cacheRead": 3527,
+  "output": 4731,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 17399,
+   "outputTokens": 4731,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1646834
+}

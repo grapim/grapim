@@ -1,0 +1,41 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "discourse-graphite__5",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Mixing float: left with flexbox causes layout issues. Further this PR removes the float-based right alignment for .d-header .panel, which may cause the login panel in the non-Ember/noscript header (where .panel is nested inside .row and not a flex item) to stack under the title instead of remaining right-aligned.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 describes the same issue as G1's second part: in the noscript header, .panel sits inside .row and isn't a flex item, so it loses its right alignment."
+  },
+  {
+   "comment": "-ms-align-items never existed in any version of IE/Edge; the correct legacy property is -ms-flex-align.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "Neither candidate mentions -ms-align-items."
+  },
+  {
+   "comment": "-webkit-box-ordinal-group and -moz-box-ordinal-group require values starting from 1, not 0. If $val is 0, this will cause incorrect rendering in older browsers, leading to layout issues.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 raises the same problem: the ordinal-group properties are 1-based, so passing $val straight through gives the wrong order."
+  }
+ ],
+ "candidates": [
+  "No-ember header right-align broken: The PR changes .panel alignment to rely on flexbox (margin-left:auto/order), but the Rails fallback header wraps .panel inside a Bootstrap v2 .row which is float-based (not a flex container). Therefore .panel is not a flex item in that path and will no longer right-align on noscript and /no_ember pages.",
+  "order mixin ordinal-group off-by-one: The order mixin passes $val directly to -webkit-box-ordinal-group and -moz-box-ordinal-group, but the old flexbox spec uses 1-based indexing (default: 1) while the standard order property is 0-based (default: 0). This causes incorrect element ordering in older browsers."
+ ]
+}

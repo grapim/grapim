@@ -1,0 +1,38 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Asynchronous functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called without await inside forEach loops. This occurs during booking rescheduling/cancellation, and workflow/workflow step deletion/updates. Consequently, scheduled workflow reminders may not be reliably cancelled, potentially leaving them active.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the missing await on the delete reminder calls inside forEach loops."
+  },
+  {
+   "comment": "When immediateDelete is true, the deleteScheduledEmailReminder function cancels the SendGrid email but fails to delete the corresponding WorkflowReminder record from the database. This creates orphaned database entries and is inconsistent with the immediateDelete: false path, which marks the record as cancelled. The SendGrid DELETE API call is also omitted in this path.",
+   "severity": "High",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C2 mentions immediateDelete, but its point is the SendGrid limit of 100 pending cancellations. It does not say the DB record is left behind or that the DELETE call is missing."
+  },
+  {
+   "comment": "The 'cancelled' field is nullable, which can lead to existing records having null values instead of a default of false. This can cause incorrect behavior in the application when checking the cancellation status of reminders.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises the nullable 'cancelled' field or its missing default."
+  }
+ ],
+ "candidates": [
+  "The cancellation query should be scoped to email reminders with a non-null SendGrid batch_id by filtering by method: EMAIL, scheduled: true, and referenceId: { not: null } to make intent explicit and prevent batch_id: null requests",
+  "The call passes immediateDelete: true which triggers immediate SendGrid cancellation, bringing back the original failure mode where SendGrid only allows 100 pending cancellations - should drop the immediateDelete flag to use the new approach of marking as cancelled and letting the cron cancel within the last hour",
+  "The current try/catch wraps the entire cancellation loop, so if one SendGrid cancellation request fails the cron stops processing remaining reminders - should handle errors per reminder and continue to make the job resilient"
+ ]
+}

@@ -1,0 +1,31 @@
+{
+ "tool": "published-augment",
+ "pr_id": "cal.com__22345",
+ "url": "https://github.com/calcom/cal.com/pull/22345",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In getBaseConditions(), the else if (filterConditions) and final else branches are unreachable. This is because getAuthorizationConditions() always returns a non-null Prisma.Sql object, making authConditions always truthy, which means only the first two if/else if conditions are ever evaluated.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate addresses unreachable branches in getBaseConditions."
+  },
+  {
+   "comment": "Fetching userIdsFromOrg only when teamsFromOrg.length > 0 can exclude org-level members for orgs without child teams; consider deriving from teamIds (which includes orgId) or removing the guard so org-only orgs still include member user bookings.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies the same teamsFromOrg.length guard excluding org-member bookings for orgs without child teams."
+  }
+ ],
+ "candidates": [
+  "userIdsFromOrg becomes empty when teamsFromOrg.length === 0, which would exclude org-member personal bookings for orgs that have no child teams - need to verify if this scenario is possible and whether org-scope auth should still include org-level memberships",
+  "Arrays used in ANY(...) (e.g. teamIds / uniqueUserIds) come from DB queries without explicit ordering, so the bound array order and resulting Prisma.sql shape may be non-deterministic, making SQL-fragment equality assertions brittle and causing inconsistent condition caching across identical inputs"
+ ]
+}

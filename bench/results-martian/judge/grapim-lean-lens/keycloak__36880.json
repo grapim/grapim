@@ -1,0 +1,57 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__36880",
+ "url": "https://github.com/keycloak/keycloak/pull/36880",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Inconsistent feature flag bug causing orphaned permissions. The AdminPermissions event listener, responsible for cleaning up permissions upon role, client, or group removal, is incorrectly guarded by the ADMIN_FINE_GRAINED_AUTHZ (V1) feature flag. This is inconsistent with other methods in the class that use ADMIN_FINE_GRAINED_AUTHZ_V2. Consequently, if ADMIN_FINE_GRAINED_AUTHZ_V2 is enabled but V1 is not, the permission cleanup logic will not execute, leading to orphaned permission data. Cleanup should occur regardless of which fine-grained authorization version is enabled.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 points out that the ADMIN_FINE_GRAINED_AUTHZ (V1) guard on the removal listener means that with only V2 enabled, cleanup never runs and orphaned resources and permissions are left behind. That is the same issue as G1."
+  },
+  {
+   "comment": "In hasPermission(ClientModel client, String scope), the resource lookup uses findByName(server, client.getId(), server.getId()), but AdminPermissionsSchema.getOrCreateResource creates per-client resources with the owner set to resourceServer.getClientId(), so this lookup will never find those resources and will always fall back to the 'all-clients' resource, effectively ignoring client-specific permissions.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises the owner mismatch in findByName, where the lookup uses client.getId() but the resource owner is set to resourceServer.getClientId()."
+  },
+  {
+   "comment": "In getClientsWithPermission(String scope), iterating resourceStore.findByType(server, AdminPermissionsSchema.CLIENTS_RESOURCE_TYPE) and returning resource.getName() will only ever consider the type-level 'Clients' resource (per-client resources have no type) and return its name, while AvailableRoleMappingResource#getRoleIdsWithPermissions expects actual client IDs to pass to realm.getClientById, which can lead to incorrect behavior or a null client and subsequent failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "C1 mentions getClientsWithPermission, but it claims per-client resources do show up through findByType. G3 says the opposite: findByType only returns the type-level resource, and its name is returned instead of client IDs. Different issue."
+  },
+  {
+   "comment": "In ClientPermissionsV2.hasPermission, the method getResourceTypeResource could return null, leading to a NullPointerException in findByResource. Defensive null checks are needed to prevent this issue.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises the possible NullPointerException when getResourceTypeResource returns null."
+  },
+  {
+   "comment": "Remove unused getEvaluationContext private method in ClientPermissionsV2 - it is defined but never called",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the unused getEvaluationContext method."
+  }
+ ],
+ "candidates": [
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/AdminPermissions.java:77 - Under V2, deleting a client leaves its authz resource and permissions behind.. The new `ADMIN_FINE_GRAINED_AUTHZ` guard means that when only `ADMIN_FINE_GRAINED_AUTHZ_V2` is on, `ClientRemovedEvent` (and role and group removal events) do nothing. That stops the crash from `ClientPermissionsV2.setPermissionsEnabled` throwing `UnsupportedOperationException`. But this PR adds per-client resources, named after the client id, in the admin-permissions resource server, and nothing removes them now.\n\nTrigger: create a per-client permission on a client, then delete the client. The resource and its scope permission are left in the resource server. They still show up in `getClientsWithPermission` (through `findByType`), which returns ids of clients that no longer exist, and they pile up in the admin-permissions client.\n\nFix: add a V2 branch that removes the client's resource, or takes it out of its permissions, when the client is deleted, instead of skipping the event. I could not see whether another listener does this cleanup.",
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java:147 - V2 client permissions throw UnsupportedOperationException from methods that runtime callers still use.. Before this change, `MgmtPermissionsV2.clients()` returned the V1 `ClientPermissions`, which implements `canExchangeTo`, `isPermissionsEnabled`, `getPermissions` and similar methods. It now returns `ClientPermissionsV2`, and those methods throw `UnsupportedOperationException`.\n\nCallers that go through `AdminPermissions.management(session, realm).clients()` can still reach them while ADMIN_FINE_GRAINED_AUTHZ_V2 is on. Two examples:\n- Legacy token exchange checks `canExchangeTo(...)` when exchanging to another client.\n- The client admin endpoint `GET /clients/{id}/management/permissions` calls `isPermissionsEnabled(client)`.\n\nWith V2 enabled, these requests now fail with a 500 error. Before, they either worked or returned a proper answer.\n\nI could not see whether those callers are gated off when V2 is enabled. If they are not, return a safe value instead of throwing: `false` from `canExchangeTo` and `isPermissionsEnabled`, and an empty map from `getPermissions`. Another option is to reject these calls with a 4xx error at the endpoint.",
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionEvaluator.java:95 - Javadoc for void requireView() says it returns true.. `requireView()` returns `void` and throws when access is denied, but its new Javadoc says it \"Returns `true` if `canView()` returns `true`\". The other `require*` methods in this interface say \"Throws ForbiddenException if ...\". Change this comment to match them.",
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionEvaluator.java:100 - Javadoc for void requireViewClientScopes() says it returns true.. `requireViewClientScopes()` is `void` and throws when access is denied, but its Javadoc says it \"Returns `true` if `canViewClientScopes()` returns `true`\". This contradicts the method signature and the wording of the other `require*` docs."
+ ]
+}

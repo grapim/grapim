@@ -1,0 +1,78 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "endformdev__playwright-intent__9",
+ "url": "https://github.com/endformdev/playwright-intent/pull/9",
+ "head_sha": "d6ac5fa3ede487e0ba6c5e86fb55ce6e8e72cea9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:29:29.649Z",
+ "seconds": 58.624,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 3,
+  "input": 6,
+  "cacheWrite": 76302,
+  "cacheRead": 10683,
+  "output": 4762,
+  "models": {
+   "claude-opus-5-5": 3
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 45,
+   "hunks": 61,
+   "reviewedHunks": 59,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 86991,
+   "outputTokens": 4762,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 44,
+   "reviewedAiHunks": 0,
+   "requests": 3,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "playwright-intent/test-e2e/project/remote-store.ts",
+    "reason": "file deleted (no new lines to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "cache-api/tsdown.config.ts",
+    "line": 3,
+    "end_line": 11,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The build may not emit the `.mjs`/`.d.mts` files that package.json exports.",
+    "body": "`cache-api/package.json` exports `./dist/index.mjs`, `./dist/file-system.mjs` and the types `./dist/index.d.mts`. This config does not set `fixedExtension: true`, which `playwright-intent/tsdown.config.ts` does set. With `\"type\": \"module\"` and a tsdown version where `fixedExtension` defaults to false, the output is `index.js` and `index.d.ts`. The published package would then fail to resolve. The e2e harness and tsconfig map to `src`, so the tests would not catch this. Set `fixedExtension: true`, or check what the build actually emits."
+   },
+   {
+    "path": "playwright-intent/src/remote-store/step-zip.ts",
+    "line": 32,
+    "end_line": 36,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "data_loss",
+    "title": "A write change with no source deletes the stored step.",
+    "body": "`applyChanges` treats every change that is not a write with a source as a delete. If a `RunChange` of kind `write` reaches `deliver` without `source`, the step is removed from `main.zip` and every branch has to regenerate it. `RunChange.source` is optional, and I could not check that every write record carries one. Only delete on `kind === \"delete\"`, and skip or throw on a write that has no source."
+   }
+  ]
+ },
+ "cost_usd": 0.47891059999999996
+}

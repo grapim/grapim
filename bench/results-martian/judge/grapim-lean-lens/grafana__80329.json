@@ -1,0 +1,35 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the debug logging at Error level that floods the error logs."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 points out that the ticker changed from 10 minutes to 1 minute, which raises database load."
+  }
+ ],
+ "candidates": [
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:534 - Leftover debug logging at Error level, including the full list of IDs, runs on every cleanup batch.. Every batch logs two `r.log.Error` lines, and one of them includes the full `ids` slice. The same lines are at 554/557 and 576/579. The last batch of each loop returns zero rows, so a healthy cleanup with nothing to delete still writes at least two error lines per annotation type and for tags. With the 1-minute ticker this happens every minute, and with a large batch size (for example 32767) each line carries tens of thousands of IDs. That floods error logs, sets off error alerting, and the `err` field in the first line is always nil. Remove these lines, or lower them to Debug and drop the `ids` field.",
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:609 - Building the ID list with repeated Sprintf takes quadratic time.. On SQLite with a batch size above 999, each ID is added by `fmt.Sprintf(\"%s, %d\", values, v)`, which copies the whole string built so far. A 32767-ID batch copies several gigabytes in total, and this runs for every batch on every cleanup cycle. Build the string with `strings.Builder`, or join `strconv.FormatInt` results with `strings.Join`.",
+  "pkg/services/cleanup/cleanup.go:77 - The cleanup interval for every cleanup job drops from 10 minutes to 1 minute.. This ticker drives `srv.clean`, which runs all the cleanup jobs, not only annotation cleanup. Each job now runs 10× as often, which adds steady database load on every instance. The deadlock fix the PR asks for does not need this, and the PR description does not justify it. It looks like a leftover from local testing. Restore the 10-minute interval, or make the annotation interval configurable on its own.",
+  "pkg/services/annotations/annotationsimpl/cleanup_test.go:116 - The subtest cleanup is registered only after the inserts and count checks succeed.. All subtests share one DB, and `createTestAnnotations` now inserts fixed IDs starting at 1. If an insert or one of the count assertions fails in a subtest, `t.Cleanup` is never registered and the rows stay in the database. Every later subtest then fails on duplicate primary keys or wrong counts, which hides the original failure. Fix: register the `t.Cleanup` before calling `createTestAnnotations`."
+ ]
+}

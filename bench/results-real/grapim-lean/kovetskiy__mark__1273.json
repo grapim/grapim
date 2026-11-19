@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "kovetskiy__mark__1273",
+ "url": "https://github.com/kovetskiy/mark/pull/1273",
+ "head_sha": "d49c98bc271cb1a94e8e138057252ef0c09513c8",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:25:36.778Z",
+ "seconds": 26.831,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "page/link.go",
+   "line": 348,
+   "end_line": 352,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Extensionless documents with a dot in the name are now skipped silently.",
+   "body": "`filepath.Ext` returns the text after the last dot, so a Markdown document without an extension but with a dot in its name (`release-1.2`, `notes.v2`, `2024.01.15`) gets `.2`, `.v2` or `.15`. That is not a Markdown extension, so the link is now left as written, with no lookup and no `--check-links` report. Before this change these links resolved like any other extensionless file, and the PR says extensionless files \"behave as before\". If the skip should only cover real file types, check the extension against a known set of non-Markdown types. Or keep the content sniff and metadata read for these names, and skip only when there is no mark metadata."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 11813,
+  "cacheRead": 17025,
+  "output": 2132,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 10,
+   "reviewedHunks": 9,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 28842,
+   "outputTokens": 2132,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 6,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.105126
+}

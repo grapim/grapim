@@ -1,0 +1,20 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__107534",
+ "url": "https://github.com/grafana/grafana/pull/107534",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The applyTemplateVariables method is called with request.filters as the third parameter, but this parameter is not used in the corresponding test setup.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "The golden comment says the request.filters argument passed to applyTemplateVariables isn't covered by the test setup. C1 is about something else: the empty-expr filter now runs before interpolation. So it does not match."
+  }
+ ],
+ "candidates": [
+  "public/app/plugins/datasource/loki/shardQuerySplitting.ts:49 - The empty-expr filter now runs before interpolation, so queries that interpolate to an empty string are no longer dropped.. The old code interpolated first (`interpolateVariablesInQueries`) and then dropped targets with an empty `expr`. The new code checks `query.expr` on the raw text and only then calls `applyTemplateVariables`.\n\n**Trigger:** a target whose expr is just a variable, such as `$query`, and that variable resolves to an empty value.\n\n**What goes wrong:** the raw text `$query` passes the filter, interpolation turns it into `\"\"`, and the empty query goes on to `splitQueriesByStreamShard`. There it is used to fetch shard values and is sent to Loki, which returns a parse error. Before this change the query was skipped.\n\n**Fix:** interpolate first, then filter on the interpolated expr."
+ ]
+}

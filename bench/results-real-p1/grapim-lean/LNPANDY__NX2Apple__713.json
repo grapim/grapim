@@ -1,0 +1,74 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "LNPANDY__NX2Apple__713",
+ "url": "https://github.com/LNPANDY/NX2Apple/pull/713",
+ "head_sha": "201c6dae4ca33fcafffe0cb02c793cb215a801e1",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:33:14.560Z",
+ "seconds": 59.311,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "patches/0073-shader-split-snowdrop-s-chained-lz4-entries-in-s.patch",
+   "line": 270,
+   "end_line": 271,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The new SDF_LZ4 branch takes over the UE_IO branch's `return`, so IoStore jobs now fall through.",
+   "body": "The new `if ... == SDF_LZ4:` (4 spaces) and its call are inserted between `ue_io_shaders(...)` and that branch's `return rel, uniq_keys(found), ...`, which is still indented 8 spaces. After the patch, that `return` belongs to the SDF_LZ4 branch. A UE_IO job (IoStore export bundles from `ue_legacy_jobs`) now runs `ue_io_shaders`, skips the SDF_LZ4 check, and continues into the FB_CAS check and whatever loose scanning follows. It no longer returns its export-bundle shaders right away, so the container gets scanned again or misread, and its results change. This looks like a bad resolution of the rebase conflict next to the IoStore reader. The fix is to give the UE_IO branch its own `return` again and give the SDF_LZ4 branch its own, like this:\n```\n        ue_io_shaders(path, rel, args[2][1], found)\n        return rel, uniq_keys(found), var_pairs(found), trees\n    if len(args) > 2 and args[2][0] == SDF_LZ4:\n        sdf_list_shaders(path, rel, args[2][1], found)\n        return rel, uniq_keys(found), var_pairs(found), trees\n```"
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 13944,
+  "cacheRead": 3561,
+  "output": 4354,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 17507,
+   "outputTokens": 4354,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "patches/0073-shader-split-snowdrop-s-chained-lz4-entries-in-s.patch",
+    "line": 280,
+    "end_line": 281,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Each SDF slice is now both a `big` job and a loose `files` job under the same `rel`.",
+    "body": "`sdf_list_jobs` returns an empty exclusion set, so every slice that has a part-list job also stays in `files` and is scanned loosely too. Every other reader here takes its paths out of `files`. Both jobs return the same `rel`. If the results are merged by `rel` (for example in a dict keyed by file), the loose scan's empty result for a version 23 slice can overwrite the shaders found through the part list, or the other way round. The split then finds nothing for Starlink again. I could not see how `main` merges the results. Please check it, or merge the results for the same `rel` explicitly."
+   }
+  ]
+ },
+ "cost_usd": 0.1575202
+}

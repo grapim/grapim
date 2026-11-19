@@ -1,0 +1,64 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "thesysdev__openui__1624",
+ "url": "https://github.com/thesysdev/openui/pull/1624",
+ "head_sha": "8be082fbfeccf42c67a9414c7d628b0d3576d2e9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-16T22:34:17.226Z",
+ "seconds": 45.02,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20669,
+  "cacheRead": 3527,
+  "output": 3961,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 18,
+   "hunks": 20,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 24198,
+   "outputTokens": 3961,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 18,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/libraries/dashboard/src/components/structure/base.styles.ts",
+    "line": 225,
+    "end_line": 226,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "A refreshing compact Kpi tile now only anchors the shimmer if the sheen is a direct child of the tile.",
+    "body": "Before this change, a refreshing compact tile got `position: relative` from `.openui-dashboard-kpi-compact:has(.openui-dashboard-state[data-state=\"refreshing\"])`, which matched at any depth. That wrapper div is gone. StateFrame now renders `<Sheen/>` and the loader as siblings of the content, and the only remaining rule for tiles is `.openui-dashboard-kpi-compact:has(> .openui-dashboard-sheen)`, which needs the sheen to be a direct child.\n\nIf the compact Kpi wraps `<StateFrame compact>` in any inner element, nothing anchors the sheen to the tile. On a refetch, the `inset: 0` shimmer and the top-right loader then attach to the nearest positioned ancestor instead, such as the Kpis strip, the Section or the page. The `data-compact` attribute that used to mark the refreshing state is also no longer emitted, so any compact-specific loader styling is lost.\n\nI could not see the Kpi tile markup to confirm where StateFrame sits. Fix: use a descendant match for tiles too (`.openui-dashboard-kpi-compact:has(.openui-dashboard-sheen)`), or check that the sheen is always a direct child of the tile.",
+    "suggestion": "  .openui-dashboard-card:has(.openui-dashboard-sheen),\n  .openui-dashboard-kpi-compact:has(.openui-dashboard-sheen) {"
+   }
+  ]
+ },
+ "cost_usd": 0.1832784
+}

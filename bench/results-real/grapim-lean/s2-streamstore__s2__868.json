@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "s2-streamstore__s2__868",
+ "url": "https://github.com/s2-streamstore/s2/pull/868",
+ "head_sha": "d7e1d6b2d43f4add7dce0886339c812b80626821",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:18:57.814Z",
+ "seconds": 66.962,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 11920,
+  "cacheRead": 3426,
+  "output": 3214,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 15348,
+   "outputTokens": 3214,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1245732
+}

@@ -1,0 +1,33 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block).",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points to the same problem: the retryCount increment isn't atomic, so concurrent runs can lose updates. It also suggests using Prisma's increment."
+  },
+  {
+   "comment": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points to the same problem: the retryCount condition in the OR clause isn't limited to SMS, so it deletes other reminder types."
+  }
+ ],
+ "candidates": [
+  "retryCount: reminder.retryCount + 1 is not an atomic update and can lose increments if multiple schedulers/cron invocations overlap - should use Prisma's atomic increment via { increment: 1 }",
+  "The retryCount branch in the OR clause is not scoped to SMS, so it will delete any WorkflowReminder with retryCount > 1 regardless of method/scheduledDate, potentially removing other reminder types"
+ ]
+}

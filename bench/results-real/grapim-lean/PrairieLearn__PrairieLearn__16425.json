@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "PrairieLearn__PrairieLearn__16425",
+ "url": "https://github.com/PrairieLearn/PrairieLearn/pull/16425",
+ "head_sha": "92f784b94f218c58d45b481aba4a13723f51e298",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-16T22:35:11.928Z",
+ "seconds": 25.724,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 22212,
+  "cacheRead": 3527,
+  "output": 2299,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 25741,
+   "outputTokens": 2299,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "apps/course-agent/src/conversation/conversation.ts",
+    "line": 1018,
+    "end_line": 1021,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Local `nativeThreadId` still holds the expired checkpoint's thread ID after it is dropped",
+    "body": "`let nativeThreadId = this.record.nativeThreadId` (line 1004) is read before `prepare` runs. When `prepare` finds the checkpoint missing, `dropExpiredCheckpoint()` clears `nativeThreadId` in the record, but the local variable keeps the old ID until `onThread` replaces it.\n\nIf the turn fails or is stopped after `prepare` but before `onThread` (for example, the clone in `addCourseFiles` fails or the runner never connects), any later code that writes this variable back to the record puts the dead thread ID back. That record would then pair `checkpoint: null` with a thread that exists in no sandbox, and the next turn would try to resume a thread that is gone instead of starting a new one. I could not see the code after this hunk that uses the variable, so I could not confirm this path.\n\nFix: set `nativeThreadId = null` next to the `dropExpiredCheckpoint()` call."
+   }
+  ]
+ },
+ "cost_usd": 0.1577534
+}

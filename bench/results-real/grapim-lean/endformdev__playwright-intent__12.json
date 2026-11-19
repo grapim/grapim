@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "endformdev__playwright-intent__12",
+ "url": "https://github.com/endformdev/playwright-intent/pull/12",
+ "head_sha": "1ac4256d36330b7ba5ee9b29d9f3c8ab42ddfa3e",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:13:59.500Z",
+ "seconds": 32.205,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "playwright-intent/src/step/step-path.ts",
+   "line": 45,
+   "end_line": 45,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The joined title folder name no longer has any length limit.",
+   "body": "Before this change, `sanitizeSegment(titles.join(...))` cut the whole title folder name to 150 bytes. Now each title is cut on its own and then joined with `--`, so the folder name grows with every nested describe.\n\nTwo triggers break it:\n- Two Japanese titles: each is cut to 150 bytes, so the name is about 302 bytes.\n- Four long ASCII titles: 4×64 + 6 = 262 characters.\n\nBoth go over the 255-byte name limit on ext4/APFS, so writing the step fails with ENAMETOOLONG. They also defeat the Windows 260-character path budget this PR adds. Fix: cut the joined segment again, for example `cut(titles.map(slugify).join(TITLE_SEPARATOR)).replace(EDGE_PUNCTUATION, \"\")`, or set a limit on the total length."
+  },
+  {
+   "path": "playwright-intent/src/step/step-path.ts",
+   "line": 44,
+   "end_line": 44,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Slugifying test file paths lets different spec files share one step folder.",
+   "body": "Test file path segments are now lowercased and punctuation becomes `-`. So these pairs map to the same `.intent` folder:\n- `sign up.spec.ts` and `sign-up.spec.ts`\n- `Tests/a.spec.ts` and `tests/a.spec.ts` (separate files on Linux)\n\nThe conflict check in `run-step.ts` only compares `header.test` with the test title. If both files have a test with the same describe and test titles, one file's step would be read and overwritten by the other without any error. Before, file segments were kept as they were, so this could not happen. I couldn't see whether the header also stores the test file. If it doesn't, either store the original test file path in the header and check it, or keep file segments unique."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18308,
+  "cacheRead": 3426,
+  "output": 2835,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 17,
+   "reviewedHunks": 17,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21736,
+   "outputTokens": 2835,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.14893320000000002
+}

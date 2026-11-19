@@ -1,0 +1,133 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__11059",
+ "url": "https://github.com/calcom/cal.com/pull/11059",
+ "head_sha": "9fde0e906897cc0f4f71793f647dd629faba3317",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:45:59.949Z",
+ "seconds": 54.971,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/app-store/_utils/oauth/refreshOAuthTokens.ts",
+   "line": 8,
+   "end_line": 15,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Sync mode returns a raw fetch Response, which most callers can't use.",
+   "body": "When sync is enabled, the helper returns the `Response` from `fetch`. Callers expect the type their own refresh function returned:\n- Google reads `res?.data.access_token`. `data` is undefined, so this throws a TypeError.\n- HubSpot treats the result as a token object and reads `expiresIn`. It gets NaN and stores a Response object as the key.\n- Zoho Bigin and Zoho CRM read the axios-style `tokenInfo.data.error`, which throws.\n- Lark expects Lark's `{code, data}` envelope.\n\nSo turning on the feature breaks token refresh for these apps. The helper also never checks `response.ok`. Fix: have the helper return a common shape (for example, parsed JSON), and adapt each caller to it."
+  },
+  {
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "line": 97,
+   "end_line": 97,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "Google credential key is overwritten with the safeParse wrapper instead of the token data.",
+   "body": "`parseRefreshTokenResponse` returns the result of `safeParse` (`{ success, data }`), not the parsed object. The old code used `googleCredentialSchema.parse(...)`, which returned the token data. Now every Google token refresh, with or without sync enabled, writes `{ success: true, data: {...} }` into `credential.key`. On the next load, `access_token` and `refresh_token` are no longer at the top level, so the Google Calendar integration breaks for every user whose token gets refreshed. Fix: use `.data`."
+  },
+  {
+   "path": "packages/app-store/salesforce/lib/CalendarService.ts",
+   "line": 96,
+   "end_line": 99,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`prisma` is used but never imported in the Salesforce service.",
+   "body": "The import list (lines 1–20) has no `import prisma from \"@calcom/prisma\"`, yet `getClient` now calls `prisma.credential.update`. That is a ReferenceError or compile error on every Salesforce client creation. I can't see the rest of the file, so a later import is still possible. Add the import."
+  },
+  {
+   "path": "packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts",
+   "line": 5,
+   "end_line": 27,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The minimal sync schema strips token fields and does not require an expiry.",
+   "body": "`[z.string().toString()]` turns into the literal key `\"[object Object]\"`. The second entry overrides the first, so the schema checks only `access_token`, and no numeric expiry is required. `z.object` also strips unknown keys. In sync mode this drops `expiry_date`, `expires_in`, `scope`, `instance_url` and similar fields, so Salesforce stores a key with no `instance_url` and Zoom loses `expires_in`.\n\nThe placeholder `refresh_token = \"refresh_token\"` then gets spread over real tokens. For example, Office365's `{...o365AuthCredentials, ...tokenResponse.data}` replaces the real refresh token with the literal string, so later non-sync refreshes fail. Fix: use `.passthrough()` with an explicit expiry field, and drop the fake refresh token."
+  },
+  {
+   "path": "packages/app-store/salesforce/lib/CalendarService.ts",
+   "line": 75,
+   "end_line": 75,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Salesforce refreshes its token on every client construction, ignores the new token and skips sync.",
+   "body": "Every `SalesforceCalendarService` constructor now calls Salesforce's token endpoint unconditionally, even when the token is still valid. That adds an extra call per use and can hit rate limits. The new access token is saved to the DB, but the `jsforce.Connection` is still built with the old `credentialKey.access_token` and `instance_url`.\n\nUnlike the other apps, this refresh does not go through `refreshOAuthTokens`, so the self-hosted endpoint is never used for Salesforce. Yet `parseRefreshTokenResponse` still switches to the minimal schema in sync mode and strips `instance_url` from the stored key. Comparing `statusText !== \"OK\"` is also fragile: HTTP/2 responses have an empty `statusText`. Use `response.ok`, refresh only when needed, go through `refreshOAuthTokens`, and pass the new tokens to the connection."
+  },
+  {
+   "path": "packages/app-store/zoho-bigin/lib/CalendarService.ts",
+   "line": 92,
+   "end_line": 93,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Zoho Bigin sends the credential id as the user id.",
+   "body": "`refreshOAuthTokens` sends its third argument to the sync endpoint as `calcomUserId`, but this call passes `credentialId`. The self-hoster's endpoint then fetches tokens for the wrong user, or for none, and those tokens could belong to a different person. Pass the credential's `userId` instead, as the other apps do."
+  },
+  {
+   "path": "apps/web/pages/api/webhook/app-credential.ts",
+   "line": 24,
+   "end_line": 29,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "The webhook secret is compared with a non-constant-time `!==`.",
+   "body": "This endpoint can overwrite any user's third-party credentials. It checks the shared secret with plain string inequality, which leaks timing information that could help an attacker guess the secret. Compare with `crypto.timingSafeEqual` on equal-length buffers, and reject a missing or array-valued header first."
+  },
+  {
+   "path": "apps/web/pages/api/webhook/app-credential.ts",
+   "line": 31,
+   "end_line": 59,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Bad payloads and failed decryption cause unhandled 500s.",
+   "body": "`schema.parse` throws on a malformed body, and `symmetricDecrypt` or `JSON.parse` throw on a wrong key or bad ciphertext. These errors are not caught, so the caller gets a generic 500 instead of a 400 that says what was wrong. Use `safeParse`, wrap the decryption in try/catch, and return 400."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 37410,
+  "cacheRead": 3561,
+  "output": 5123,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 40,
+   "hunks": 50,
+   "reviewedHunks": 50,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 40973,
+   "outputTokens": 5123,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 40,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2902302
+}

@@ -1,0 +1,87 @@
+{
+ "tool": "published-augment",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The PollFeed job calls open(SiteSetting.feed_polling_url) without validating the URL, allowing an attacker who controls the feed_polling_url site setting to make the server fetch arbitrary internal or external URLs.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises SSRF in PollFeed."
+  },
+  {
+   "comment": "The current origin validation using indexOf is insufficient and can be bypassed. An attacker could use a malicious domain like evil-discourseUrl.com to pass this check.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same indexOf origin bypass."
+  },
+  {
+   "comment": "postMessage targetOrigin should be the origin (scheme+host+port), not the full referrer URL; using the full URL will cause the message to be dropped and prevent resizing.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 makes the same point: postMessage targetOrigin needs an origin, not the full referrer URL."
+  },
+  {
+   "comment": "The code sets X-Frame-Options: ALLOWALL which completely disables clickjacking protection. The referer validation can be bypassed (referer headers are easily spoofed), and the fallback to empty string for nil referer masks validation failures.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions X-Frame-Options ALLOWALL."
+  },
+  {
+   "comment": "The TopicEmbed.import method is susceptible to a NoMethodError if the contents parameter is nil when attempting to append a string, and an XSS vulnerability due to unescaped url interpolation in the generated HTML.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.7,
+   "reasoning": "C4 covers the XSS from interpolating the unescaped url in TopicEmbed.import. It does not cover the nil contents error, but it still matches part of the golden comment."
+  },
+  {
+   "comment": "The ERB block closes with end if, which is invalid Ruby/ERB and will raise at render; it should just be end to close the if block.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate flags the invalid 'end if' in the ERB."
+  },
+  {
+   "comment": "Calling `i.content.scrub` assumes that `i.content` is always populated. However, many RSS feeds do not provide a `content` field, leading to a potential nil pointer exception when `i.content` is nil. A fallback to `description` should be implemented to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 is the same issue: i.content can be nil, so it needs a fallback to description."
+  },
+  {
+   "comment": "An unescaped request header (request.referer) is interpolated into JavaScript without proper escaping, which can lead to XSS vulnerabilities if the referer contains malicious content. This issue can allow attackers to execute arbitrary scripts in the context of the application.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.7,
+   "reasoning": "C2 is about the referer being used as targetOrigin, not about the XSS from interpolating it into JavaScript without escaping."
+  }
+ ],
+ "candidates": [
+  "The origin check `discourseUrl.indexOf(e.origin)` can be bypassed by attacker-controlled origins that contain the Discourse URL as a substring (e.g., `https://discourse.example.com.evil.com`). Need stricter origin validation before trusting resize messages.",
+  "`postMessage`'s `targetOrigin` is set to `request.referer`, but browsers expect an origin (`scheme://host[:port]`), not a full URL with path/query. Passing the full referer can throw and break the iframe resize handshake.",
+  "Some feeds don't provide `content` for items; `i.content.scrub` will raise if `i.content` is `nil`, which would break polling. Need to guard/fallback to another field (e.g., description) before scrubbing/unescaping.",
+  "`url` is interpolated directly into an `<a href='...'>` inside a raw HTML string, so quotes or unexpected characters in the URL can break markup and potentially create an injection/XSS vector. Need to escape/sanitize the URL before embedding it into HTML."
+ ]
+}

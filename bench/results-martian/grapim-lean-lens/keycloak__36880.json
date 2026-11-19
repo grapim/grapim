@@ -1,0 +1,106 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__36880",
+ "url": "https://github.com/keycloak/keycloak/pull/36880",
+ "head_sha": "1950a511026d520a7329c7b6b9ee60a4af8f8b55",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:19:14.022Z",
+ "seconds": 44.505,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/services/resources/admin/permissions/AdminPermissions.java",
+   "line": 77,
+   "end_line": 77,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Under V2, deleting a client leaves its authz resource and permissions behind.",
+   "body": "The new `ADMIN_FINE_GRAINED_AUTHZ` guard means that when only `ADMIN_FINE_GRAINED_AUTHZ_V2` is on, `ClientRemovedEvent` (and role and group removal events) do nothing. That stops the crash from `ClientPermissionsV2.setPermissionsEnabled` throwing `UnsupportedOperationException`. But this PR adds per-client resources, named after the client id, in the admin-permissions resource server, and nothing removes them now.\n\nTrigger: create a per-client permission on a client, then delete the client. The resource and its scope permission are left in the resource server. They still show up in `getClientsWithPermission` (through `findByType`), which returns ids of clients that no longer exist, and they pile up in the admin-permissions client.\n\nFix: add a V2 branch that removes the client's resource, or takes it out of its permissions, when the client is deleted, instead of skipping the event. I could not see whether another listener does this cleanup."
+  },
+  {
+   "path": "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java",
+   "line": 147,
+   "end_line": 205,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "V2 client permissions throw UnsupportedOperationException from methods that runtime callers still use.",
+   "body": "Before this change, `MgmtPermissionsV2.clients()` returned the V1 `ClientPermissions`, which implements `canExchangeTo`, `isPermissionsEnabled`, `getPermissions` and similar methods. It now returns `ClientPermissionsV2`, and those methods throw `UnsupportedOperationException`.\n\nCallers that go through `AdminPermissions.management(session, realm).clients()` can still reach them while ADMIN_FINE_GRAINED_AUTHZ_V2 is on. Two examples:\n- Legacy token exchange checks `canExchangeTo(...)` when exchanging to another client.\n- The client admin endpoint `GET /clients/{id}/management/permissions` calls `isPermissionsEnabled(client)`.\n\nWith V2 enabled, these requests now fail with a 500 error. Before, they either worked or returned a proper answer.\n\nI could not see whether those callers are gated off when V2 is enabled. If they are not, return a safe value instead of throwing: `false` from `canExchangeTo` and `isPermissionsEnabled`, and an empty map from `getPermissions`. Another option is to reject these calls with a 4xx error at the endpoint."
+  },
+  {
+   "path": "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionEvaluator.java",
+   "line": 95,
+   "end_line": 97,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Javadoc for void requireView() says it returns true.",
+   "body": "`requireView()` returns `void` and throws when access is denied, but its new Javadoc says it \"Returns `true` if `canView()` returns `true`\". The other `require*` methods in this interface say \"Throws ForbiddenException if ...\". Change this comment to match them.",
+   "suggestion": "    /**\n     * Throws ForbiddenException if {@link #canView()} returns {@code false}.\n     */"
+  },
+  {
+   "path": "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionEvaluator.java",
+   "line": 100,
+   "end_line": 102,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Javadoc for void requireViewClientScopes() says it returns true.",
+   "body": "`requireViewClientScopes()` is `void` and throws when access is denied, but its Javadoc says it \"Returns `true` if `canViewClientScopes()` returns `true`\". This contradicts the method signature and the wording of the other `require*` docs.",
+   "suggestion": "    /**\n     * Throws ForbiddenException if {@link #canViewClientScopes()} returns {@code false}.\n     */"
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 10,
+  "cacheWrite": 184480,
+  "cacheRead": 63330,
+  "output": 10508,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 18,
+   "reviewedHunks": 17,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 247820,
+   "outputTokens": 10508,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java",
+    "line": 214,
+    "end_line": 224,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "No null check on the all-clients resource before it is used.",
+    "body": "When no resource exists for the client, the code falls back to `getResourceTypeResource(...)` for the Clients type. It then passes the result to `findByResource` and calls `resource.getScopes()` without checking for null.\n\nThe Clients type is new in this change. If the resource-type resource does not exist yet for a realm's admin-permissions client, for example one set up before this change, every `canView`/`canManage` check that reaches this fallback fails with an NPE.\n\nFix: return `false` when `resource` is null after the fallback."
+   }
+  ]
+ },
+ "cost_usd": 1.145266
+}

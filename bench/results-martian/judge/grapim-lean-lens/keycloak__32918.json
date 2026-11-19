@@ -1,0 +1,32 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__32918",
+ "url": "https://github.com/keycloak/keycloak/pull/32918",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "InfinispanIdentityProviderStorageProvider.getForLogin() recursively calls session.identityProviders().getById() instead of idpDelegate.getById(), causing the cache lookup to re-enter the same caching layer.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mentions the recursive session.identityProviders().getById() call in getForLogin. C3 brings up getById returning a wrapper, but that concerns update(), not recursion in getForLogin."
+  },
+  {
+   "comment": "Cleanup reference uses incorrect alias - should be 'idp-alias-' + i instead of 'alias'.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out that cleanup uses \"alias\" when it should use \"idp-alias-\" + i, which is the same issue."
+  }
+ ],
+ "candidates": [
+  "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/organization/cache/OrganizationCacheTest.java:381 - Test cleanup removes a literal \"alias\" IDP instead of the IDPs it created.. Every cleanup is registered as `testRealm().identityProviders().get(\"alias\")::remove`, so it targets an IDP named \"alias\", which does not exist. The 21 IDPs the test creates (`idp-alias-0`..`idp-alias-20`) stay in the shared test realm and can break later tests that count or list IDPs or login providers. The same mistake is on line 425. Fix: pass the real alias, e.g. `String alias = \"idp-alias-\" + i; ... get(alias)::remove`, and use `get(\"idp-alias-20\")::remove` on line 425.",
+  "model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/idp/InfinispanIdentityProviderStorageProvider.java:226 - Login IDP cache is not invalidated when an organization is enabled or disabled. The login cache stores the IDP ids that `idpDelegate.getForLogin` returned. It is cleared only by IDP create, update or remove. If the JPA query leaves out IDPs that belong to disabled organizations, then enabling an organization never clears this cache, so its public IDPs stay missing from the login page until an unrelated IDP change clears it. When an organization is disabled, the cached ids still resolve. Only `OrganizationAwareIdentityProviderBean` checks `isEnabled()` again, so any other caller of `getForLogin` would still show IDPs from the disabled organization. I could not see the JPA query or the organization update path, so I can't confirm the delegate filters on organization enabled state. Fix: have the organization provider clear the `cacheKeyForLogin` keys for every `FetchMode` when an organization's enabled flag changes or the organization is removed. Alternatively, check organization state when reading from the cache instead of caching a result that depends on it.",
+  "model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/idp/InfinispanIdentityProviderStorageProvider.java:403 - The update check reads the org-wrapped `isEnabled()` from the original model, so some real changes skip cache invalidation.. In `update()`, `original` comes from `getById()`, which returns the organization-aware wrapper. The bean's comment, \"re-check isEnabled as idp might have been wrapped\", says this wrapper reports `isEnabled()==false` while the linked organization is disabled. `updated` is the plain model from the caller.\n\nTrigger: the IdP's organization is disabled, the IdP itself is enabled and is in a login cache. An admin sets `hideOnLogin=true` or `linkOnly=true`. The predicate is false for `original` (because of the wrapper) and false for `updated` (hidden), so the early `return` skips invalidation. The cached ID list still holds this IdP. Once the organization is re-enabled, `getForLogin` returns it, and the bean only re-checks `isEnabled()`, so a hidden or link-only IdP appears on the login page.\n\nFix: run the predicate on the unwrapped stored model (for example `idpDelegate.getById(...)`). Or invalidate whenever any field the login filter uses (enabled, linkOnly, hideOnLogin, BROKER_PUBLIC, organizationId) differs between the two models. I could not see `createOrganizationAwareIdentityProviderModel` to confirm how it wraps `isEnabled()`."
+ ]
+}

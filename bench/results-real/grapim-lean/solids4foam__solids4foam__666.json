@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "solids4foam__solids4foam__666",
+ "url": "https://github.com/solids4foam/solids4foam/pull/666",
+ "head_sha": "025b178b6bcd83d46eaf3da18b075a9ebcb7f510",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:35:29.242Z",
+ "seconds": 33.625,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 8926,
+  "cacheRead": 3527,
+  "output": 2809,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 12455,
+   "outputTokens": 2809,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1015234
+}

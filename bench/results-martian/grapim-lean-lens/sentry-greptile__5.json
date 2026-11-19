@@ -1,0 +1,252 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "head_sha": "ea188e2d736fd6ed27c1dba8aae63b7268e2a7a9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:21:29.983Z",
+ "seconds": 61.412,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/issues/endpoints/browser_reporting_collector.py",
+   "line": 50,
+   "end_line": 60,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The checks that age and timestamp are mutually exclusive use truthiness, so a value of 0 counts as absent.",
+   "body": "`self.initial_data.get(\"age\")` and `.get(\"timestamp\")` are falsy when the value is 0, and `age: 0` is a normal value for a report that is sent right away. So a report with `age: 0` and a timestamp passes both validators even though it sets both fields. A report with neither field is also accepted, because neither field-level validator runs. Use `\"age\" in self.initial_data` and `\"timestamp\" in self.initial_data`. Also add an object-level `validate` that requires exactly one of the two."
+  },
+  {
+   "path": "static/app/views/dashboards/widgetCard/chart.tsx",
+   "line": 164,
+   "end_line": 174,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Behind the feature flag, the table widget always renders with no columns and no data.",
+   "body": "When `use-table-widget-visualization` is on, `TableWidgetVisualization` gets `columns={[]}` and empty `tableData`. `result.data`, `result.meta`, the loading state and the widget fields are all ignored. Every table widget for orgs with this flag shows an empty table. Map `fields`/`result.meta` to columns and pass `result.data`, or keep the flag off until the wiring is done."
+  },
+  {
+   "path": "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx",
+   "line": 65,
+   "end_line": 68,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Hidden attributes are filtered only when a search query is present.",
+   "body": "`HIDDEN_ATTRIBUTES` is checked only inside the search branch. When `searchQuery` is empty, the memo returns `sorted` early, so `is_segment`, `project_id` and `received` still show in the default view. That is the normal case. Filter hidden attributes before the empty-query early return, for example `const sorted = sortAttributes(attributes).filter(a => !HIDDEN_ATTRIBUTES.includes(a.name));`, and keep only the search match in this filter."
+  },
+  {
+   "path": "src/sentry/migrations/0917_convert_org_saved_searches_to_views.py",
+   "line": 14,
+   "end_line": 16,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Migration 0917 made a no-op and its test deleted, without the replacement migration in this PR.",
+   "body": "The SavedSearch→GroupSearchView conversion is removed and `tests/sentry/migrations/test_0917_...` is deleted. The comment points to a 0921 migration that this PR does not add. Nothing in the replay bulk-delete request covers changing past data migrations. Any environment that has not applied 0917 or 0920 loses the conversion silently. Move this to its own PR together with the 0921 migration that replaces it."
+  },
+  {
+   "path": "src/sentry/migrations/0920_convert_org_saved_searches_to_views_revised.py",
+   "line": 13,
+   "end_line": 15,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Saved-search migration made a no-op, but the 0921 migration it points to is not in this PR.",
+   "body": "This change turns the data migration into a no-op (`return`). The new comment says `0921_convert_org_saved_searches_to_views_rerevised.py` does the conversion instead, but that file is not in the CHANGES list. On any database where 0920 has not run yet, organization-visible saved searches will now never become GroupSearchViews. The PR is about replay bulk delete and gives no reason to change this. Either add the 0921 migration in the same PR or keep 0920 as it was. I could not check whether 0921 already exists on the base branch."
+  },
+  {
+   "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+   "line": 70,
+   "end_line": 84,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The Snuba query for error IDs is unguarded and runs even when error context is disabled, so a Snuba failure breaks the whole summary.",
+   "body": "`query_replay_instance` and `process_raw_response` run before the `enable_error_context` check and outside any try/except. If Snuba times out or errors, the endpoint returns a 500, even though the error context only adds to the summary. `fetch_error_details` swallows nodestore failures, but this query has no such protection. It also runs, and can fail, when the caller passes `enable_error_context=false`.\n\nFix: skip the query when error context is disabled. Otherwise wrap it in try/except, report the exception with `sentry_sdk.capture_exception`, and fall back to an empty `error_ids` list."
+  },
+  {
+   "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+   "line": 107,
+   "end_line": 120,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Error IDs are paired with nodestore results by position instead of by key.",
+   "body": "`nodestore.backend.get_multi` returns a mapping keyed by node id. The code zips `error_ids` with `events.values()`, so it assumes the mapping keeps the request order and holds an entry for every id. If a backend drops missing ids or returns them in another order (cache hits merged with misses, for example), errors get the wrong id, title or message attached. The fix is to look each one up by key: `data = events.get(node_id)` for each `(event_id, node_id)` pair."
+  },
+  {
+   "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+   "line": 118,
+   "end_line": 119,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Error IDs are paired with nodestore results by position, so a missing event can give errors the wrong IDs.",
+   "body": "`events` is a dict keyed by node ID. The code pairs it with `error_ids` by position using `zip(error_ids, events.values())`. If the nodestore backend leaves a missing or expired node out of the dict, or returns keys in a different order, every later error gets the wrong `id`, and a trailing error is dropped. The `if data is not None` filter only works if every missing ID comes back as `None` in order. I could not check what `get_multi` returns for missing nodes.\n\nFix: look up each result by its own node ID, e.g. `for event_id, node_id in zip(error_ids, node_ids): data = events.get(node_id); if data is not None: ...`."
+  },
+  {
+   "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+   "line": 153,
+   "end_line": 155,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Error timestamps in seconds are compared with replay event timestamps in milliseconds.",
+   "body": "`fetch_error_details` takes `timestamp` from the nodestore event payload, which is a float in seconds. Replay recording events (rrweb) carry `timestamp` in milliseconds. So `error_events[error_idx][\"timestamp\"] < event.get(\"timestamp\", 0)` is true for every error at the first event that has a timestamp. All errors get emitted at the start of the log instead of in time order, and the 'chronological' merge does nothing. The timestamp printed in each error message is also in a different unit from the rest of the log. To fix, convert one side so both use the same unit, for example multiply the error timestamp by 1000 when building `ErrorEvent`."
+  },
+  {
+   "path": "src/sentry/workflow_engine/endpoints/validators/base/detector.py",
+   "line": 37,
+   "end_line": 37,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "The detector owner is not checked against the detector's organization.",
+   "body": "`ActorField` turns a `user:<id>` or `team:<id>` string into an Actor, but nothing here checks that the user is a member of the organization or that the team belongs to it. In create and update, any team or user id is written straight to `owner_team_id`/`owner_user_id`, so a client can assign a detector to a team or user in another organization. Other owner-capable serializers (alert rules, for example) check this. Add a `validate_owner` that rejects teams outside `self.context[\"organization\"]` and users who are not members of it."
+  },
+  {
+   "path": "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx",
+   "line": 39,
+   "end_line": 42,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Attribute-keys cache key leaves out the organization.",
+   "body": "The old `useApiQuery` key contained the URL `/organizations/${slug}/trace-items/attributes/`. The new key is only `['use-trace-item-attribute-keys', queryOptions]`, and `queryOptions` holds item type, attribute type, project IDs and datetime but not the org slug. The trigger is switching organizations without reloading the page while the query client survives. If both orgs have the same project selection (for example the default empty `[]` = all projects) and the same period, the second org is served the first org's attribute keys from the cache. The fix is to add `organization.slug` to the query key."
+  },
+  {
+   "path": "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx",
+   "line": 50,
+   "end_line": 50,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Rewrite drops `retry: false`, `refetchOnWindowFocus: false` and `staleTime: 0` from the attribute-keys query.",
+   "body": "The old `useApiQuery` call set `retry: false`, `refetchOnWindowFocus: false` and `staleTime: 0`. The new `useQuery` call sets none of them, so it falls back to the app's query-client defaults.\n\nWhat goes wrong:\n- When `/trace-items/attributes/` fails (for example a 400 for an unsupported project or item type, or a timeout), the request is now retried several times with backoff. The search bar stays in `isLoading` the whole time instead of failing at once.\n- Each time the window regains focus, the request may be sent again. Because `isLoading` is now `isFetching`, the loading state flickers on every refetch.\n- Without `staleTime: 0`, the data may also be cached differently than before.\n\nI could not see the app's query-client defaults, so the exact retry count and refetch behaviour are not confirmed. Fix: put the old options back on the `useQuery` call."
+  },
+  {
+   "path": "src/sentry/preprod/api/endpoints/organization_preprod_artifact_assemble.py",
+   "line": 81,
+   "end_line": 86,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The analytics event is recorded before the feature check.",
+   "body": "`preprod_artifact.api.assemble` is recorded for every request, including ones rejected with 404 because the feature is off. That inflates the usage numbers. Move the call after the `features.has` check."
+  },
+  {
+   "path": "static/app/views/performance/newTraceDetails/traceTabsAndVitals.tsx",
+   "line": 93,
+   "end_line": 93,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Replacing Container with Flex drops align-items center and the gap.",
+   "body": "The removed `Container` came from `FlexBox`, so it set `align-items: center` and `gap: space(1)` as well as `justify-content: space-between`. The new `Flex` sets only `justify`, so the tabs and vitals are no longer centred vertically or spaced. The second group in `Placeholder` (line 27) lost the same `align`/`gap`. Add `align=\"center\" gap={space(1)}` to restore the old layout.",
+   "suggestion": "    <Flex ref={setRef} justify=\"space-between\" align=\"center\" gap={space(1)}>"
+  }
+ ],
+ "usage": {
+  "requests": 20,
+  "input": 44,
+  "cacheWrite": 794146,
+  "cacheRead": 144140,
+  "output": 28159,
+  "models": {
+   "claude-opus-5-5": 20
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 106,
+   "hunks": 228,
+   "reviewedHunks": 191,
+   "aiHunks": 0,
+   "skippedHunks": 37,
+   "inputTokens": 938330,
+   "outputTokens": 28159,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 100,
+   "reviewedAiHunks": 0,
+   "requests": 5,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 3,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "src/sentry/options/defaults.py",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "tests/sentry/migrations/test_0917_convert_org_saved_searches_to_views.py",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/endpoints/test_organization_detector_details.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/endpoints/test_organization_detector_index.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/processors/test_delayed_workflow.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/snuba/api/endpoints/test_organization_events_stats.py",
+    "reason": "over the maxFiles limit (100)"
+   }
+  ],
+  "deletedTests": [
+   "tests/sentry/migrations/test_0917_convert_org_saved_searches_to_views.py"
+  ],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/sentry/tasks/auth/check_auth.py",
+    "line": 76,
+    "end_line": 78,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "scope",
+    "title": "Unrelated change to the processing deadline of the auth identity check task.",
+    "body": "`check_auth_identities` now gets `processing_deadline_duration=60`. This task checks SSO auth identities in chunks of `chunk_size` (default 100). The replay bulk-delete request does not ask for this change. If a batch takes longer than 60s, the taskworker kills it partway, and the remaining identities in that chunk are not checked in that run. Move this to its own PR with a reason, or confirm that 60s covers a full chunk."
+   },
+   {
+    "path": "static/app/views/replays/detail/ai/index.tsx",
+    "line": 90,
+    "end_line": 96,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "\"Project not found\" error can appear while projects are still loading.",
+    "body": "`useProjectFromId` looks the project up in the client-side projects store. If the replay record arrives before that store has loaded, `project` is undefined and this new check shows the \"Project not found\" error instead of a loading state. If the store fills in later the error goes away, but until then the user sees a false error. I could not check whether `useProjectFromId` reports a loading state or whether the store is always loaded by this point. Fix: check the store's loading flag (for example `useProjects().fetching`) and show the loading indicator while it is still loading. Only show the error once loading has finished and the project is still missing."
+   },
+   {
+    "path": "static/app/views/explore/contexts/pageParamsContext/index.tsx",
+    "line": 375,
+    "end_line": 375,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`BaseVisualize` is now used as a type here, but no import for it is visible.",
+    "body": "The change replaces `filter<Visualize>(isVisualize)` with `filter<BaseVisualize>(isBaseVisualize)`. The visible import changes add only `isBaseVisualize` from `./aggregateFields`. If `BaseVisualize` isn't already imported from `./visualizes` in the part of the file that isn't shown, this line fails type-checking. Add `type BaseVisualize` to the `./visualizes` import if it's missing."
+   }
+  ]
+ },
+ "cost_usd": 4.562914
+}

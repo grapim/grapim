@@ -1,0 +1,37 @@
+{
+ "tool": "published-augment",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Consider adding try-catch around the await to handle import failures gracefully",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates suggests adding a try-catch around an awaited import to handle import failures."
+  },
+  {
+   "comment": "The code uses forEach with async callbacks, which causes asynchronous operations (e.g., calendar/video event deletions, payment refunds) to run concurrently without being awaited. This 'fire-and-forget' behavior leads to unhandled promise rejections, race conditions, and incomplete cleanup, as surrounding try-catch blocks cannot properly handle errors from these unawaited promises. Replace forEach with for...of loops or Promise.all() with map() to ensure proper sequential execution and error handling.",
+   "severity": "Critical",
+   "category": "concurrency",
+   "matches": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1–C4 all point out that forEach(async ...) is never awaited, which leaves the operations as fire-and-forget, means errors aren't caught, and creates race conditions. C5 is about pushing a resolved value instead of a promise, which is a different issue."
+  }
+ ],
+ "candidates": [
+  "bookingRefsFiltered.forEach(async ...) doesn't get awaited, and the surrounding try/catch won't catch async rejections from deleteEvent/deleteMeeting, so integration cleanup can fail silently",
+  "forEach(async ...) isn't awaited in wipemycalother/lib/reschedule.ts, so calendar/video deletions can run after the function continues and failures won't be caught by the outer try/catch, potentially leaving orphaned external events/meetings",
+  "bookingRefsFiltered.forEach(async ...) isn't awaited in bookings.tsx, so calendar/video deletions may still be in-flight or fail while the router continues to send reschedule email, leading to inconsistent external calendar/video state",
+  "await getCalendar(...) is inside an un-awaited forEach(async ...) in handleCancelBooking.ts, so Promise.all(prismaPromises.concat(apiDeletes)) can run before recurring-series deletes have been enqueued",
+  "apiDeletes.push(deletedEvent) pushes the resolved value (not a promise), so it won't actually be awaited downstream in the Promise.all"
+ ]
+}

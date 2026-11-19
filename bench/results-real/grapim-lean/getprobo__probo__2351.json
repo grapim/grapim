@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "getprobo__probo__2351",
+ "url": "https://github.com/getprobo/probo/pull/2351",
+ "head_sha": "062992661ca19a00e624c37d36c2329221ac207d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:14:18.366Z",
+ "seconds": 80.529,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/server/api/collaboration/v1/hub.go",
+   "line": 630,
+   "end_line": 648,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Room refresh failures are dropped with no log and no signal to peers.",
+   "body": "Before this change, a failed refresh returned `cannot refresh repo collaboration` and the connection closed. Now `refreshOnce` returns without a trace when `FetchChanges` fails. When `Apply` fails, it only resets `r.position`.\n\nTwo things go wrong when the failure keeps happening (for example, heads that cannot be decoded, a snapshot that will not load, or a merge that always fails):\n- Peers keep editing a stale document with nothing logged and no error sent to them.\n- With the position reset to zero, `FetchChanges` never returns nil. Every 500 ms poll then reloads the full snapshot and change log and merges it while holding `docMu`. That is the same lock-holding work this PR set out to remove.\n\nNothing in the room records the error. I could not check whether `FetchChanges` logs internally; in the code shown it does not.\n\n**Fix:** log both errors with the document ID (give the room a logger). Consider backing off, or showing the failure to connections, after repeated failures."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 47242,
+  "cacheRead": 47387,
+  "output": 7135,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 38,
+   "reviewedHunks": 33,
+   "aiHunks": 0,
+   "skippedHunks": 5,
+   "inputTokens": 94633,
+   "outputTokens": 7135,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.3884034
+}

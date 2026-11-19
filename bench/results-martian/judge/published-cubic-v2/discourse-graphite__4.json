@@ -1,0 +1,84 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The PollFeed job calls open(SiteSetting.feed_polling_url) without validating the URL, allowing an attacker who controls the feed_polling_url site setting to make the server fetch arbitrary internal or external URLs.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.6,
+   "reasoning": "C1 asks for the feed URL to be validated before it is fetched in the poll job. That is the same missing check behind the SSRF concern, though C1 doesn't name SSRF."
+  },
+  {
+   "comment": "The current origin validation using indexOf is insufficient and can be bypassed. An attacker could use a malicious domain like evil-discourseUrl.com to pass this check.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the indexOf origin check being bypassable."
+  },
+  {
+   "comment": "postMessage targetOrigin should be the origin (scheme+host+port), not the full referrer URL; using the full URL will cause the message to be dropped and prevent resizing.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the postMessage targetOrigin being the full referrer URL instead of the origin."
+  },
+  {
+   "comment": "The code sets X-Frame-Options: ALLOWALL which completely disables clickjacking protection. The referer validation can be bypassed (referer headers are easily spoofed), and the fallback to empty string for nil referer masks validation failures.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions X-Frame-Options ALLOWALL or the referer validation."
+  },
+  {
+   "comment": "The TopicEmbed.import method is susceptible to a NoMethodError if the contents parameter is nil when attempting to append a string, and an XSS vulnerability due to unescaped url interpolation in the generated HTML.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3,
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C4 covers the crash when contents is nil. C3 covers the URL interpolated into HTML without escaping."
+  },
+  {
+   "comment": "The ERB block closes with end if, which is invalid Ruby/ERB and will raise at render; it should just be end to close the if block.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the invalid 'end if' in the ERB block."
+  },
+  {
+   "comment": "Calling `i.content.scrub` assumes that `i.content` is always populated. However, many RSS feeds do not provide a `content` field, leading to a potential nil pointer exception when `i.content` is nil. A fallback to `description` should be implemented to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions i.content being nil or a fallback to description."
+  },
+  {
+   "comment": "An unescaped request header (request.referer) is interpolated into JavaScript without proper escaping, which can lead to XSS vulnerabilities if the referer contains malicious content. This issue can allow attackers to execute arbitrary scripts in the context of the application.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions the referer being put into JavaScript without escaping. C3 is about the URL in TopicEmbed's HTML, which is a different issue."
+  }
+ ],
+ "candidates": [
+  "URL format validation should be added before fetching, rather than relying on the check inside `import`",
+  "Sanitize `raw_html` posts before returning them - the early return turns imported embed HTML into stored, unsanitized output",
+  "`url` is interpolated directly into HTML without escaping, risking HTML injection - should use `ERB::Util.html_escape` or `CGI.escapeHTML` on the URL before interpolating",
+  "`contents` is used without a nil check - `contents <<` will crash if nil"
+ ]
+}

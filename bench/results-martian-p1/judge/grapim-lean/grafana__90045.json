@@ -1,0 +1,46 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__90045",
+ "url": "https://github.com/grafana/grafana/pull/90045",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The context is being created with d.Log instead of the log variable that was initialized with additional context values (name, kind, method). This means those values won't be propagated to the logging context.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    7
+   ],
+   "confidence": 0.97,
+   "reasoning": "C7 flags the same problem: Delete stores d.Log in the context instead of log, so the name, kind and method values are lost."
+  },
+  {
+   "comment": "In DualWriterMode3's DeleteCollection method, when a storage operation fails, recordStorageDuration is incorrectly called with recordLegacyDuration instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "G2 says a failed storage operation in DeleteCollection is recorded as legacy. C5 is also about DeleteCollection metrics, but it describes the opposite case: the async legacy call recorded as storage. C2 and C4 make G2's error, but in Create and Update, not DeleteCollection. None of them matches G2's location and direction together."
+  },
+  {
+   "comment": "Inconsistency: using name instead of options.Kind for metrics recording differs from other methods.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 flags the same problem: Delete passes name instead of options.Kind when recording metrics."
+  }
+ ],
+ "candidates": [
+  "pkg/apiserver/rest/dualwriter_mode3.go:50 - Background legacy writes inherit the request context and get cancelled when the request ends.. Each goroutine builds its timeout context from the request `ctx`. When the handler returns `created`, the apiserver cancels the request context, so the legacy Create usually fails with `context canceled` almost as soon as it starts. Legacy storage then quietly drifts away from unified storage, which defeats the \"safe measure\" this mode exists for. The same problem is in the Delete (line 110), Update (line 135) and DeleteCollection (line 163) goroutines. Fix: derive the context from `context.WithoutCancel(ctx)` before adding the 10s timeout, e.g. `ctx, cancel := context.WithTimeoutCause(context.WithoutCancel(ctx), time.Second*10, ...)`.",
+  "pkg/apiserver/rest/dualwriter_mode3.go:45 - A failed unified-storage Create is recorded as a legacy failure.. When `d.Storage.Create` fails, the code calls `recordLegacyDuration(true, ...)`. Unified-storage failures then show up in the legacy metric and never in the storage metric. Use `recordStorageDuration`.",
+  "pkg/apiserver/rest/dualwriter_mode3.go:106 - Delete records the storage metric with the object name as the kind label.. `d.recordStorageDuration(false, mode3Str, name, method, startStorage)` passes `name` where every other call passes `options.Kind`. Successful deletes are then filed under a wrong kind label. Each deleted object name also creates a new Prometheus series, so the number of series grows without bound. Use `options.Kind`.",
+  "pkg/apiserver/rest/dualwriter_mode3.go:129 - A failed unified-storage Update is recorded as a legacy failure.. When `d.Storage.Update` fails, the error is recorded through `recordLegacyDuration`. Storage failures are then attributed to the legacy store. Use `recordStorageDuration`.",
+  "pkg/apiserver/rest/dualwriter_mode3.go:166 - The async legacy DeleteCollection is recorded as a storage operation.. The goroutine that runs `d.Legacy.DeleteCollection` records its result with `recordStorageDuration`. The storage metric then counts DeleteCollection twice, and legacy failures never appear in the legacy metric. Use `recordLegacyDuration`.",
+  "pkg/apiserver/rest/dualwriter_mode3.go:134 - Legacy Update now re-applies the raw objInfo instead of the object unified storage stored.. The old code wrapped `objInfo` in `updateWrapper{updated: obj}`, so legacy received exactly the object unified storage had saved. Now legacy runs `objInfo.UpdatedObject` against its own copy of the old object. Two things can go wrong. Preconditions such as the resourceVersion or UID from unified storage can fail with a conflict on legacy. Patches can also produce a different result there. Either way the async legacy update fails or writes different data. Fix: pass `&updateWrapper{upstream: objInfo, updated: res}` to `d.Legacy.Update`.",
+  "pkg/apiserver/rest/dualwriter_mode3.go:97 - Delete puts d.Log into the context instead of the logger that carries name, kind and method.. `ctx = klog.NewContext(ctx, d.Log)` drops the name, kind and method values built on the line above. Every other method stores `log`. Use `log`."
+ ]
+}

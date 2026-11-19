@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "getprobo__probo__2351",
+ "url": "https://github.com/getprobo/probo/pull/2351",
+ "head_sha": "062992661ca19a00e624c37d36c2329221ac207d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:28:19.119Z",
+ "seconds": 79.889,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/server/api/collaboration/v1/hub.go",
+   "line": 630,
+   "end_line": 648,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Refresh failures are dropped, so a room can stay stale forever while its peers keep editing.",
+   "body": "Before this change, a failed refresh returned `cannot refresh repo collaboration` from the connection loop. That closed the socket, and the client reconnected and reopened the room from the database. Now `refreshOnce` throws away every error from `FetchChanges` and `Apply`.\n\nTwo cases never recover:\n- **Read fails every time** (for example, the stored heads cannot be decoded, or the document row is gone). The position never moves, the room never sees another instance's edits, and connected peers keep working on an outdated document without being told.\n- **`Apply` fails every time** (for example, a merge error). The position is reset to zero, so every 500 ms poll rebuilds the whole canonical document from its snapshot and merges it under `docMu`. That is the lock-heavy pattern this PR set out to remove, and it now runs forever without anything noticing.\n\n**Fix:** keep the retry, but count consecutive failures. After a bound (or for errors other than `ErrRefreshIncomplete` and timeouts), record the error the way `persistErr` is recorded and have the connection loop return it, so clients reconnect instead of staying silently stale."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 40577,
+  "cacheRead": 3561,
+  "output": 7096,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 38,
+   "reviewedHunks": 33,
+   "aiHunks": 0,
+   "skippedHunks": 5,
+   "inputTokens": 44140,
+   "outputTokens": 7096,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.34552520000000003
+}

@@ -1,0 +1,36 @@
+{
+ "tool": "published-augment",
+ "pr_id": "cal.com__8330",
+ "url": "https://github.com/calcom/cal.com/pull/8330",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect end time calculation using slotStartTime instead of slotEndTime",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: end is calculated from slotStartTime when it should use the slot's end time."
+  },
+  {
+   "comment": "Using === for dayjs object comparison will always return false as it compares object references, not values. Use .isSame() method instead: dayjs(date.start).add(utcOffset, 'minutes').isSame(dayjs(date.end).add(utcOffset, minutes))",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 flags the same mistake: dayjs objects compared with === instead of isSame."
+  }
+ ],
+ "candidates": [
+  "In the working-hours guard, end is computed from slotStartTime instead of the slot's end time, so longer meetings can pass even if they extend past workingHour.endTime, making slots appear available outside normal hours",
+  "dayjs(date.start) === dayjs(date.end) compares object identity, so this condition will always be false and the zero-length override detection branch will never run - needs to use isSame or timestamp compare instead",
+  "When dateOverrideExist is true, the code returns true before checking busy, which could surface slots inside an override even if they overlap an existing booking/calendar event - bypassing busy checks on overridden days may be unintended",
+  "The workingHours.find predicate returns true when a slot is outside a particular workingHour, so if there are multiple working-hour ranges for the same day, a slot valid in one range can be rejected because it's outside another, causing false unavailable results for split schedules",
+  "override.timeZone is optional on TimeRange but is assumed present when calling tz(override.timeZone) - if undefined, the offset math may be incorrect or throw depending on Dayjs config"
+ ]
+}

@@ -1,0 +1,28 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__36882",
+ "url": "https://github.com/keycloak/keycloak/pull/36882",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect method call for exit codes. The picocli.exit() method calls System.exit() directly, which is problematic:",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "C1 is about documentation feature flags overriding config, not the picocli.exit/System.exit issue."
+  },
+  {
+   "comment": "Need to add changelog/release notes documenting the exit code change and migration guidance",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 concerns doc example flags, not missing changelog/migration notes for exit code change."
+  }
+ ],
+ "candidates": [
+  "docs/guides/templates/kc.adoc:53 - Documented command overrides the user's configured feature set with only `rolling-updates`.. This macro now adds a hard-coded `--features=rolling-updates` to every `update-compatibility` example. A CLI option takes precedence over `keycloak.conf` and env vars, so this flag replaces any `features` the deployment already sets instead of adding to them. A user who copies the example gets metadata or a check run for a feature set that differs from what the server actually runs, which can give a wrong rolling/recreate verdict. On an optimized image built with other features, it can also cause a build-option mismatch. The docs should tell users to add `rolling-updates` to their existing `--features` list (or to their config), not override the list with this single value."
+ ]
+}

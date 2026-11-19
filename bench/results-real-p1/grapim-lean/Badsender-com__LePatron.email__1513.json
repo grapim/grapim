@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Badsender-com__LePatron.email__1513",
+ "url": "https://github.com/Badsender-com/LePatron.email/pull/1513",
+ "head_sha": "3e0d6cff2708c94a8440df4823469e1f53767cee",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:45:09.563Z",
+ "seconds": 47.745,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 26476,
+  "cacheRead": 30791,
+  "output": 3264,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 23,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 57271,
+   "outputTokens": 3264,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 16,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/server/translation/translation-job-runner.js",
+    "line": 111,
+    "end_line": 114,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The email's language may be checked against the wrong list and always fall back to detection.",
+    "body": "`sourceLanguageFor` now uses the email's language as the source only if it appears in `getAvailableLanguages({ groupId }).languages`. I couldn't see what that function returns. The UI text \"Configure available languages in the company settings\" suggests it is the company's list of target languages, not the languages the provider can read as a source.\n\nIf so, there are two ways this goes wrong:\n- A French email whose company offers only `en` and `nl` as targets never has `fr` accepted. Its language is ignored and the markup guess is used, which defeats ADR-0023 for the most common setup.\n- If the entries are objects such as `{ code, label }` rather than strings, `takesAsSource` compares `String(code)`, which is `\"[object Object]\"`. Nothing matches, so the guess is always used.\n\nAlso, this call now runs inside the `detectSourceLanguage` step. If it fails, the step fails, and the job may fail with it; before this change, no lookup ran there.\n\nFix: pass the provider's own list of source languages, mapped to code strings, and fall back to the guess if reading that list fails."
+   }
+  ]
+ },
+ "cost_usd": 0.20383420000000002
+}

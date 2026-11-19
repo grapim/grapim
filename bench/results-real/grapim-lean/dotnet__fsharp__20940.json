@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "dotnet__fsharp__20940",
+ "url": "https://github.com/dotnet/fsharp/pull/20940",
+ "head_sha": "e8ae11042dfe02e208f4f8859d0ea3a0a4642847",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:24:39.054Z",
+ "seconds": 13.701,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 23763,
+  "cacheRead": 3527,
+  "output": 1057,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 15,
+   "reviewedHunks": 15,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 27292,
+   "outputTokens": 1057,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1406684
+}

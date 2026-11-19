@@ -1,0 +1,44 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "grafana__90045",
+ "url": "https://github.com/grafana/grafana/pull/90045",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The context is being created with d.Log instead of the log variable that was initialized with additional context values (name, kind, method). This means those values won't be propagated to the logging context.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 identical: d.Log used instead of the enriched log variable."
+  },
+  {
+   "comment": "In DualWriterMode3's DeleteCollection method, when a storage operation fails, recordStorageDuration is incorrectly called with recordLegacyDuration instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "G2 is about recordLegacyDuration being called on a storage failure in DeleteCollection. C2 describes the same bug pattern but in Create and Update. C4 is about DeleteCollection but describes the opposite mistake: recordStorageDuration used for the legacy call. Neither points to the same spot."
+  },
+  {
+   "comment": "Inconsistency: using name instead of options.Kind for metrics recording differs from other methods.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 says name is passed instead of options.Kind in the metrics call."
+  }
+ ],
+ "candidates": [
+  "Context is set with d.Log instead of the enriched log variable, discarding the name, kind, and method values added on the previous line, so downstream code extracting the logger from context will lack those fields.",
+  "d.recordLegacyDuration is called when Storage create fails instead of d.recordStorageDuration, recording storage failure latency under the legacy metric and skewing both dashboards. The same bug exists in the Update error path.",
+  "The success path passes name (the object name) instead of options.Kind as the resource kind for the metric, creating a unique time series per deleted object and causing metric cardinality explosion.",
+  "recordStorageDuration is called for the legacy DeleteCollection operation instead of recordLegacyDuration, recording the wrong metric.",
+  "Use separate mocks for legacy and unified storage; a shared mock.Mock makes backend routing assertions indistinguishable."
+ ]
+}

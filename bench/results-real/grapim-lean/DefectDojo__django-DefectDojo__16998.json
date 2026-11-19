@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "DefectDojo__django-DefectDojo__16998",
+ "url": "https://github.com/DefectDojo/django-DefectDojo/pull/16998",
+ "head_sha": "b597278b6bdc668d526d8da04f6472df9c17183c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:34:00.165Z",
+ "seconds": 35.019,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17903,
+  "cacheRead": 3426,
+  "output": 2433,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21331,
+   "outputTokens": 2433,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.13886820000000002
+}

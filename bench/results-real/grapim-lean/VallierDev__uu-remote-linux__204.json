@@ -1,0 +1,104 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "VallierDev__uu-remote-linux__204",
+ "url": "https://github.com/VallierDev/uu-remote-linux/pull/204",
+ "head_sha": "f82775f7eac6be8be96a0462803545b0a07bedf0",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:30:04.568Z",
+ "seconds": 172.018,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/portal.rs",
+   "line": 445,
+   "end_line": 448,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "New automatic consent re-prompt for ordinary monitors",
+   "body": "When the saved consent for a normal (non-shadowed) connector restores a different monitor, `switch_to` now immediately reopens with `fresh = true`, which shows the GNOME share dialog on the host. Before, it returned an error. This changes prompting behaviour for ordinary multi-monitor setups. Neither the issue nor the description asks for it, and the description says ordinary monitors get no special logic. Remove the retry, or limit it to the PBP case."
+  },
+  {
+   "path": "src/portal.rs",
+   "line": 472,
+   "end_line": 478,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "Every switched-away monitor is parked, not only the shadowed PBP half",
+   "body": "After any successful switch, the previous handle is paused and pushed into `spare`, whatever its identity. On an ordinary two- or three-monitor host, each monitor the viewer leaves now keeps an open Portal/RemoteDesktop session, paused but alive, until the viewer disconnects (`end()`) or switches back. Before this change the old session was closed. The PR says the special handling applies only when monitors share an identity and that ordinary multi-monitor setups are unaffected. Park `previous` only when `lead_connector(&monitors, &name).is_some()`, and drop it otherwise."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 6,
+  "cacheWrite": 62609,
+  "cacheRead": 21507,
+  "output": 19334,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 11,
+   "hunks": 42,
+   "reviewedHunks": 41,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 84122,
+   "outputTokens": 19334,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 3,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/portal.rs",
+    "line": 1448,
+    "end_line": 1453,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Lead/shadowed choice follows Mutter's logical-monitor order, which may not match the portal's restore order",
+    "body": "`lead_connector` treats the first monitor with a shared identity in `uu_portal_monitors()` output as the lead. That list comes from Mutter's *logical* monitors (`GetCurrentState` child 2). The PR says xdg-desktop-portal-gnome restores the first match by vendor:product:serial, and it may walk a different list, such as the physical monitors (child 1) in their own order. When the two orders differ (for example, the HDMI half is listed first physically but the DP half comes first logically), the half that can actually restore is labelled shadowed. Its consent file is deleted and every switch to it forces a fresh prompt. The saved token goes to the other half, whose restore then grants the wrong monitor. I could not check the portal's iteration order from here. Derive the lead from the same list and order the portal matches against, or check that the two orders agree."
+   },
+   {
+    "path": "src/webrtc.rs",
+    "line": 220,
+    "end_line": 223,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "A portal desktop stream with no input owner yet exits without streaming or logging anything.",
+    "body": "In the new code, when `portal` is `Some` and the `owner` captured at spawn time is `None`, the stream task returns early. No video is sent and nothing is logged. For a new desktop connection, `stream.spawn(None, role.input(), ...)` is called at line 489. In the promotion path (hunk 6), `role.input` is set before `spawn`. I can't see where it is set for a connection that is a desktop from the start. If it is set after line 489 (for example by `track_session` or when the connection completes), every portal-backed desktop connection gets a black screen. Check that `role.input` is filled in before line 489. If it isn't, bind the settings when the owner appears, or log and skip the binding instead of returning. That way an earlier situation that worked doesn't silently lose video."
+   },
+   {
+    "path": "src/webrtc.rs",
+    "line": 711,
+    "end_line": 712,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "If `switch_screen` returns `Ok(None)`, the request carries on as if no screen change was asked for.",
+    "body": "`switch_screen` returns `Ok(None)` when `select_for` succeeds without calling the callback, for example when the owner is no longer current inside `with_current`. In that case `switched` stays `None`. The handler then applies the rest of the request's settings and sends no reject and no capture-change message, even though the requested screen was never selected. The old code did `if !changed {continue;}`, so a switch that didn't take effect stopped the request. I can't see `select_for`, so check whether it can return `Ok` without calling the callback. If it can, treat `Ok(None)` like a failed switch (`continue`, or `reject`)."
+   }
+  ]
+ },
+ "cost_usd": 0.7040504000000001
+}

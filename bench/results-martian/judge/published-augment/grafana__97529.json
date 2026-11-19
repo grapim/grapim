@@ -1,0 +1,34 @@
+{
+ "tool": "published-augment",
+ "pr_id": "grafana__97529",
+ "url": "https://github.com/grafana/grafana/pull/97529",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A race condition in BuildIndex allows multiple goroutines to concurrently build the same expensive index for the same key. This is caused by moving the b.cacheMu lock from protecting the entire function to only protecting the final cache assignment. ",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same race in BuildIndex: the function-wide lock was removed, so concurrent callers can build the same key."
+  },
+  {
+   "comment": "Calling s.search.TotalDocs() here may race with concurrent index creation: TotalDocs iterates b.cache without synchronization, and the event watcher goroutine started just above could trigger BuildIndex writes concurrently, potentially causing a concurrent map read/write panic.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 describes the same TotalDocs race: it iterates the cache without a lock while the watcher goroutine may be writing to it."
+  }
+ ],
+ "candidates": [
+  "With the function-wide cacheMu lock removed from BuildIndex, concurrent callers can build the same key at the same time, leading to duplicate work or intermittent build failures for file-based indexes",
+  "s.search.TotalDocs() is called after the watch goroutine is started, which can cause race conditions or panics with concurrent map writes if the backend updates its index cache concurrently since Bleve's TotalDocs() iterates b.cache without locking",
+  "On init failure, the error is logged both at the call site and inside (*server).Init, producing duplicate error logs for a single failure"
+ ]
+}

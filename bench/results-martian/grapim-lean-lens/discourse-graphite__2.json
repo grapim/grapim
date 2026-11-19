@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "head_sha": "6669a2d94d76eea3b99b8c476d12b1eb66726b07",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:36:34.492Z",
+ "seconds": 34.195,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/controllers/topics_controller.rb",
+   "line": 105,
+   "end_line": 113,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`unsubscribe` crashes when the user has no TopicUser row.",
+   "body": "`TopicUser.find_by` returns nil when the user has never had a topic_users row for this topic. That can happen when they got the email through a mention or a group notification without visiting the topic. `tu.notification_level` then raises NoMethodError, and the unsubscribe link returns a 500. Fix: handle the nil case, for example by calling `TopicUser.change(current_user.id, topic_id, notification_level: ...)`, which creates the row when it is missing. That call also publishes the MessageBus `notification_level_change` that a direct `save!` skips."
+  },
+  {
+   "path": "config/locales/server.en.yml",
+   "line": 1852,
+   "end_line": 1855,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`unsubscribe_link` now needs `%{unsubscribe_url}`, but only notification emails pass it.",
+   "body": "`Email::MessageBuilder` builds `I18n.t('unsubscribe_link', template_args)` for every email with `add_unsubscribe_link: true`. Before this change, the string only needed `user_preferences_url`, which the builder always sets. Now it also needs `unsubscribe_url`, and only `send_notification_email` passes that. Other emails that set `add_unsubscribe_link` (for example the digest) don't pass it. For them, I18n either raises `MissingInterpolationArgument` or leaves a literal `%{unsubscribe_url}` in the email, and the email also says \"this particular topic\" when there is no topic. The spec had to add `unsubscribe_url` to keep passing, which points to the same problem. I couldn't see the other callers to confirm which ones are affected. Fix: keep the per-topic sentence in a separate key and add it only when `unsubscribe_url` is present."
+  },
+  {
+   "path": "app/controllers/topics_controller.rb",
+   "line": 98,
+   "end_line": 116,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "A GET request changes notification settings with no CSRF protection and no confirmation step.",
+   "body": "Each GET to `/t/:slug/:id/unsubscribe` lowers the user's notification level: watching or tracking becomes regular, and regular becomes muted. This has several effects:\n- Any third-party page can embed `<img src=\".../t/x/123/unsubscribe\">` and silently mute topics for a logged-in visitor.\n- Mail-client link scanners and prefetchers can trigger it before the user clicks.\n- Reloading the page, or a second visit, moves the level down another step, so watching ends up as muted.\n\nFix: have the GET only render the page, and change the level through a POST or PUT with a CSRF token, or require a signed per-user token in the link."
+  },
+  {
+   "path": "app/controllers/topics_controller.rb",
+   "line": 113,
+   "end_line": 113,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Calling tu.save! directly skips the MessageBus notification_level_change publish.",
+   "body": "`TopicUser.change` publishes `notification_level_change` on `/topic/:id` to the user. It also runs `observe_after_save_callbacks_for` (UserActionObserver). Writing `notification_level` and calling `save!` skips both, so the user's other open tabs or clients keep showing the old notification level. Fix: use `TopicUser.change(current_user.id, params[:topic_id], notification_level: new_level)`."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 8,
+  "cacheWrite": 73681,
+  "cacheRead": 14108,
+  "output": 7938,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 18,
+   "hunks": 26,
+   "reviewedHunks": 25,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 87797,
+   "outputTokens": 7938,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 18,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.5300186
+}

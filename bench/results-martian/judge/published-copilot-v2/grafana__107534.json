@@ -1,0 +1,21 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "grafana__107534",
+ "url": "https://github.com/grafana/grafana/pull/107534",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The applyTemplateVariables method is called with request.filters as the third parameter, but this parameter is not used in the corresponding test setup.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "G1 says the test setup doesn't cover the request.filters argument passed to applyTemplateVariables. C1 is about filtering before interpolation, and C2 is about interpolation being applied twice. Neither one points out that the test setup is missing the filters parameter."
+  }
+ ],
+ "candidates": [
+  "The expr filter is applied before template interpolation. If a target has a non-empty expr that interpolates to an empty string, it will still be included and later executed, causing potential parse/backend errors. Filter should be applied after applyTemplateVariables instead.",
+  "runSplitQuery now applies applyTemplateVariables unconditionally, but in the shard-splitting flow targets may already have had applyTemplateVariables applied once, resulting in multiple passes per request. This causes extra work and can re-apply ad hoc filters (like pipeline label-filters that are not de-duplicated), growing the query string across shard iterations. Consider adding an option to skip interpolation when callers already provided interpolated targets, or ensure this is only applied once per end-user query."
+ ]
+}

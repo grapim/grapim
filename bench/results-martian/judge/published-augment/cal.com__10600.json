@@ -1,0 +1,60 @@
+{
+ "tool": "published-augment",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The exported function TwoFactor handles backup codes and is in BackupCode.tsx. Inconsistent naming.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same naming mismatch: a TwoFactor function used for the backup code component."
+  },
+  {
+   "comment": "Error message mentions 'backup code login' but this is a disable endpoint, not login",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the misleading error message."
+  },
+  {
+   "comment": "Backup code validation is case-sensitive due to the use of indexOf(). This causes validation to fail if a user enters uppercase hex characters, as backup codes should be case-insensitive for a better user experience.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C5 mentions indexOf, but it is about parse errors, not case sensitivity."
+  },
+  {
+   "comment": "Because backupCodes are decrypted and mutated in memory before being written back, two concurrent login requests using the same backupCode could both pass this check and update, so a single backup code may effectively be accepted more than once if used concurrently, weakening the intended one-time-use semantics.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates raise the race condition in backup code use."
+  },
+  {
+   "comment": "Object URL for backup codes is not revoked on component unmount, leading to a potential memory leak. This can cause increased memory usage over time, especially if the component is mounted and unmounted frequently.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 identifies the same leak: the object URL is not revoked on close/reset."
+  }
+ ],
+ "candidates": [
+  "Component is exported as `function TwoFactor` even though it's a backup-code UI; the name mismatch can be confusing in stack traces/DevTools and when importing alongside the real `TwoFactor` component",
+  "A new object URL is created for `backupCodesUrl`, but it's only revoked when generating a new one; if the modal is closed/reset without another setup run, the object URL can leak and keep the blob alive longer than intended",
+  "`navigator.clipboard.writeText(...)` isn't awaited/handled, so the success toast can show even if the clipboard write fails (e.g., permissions/unsupported environment)",
+  "Renders an `<a>` wrapping a `Button` that becomes a `<button>`, which creates nested interactive elements (`<a><button>…`). This can cause inconsistent click/keyboard behavior and is invalid HTML semantics",
+  "`JSON.parse(symmetricDecrypt(...))` can throw (or return a non-array) if `backupCodes` is corrupted/unexpected, which would crash the authorize/disable flow with a 500. Consider guarding parse/decrypt errors and validating the decoded shape before using `indexOf`"
+ ]
+}

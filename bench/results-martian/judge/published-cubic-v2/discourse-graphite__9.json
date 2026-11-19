@@ -1,0 +1,34 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "discourse-graphite__9",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The @loaded_locales instance variable in translate_accelerator.rb is lazily initialized and accessed by multiple concurrent threads without synchronization.",
+   "severity": "Low",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out the same race: the lazy @loaded_locales init has no synchronization."
+  },
+  {
+   "comment": "Consider normalizing the input locale (e.g., to a symbol) when checking/loading here to avoid double-loading if the same locale is passed as a String vs Symbol (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 raises the same String vs Symbol normalization problem, which leads to a second load of the same locale."
+  }
+ ],
+ "candidates": [
+  "`@loaded_locales ||= []` is not protected by `LOAD_MUTEX`, introducing a race condition. Two threads could simultaneously see `nil`, each create a new array, and one write is lost. Consider removing the lazy init and relying on `load_locale` (which already guards access with `LOAD_MUTEX`) directly, or wrapping this in the mutex.",
+  "`locale` is not normalized to a Symbol (or String) before the `include?` check. In Ruby `:en != \"en\"`, so passing a String when the locale was previously loaded as a Symbol (from `I18n.config.locale`) will bypass the guard and trigger a redundant load. Consider adding `locale = locale.to_sym` at the top of the method.",
+  "Preserve standard locale-ancestor fallbacks here; otherwise regional locales skip matching base-language translations."
+ ]
+}

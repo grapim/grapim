@@ -1,0 +1,42 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The Check operation exhibits asymmetric cache trust logic: cached permission grants are trusted and returned immediately, but cached denials from the same permission cache are ignored, leading to a fresh database lookup. This allows stale cached grants to provide access to revoked resources, posing a security risk. ",
+   "severity": "High",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G1 says cached grants are trusted while cached denials get ignored, so a stale grant can still give access to a revoked resource. C2 describes the opposite problem: stale cached denials hide permissions that were newly granted. Both are about stale caches, but they are different issues."
+  },
+  {
+   "comment": "The test comment says the cached permissions 'allow access', but the map stores false for dashboards:uid:dash1, so checkPermission will still treat this scope as not allowed.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 points out that the test comment says the entry allows access, but the map stores false for dash1. That is the same issue as G2."
+  },
+  {
+   "comment": "The cache key construction in `userPermDenialCacheKey` uses simple string concatenation with underscores, which can lead to ambiguous keys and collision risks when any component contains underscores or is empty. This could result in incorrect denial cache hits, affecting user permissions.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 finds the same ambiguity in denial cache keys built by joining parts with underscores, which can cause collisions. That is the same issue as G3."
+  }
+ ],
+ "candidates": [
+  "pkg/services/authz/rbac/cache.go:30 - Denial cache key is ambiguous when names or folder UIDs contain '_'.. The key joins `userUID`, `action`, `name` and `parent` with `_`. Dashboard and folder UIDs can contain `_`. So a dashboard named `a` in folder `b_c` and a dashboard named `a_b` in folder `c` both get the key `..._a_b_c`.\n\nA denial cached for one resource then wrongly denies the other for the TTL. The early return in `Check` never looks at the real permissions.\n\nFix: use a separator that cannot appear in these values, or encode the parts (for example with a length prefix or `%q`).",
+  "pkg/services/authz/rbac/service.go:153 - Cached denials hide newly granted permissions until the TTL runs out, defeating the DB requery.. Any `Check` that returns false now writes a denial entry for `shortCacheTTL`. Nothing clears that entry when permissions change. Later `Check` calls return at line 117 before the new 'requery the DB on a miss' path can run.\n\nTrigger: a user asks for a resource before access exists, e.g. the frontend fetches a dashboard or folder during or right after creation, before the creator's permission is written, or an admin grants access or adds the user to a team after a denied request. That user then keeps getting `Allowed: false` for the whole TTL, even though the DB already allows it. This is the stale-permission problem the PR says it fixes, now for negative results.\n\nFix: give the denial cache a much shorter TTL, or clear or bypass it when permissions are written, so a fresh grant is seen at once.",
+  "pkg/services/authz/rbac/service_test.go:981 - Denial-cache test caches `false` for dash1, so it passes even without the denial cache.. The comment says this cache entry allows access so the test proves the denial cache wins. But the entry is `\"dashboards:uid:dash1\": false`, and the fake store returns no permissions. If the denial-cache lookup were removed, `Check` would still deny, so the test proves nothing. Set the entry to `true`."
+ ]
+}

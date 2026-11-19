@@ -1,0 +1,23 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The include_website_name method is missing the required ? suffix. Rails serializers expect include_ methods to end with ? for conditional attribute inclusion, a convention followed by other methods in this serializer. Without it, the website_name attribute may not be conditionally included as intended. Additionally, the '.' << website_host string concatenation should be replaced with '.' + website_host or '.#{website_host}' to avoid mutating string literals, which can lead to issues.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out the same missing ? suffix on include_website_name. C2 is about case-sensitive host comparison, which is a different issue."
+  }
+ ],
+ "candidates": [
+  "app/serializers/user_serializer.rb:153 - `include_website_name` lacks the `?` suffix, so the serializer never uses it as a filter.. ActiveModel::Serializers only checks methods named `include_<attr>?`, like the `include_card_image_badge_id?` method just below. Because this one is named `include_website_name` without the `?`, it is never called. As a result, `website_name` is sent for every user, as `null` when there is no website, instead of being left out. Rename it to `include_website_name?`.",
+  "app/serializers/user_serializer.rb:138 - Host comparisons are case-sensitive, so mixed-case website URLs never match the instance domain.. `URI(...).host` keeps the case the user typed. A website like `http://Example.com/user` on the instance `example.com` fails the `==`, split and `ends_with?` checks. The profile then shows only `Example.com` without the path, which is the case this change sets out to fix. Downcase both hosts before comparing them, e.g. `website_host = URI(website.to_s).host.try(:downcase) rescue nil` and `discourse_host = Discourse.current_hostname.downcase`."
+ ]
+}

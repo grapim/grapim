@@ -1,0 +1,39 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The magic number 50 for max_wait is used repeatedly throughout the tests. Consider extracting this as a named constant to improve maintainability.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the repeated magic number 50 for max_wait."
+  },
+  {
+   "comment": "The test test_thread_queue_parallel_error_handling has a docstring that doesn't match the test implementation.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    5,
+    6
+   ],
+   "confidence": 0.85,
+   "reasoning": "C5 and C6 both say the error-handling test's assertion contradicts its docstring, which claims errors should not block commits. That is the same docstring/implementation mismatch the golden comment describes."
+  }
+ ],
+ "candidates": [
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:335 - Closing the strategy shuts down the shared queue pool, so after a rebalance every message is dropped and still committed.. The factory builds `FixedQueuePool` once in `__init__` and hands the same object to every strategy that `create_with_partitions` returns. Arroyo calls `close()`/`join()` on the old strategy at each partition revocation. `close()` calls `queue_pool.shutdown()`, which shuts down every `queue.Queue` and stops every worker thread. On the next assignment, the new `SimpleQueueProcessingStrategy` gets the same dead pool. `work_queue.put` then raises `queue.ShutDown`, and the `except Exception` in `submit` catches it. That handler logs the error and marks the offset complete, so the commit loop commits messages that were never processed. Fix: the strategy must not shut down a pool it doesn't own. Either create the pool per strategy in `create_thread_queue_parallel_worker`, or have `close()` only drain or wait and leave pool shutdown to `factory.shutdown()`. Also stop treating a failed `put` as a completed offset.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:185 - The queues have no size limit, so there is no backpressure and memory can grow without bound.. `queue.Queue()` has no `maxsize`, and `submit` never raises `MessageRejected`. When processing is slower than consumption, which is exactly the slow-item case this PR targets, Arroyo keeps polling. Messages pile up in memory until the process runs out of memory. Every item queued past the commit point is also redelivered on restart. This contradicts the class docstring's claim of 'Natural backpressure when queues fill up'. Bound the queues and raise `MessageRejected` from `submit` when the target queue is full.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:317 - Submit failures, including a shut-down queue, are marked complete and committed.. Any exception in `submit` (a decoder bug, `grouping_fn` raising, or `put` failing because the queue was shut down) is swallowed and the offset is marked complete. The message is never processed, yet its offset is committed and nothing retries it. Decode failures already come back as `None` and are handled above. Infrastructure errors such as `queue.ShutDown` should propagate so the message is not committed.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:335 - On close, the commit thread stops before the queues drain, so work finished during shutdown is never committed.. `close()` sets `shutdown_event` and joins the commit thread first, then calls `queue_pool.shutdown()`. `shutdown()` also sets `worker.shutdown = True`, so each worker exits after its current item even though the queue uses `immediate=False`. Items that finish during shutdown are never committed, and the remaining queued items are abandoned. After every rebalance or restart, up to the whole in-memory backlog is reprocessed. Drain the queues first, then commit the final contiguous offsets with `force=True` on the main thread, and only then stop.",
+  "tests/sentry/uptime/consumers/test_results_consumer.py:1911 - The error-handling test asserts the opposite of the code's behaviour and passes only because of timing.. The worker completes the offset even when processing raises, so both 100 and 101 become committable, and the commit loop commits `{partition: 102}` on its next 1-second tick. The test breaks out about 0.2s after the second call and asserts that the partition was *not* committed. It passes only if it finishes before the commit tick, so it is flaky. It also contradicts its own docstring, which says errors should not block commits. Wait for the commit and assert `committed_offsets[test_partition] == 102`, or whatever the intended behaviour is.",
+  "tests/sentry/uptime/consumers/test_results_consumer.py:1921 - Error-handling test asserts no commit, which contradicts the behaviour it claims to test and depends on timing.. The docstring says errors must not block offset commits, and `OrderedQueueWorker` marks a failed item's offset complete in `finally`. So after both items are processed, the commit loop commits offset 102 within about one second. The assertion `len(committed_offsets) == 0 or test_partition not in committed_offsets` expects the opposite. It passes only because the wait loop stops about 0.2s after processing, before the 1s commit tick. If the commit thread fires earlier, the test fails at random. It also never checks the intended behaviour. Wait for the commit and assert `committed_offsets[test_partition] == 102`.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:273 - The commit callback is called from a background thread, outside Arroyo's thread.. `_commit_loop` calls `commit_function`, which is Arroyo's `Commit` callback, from its own daemon thread. Arroyo's StreamProcessor commit path writes its buffered offsets and calls `stage_offsets`/`commit_offsets` on the Kafka consumer, and it expects that to happen on the thread that runs `poll()`/`submit()`. Calling it at the same time as `_run_once` can race on the buffered-offset state and on the librdkafka consumer. Gather the committable offsets in the background if needed, but call `commit` from `poll()` on the main thread.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:293 - An error in `submit` marks the offset as processed, so the message is committed without being handled.. Any exception while submitting is logged and then the offset is added and completed: a decode or grouping failure, or a failure in `queue_pool.submit` such as a shut-down queue. The message is then committed as if it had been handled. Transient or infrastructure errors become permanent message loss instead of stopping the consumer or being retried. Only skip offsets for errors you know are permanent, such as a payload that can't be decoded, and re-raise the rest.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:250 - Strategy docstring promises backpressure and commit-only-on-success, which the code does not do.. The docstring says there is \"natural backpressure when queues fill up\" and that offsets are \"only committed after successful processing\". But the queues are created as unbounded `queue.Queue()` objects, so `put` never blocks and there is no backpressure. Also, failed items are marked complete in the worker's `finally` and get committed, as are decode or submit errors. Fix: change the docstring to match the code, or bound the queues (`queue.Queue(maxsize=...)`) if backpressure is really wanted."
+ ]
+}

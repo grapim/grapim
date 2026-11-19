@@ -1,0 +1,88 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The PollFeed job calls open(SiteSetting.feed_polling_url) without validating the URL, allowing an attacker who controls the feed_polling_url site setting to make the server fetch arbitrary internal or external URLs.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions SSRF via feed_polling_url."
+  },
+  {
+   "comment": "The current origin validation using indexOf is insufficient and can be bypassed. An attacker could use a malicious domain like evil-discourseUrl.com to pass this check.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 flags the same weak indexOf origin check."
+  },
+  {
+   "comment": "postMessage targetOrigin should be the origin (scheme+host+port), not the full referrer URL; using the full URL will cause the message to be dropped and prevent resizing.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 flags the same problem: the full referrer URL is used as the postMessage targetOrigin."
+  },
+  {
+   "comment": "The code sets X-Frame-Options: ALLOWALL which completely disables clickjacking protection. The referer validation can be bypassed (referer headers are easily spoofed), and the fallback to empty string for nil referer masks validation failures.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions X-Frame-Options ALLOWALL or clickjacking."
+  },
+  {
+   "comment": "The TopicEmbed.import method is susceptible to a NoMethodError if the contents parameter is nil when attempting to append a string, and an XSS vulnerability due to unescaped url interpolation in the generated HTML.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.75,
+   "reasoning": "C3 covers the XSS from interpolating the unescaped url in TopicEmbed.import. It does not mention the nil-contents NoMethodError, so it only partly matches."
+  },
+  {
+   "comment": "The ERB block closes with end if, which is invalid Ruby/ERB and will raise at render; it should just be end to close the if block.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.9,
+   "reasoning": "C4 flags the same stray 'end if' in the ERB template."
+  },
+  {
+   "comment": "Calling `i.content.scrub` assumes that `i.content` is always populated. However, many RSS feeds do not provide a `content` field, leading to a potential nil pointer exception when `i.content` is nil. A fallback to `description` should be implemented to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions i.content being nil."
+  },
+  {
+   "comment": "An unescaped request header (request.referer) is interpolated into JavaScript without proper escaping, which can lead to XSS vulnerabilities if the referer contains malicious content. This issue can allow attackers to execute arbitrary scripts in the context of the application.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.7,
+   "reasoning": "C2 is about the postMessage targetOrigin value, not about XSS from inserting the unescaped referer into JavaScript."
+  }
+ ],
+ "candidates": [
+  "Weak postMessage origin validation: The origin check discourseUrl.indexOf(e.origin) === -1 uses substring matching instead of proper origin comparison, allowing malicious origins that are substrings of discourseUrl to bypass validation",
+  "Wrong postMessage origin: The embed iframe sends resize messages using request.referer (a full URL) as postMessage's targetOrigin, but targetOrigin must be an origin (scheme://host[:port]), preventing the parent page from receiving resize events",
+  "Stored XSS vulnerability via imports: TopicEmbed.import persists remote/RSS HTML as raw_html and interpolates url into an anchor tag without escaping, enabling stored XSS through crafted feed/page URLs",
+  "ERB template has stray 'if' keyword: In best.html.erb line 6, '<%- end if %>' contains a stray 'if' keyword that makes the block's closing 'end' accidentally conditional due to Ruby's postfix conditional modifier",
+  "Embed spec expects retriever but controller enqueues job: embed_controller_spec expects EmbedController#best to instantiate TopicRetriever and call retrieve, but the controller now enqueues the :retrieve_topic job instead, causing spec failure"
+ ]
+}

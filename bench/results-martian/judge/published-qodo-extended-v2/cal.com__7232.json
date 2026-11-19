@@ -1,0 +1,42 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Asynchronous functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called without await inside forEach loops. This occurs during booking rescheduling/cancellation, and workflow/workflow step deletion/updates. Consequently, scheduled workflow reminders may not be reliably cancelled, potentially leaving them active.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 describes the same missing await in forEach issue."
+  },
+  {
+   "comment": "When immediateDelete is true, the deleteScheduledEmailReminder function cancels the SendGrid email but fails to delete the corresponding WorkflowReminder record from the database. This creates orphaned database entries and is inconsistent with the immediateDelete: false path, which marks the record as cancelled. The SendGrid DELETE API call is also omitted in this path.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 describes the immediateDelete path leaving orphaned WorkflowReminder records."
+  },
+  {
+   "comment": "The 'cancelled' field is nullable, which can lead to existing records having null values instead of a default of false. This can cause incorrect behavior in the application when checking the cancellation status of reminders.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the nullable cancelled field."
+  }
+ ],
+ "candidates": [
+  "Async functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called inside forEach without await, creating fire-and-forget promises where the wrapping try/catch cannot catch promise rejections, making the error handler unreachable for async failures",
+  "immediateDelete branch in deleteScheduledEmailReminder cancels email via SendGrid but returns without deleting the WorkflowReminder record or setting cancelled: true, causing orphaned database records that accumulate permanently",
+  "Single try/catch wrapping the entire for...of loop for cancelling reminders means if SendGrid API fails for any reminder, the loop aborts and skips all remaining reminders AND the Promise.all that deletes already-processed reminders, causing duplicate cancel requests and permanently blocking cleanup"
+ ]
+}

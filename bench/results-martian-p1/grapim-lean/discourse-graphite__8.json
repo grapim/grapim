@@ -1,0 +1,98 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "head_sha": "060cda77729cb1c4a827560e09e89a7b22078ba9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:40:09.395Z",
+ "seconds": 50.396,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/assets/javascripts/admin/controllers/admin-group.js.es6",
+   "line": 11,
+   "end_line": 14,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "totalPages counts one page too many when user_count is a multiple of limit.",
+   "body": "`Math.floor(user_count / limit) + 1` gives 2 for a group of exactly 50 members with limit 50. The counter then shows `1/2`, `showingLast` is false, and \"next\" goes to offset 50, which shows an empty member list on page 2/2. Use `Math.ceil(user_count / limit)`. With that change, user_count 0 still gives 0."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/routes/group-members.js.es6",
+   "line": 11,
+   "end_line": 11,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The public group members page now stops at 50 members and has no way to page.",
+   "body": "`/groups/:name/members` now always uses limit 50; before, non-automatic groups returned every member. The public `group/members.hbs` template has no next/previous controls, so in any group with more than 50 members everyone past the 50th (in username order) can no longer be seen on that page. Either add pagination to the public page or request all members there."
+  },
+  {
+   "path": "app/assets/javascripts/admin/controllers/admin-group.js.es6",
+   "line": 61,
+   "end_line": 65,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "addMembers never clears the input and ignores failures, so adding again can hit duplicate memberships.",
+   "body": "The TODO is left in: after a successful add the usernames stay in the selector. If the admin clicks Add again, or enters someone who is already a member, the server calls `group.add(user)` for users already in the group. If `group_users` has a unique constraint, that raises an error and returns a 500. The promise has no rejection handler, so the admin is not told anything failed. `removeMember` has the same missing error handling. Clear `usernames` once the add succeeds, show errors to the admin, and have the server skip users who are already members."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/models/group.js",
+   "line": 23,
+   "end_line": 23,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Removing the last member on the last page leaves an empty page.",
+   "body": "After `removeMember`, `findMembers` is called again with the same offset, and the clamp uses the old `user_count`. Example: limit 50 and 51 members, so page 2 holds one member. Removing that member reloads at offset 50, the server returns no members and total 50, and the admin sees an empty list on a page past the end. When the returned page is empty and offset > 0, step the offset back by `limit` (or clamp it to the last valid page) and fetch again."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20291,
+  "cacheRead": 3561,
+  "output": 3323,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 18,
+   "reviewedHunks": 16,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 23854,
+   "outputTokens": 3323,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 15,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "app/assets/javascripts/discourse/templates/components/admin-group-selector.hbs",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1686352
+}

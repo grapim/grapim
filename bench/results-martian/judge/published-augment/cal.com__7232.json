@@ -1,0 +1,40 @@
+{
+ "tool": "published-augment",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Asynchronous functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called without await inside forEach loops. This occurs during booking rescheduling/cancellation, and workflow/workflow step deletion/updates. Consequently, scheduled workflow reminders may not be reliably cancelled, potentially leaving them active.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out the same issue: the async delete reminder functions are called without being awaited."
+  },
+  {
+   "comment": "When immediateDelete is true, the deleteScheduledEmailReminder function cancels the SendGrid email but fails to delete the corresponding WorkflowReminder record from the database. This creates orphaned database entries and is inconsistent with the immediateDelete: false path, which marks the record as cancelled. The SendGrid DELETE API call is also omitted in this path.",
+   "severity": "High",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G2 says the immediateDelete path never deletes the database record. C2 covers a timing race in the cron job, and C3 covers a null referenceId, so neither describes the missing delete."
+  },
+  {
+   "comment": "The 'cancelled' field is nullable, which can lead to existing records having null values instead of a default of false. This can cause incorrect behavior in the application when checking the cancellation status of reminders.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions that the cancelled field is nullable or lacks a default value."
+  }
+ ],
+ "candidates": [
+  "deleteScheduledEmailReminder/deleteScheduledSMSReminder are async but calls aren't awaited/collected, so reminder cancellations/DB updates can be lost if the handler returns before the promises settle",
+  "Because cancellations are processed after the earlier delete-by-date logic, if this cron runs late a cancelled reminder could be removed from DB without ever sending the corresponding SendGrid cancellation request",
+  "The SendGrid call assumes reminder.referenceId is always a valid batch id; if it's null/empty (or for non-email rows), this will throw and the reminder won't be deleted, causing repeated failures on subsequent runs"
+ ]
+}

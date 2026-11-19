@@ -1,0 +1,41 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "sentry__80168",
+ "url": "https://github.com/getsentry/sentry/pull/80168",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "MetricAlertDetectorHandler inherits from StatefulDetectorHandler but only contains pass, failing to implement its required abstract methods: counter_names (property), get_dedupe_value(), get_group_key_values(), and build_occurrence_and_event_data(). This will cause a TypeError at runtime when the class is instantiated.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same issue: the abstract methods are missing, which causes a TypeError."
+  },
+  {
+   "comment": "Docstring says this returns a list of DetectorEvaluationResult, but the method now returns a dict keyed by DetectorGroupKey. Consider updating the docstring to match the new return type.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same mismatch: the docstring says the method returns a list, but it returns a dict."
+  },
+  {
+   "comment": "Wrong value `6` passed for `group_2` occurrence — the data packet specifies `\"group_2\": 10`. Should be `10` to accurately reflect the test scenario, which will ensure the test produces the correct occurrence data.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the wrong test value (6 instead of 10)."
+  }
+ ],
+ "candidates": [
+  "MetricAlertDetectorHandler extends StatefulDetectorHandler which declares 4 abstract methods (counter_names, get_dedupe_value, get_group_key_values, build_occurrence_and_event_data) but implements none of them, causing TypeError when attempting to instantiate the class",
+  "StatefulDetectorHandler.evaluate docstring incorrectly states it returns a list when the method signature and implementation actually return a dict keyed by group key"
+ ]
+}

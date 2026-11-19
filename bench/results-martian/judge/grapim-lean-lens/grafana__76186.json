@@ -1,0 +1,38 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__76186",
+ "url": "https://github.com/grafana/grafana/pull/76186",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The ContextualLoggerMiddleware methods (QueryData, CallResource, CheckHealth, CollectMetrics) panic when a nil request is received. This occurs because they directly access req.PluginContext (via the instrumentContext function) without first checking if req is nil. This is a regression, as previous middleware layers gracefully handled nil requests.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions a nil request panic in ContextualLoggerMiddleware."
+  },
+  {
+   "comment": "The traceID is no longer logged for plugin requests. During a refactoring, the tracing import and the logic to extract and add traceID from the context to log parameters were removed from the LoggerMiddleware. The newly introduced ContextualLoggerMiddleware does not add this information, resulting in missing traceID in plugin request logs and impacting debugging and request tracing capabilities.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions that traceID logging was removed."
+  },
+  {
+   "comment": "The `TestLogger.FromContext` method returns a new `TestLogger` instance via `NewTestLogger()` instead of returning the receiver (f). This causes logs to be recorded on an un-referenced instance, leading to broken test assertions that expect logs to be recorded on the original logger.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same TestLogger.FromContext bug: it returns a new logger instead of the receiver."
+  }
+ ],
+ "candidates": [
+  "pkg/plugins/log/fake.go:46 - TestLogger.FromContext returns a fresh logger, so logs written through it are lost.. `LoggerMiddleware.logRequest` now logs through `m.logger.FromContext(ctx).Info(...)`. With a `TestLogger`, that call goes to a brand-new `TestLogger` from `NewTestLogger()`, not to the instance the test holds. So `InfoLogs.Calls`, `Message` and `Ctx` on the test's logger never change. Any test that checks the \"Plugin Request Completed\" log through a `TestLogger` will fail, or will quietly check nothing. Fix: return the receiver so calls are still recorded."
+ ]
+}

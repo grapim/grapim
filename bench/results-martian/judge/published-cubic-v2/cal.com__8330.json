@@ -1,0 +1,33 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "cal.com__8330",
+ "url": "https://github.com/calcom/cal.com/pull/8330",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect end time calculation using slotStartTime instead of slotEndTime",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the end time is calculated from slotStartTime when it should use slotEndTime."
+  },
+  {
+   "comment": "Using === for dayjs object comparison will always return false as it compares object references, not values. Use .isSame() method instead: dayjs(date.start).add(utcOffset, 'minutes').isSame(dayjs(date.end).add(utcOffset, minutes))",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 raises the same issue: comparing dayjs objects with === checks references, so it is always false, and .isSame() should be used instead."
+  }
+ ],
+ "candidates": [
+  "`end` is calculated from `slotStartTime` instead of `slotEndTime`, making it identical to `start`. This means a slot that starts within working hours but extends past the end of working hours will not be filtered out, allowing bookings outside working hours.",
+  "Dayjs object reference comparison (`===`) is always `false`. Use `.isSame()` to compare values. Because this condition can never be true, a zero-duration date override (start == end, meaning 'unavailable all day') will not be recognized, potentially allowing bookings during a blocked day."
+ ]
+}

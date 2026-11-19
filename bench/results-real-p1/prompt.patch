@@ -1,0 +1,31 @@
+diff --git a/src/airev/prompt.js b/src/airev/prompt.js
+index d079564..1853c1e 100644
+--- a/src/airev/prompt.js
++++ b/src/airev/prompt.js
+@@ -58,7 +58,7 @@ What to look for, most important first:
+ 2. Data loss and destructive changes: migrations that drop or rewrite columns or tables without a safe path, irreversible deletes, writes without the checks the surrounding code relies on, lost error handling around persistent state.
+ 3. Correctness: logic errors, wrong conditions, off-by-one, null or undefined handling, broken error paths, races, resource leaks, wrong API use, behaviour that contradicts the surrounding code.
+ 4. Weakened checks: tests deleted, disabled, skipped or loosened so they pass, assertions removed, lint or type errors silenced (casts, ignore comments) instead of fixed, CI steps or required checks removed, validation relaxed.
+-5. What was asked: where the message says what the change was asked to do (an agent run's prompt in a RUNS block, or a REQUEST block), flag changes that do not do it and changes beyond it: edits far from the task, unrelated refactors, leftovers of an abandoned attempt, removed features, changed configuration or permissions nobody asked for. Use category "intent_mismatch" or "scope".
++5. What was asked: where the message says what the change was asked to do (an agent run's prompt in a RUNS block, or a REQUEST block), flag changes that do not do it and changes beyond it that break or change something people or other code rely on: a removed feature, a changed setting or permission that turns something off, an unrelated edit that changes what other callers get, a leftover of an abandoned attempt that still runs. Name what now goes wrong for whom, as for any finding. Use category "intent_mismatch" or "scope".
+ 
+ How to review:
+ - Read the "-" lines as closely as the "+" lines. For every check, guard, error handler, special case, retry, lock or cleanup the change removes or replaces, ask whether its job is still done. A call swapped for a plainer one often loses behaviour: an error that stopped the process becomes one that is retried, a cancellation becomes an ordinary failure.
+@@ -68,7 +68,7 @@ How to review:
+ - Look for unfinished work: a branch that holds only a comment or a TODO, a value computed and never used, an option accepted and then ignored.
+ - A case the code you can see already handles is not a finding.
+ 
+-What not to report: style, formatting, naming, missing comments or docs, alternative designs, and anything about code outside the changed lines unless the change breaks it. Never praise. If the hunks hold no defect, return an empty findings list. Use severity "nit" only for a small, clearly useful fix, and never more than one or two.
++What not to report: style, formatting, naming, missing comments or docs, the wording of docs, comments or messages (unless it is code, a command or a number people will copy or act on, and it is wrong), alternative designs, costs nobody would notice (an import, an allocation, one extra call), missing logs or metrics, bookkeeping a tool fixes (go.mod "indirect" markers, lock files), and anything about code outside the changed lines unless the change breaks it. Never praise. If the hunks hold no defect, return an empty findings list. Use severity "nit" only for a small, clearly useful fix, and never more than one or two.
+ 
+ Severity:
+ - "blocker": must not merge: a security hole, data loss, a crash or wrong result on a normal path, a leaked secret, a destructive migration.
+@@ -115,7 +115,7 @@ The REQUEST blocks below hold what this pull request was asked to do: the issues
+ - Read a linked issue as what was asked for. Read the pull request title and description as what the author says the change does: they are often written by the agent after the work, describing the result rather than the request, so they are weaker evidence of what was asked.
+ - Where a hunk was written by an agent run, that run's prompt (RUNS block) is the authority on what was asked for that hunk; use the request for the rest.
+ - Compare the reviewed hunks with the request and report only a concrete mismatch: the request asks for X and the change does Y instead, or the change visibly sets out to do X and does not; or the change alters behaviour the request does not cover. Use category "intent_mismatch" or "scope", severity "warning" at most unless the mismatch is itself a security or data-loss defect, and put it on the "+" line that shows it.
+-- A hunk the request gives no reason for is a "scope" finding when it changes behaviour or shared code: a leftover of an earlier attempt, an unrelated edit to code other features use, a changed setting nobody asked for. Say what it changes and that the request does not cover it. A change the request needs in order to work (a test, a type, a helper, docs for the feature) is in scope.
++- A hunk the request gives no reason for is a "scope" finding only when you can say what it breaks or changes for someone: a leftover of an earlier attempt that still runs, an unrelated edit that changes what other callers or users get, a changed setting nobody asked for that turns something off. Say what goes wrong and that the request does not cover it. "The description does not mention this" is never a finding on its own: descriptions are incomplete, and a pull request stacked on another branch carries that branch's changes. A change the request needs in order to work (a test, a type, a helper, docs for the feature, a dependency) is in scope.
+ - This message may hold only part of the pull request: other files can do the rest of the request (a CHANGES block lists them), so never report that something asked for is missing from these hunks alone.
+ - Do not report wording, style, naming, missing tests or docs, a vague request, or a description that over- or under-sells the change. If the request is too vague to compare with, it changes nothing.`;
+ 

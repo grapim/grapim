@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry__80168",
+ "url": "https://github.com/getsentry/sentry/pull/80168",
+ "head_sha": "8422030ef456e3a898415e96475b4d8ddfc7640f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:28:29.014Z",
+ "seconds": 25.712,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/incidents/grouptype.py",
+   "line": 11,
+   "end_line": 12,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "MetricAlertDetectorHandler is now abstract and cannot be instantiated.",
+   "body": "`MetricAlertDetectorHandler` now subclasses `StatefulDetectorHandler` with just `pass`. That leaves the abstract methods unimplemented: `get_dedupe_value`, `get_group_key_values` and the new `build_occurrence_and_event_data`. Before this change, the handler had a stub `evaluate` that returned `[]`, so it was safe to run.\n\n`MetricAlertFire` appears to register this class as its `detector_handler`; that part is not shown in the hunk. If it does, `Detector.detector_handler` will raise `TypeError: Can't instantiate abstract class` for any metric-alert detector. `process_detectors` would then crash for every data packet that reaches such a detector, instead of skipping it.\n\nFix: keep a non-abstract stub until the stateful implementation exists. For example, implement the three abstract methods with placeholder bodies (`return 0`, `return {}`, `raise NotImplementedError` behind a guard), or keep subclassing `DetectorHandler` with an `evaluate` that returns `{}`."
+  },
+  {
+   "path": "tests/sentry/workflow_engine/processors/test_detector.py",
+   "line": 536,
+   "end_line": 538,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The expected occurrence uses group key \"val1\" but the result being checked is for \"group_key\".",
+   "body": "In `TestEvaluateGroupKeyValue.test_dedupe`, the expected result has `group_key=\"group_key\"` and `evaluate_group_key_value` is called with that key. But the occurrence is built for `\"val1\"`, so its fingerprint is `[\"<id>:val1\"]` while the handler produces `[\"<id>:group_key\"]`. `IssueOccurrence` is a dataclass and compares by fields, so any assertion that the returned result equals `expected_result` will fail. I can't see the rest of this test, so I couldn't confirm that such an assertion exists. Build the occurrence with `expected_result.group_key` (or `\"group_key\"`) and the value 10 that the test actually passes in."
+  },
+  {
+   "path": "src/sentry/workflow_engine/processors/detector.py",
+   "line": 226,
+   "end_line": 228,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "The `evaluate` docstring still says it returns a list.",
+   "body": "The signature now returns `dict[DetectorGroupKey, DetectorEvaluationResult]`, but the unchanged docstring right below it still says \"returns a list of `DetectorEvaluationResult`\". Update it to say the method returns a dict keyed by group key."
+  },
+  {
+   "path": "tests/sentry/workflow_engine/processors/test_detector.py",
+   "line": 190,
+   "end_line": 190,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "The expected values don't match the test data: group_2 is 10 but the expected occurrence uses 6.",
+   "body": "The packet sets `\"group_2\": 10`, but the expected occurrence for group_2 is built with value 6. The same thing happens in `test_results_on_change` (input 100) and `TestEvaluate.test_dedupe` (input 8). These tests only pass because the mock builder ignores `value`. Once a real builder uses `value`, they will check the wrong thing. Pass the actual input value."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 10,
+  "cacheWrite": 78143,
+  "cacheRead": 36868,
+  "output": 6735,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 14,
+   "reviewedHunks": 14,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 115021,
+   "outputTokens": 6735,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.5328286
+}

@@ -1,0 +1,139 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "head_sha": "060cda77729cb1c4a827560e09e89a7b22078ba9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:33:35.028Z",
+ "seconds": 40.474,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/assets/javascripts/admin/controllers/admin-group.js.es6",
+   "line": 11,
+   "end_line": 14,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "totalPages counts one page too many when user_count is an exact multiple of limit.",
+   "body": "`Math.floor(user_count / limit) + 1` gives 2 pages for 50 members with limit 50, and 3 for 100. `showingLast` stays false on the real last page, so the user can click Next to an empty page (offset 50 of 50) showing \"2/2\". The same thing happens after removing a member brings the count down to a multiple of the limit. Use `Math.ceil(user_count / limit)`."
+  },
+  {
+   "path": "app/controllers/groups_controller.rb",
+   "line": 22,
+   "end_line": 26,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The public members endpoint takes limit and offset from the client without bounds.",
+   "body": "`limit` and `offset` come straight from params. A negative value (e.g. `offset=-1`) makes Postgres reject the query, which gives a 500. `limit=0` is echoed back in `meta.limit`, and the client stores it and divides by it in `currentPage`, `totalPages` and `next`, so the page counts become NaN or Infinity. A very large limit lets any viewer of a group load all of its members in one request. Clamp both values, e.g. `limit = [[limit, 1].max, 200].min` and `offset = [offset, 0].max`."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/models/group.js",
+   "line": 40,
+   "end_line": 59,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Add/remove member requests have no error handler, so failures are silently ignored",
+   "body": "`removeMember` and `addMembers` only add a success callback, and the controller actions that call them (`removeMember` and `addMembers` in admin-group.js.es6) ignore the returned promise. If a request fails, for example with a 422 for an automatic group, an unknown group or a server error, the admin gets no message and the member list is not reloaded, so the UI looks as if the action may have worked. Fix: add a rejection handler that shows `e.responseText` errors with `bootbox.alert`, as `save` does, and reload the list in both cases."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/templates/group/members.hbs",
+   "line": 6,
+   "end_line": 6,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The public group members page now shows only the first 50 members and has no way to page.",
+   "body": "The server now returns 50 members by default for every group. Before, non-automatic groups returned all their members. The public `group/members` template only loops over `members` and has no next/previous controls, and its route never changes the offset. So any group with more than 50 members now shows a silently truncated list on the public page. Add paging controls to this page, or keep loading the full list here."
+  },
+  {
+   "path": "app/controllers/admin/groups_controller.rb",
+   "line": 71,
+   "end_line": 75,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Adding a user who is already a member returns a 500 error.",
+   "body": "`add_members` calls `group.add(user)` for every username without checking whether the user is already in the group. If `Group#add` pushes onto `users`, as it does in Discourse, the unique group_users index raises and the request returns a 500. This is easy to hit because the admin UI never clears the username input after a successful add (see the TODO), so clicking Add a second time sends the same usernames again. Skip users who are already members, e.g. `group.add(user) unless group.users.include?(user)`, or check with an exists query."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/models/group.js",
+   "line": 30,
+   "end_line": 36,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Overlapping findMembers responses can leave the wrong page displayed",
+   "body": "`findMembers` writes `offset`, `limit`, `user_count` and `members` onto the shared Group model from whichever response arrives last. `next` and `previous` change `offset` and send a new request right away, and nothing cancels or ignores the earlier request. If an admin clicks quickly, or an add/remove reload overlaps a page change, an older response can arrive last and overwrite the newer state, so the members shown do not match the page counter the user expects. Fix: keep a request counter and ignore any response that is not from the latest request."
+  },
+  {
+   "path": "spec/controllers/admin/groups_controller_spec.rb",
+   "line": 115,
+   "end_line": 115,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "The automatic-group test for remove_member sends PUT, but the route only accepts DELETE.",
+   "body": "In `config/routes.rb`, `remove_member` is mapped only to `delete \"members\"`, and the sibling test \"is able to remove a member\" uses `xhr :delete`. This test looks copied from the `add_members` case and still sends `:put`. Controller specs call the action directly, so the test can pass with a verb the real route rejects. It therefore doesn't check the request a client would actually send. Use `xhr :delete` so it matches the route and the sibling test."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 8,
+  "cacheWrite": 81477,
+  "cacheRead": 14108,
+  "output": 9888,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 18,
+   "reviewedHunks": 16,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 95593,
+   "outputTokens": 9888,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 15,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "app/assets/javascripts/discourse/templates/components/admin-group-selector.hbs",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "app/controllers/admin/groups_controller.rb",
+    "line": 90,
+    "end_line": 90,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Removing a member with users.delete skips GroupUser callbacks and raises an error for non-members.",
+    "body": "`group.users.delete(user_id)` on a has_many :through deletes the join row directly, so GroupUser destroy callbacks (such as clearing the user's primary group or title) and the cleanup in `Group#remove` don't run. I couldn't check here what those callbacks do. Also, when the id is not a member, `delete` looks up the record and raises RecordNotFound, which turns into a 404 instead of the silent success the old code gave. Use `group.remove(user)` with `User.find(user_id)`, as the old code did."
+   }
+  ]
+ },
+ "cost_usd": 0.6079986
+}

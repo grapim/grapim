@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Bevel-Software__Hexis__485",
+ "url": "https://github.com/Bevel-Software/Hexis/pull/485",
+ "head_sha": "ac36eab11a0c94f5de8f8bba14863c6d6f19009b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:33:24.928Z",
+ "seconds": 19.069,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 32711,
+  "cacheRead": 3527,
+  "output": 1470,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 13,
+   "hunks": 31,
+   "reviewedHunks": 31,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 36240,
+   "outputTokens": 1470,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 13,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1936684
+}

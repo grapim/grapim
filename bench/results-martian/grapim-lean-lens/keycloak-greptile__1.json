@@ -1,0 +1,74 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "head_sha": "3214b188de808fdb0fff335556b686f1b0a63218",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:26:51.835Z",
+ "seconds": 32.278,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java",
+   "line": 161,
+   "end_line": 161,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Passkey check is inverted: it now needs a user, so first login never gets conditional passkeys.",
+   "body": "`isConditionalPasskeysEnabled` returns true only when `user != null`. The old code filled the WebAuthn data when no user was selected (`context.getUser() == null`). Both `authenticate()` (line 115) and `challenge(context, error, field)` (line 137) now call this helper, so a normal first login with no user identified never calls `webauthnAuth.fillContextForm`. The login page loses the conditional passkey UI and the `webauth` form, and it also loses them after a failed password attempt. The tests in this PR expect that form on the first login page (e.g. PasskeysUsernamePasswordFormTest lines 196 and 238). The `user != null` term also shows passkeys on re-authentication to users who have no passkey credential. Fix: enable passkeys when no user is selected, or when the selected user has a passwordless credential, e.g. `webauthnAuth != null && webauthnAuth.isPasskeysEnabled() && (user == null || user.credentialManager().isConfiguredFor(webauthnAuth.getCredentialType()))`."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 8,
+  "cacheWrite": 92461,
+  "cacheRead": 14108,
+  "output": 8259,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 106577,
+   "outputTokens": 8259,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernameForm.java",
+    "line": 47,
+    "end_line": 47,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Call to a no-argument `isConditionalPasskeysEnabled()` that the shown code does not define.",
+    "body": "This change adds only `isConditionalPasskeysEnabled(UserModel user)` to `UsernamePasswordForm`. `UsernameForm` calls `isConditionalPasskeysEnabled()` with no arguments. If no no-argument overload exists somewhere I cannot see, this does not compile. If one does exist, it ignores the current user: whenever passkeys are on for the realm, every re-authenticating user gets the username form, including users with no passkey. Pass `context.getUser()` so this matches the sibling class."
+   }
+  ]
+ },
+ "cost_usd": 0.6303386
+}

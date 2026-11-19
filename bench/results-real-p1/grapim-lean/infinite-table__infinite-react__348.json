@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "infinite-table__infinite-react__348",
+ "url": "https://github.com/infinite-table/infinite-react/pull/348",
+ "head_sha": "c196d53b7f6d604bb88d4e17f0fbffd7e0de1ce6",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:45:56.938Z",
+ "seconds": 44.926,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "source/src/components/InfiniteTable/vars-shadcn-light.css.ts",
+   "line": 48,
+   "end_line": 66,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Accent-derived variables now switch to `--primary`, which the description says this PR does not do",
+   "body": "`AccentVars` declares the focus outline, expand/collapse icon colour, filter focus border, active grouping-toolbar border and selected-cell background again on the shadcn theme element. That makes `var(--infinite-accent-color)` resolve there, and on this theme it is `var(--primary)`. Before, these were resolved where the default theme declares them, so they were blue.\n\nThe PR description says these colours are \"Not changed here\" and are \"left for a separate decision\". It also says a light page on a light OS has \"0 changed\" variables. The new spec test asserts the opposite: these colours equal `--primary`.\n\nWhat goes wrong: every existing shadcn-theme user sees a different focus outline, selection fill and expand icon, even in light mode. Either drop `AccentVars` (and its test), or update the description and changelog so the visual change is a deliberate, documented decision."
+  },
+  {
+   "path": "source/src/components/InfiniteTable/vars-shadcn-dark.css.ts",
+   "line": 15,
+   "end_line": 39,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Four mode-dependent variables keep their light values in dark mode",
+   "body": "`MODE_DEPENDENT_VARS` pins 14 variables to the default theme's light values, and `ShadcnDarkVars` spreads `ShadcnLightVars` into the dark mode. The dark object then overrides only 10 of those 14. These four are never overridden:\n- `GroupingToolbar.color`\n- `GroupingToolbar.activeBackground`\n- `GroupingToolbarItem.border`\n- `GroupingToolbarItem.activeBackground`\n\nIn the default theme these four had dark values when the OS was dark. Now a dark page always gets the light ones (for example light-mode text colour, border and active background in the grouping toolbar), and the toolbar can be hard to read on a dark background.\n\nI could not see the rest of `ShadcnLightVars` after line 76; if it maps these four to shadcn/ui variables, there is no bug. Otherwise, give them dark values here, for example `var(--foreground)`, `var(--muted)` and `1px solid var(--border)`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 15244,
+  "cacheRead": 3561,
+  "output": 3693,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 7,
+   "reviewedHunks": 7,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 18807,
+   "outputTokens": 3693,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.15080020000000002
+}

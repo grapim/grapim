@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "VallierDev__uu-remote-linux__204",
+ "url": "https://github.com/VallierDev/uu-remote-linux/pull/204",
+ "head_sha": "f82775f7eac6be8be96a0462803545b0a07bedf0",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:44:17.965Z",
+ "seconds": 92.477,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/portal.rs",
+   "line": 792,
+   "end_line": 813,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "A second capture worker can rebuild a session another worker just recovered.",
+   "body": "**What was removed:** the old `replace_handle_carrying` prepare closure checked `uu_portal_capture_alive` again after it got the `recovery` lock. If another capture worker had already installed a working session, it cleared `retry_at` and returned without doing anything.\n\n**What happens now:** the new code drops `handle` and goes straight to `recovery.ready(...)` and `open_inner`, with no second check. Take two workers that both see the dead stream. Worker B wins `try_lock`, recovers and releases the lock. Worker A, which saw the old dead handle, then takes the lock on its next call and opens another portal session. That uses up the single-use saved consent token. For a shadowed monitor, whose token cannot be restored, it can show the host consent dialog. If A's open succeeds, `install_replacement` then replaces and closes the session B just installed.\n\n**Fix:** after taking the recovery lock, check again whether the current handle is alive, as the old code did. If it is, set `recovery.retry_at = None` and return `Ok(blank_changed(frame, version))` before opening."
+  },
+  {
+   "path": "src/webrtc.rs",
+   "line": 175,
+   "end_line": 188,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Screen switch no longer releases held input before changing the source.",
+   "body": "The old switch path called `owner.release_input()` inside `with_current` before `wayland::select(id)`. Neither the new `switch_screen` nor its caller does this. Suppose a key or mouse button is held when the viewer switches screens, for example a modifier during a hotkey or a drag in progress. The press was injected for the old output and its release now goes to the new source or is dropped, so the key or button can stay stuck. I could not check whether `wayland::select_for` (not shown) releases input itself. If it does not, call `owner.release_input()` at the start of the `select_for` closure path, or just before `select_for`, as the old code did."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 60099,
+  "cacheRead": 7122,
+  "output": 9703,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 11,
+   "hunks": 42,
+   "reviewedHunks": 41,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 67225,
+   "outputTokens": 9703,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/webrtc.rs",
+    "line": 220,
+    "end_line": 223,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "A portal stream with no input owner exits silently and never streams video.",
+    "body": "`owner` is a snapshot of `role.input()` taken when `spawn` is called. For a fresh desktop connection, `spawn(None, role.input(), …)` runs at line 489. If `role.input` is not set yet at that point (it could be set later, during session tracking), then `owner` is `None` for every portal capture. The task then returns before `stream_desktop_at`, so the viewer gets no video and nothing is logged. I could not see where `role.input` is set for the direct desktop path. Either make sure it is set before line 489, or fall back to the old behaviour (skip `bind_portal_settings` and keep streaming) when there is no owner, and log the case."
+   }
+  ]
+ },
+ "cost_usd": 0.49599540000000003
+}

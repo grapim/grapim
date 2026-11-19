@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Abilityai__trinity__4624",
+ "url": "https://github.com/Abilityai/trinity/pull/4624",
+ "head_sha": "1e58780fbfeaaec8f1bdde05120b5f3dacc8bae7",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:30:33.922Z",
+ "seconds": 66.668,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/backend/services/github_token_provider.py",
+   "line": 84,
+   "end_line": 86,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "A malformed repo string is treated as \"not covered\" and gets the platform PAT.",
+   "body": "When `normalize_repo` rejects the input, `token_for_repo` returns `None`, the same answer as \"the provider does not cover this repo\". `resolve_github_token` then returns the platform PAT. So a repo the provider does cover gets the platform PAT, which reaches every repo, if the caller passes it in another form. Examples: `https://github.com/acme/app`, `acme/app/`, `github:acme/app`, or a crafted value like `acme/../x`. This breaks FR-4, which says the platform PAT is used only when the provider answers \"not covered\". Input that was rejected for safety gets the widest-reaching credential. The new test `test_a_malformed_repo_never_reaches_the_provider` pins this behaviour.\n\nWhen a provider is registered and the repo cannot be normalized, raise `GithubTokenUnavailable` (or a `ValueError`) instead of returning `None`. The resolver then never hands the platform PAT to input it could not validate."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 37856,
+  "cacheRead": 7122,
+  "output": 4303,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 17,
+   "hunks": 19,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 44982,
+   "outputTokens": 4303,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 17,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.27678040000000004
+}

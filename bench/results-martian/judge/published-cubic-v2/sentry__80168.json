@@ -1,0 +1,45 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "sentry__80168",
+ "url": "https://github.com/getsentry/sentry/pull/80168",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "MetricAlertDetectorHandler inherits from StatefulDetectorHandler but only contains pass, failing to implement its required abstract methods: counter_names (property), get_dedupe_value(), get_group_key_values(), and build_occurrence_and_event_data(). This will cause a TypeError at runtime when the class is instantiated.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same missing abstract methods, which cause a TypeError when the class is instantiated."
+  },
+  {
+   "comment": "Docstring says this returns a list of DetectorEvaluationResult, but the method now returns a dict keyed by DetectorGroupKey. Consider updating the docstring to match the new return type.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 flags the same outdated docstring: it still says the method returns a list, but it now returns a dict."
+  },
+  {
+   "comment": "Wrong value `6` passed for `group_2` occurrence — the data packet specifies `\"group_2\": 10`. Should be `10` to accurately reflect the test scenario, which will ensure the test produces the correct occurrence data.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [
+    3
+   ],
+   "confidence": 0.7,
+   "reasoning": "C3 says the expected occurrence in the test is built with the wrong group value, which fits the 6 vs 10 mistake for group_2. It is less specific than the golden comment, which is why confidence is lower."
+  }
+ ],
+ "candidates": [
+  "`MetricAlertDetectorHandler` inherits from `StatefulDetectorHandler` which declares four abstract methods (`counter_names`, `get_dedupe_value`, `get_group_key_values`, `build_occurrence_and_event_data`), but none of them are implemented here. The class is still abstract and will raise `TypeError` at instantiation time.",
+  "The `evaluate()` method in `StatefulDetectorHandler` now returns `dict[DetectorGroupKey, DetectorEvaluationResult]`, but its docstring still says \"returns a list of `DetectorEvaluationResult`\". The docstring should be updated to reflect the dict-keyed-by-`DetectorGroupKey` return type.",
+  "This expected occurrence is built with the wrong group key/value, so the test can pass without validating the new hook inputs.",
+  "This assertion allows extra Kafka publishes, so the test no longer catches duplicate occurrence production."
+ ]
+}

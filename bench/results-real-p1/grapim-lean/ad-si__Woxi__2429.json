@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "ad-si__Woxi__2429",
+ "url": "https://github.com/ad-si/Woxi/pull/2429",
+ "head_sha": "b112503b1761cd1b7f02697ab23ef66c2ca19a75",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:40:44.850Z",
+ "seconds": 39.63,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/functions/plot.rs",
+   "line": 6182,
+   "end_line": 6185,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Per-line grid opacity checks both axes instead of the line's own axis",
+   "body": "**What goes wrong:** `grid_alpha` uses 0.4 alpha for a line with its own color only when neither axis has a `GridLinesStyle`. Now that the style is stored per axis, setting it for one axis also changes the lines of the other axis.\n\n**Trigger:** `GridLinesStyle -> {Directive[Black], None}` with `GridLines -> {{1}, {{2, Blue}}}`. The x style is set, so the y line `{2, Blue}` is drawn fully opaque. The y axis has no style of its own, so it should get the default 0.4 alpha, as it did before this change.\n\n**Fix:** pass the axis style into the closure and check only that one. Use `.1` when drawing the y lines and `.0` when drawing the x lines."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 25987,
+  "cacheRead": 3561,
+  "output": 2391,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 25,
+   "reviewedHunks": 25,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 29550,
+   "outputTokens": 2391,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1784752
+}

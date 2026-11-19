@@ -1,0 +1,66 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "sentry__93824",
+ "url": "https://github.com/getsentry/sentry/pull/93824",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In the SpanFlusher flush loop, metric tags inconsistently use 'shard' (e.g., in spans.buffer.flusher.produce and spans.buffer.segment_size_bytes) and 'shards' (in spans.buffer.flusher.wait_produce) for the same shard identifier value. This prevents correct metric aggregation across flush stages — dashboards and alerts filtering by tag 'shard' will miss data tagged as 'shards' and vice versa.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "Same shard/shards tag inconsistency."
+  },
+  {
+   "comment": "The test_basic function in test_consumer.py uses a monkeypatched time.sleep that returns immediately, but then calls time.sleep(0.1) expecting it to actually wait.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "Monkeypatched sleep makes the sleep a no-op."
+  },
+  {
+   "comment": "Because flusher processes are created via multiprocessing.get_context('spawn').Process, they are instances of multiprocessing.context.SpawnProcess, which on POSIX is not a subclass of multiprocessing.Process, so this isinstance check will always be false and hung processes won't be killed here.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.96,
+   "reasoning": "SpawnProcess fails the isinstance check."
+  },
+  {
+   "comment": "Sleep in test_consumer.py won’t actually wait because time.sleep was monkeypatched above; consider restoring sleep or using a different sync to ensure the flusher has time to process.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [
+    2
+   ],
+   "confidence": 0.93,
+   "reasoning": "Same issue as G2: the sleep won't actually wait."
+  },
+  {
+   "comment": "Breaking out of the loop when the deadline has elapsed can skip terminating remaining flusher processes, potentially leaving them running after shutdown; consider ensuring termination is attempted even if the deadline is exceeded.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "Breaking at the deadline skips terminating the remaining processes."
+  }
+ ],
+ "candidates": [
+  "Inconsistent metric tag key: 'shards' used on wait_produce metric vs 'shard' used on flusher.produce and segment_size_bytes metrics. This will split metrics across two different tag keys in the monitoring system.",
+  "time.sleep(0.1) delay is a no-op because test_basic already monkeypatches time.sleep to lambda _: None, so it does not actually give the flusher thread time to run.",
+  "isinstance(process, multiprocessing.Process) is always False for processes created via multiprocessing.get_context('spawn'), because SpawnProcess does not inherit from multiprocessing.Process. This means unhealthy processes are never killed before being restarted, and processes are never terminated during join(). Should use multiprocessing.process.BaseProcess or check not isinstance(process, threading.Thread) instead.",
+  "When the deadline is exceeded, break exits the loop and skips calling terminate() on the remaining flusher processes. Those processes will keep running (potentially flushing stale data) until the parent process exits. Should terminate all remaining processes before breaking.",
+  "default=1 for flusher_processes forces the flusher back to a single process. Should leave unset so the existing SpanFlusher default can scale to the assigned shard count."
+ ]
+}

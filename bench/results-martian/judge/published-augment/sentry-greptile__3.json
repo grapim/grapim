@@ -1,0 +1,40 @@
+{
+ "tool": "published-augment",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In _set_sample_rate_from_error_sampling(), the check `if client_sample_rate:` treats 0.0 as falsy, so a sample_rate of 0.0 is silently skipped and never set on normalized_data.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G1 says the truthy check silently skips a valid 0.0 sample rate. C1 is about the opposite problem: missing range validation that would let bad values through. It doesn't identify the falsy-zero skip, so it isn't a match."
+  },
+  {
+   "comment": "Using Python’s built-in hash() to build cache keys is non-deterministic across processes (hash randomization), so keys won’t match across workers and invalidate_upsampling_cache may fail to delete them. Use a deterministic serialization of project_ids for the cache key.",
+   "severity": "Low",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention that hash() is non-deterministic across processes when building cache keys."
+  },
+  {
+   "comment": "The upsampling eligibility check passes the outer dataset instead of the actual dataset used by scoped_dataset. In paths where the query ultimately runs against discover (e.g., dashboard split) while the original dataset is metrics, upsampling may be skipped even when all projects are allowlisted.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.92,
+   "reasoning": "C2 points to the same bug: the upsampling decision uses the outer dataset instead of scoped_dataset, which breaks dashboard-split queries."
+  }
+ ],
+ "candidates": [
+  "_set_sample_rate_from_error_sampling sets normalized_data[sample_rate] for any truthy client_sample_rate without validating the range, allowing values like 0, negatives, or >1 to leak into downstream weighting logic",
+  "In _get_event_stats, the upsampling decision is computed from the outer dataset and request rather than the scoped_dataset/query actually being executed, causing upsampling to be skipped/applied incorrectly for dashboard-split subqueries",
+  "Hardcoding the replacement to upsampled_count() as count forces the result column name to count, which can cause serialization to look up count() instead and emit 0 for upsampled rows when transformAliasToInputFormat=1 is used"
+ ]
+}

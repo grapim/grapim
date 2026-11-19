@@ -1,0 +1,53 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Consider adding try-catch around the await to handle import failures gracefully",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    1,
+    4,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+   ],
+   "confidence": 0.75,
+   "reasoning": "These candidates all suggest wrapping the awaited appStore/getCalendar dynamic import in error handling. That is the same concern as G1, raised at different call sites."
+  },
+  {
+   "comment": "The code uses forEach with async callbacks, which causes asynchronous operations (e.g., calendar/video event deletions, payment refunds) to run concurrently without being awaited. This 'fire-and-forget' behavior leads to unhandled promise rejections, race conditions, and incomplete cleanup, as surrounding try-catch blocks cannot properly handle errors from these unawaited promises. Replace forEach with for...of loops or Promise.all() with map() to ensure proper sequential execution and error handling.",
+   "severity": "Critical",
+   "category": "concurrency",
+   "matches": [
+    2,
+    3,
+    5,
+    6
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2, C3, C5 and C6 each flag forEach with async callbacks that are never awaited. They recommend for...of or Promise.all, which is exactly G2's point."
+  }
+ ],
+ "candidates": [
+  "Wrap the awaited appStore import in error handling so a failed async import doesn't throw past this function without context (packages/lib/payment/handlePayment.ts:26)",
+  "await runs inside a forEach(async …) which isn't awaited - use a for…of loop or Promise.all so calendar deletions finish and errors surface before the handler continues (packages/features/bookings/lib/handleCancelBooking.ts:243)",
+  "Avoid async callbacks in forEach - deletions are not awaited so cancellation work can continue or fail after the function moves on - use Promise.all or for...of loop (packages/trpc/server/routers/viewer/bookings.tsx:553)",
+  "Handle errors from the awaited appStore import so a failed dynamic import doesn't surface as an unhandled rejection (packages/app-store/_utils/getCalendar.ts:15)",
+  "forEach doesn't await async callbacks so calendar/video deletions run in background and errors won't be caught by surrounding try/catch - use Promise.all with map and await (packages/app-store/wipemycalother/lib/reschedule.ts:125)",
+  "forEach does not await async callbacks so errors from getCalendar/deleteEvent/deleteMeeting will bypass surrounding try/catch - use await Promise.all or for...of loop (packages/app-store/vital/lib/reschedule.ts:125)",
+  "Handle errors from the awaited getCalendar call - rejected import will bubble out of createEvent without any recovery or logging (packages/core/CalendarManager.ts:233)",
+  "Wrap the awaited appStore lookup in error handling so a failed dynamic import doesn't throw out of deletePayment without a controlled response (packages/lib/payment/deletePayment.ts:16)",
+  "Handle failures from getCalendar - awaited call is not wrapped in error handling so rejected import inside async callback will go uncaught (packages/app-store/wipemycalother/lib/reschedule.ts:128)",
+  "The awaited getCalendar call has no error handling inside the async callback - if it rejects the error becomes unhandled because callback promise isn't awaited (packages/app-store/vital/lib/reschedule.ts:128)",
+  "Wrap the awaited appStore import in error handling - dynamic imports can reject and without try/catch this will throw and interrupt the refund flow (packages/trpc/server/routers/viewer/bookings.tsx:967)",
+  "Wrap the awaited appStore lookup with error handling so a failed async import doesn't throw out of the cancellation flow (packages/features/bookings/lib/handleCancelBooking.ts:589)"
+ ]
+}

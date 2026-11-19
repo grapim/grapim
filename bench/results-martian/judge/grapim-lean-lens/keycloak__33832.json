@@ -1,0 +1,48 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returns wrong provider (default keystore instead of BouncyCastle)",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate says that the wrong provider (default keystore instead of BouncyCastle) is returned. C2 is about ties in provider selection, which is a different issue."
+  },
+  {
+   "comment": "Dead code exists where ASN1Encoder instances are created and written to, but their results are immediately discarded. The actual encoding is performed by new ASN1Encoder instances created in the subsequent return statement, rendering the earlier operations useless.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the discarded ASN1Encoder instances."
+  },
+  {
+   "comment": "When length starts at -1 from indefinite-length encoding, the arithmetic 'length = length - bytes.length' will behave unexpectedly, potentially leading to incorrect processing of encoded data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the indefinite-length -1 arithmetic. C1 only mentions long-form lengths not being tested."
+  },
+  {
+   "comment": "Abstract order() method on CryptoProvider may break backward compatibility with existing implementations",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 identifies the same backward-compatibility break caused by the abstract order() method."
+  }
+ ],
+ "candidates": [
+  "authz/client/src/test/java/org/keycloak/authorization/client/test/ECDSAAlgorithmTest.java:42 - ES384 and ES512 tests sign with a P-256 key, so they never test their own curves.. The constructor creates one key pair with `KeyPairGenerator.getInstance(\"EC\")` and the default size, which is P-256 on current JDKs. All three tests use that key. `testES384` and `testES512` therefore produce 32-byte r/s values that are zero-padded to 48 or 66 bytes. The P-384 and P-521 signatures the test names promise are never created. In particular the ES512 case never builds a DER sequence longer than 127 bytes. That is the only case that uses the long-form length code in `ASN1Encoder.writeLength` and `ASN1Decoder.readLength`, so that code goes untested. Fix: generate a key pair per algorithm with the matching curve, for example `kpg.initialize(new ECGenParameterSpec(\"secp384r1\"))` for ES384 and `secp521r1` for ES512.",
+  "common/src/main/java/org/keycloak/common/crypto/CryptoIntegration.java:57 - Startup no longer fails when several server crypto providers are on the classpath; a tie is now picked silently.. The old code threw `IllegalStateException` when more than one `CryptoProvider` was found. That stopped a FIPS deployment from starting if a non-FIPS provider had been bundled by mistake. Now `DefaultCryptoProvider`, `FIPS1402Provider` and `WildFlyElytronProvider` all return `order() == 200`. If two of them are on the classpath, the sort is stable, so whichever one `ServiceLoader` returns first wins. The only trace is a debug log line. For example, with `keycloak-crypto-default` and `keycloak-crypto-fips1402` both on the classpath, a server meant to run in FIPS mode can quietly use the non-FIPS BouncyCastle provider. The fix: keep the ordering, but still throw when the top two providers have the same `order()`, and log the ignored lower-priority providers at info or warn level.",
+  "common/src/main/java/org/keycloak/common/crypto/CryptoProvider.java:44 - New abstract `order()` method breaks every existing `CryptoProvider` implementation outside this PR.. `CryptoProvider` is a public SPI loaded through `ServiceLoader`. Adding `order()` as an abstract method means any implementation not updated in this PR stops compiling: custom or third-party providers, the separately released keycloak-client copy, and any test providers. An old binary that is still loaded throws `AbstractMethodError` when `detectProvider` sorts the list. I can't see from here whether other implementations exist in the repository. A default method keeps compatibility and lets providers override it."
+ ]
+}

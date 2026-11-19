@@ -1,0 +1,97 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "head_sha": "04cfa3bfd469c035ff8b35f9a66867c4e8d5dcf4",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:26:25.686Z",
+ "seconds": 28.318,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/services/annotations/annotationsimpl/xorm_store.go",
+   "line": 534,
+   "end_line": 537,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "other",
+   "title": "Leftover debug logging at Error level, including the full list of IDs, runs on every cleanup batch.",
+   "body": "Every batch logs two `r.log.Error` lines, and one of them includes the full `ids` slice. The same lines are at 554/557 and 576/579. The last batch of each loop returns zero rows, so a healthy cleanup with nothing to delete still writes at least two error lines per annotation type and for tags. With the 1-minute ticker this happens every minute, and with a large batch size (for example 32767) each line carries tens of thousands of IDs. That floods error logs, sets off error alerting, and the `err` field in the first line is always nil. Remove these lines, or lower them to Debug and drop the `ids` field.",
+   "suggestion": "\n\t\t\treturn r.deleteByIDs(ctx, \"annotation\", ids)"
+  },
+  {
+   "path": "pkg/services/annotations/annotationsimpl/xorm_store.go",
+   "line": 609,
+   "end_line": 612,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "performance",
+   "title": "Building the ID list with repeated Sprintf takes quadratic time.",
+   "body": "On SQLite with a batch size above 999, each ID is added by `fmt.Sprintf(\"%s, %d\", values, v)`, which copies the whole string built so far. A 32767-ID batch copies several gigabytes in total, and this runs for every batch on every cleanup cycle. Build the string with `strings.Builder`, or join `strconv.FormatInt` results with `strings.Join`.",
+   "suggestion": "\t\tparts := make([]string, len(ids))\n\t\tfor i, v := range ids {\n\t\t\tparts[i] = strconv.FormatInt(v, 10)\n\t\t}\n\t\tvalues := strings.Join(parts, \", \")"
+  },
+  {
+   "path": "pkg/services/cleanup/cleanup.go",
+   "line": 77,
+   "end_line": 77,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The cleanup interval for every cleanup job drops from 10 minutes to 1 minute.",
+   "body": "This ticker drives `srv.clean`, which runs all the cleanup jobs, not only annotation cleanup. Each job now runs 10× as often, which adds steady database load on every instance. The deadlock fix the PR asks for does not need this, and the PR description does not justify it. It looks like a leftover from local testing. Restore the 10-minute interval, or make the annotation interval configurable on its own.",
+   "suggestion": "\tticker := time.NewTicker(time.Minute * 10)"
+  },
+  {
+   "path": "pkg/services/annotations/annotationsimpl/cleanup_test.go",
+   "line": 116,
+   "end_line": 127,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The subtest cleanup is registered only after the inserts and count checks succeed.",
+   "body": "All subtests share one DB, and `createTestAnnotations` now inserts fixed IDs starting at 1. If an insert or one of the count assertions fails in a subtest, `t.Cleanup` is never registered and the rows stay in the database. Every later subtest then fails on duplicate primary keys or wrong counts, which hides the original failure. Fix: register the `t.Cleanup` before calling `createTestAnnotations`.",
+   "suggestion": "\t\t\tt.Cleanup(func() {\n\t\t\t\terr := fakeSQL.WithDbSession(context.Background(), func(session *db.Session) error {\n\t\t\t\t\t_, deleteAnnotationErr := session.Exec(\"DELETE FROM annotation\")\n\t\t\t\t\t_, deleteAnnotationTagErr := session.Exec(\"DELETE FROM annotation_tag\")\n\t\t\t\t\treturn errors.Join(deleteAnnotationErr, deleteAnnotationTagErr)\n\t\t\t\t})\n\t\t\t\tassert.NoError(t, err)\n\t\t\t})\n\n\t\t\tcreateTestAnnotations(t, fakeSQL, test.createAnnotationsNum, test.createOldAnnotationsNum)\n\t\t\tassertAnnotationCount(t, fakeSQL, \"\", int64(test.createAnnotationsNum))\n\t\t\tassertAnnotationTagCount(t, fakeSQL, 2*int64(test.createAnnotationsNum))"
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 10,
+  "cacheWrite": 54965,
+  "cacheRead": 30952,
+  "output": 8517,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 6,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 85927,
+   "outputTokens": 8517,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.4513954
+}

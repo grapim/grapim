@@ -1,0 +1,40 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In _set_sample_rate_from_error_sampling(), the check `if client_sample_rate:` treats 0.0 as falsy, so a sample_rate of 0.0 is silently skipped and never set on normalized_data.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the falsy check on a 0.0 sample_rate."
+  },
+  {
+   "comment": "Using Python’s built-in hash() to build cache keys is non-deterministic across processes (hash randomization), so keys won’t match across workers and invalidate_upsampling_cache may fail to delete them. Use a deterministic serialization of project_ids for the cache key.",
+   "severity": "Low",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C3 also says the cache invalidation helper doesn't work, but its reason is that it's never called and an allowlist change affects every cached key. It doesn't mention hash() being non-deterministic across processes."
+  },
+  {
+   "comment": "The upsampling eligibility check passes the outer dataset instead of the actual dataset used by scoped_dataset. In paths where the query ultimately runs against discover (e.g., dashboard split) while the original dataset is metrics, upsampling may be skipped even when all projects are allowlisted.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the outer dataset being passed instead of the scoped dataset."
+  }
+ ],
+ "candidates": [
+  "src/sentry/api/helpers/error_upsampling.py:135 - Substring check treats negated or mixed event.type filters as error-only queries.. `_is_error_focused_query` returns True whenever `event.type:error` appears anywhere in the lowercased query. That includes `!event.type:error`, which excludes errors, and `event.type:error OR event.type:transaction`. On the discover dataset, those queries then have `count()` rewritten to `upsampled_count()`, i.e. `sum(sample_weight)`, over transaction or mixed rows. The counts come out wrong (transactions have no sample_weight, so they may count as zero), or the query fails.\n\nFix: parse the query with the event search parser. Upsample only when there is one positive `event.type:error` filter and no negation or OR. At minimum, reject a match that is preceded by `!`.",
+  "sentry-repo:1 - Adds an unrelated `sentry-repo` submodule pointer.. The PR adds a gitlink, `Subproject commit a5d29095…`, at `sentry-repo`. Nothing in the error-upsampling request covers it, and it looks like a leftover nested checkout that was committed by accident. It changes repository layout and clone behaviour for everyone. Remove it from the change.",
+  "src/sentry/api/helpers/error_upsampling.py:27 - The 60-second eligibility cache keeps upsampling projects after they leave the allowlist, and the invalidation helper is never called.. The allowlist is a global option, but the result is cached per organization and project set. If a project is removed from `issues.client_error_sampling.project_allowlist`, every cached set that includes it keeps returning upsampled counts for up to 60 seconds, and alerts or dashboards built on those counts read inflated values.\n\n`invalidate_upsampling_cache` is never called anywhere in this change. It also can't work as intended: an allowlist change affects every cached project combination, and it can only delete one known key. The cache also contradicts the `_are_all_projects_error_upsampled` docstring, which says it always reads the latest configuration. `options.get` is already cached in-process, so the extra cache round trip on every request doesn't save anything either.\n\nFix: drop this cache and call `_are_all_projects_error_upsampled` directly.",
+  "src/sentry/api/helpers/error_upsampling.py:50 - Docstring says the allowlist is read fresh each time, but the caller caches the result for 60 seconds.. `_are_all_projects_error_upsampled` says it reads the allowlist fresh every time so it always has the latest configuration. Its only caller, `is_errors_query_for_error_upsampled_projects`, caches the result for 60 seconds, keyed by org and project IDs. An allowlist change therefore takes up to 60s to apply, and the endpoint comment (\"This cached result ensures consistent behavior\") says the opposite of this docstring. Update the docstring to describe the caching.",
+  "src/sentry/search/events/datasets/discover.py:1051 - upsampled_count declares result type \"number\" although it returns toInt64 and stands in for count().. The aggregate is wrapped in `toInt64` and replaces `count()` under the `count` alias, and `count()` is typed `integer`. Declaring `default_result_type=\"number\"` makes the meta for the same column change from integer to number when upsampling is on. If the meta comes from this default, that would change how clients format the value. Use \"integer\" to match the returned value and the column it replaces."
+ ]
+}

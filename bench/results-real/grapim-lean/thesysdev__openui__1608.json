@@ -1,0 +1,74 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "thesysdev__openui__1608",
+ "url": "https://github.com/thesysdev/openui/pull/1608",
+ "head_sha": "f813c963b10fc9796fe585780a90d291cba7c35c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-16T22:33:31.333Z",
+ "seconds": 60.588,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/react-ui/src/cloud/CloudArtifact/ArtifactRenderer.tsx",
+   "line": 68,
+   "end_line": 69,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Merged initialState is a new object on every render, so Renderer may apply the saved filters again over the user's choice.",
+   "body": "`{ ...savedState, ...initialState }` builds a new object each time `renderContent` runs. Before this change, `initialState` was the app's own stable reference. `useLastResults` says that \"`Renderer` applies an `initialState` that changes later too, over what the user chose, and runs the queries again\". If `Renderer` detects that change by reference, here is the failure: the dashboard reopens with a saved state, the user picks another filter, and the root re-renders for some other reason (`isFetching`/`isLoading` toggles, a title update, the `refreshing` flip). The Content slot calls `render()` again, gets a fresh object, and puts the dashboard back on the saved filter, re-running the queries. No test changes a filter after a restore and then re-renders. I could not see `Renderer`'s comparison, so this is not confirmed. Fix: keep the merged object stable, for example by caching it in a ref keyed on `savedState` and `initialState`, or by memoizing it in `ArtifactRendererRoot` and passing the merged value."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 32934,
+  "cacheRead": 35137,
+  "output": 5596,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 68075,
+   "outputTokens": 5596,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/react-ui/src/cloud/CloudArtifact/useLastResults.ts",
+    "line": 279,
+    "end_line": 290,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The restored state is checked against the version only once and is still passed after the version on screen changes.",
+    "body": "`restoredRef` is reset only when `[reads, id]` change, and the version check runs only when it is first set. Trigger: a dashboard opened on v1 restores its saved v1 state, then a new version (v2) streams in while the content stays shown. `savedState` (the v1 state) keeps going to `Renderer` as `initialState` for the v2 program, which contradicts \"a state for the version on screen\". A remount through `rendererKey` would apply it to v2. Fix: store the version in `restoredRef` and return `savedState` only while it matches `requestRef.current.version`."
+   }
+  ]
+ },
+ "cost_usd": 0.28363340000000004
+}

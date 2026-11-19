@@ -1,0 +1,58 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the Lithuanian file contains Italian text."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out the same problem: the zh_CN file uses Traditional Chinese."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the anchor sanitization logic."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the misspelled method name."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the HTML_TAGS modifiers."
+  }
+ ],
+ "candidates": [
+  "In Lithuanian locale files (account and login), the totpStep1/loginTotpStep1 key is replaced with Italian text ('Installa una delle seguenti applicazioni sul tuo cellulare:') instead of Lithuanian, causing Lithuanian users to see Italian instructions for TOTP setup",
+  "The totpStep1 replacement in messages_zh_CN.properties (Simplified Chinese locale) uses Traditional Chinese characters (手機, 安裝, 應用程式) instead of the required Simplified Chinese (手机, 安装, 应用程序), making it inconsistent with the rest of the file and incorrect for the zh_CN locale",
+  "In account-ui, error-invalid-multivalued-size was changed from i18next-style {{0}} placeholders to MessageFormat/ICU-style {0} + {2,choice,...}, but account-ui uses plain i18next interpolation, so this string will render with raw {0}/{2,choice,...} instead of substituted values"
+ ]
+}

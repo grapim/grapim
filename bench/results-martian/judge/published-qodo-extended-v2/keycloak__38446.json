@@ -1,0 +1,33 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Unsafe raw List deserialization without type safety. Calling Optional.get() directly on the Optional returned by RecoveryAuthnCodesUtils.getCredential(user) without checking isPresent() can lead to a NoSuchElementException if the Optional is empty.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points to the same problem: Optional.get() is called on the result of RecoveryAuthnCodesUtils.getCredential() without checking presence, which can throw NoSuchElementException."
+  },
+  {
+   "comment": "After creating the RecoveryAuthnCodesCredentialModel, consider setting its id from the stored credential (e.g., myUser.recoveryCodes.getId()); otherwise getId() will be null and downstream removal by id (e.g., removeStoredCredentialById in the authenticator flow) may not work.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "G2 says the id is never set on the RecoveryAuthnCodesCredentialModel, so getId() returns null and removal by id fails. C2 also says exhausted credentials are not removed, but it blames removeStoredCredentialById for deleting only locally stored credentials. It does not mention the missing id, so the root cause is different."
+  }
+ ],
+ "candidates": [
+  "RecoveryAuthnCodeInputLoginBean calls Optional.get() on the credential returned from RecoveryAuthnCodesUtils.getCredential() and getNextRecoveryAuthnCode().get() without checking presence, causing NoSuchElementException and 500 errors when federated user-storage provider doesn't expose credentials",
+  "RecoveryAuthnCodesFormAuthenticator loads recovery code credentials from user storage but deletes exhausted credentials via removeStoredCredentialById() which only deletes locally-stored credentials, leaving federated users marked as configured while having no usable recovery codes",
+  "BackwardsCompatibilityUserStorage validates recovery-authn-codes by matching any code in the stored list and never consumes/removes the used code, allowing unlimited reuse of recovery codes and diverging from Keycloak's one-time sequential recovery-code semantics",
+  "When createRecoveryCodesCredential stores credentials in user storage (updateCredential returns true), it skips recoveryCodeCredentialProvider.createCredential() which normally deletes pre-existing local recovery codes, allowing stale old codes to remain valid through UserCredentialManager.isValid() fallback"
+ ]
+}

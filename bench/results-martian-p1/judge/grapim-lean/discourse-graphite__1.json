@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The downsize method is defined twice. The second definition, which expects a single dimensions string parameter, overrides the first, which expected separate max_width and max_height parameters. This makes the original method unreachable and breaks existing code that calls it with separate width and height arguments.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same duplicate downsize definition that overrides the original method."
+  },
+  {
+   "comment": "Hardcoding maxSizeKB = 10 * 1024 ignores Discourse.SiteSettings['max_' + type + '_size_kb'], so the client-side limit can diverge from server-side and per-type settings (also applies to the 413 handler below).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out the same hardcoded 10MB limit, which ignores the site settings and also affects the 413 handler."
+  },
+  {
+   "comment": "Passing 80% as the dimensions can fail for animated GIFs when allow_animated_thumbnails is true, since the animated path uses gifsicle --resize-fit which expects WxH geometry, not a percentage; downsizing would then silently fail.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mention the problem with gifsicle and a percentage geometry for animated GIFs."
+  },
+  {
+   "comment": "The loop checking `tempfile.size` may never terminate correctly due to stale cached size, leading to potential infinite loops or incorrect file handling after modifications.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.85,
+   "reasoning": "C3 says tempfile.size is stale in the loop, which is the same issue as the stale cached size."
+  }
+ ],
+ "candidates": [
+  "app/models/optimized_image.rb:149 - Second `downsize` definition silently replaces the width/height version.. Ruby has no overloading by arity. The new `def self.downsize(from, to, dimensions, opts={})` replaces the `downsize(from, to, max_width, max_height, opts={})` defined just above it. Existing callers that pass width and height then break:\n- A call like `downsize(from, to, w, h)` binds `opts = h`, an Integer. `opts[:allow_animation]` then raises a TypeError.\n- A call that also passes opts has 5 arguments and raises ArgumentError.\n\nThis breaks thumbnail and avatar generation everywhere the old signature is used. Give the percentage variant its own name (for example `downsize_to(from, to, dimensions, opts={})`), or remove the old method and update every caller.",
+  "app/assets/javascripts/discourse/lib/utilities.js:182 - Client upload limit is hardcoded to 10 MB for every type, ignoring site settings.. `max_attachment_size_kb` and `max_image_size_kb` are no longer used on the client. This affects admins in both directions:\n- If an admin set a limit above 10 MB, valid uploads are now rejected before they reach the server.\n- If the attachment limit is below 10 MB, oversized non-image files are no longer caught on the client. Only images get downsized on the server, so these files fail there instead of with the clear client message.\n\nThe same hardcoded value in the 413 handler (line 246) can also show a limit that does not match the web server's real limit. Keep the site setting for non-image types and use `Math.max(setting, 10240)` for images.",
+  "app/controllers/uploads_controller.rb:64 - Size check reads the open Tempfile handle, which may not see the in-place rewrite.. `convert_with` runs `ImageOptim#optimize_image!` on the output path. ImageOptim writes its result to a new file and renames it over the original. The `tempfile` object keeps its file descriptor on the old inode, so two things go wrong:\n- `tempfile.size` (which uses fstat) never shrinks, so the loop always runs all 5 passes and degrades the image to about 33% of its size.\n- `Upload.create_for` then reads the stale, original oversized contents and size through that same handle.\n\nThe return value of `downsize` is also ignored, so a failed convert is simply retried 5 times. Use `File.size(tempfile.path)`, reopen the file after resizing, and stop the loop when `downsize` returns false."
+ ]
+}

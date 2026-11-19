@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Abilityai__trinity__4627",
+ "url": "https://github.com/Abilityai/trinity/pull/4627",
+ "head_sha": "2a877ae83f55dfd0487b44e56b9cc324b74ee742",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:46:14.255Z",
+ "seconds": 142.722,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 88190,
+  "cacheRead": 6852,
+  "output": 12586,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 20,
+   "hunks": 49,
+   "reviewedHunks": 49,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 95046,
+   "outputTokens": 12586,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 20,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.6940564
+}

@@ -1,0 +1,59 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The exported function TwoFactor handles backup codes and is in BackupCode.tsx. Inconsistent naming.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the naming mismatch between the TwoFactor function and BackupCode.tsx."
+  },
+  {
+   "comment": "Error message mentions 'backup code login' but this is a disable endpoint, not login",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the error message saying 'backup code login' in the disable endpoint."
+  },
+  {
+   "comment": "Backup code validation is case-sensitive due to the use of indexOf(). This causes validation to fail if a user enters uppercase hex characters, as backup codes should be case-insensitive for a better user experience.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same case-sensitive indexOf comparison."
+  },
+  {
+   "comment": "Because backupCodes are decrypted and mutated in memory before being written back, two concurrent login requests using the same backupCode could both pass this check and update, so a single backup code may effectively be accepted more than once if used concurrently, weakening the intended one-time-use semantics.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    2
+   ],
+   "confidence": 0.93,
+   "reasoning": "C2 describes the same race condition, where concurrent requests can reuse one backup code."
+  },
+  {
+   "comment": "Object URL for backup codes is not revoked on component unmount, leading to a potential memory leak. This can cause increased memory usage over time, especially if the component is mounted and unmounted frequently.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions that the object URL is never revoked."
+  }
+ ],
+ "candidates": [
+  "Backup code comparison via indexOf is case-sensitive. If codes contain letters, users who type them in the wrong case will be rejected. Normalize both sides to the same case before comparing.",
+  "Race condition: the backup code read, validation, and invalidation are not atomic. Two concurrent requests can both validate and consume the same backup code, because the findUnique and update are separate queries with no transaction or lock.",
+  "Password verification can be bypassed when a crafted request includes both a valid backupCode and any truthy totpCode value. The password check on line 121 is skipped when totpCode is present, but the backup code branch still runs and grants authentication. An attacker with a stolen backup code can log in without knowing the password.",
+  "Store backup codes as one-way hashes instead of a reversible encrypted blob"
+ ]
+}

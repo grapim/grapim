@@ -1,0 +1,35 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same misuse of the Error log level for non-error output and suggests Debug/Info instead."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 flags the same ticker change from 10 minutes to 1 minute and the extra DB load it causes."
+  }
+ ],
+ "candidates": [
+  "Cleanup batches log at Error level on the success path and include the full list of IDs, which can flood logs and potentially expose internal record IDs - should use Debug/Info level and avoid logging the IDs, reserving Error for actual failures",
+  "Cleanup service ticker was reduced from 10 minutes to 1 minute, which will increase DB/file cleanup load and can cause the cleanup loop to run almost continuously if a cycle takes >1m - this change appears unrelated to the MySQL deadlock fix and should be restored to previous cadence",
+  "Building the SQLite inline ID list with repeated fmt.Sprintf in a loop is O(n²) in allocations and can become expensive for large batches - should use strings.Builder with strconv.FormatInt to build the IN list efficiently",
+  "Test case inserts ~40k annotations and uses a 32k batch size, which can make CI slow/flaky without adding much coverage beyond exercising the batch size > SQLite parameter limit path - should reduce dataset while still exceeding 999 parameters (e.g., ~3003 annotations with batch size 1000) and update the test name which incorrectly mentions a specific SQLite version"
+ ]
+}

@@ -1,0 +1,35 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same missing key prop on GrafanaRuleListItem."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.93,
+   "reasoning": "C2 describes the same problem: silence is enabled from prom abilities, but the drawer needs a ruler rule, so clicking it does nothing."
+  }
+ ],
+ "candidates": [
+  "GrafanaRuleListItem is missing a React 'key' prop in the rules.map() render, which will trigger React warnings and cause inefficient re-renders",
+  "canSilence is enabled via promRule abilities even when rulerRule is undefined, but SilenceGrafanaRuleDrawer requires a Ruler rule, so the menu item risks becoming a no-op - consider gating Silence on rulerRule being present or refactoring the drawer/handler to work with a Grafana prom rule UID",
+  "GrafanaRuleListItem should preserve navigation context by including a returnTo parameter, which requires importing createReturnTo",
+  "GrafanaRuleListItem builds the rule link without a returnTo parameter, breaking the 'return to list' navigation context that other rule list items preserve"
+ ]
+}

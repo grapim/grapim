@@ -1,0 +1,45 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry__80168",
+ "url": "https://github.com/getsentry/sentry/pull/80168",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "MetricAlertDetectorHandler inherits from StatefulDetectorHandler but only contains pass, failing to implement its required abstract methods: counter_names (property), get_dedupe_value(), get_group_key_values(), and build_occurrence_and_event_data(). This will cause a TypeError at runtime when the class is instantiated.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: the abstract methods are not implemented, so instantiating the class raises a TypeError."
+  },
+  {
+   "comment": "Docstring says this returns a list of DetectorEvaluationResult, but the method now returns a dict keyed by DetectorGroupKey. Consider updating the docstring to match the new return type.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 flags the same mismatch: the docstring still says list, but the method now returns a dict."
+  },
+  {
+   "comment": "Wrong value `6` passed for `group_2` occurrence — the data packet specifies `\"group_2\": 10`. Should be `10` to accurately reflect the test scenario, which will ensure the test produces the correct occurrence data.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 flags the same bug: the group_2 occurrence uses the value 6, but the packet has 10."
+  }
+ ],
+ "candidates": [
+  "src/sentry/incidents/grouptype.py:11 - MetricAlertDetectorHandler is now abstract and cannot be instantiated.. `MetricAlertDetectorHandler` now subclasses `StatefulDetectorHandler` with just `pass`. That leaves the abstract methods unimplemented: `get_dedupe_value`, `get_group_key_values` and the new `build_occurrence_and_event_data`. Before this change, the handler had a stub `evaluate` that returned `[]`, so it was safe to run.\n\n`MetricAlertFire` appears to register this class as its `detector_handler`; that part is not shown in the hunk. If it does, `Detector.detector_handler` will raise `TypeError: Can't instantiate abstract class` for any metric-alert detector. `process_detectors` would then crash for every data packet that reaches such a detector, instead of skipping it.\n\nFix: keep a non-abstract stub until the stateful implementation exists. For example, implement the three abstract methods with placeholder bodies (`return 0`, `return {}`, `raise NotImplementedError` behind a guard), or keep subclassing `DetectorHandler` with an `evaluate` that returns `{}`.",
+  "tests/sentry/workflow_engine/processors/test_detector.py:536 - The expected occurrence uses group key \"val1\" but the result being checked is for \"group_key\".. In `TestEvaluateGroupKeyValue.test_dedupe`, the expected result has `group_key=\"group_key\"` and `evaluate_group_key_value` is called with that key. But the occurrence is built for `\"val1\"`, so its fingerprint is `[\"<id>:val1\"]` while the handler produces `[\"<id>:group_key\"]`. `IssueOccurrence` is a dataclass and compares by fields, so any assertion that the returned result equals `expected_result` will fail. I can't see the rest of this test, so I couldn't confirm that such an assertion exists. Build the occurrence with `expected_result.group_key` (or `\"group_key\"`) and the value 10 that the test actually passes in.",
+  "src/sentry/workflow_engine/processors/detector.py:226 - The `evaluate` docstring still says it returns a list.. The signature now returns `dict[DetectorGroupKey, DetectorEvaluationResult]`, but the unchanged docstring right below it still says \"returns a list of `DetectorEvaluationResult`\". Update it to say the method returns a dict keyed by group key.",
+  "tests/sentry/workflow_engine/processors/test_detector.py:190 - The expected values don't match the test data: group_2 is 10 but the expected occurrence uses 6.. The packet sets `\"group_2\": 10`, but the expected occurrence for group_2 is built with value 6. The same thing happens in `test_results_on_change` (input 100) and `TestEvaluate.test_dedupe` (input 8). These tests only pass because the mock builder ignores `value`. Once a real builder uses `value`, they will check the wrong thing. Pass the actual input value."
+ ]
+}

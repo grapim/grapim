@@ -1,0 +1,70 @@
+{
+ "tool": "published-augment",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The BrowserReportingCollectorEndpoint returns HttpResponse objects but the endpoint inherits from Endpoint which expects rest_framework.response.Response objects.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions HttpResponse vs Response."
+  },
+  {
+   "comment": "In BaseDetectorTypeValidator.update(), the validator incorrectly updates instance.type using validated_data.get('detector_type') instead of validated_data.get('type').",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the detector_type key issue."
+  },
+  {
+   "comment": "Using zip(error_ids, events.values()) assumes the get_multi result preserves the input order; dict value order is not guaranteed to match error_ids, so event data can be paired with the wrong ID (missing nodes also shift alignment).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same zip ordering problem."
+  },
+  {
+   "comment": "Hardcoded empty data passed to TableWidgetVisualization causes it to always render an empty table instead of displaying actual results when the feature flag is enabled.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same empty table data problem."
+  },
+  {
+   "comment": "Validation logic incorrectly uses .get('timestamp'), which treats a timestamp of 0 as absent. It should directly check 'timestamp' in self.initial_data to ensure proper field presence detection, preventing both 'age=0' and 'timestamp' from passing mutual-exclusion validation.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 describes the same .get truthiness problem in the mutual-exclusion check. Golden names timestamp=0 while C3 names age=0, but the root cause is identical."
+  },
+  {
+   "comment": "Analytics events are recorded before the feature flag check, resulting in analytics being logged for all requests, including those that return 404 due to the feature being disabled. This can lead to misleading analytics data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions analytics being recorded before the flag check."
+  }
+ ],
+ "candidates": [
+  "zip(error_ids, events.values()) can misassociate event_id to data because get_multi() returns a dict whose value order isn't guaranteed to match error_ids/node_ids, and missing keys will silently drop IDs, leading to incorrect error context in Seer prompt",
+  "When use-table-widget-visualization is enabled, TableWidgetVisualization renders with columns=[] and empty tableData, so the table will always appear blank even when result.data/meta are present",
+  "validate_timestamp/validate_age use self.initial_data.get(...) which treats 0 as 'absent', allowing both age=0 and timestamp to pass the mutual-exclusion rule - should check key presence or 'is not None' instead of truthiness",
+  "Override detection uses 'if (cell)' which ignores valid ReactNodes like 0, empty string, or null and falls back to default renderer unexpectedly - should check 'cell !== undefined' instead (same issue in body-cell renderer)",
+  "_truncate_title slices to max_length and then appends '...', so the returned string can exceed ISSUE_TITLE_MAX_LENGTH by 3 characters"
+ ]
+}

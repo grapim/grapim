@@ -1,0 +1,52 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "sentry-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The OptimizedCursorPaginator in organization_auditlogs.py attempts to use negative slice offsets on Django querysets, but Django querysets do not support negative slicing and will raise an AssertionError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same bug: negative offsets in Django queryset slicing raise an AssertionError."
+  },
+  {
+   "comment": "When requests are authenticated with API keys or org auth tokens (which have user_id=None), organization_context.member is None. Line 71 attempts to access organization_context.member.has_global_access without checking if member is None, causing an AttributeError crash when optimized_pagination=true is used, even though the request passed all permission checks with valid org:write scope.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 flags the same missing null check on organization_context.member.has_global_access. It gives a different cause for member being None (superusers rather than API keys), but the underlying bug is the same."
+  },
+  {
+   "comment": "get_item_key assumes a numeric key, but the paginator is used with order_by=-datetime in the audit logs endpoint; calling math.floor/ceil on a datetime will raise a TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 describes the same TypeError from calling math.floor/ceil on datetime keys."
+  },
+  {
+   "comment": "Importing non-existent OptimizedCursorPaginator",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mention importing a non-existent OptimizedCursorPaginator."
+  }
+ ],
+ "candidates": [
+  "OptimizedCursorPaginator.get_result() passes negative offsets to Django queryset slicing which raises AssertionError since Django doesn't support negative indexing, despite comment claiming otherwise",
+  "organization_context.member.has_global_access is accessed without null check - superusers without org membership will have member=None causing AttributeError",
+  "OptimizedCursorPaginator used with order_by='-datetime' for audit logs will crash with TypeError because get_item_key uses math.floor/ceil on datetime values instead of numeric values"
+ ]
+}

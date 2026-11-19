@@ -1,0 +1,78 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "trueagi-io__PeTTa__302",
+ "url": "https://github.com/trueagi-io/PeTTa/pull/302",
+ "head_sha": "7408bb3f2750867b003e15fba47eef3e528a5571",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:45:14.044Z",
+ "seconds": 121.573,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/filereader.pl",
+   "line": 30,
+   "end_line": 32,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Recorded inert statements leak into later, unrelated loads.",
+   "body": "`inert_statement/2` facts are cleared only by `report_inert_statements`, which runs only after an outermost `load_metta_file` succeeds. Two cases leave facts behind:\n- The load throws partway through, so the code after `setup_call_cleanup` never runs.\n- Code is translated outside a file load: a runtime `eval`, a REPL or Python `process_metta_string`, or a function added with `add-atom`.\n\nThose facts stay and are reported on the next unrelated file load. Under `--strict`, that load then fails with `inert_statements` for code it does not contain. Without `--strict`, warnings are attributed to the wrong load.\n\nFix: clear `inert_statement/2` at the start of each outermost load, run the report in the cleanup of the outermost load, and judge statements recorded outside any load when they are recorded (or drop them)."
+  },
+  {
+   "path": "src/translator.pl",
+   "line": 283,
+   "end_line": 287,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The eta closure ignores head patterns and adds an extra result next to ordinary clauses of the same arity.",
+   "body": "`assert_eta_closure` adds the fact `F(V1..VN, partial(F,[V1..VN]))` to the same predicate (F/(N+1)) that holds every ordinary clause of F at source arity N. That fact matches any arguments.\n\nExample: `(= (f 0) (g 1))` (binary `g`) together with `(= (f $x) $x)`. Before this change, `(f 5)` returned `5`. Now it returns both `5` and `(partial f (5))`, and applying that closure fails because only the `(f 0)` clause exists at the higher arity. Any `(f k)` with no matching partial-bodied clause also gains a dead closure result. Under a det declaration, the extra clause can also cause overlapping-clause errors.\n\nFix: make the closure use the head patterns of the clauses that actually compile above N+1. For example, emit one closure per such clause with that clause's head arguments, or guard the closure with a check that a higher-arity clause matches. Otherwise, refuse to mix partial-bodied and ordinary clauses at the same source arity."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 31975,
+  "cacheRead": 3561,
+  "output": 10613,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 22,
+   "hunks": 35,
+   "reviewedHunks": 34,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 35538,
+   "outputTokens": 10613,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "src/typecheck/unified_checker_cache.pl",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.3728552
+}

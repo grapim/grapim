@@ -1,0 +1,57 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "getprobo__probo__2352",
+ "url": "https://github.com/getprobo/probo/pull/2352",
+ "head_sha": "d1dab96810e940f442c143a7b7fe4cdf0b5f1f9a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:12:50.139Z",
+ "seconds": 60.614,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 29702,
+  "cacheRead": 3426,
+  "output": 5330,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 8,
+   "reviewedHunks": 7,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 33130,
+   "outputTokens": 5330,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "pkg/deviceagent/checks/checks_linux.go",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2558032
+}

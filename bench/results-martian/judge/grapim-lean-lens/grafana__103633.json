@@ -1,0 +1,43 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The Check operation exhibits asymmetric cache trust logic: cached permission grants are trusted and returned immediately, but cached denials from the same permission cache are ignored, leading to a fresh database lookup. This allows stale cached grants to provide access to revoked resources, posing a security risk. ",
+   "severity": "High",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "G1 says cached grants are trusted while cached denials in the permission cache are ignored and sent to the DB, so stale grants can leave access open. C3 covers the opposite problem: stale denials blocking new access. No candidate raises the stale-grant risk."
+  },
+  {
+   "comment": "The test comment says the cached permissions 'allow access', but the map stores false for dashboards:uid:dash1, so checkPermission will still treat this scope as not allowed.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 points out the same mismatch: the test comment says the cache allows access, but the map stores false."
+  },
+  {
+   "comment": "The cache key construction in `userPermDenialCacheKey` uses simple string concatenation with underscores, which can lead to ambiguous keys and collision risks when any component contains underscores or is empty. This could result in incorrect denial cache hits, affecting user permissions.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 flags the same issue: joining key parts with underscores makes the denial cache key ambiguous, so different resources can collide."
+  }
+ ],
+ "candidates": [
+  "pkg/services/authz/rbac/cache.go:30 - The denial cache key is ambiguous when names contain '_'.. The key joins `name` and `parent` with '_', and dashboard and folder UIDs can contain underscores. So name=`a_b`, parent=`c` and name=`a`, parent=`b_c` produce the same key. A denial cached for one resource then denies a different resource the user can access, for the cache TTL. Fix: use a separator that cannot appear in UIDs, or encode the parts. Adding a distinct prefix also keeps these keys apart from `userPermCacheKey` in the shared cache.",
+  "pkg/services/authz/rbac/service.go:116 - The denial cache key leaves out the identity type, so a denial can carry over to a different kind of caller.. `userPermDenialCacheKey` is built from namespace, `checkReq.UserUID`, action, name and folder. It does not include `checkReq.IdentityType`. Anonymous, render-service, user and service-account subjects all share the same key space. If two subjects of different types end up with the same `UserUID`, a denial cached for one is returned to the other. Two cases: anonymous and renderer subjects whose UID is empty or `0`, or a service account whose UID matches a user's. For example, after anonymous is denied dashboard X, the renderer, which normally gets fixed permissions from `getRendererPermissions`, is denied X until the TTL runs out. I could not see how `validateCheckRequest` fills `UserUID` for anonymous and renderer subjects, so check that. The fix is to add the identity type to the denial key, or to skip the denial cache for anonymous and renderer subjects.",
+  "pkg/services/authz/rbac/service.go:153 - A cached denial blocks access to a resource that is created or granted after the denial.. A denial is stored per (user, action, name, parent) for `shortCacheTTL`, and nothing clears it when permissions change. The denial cache is read before the permission cache and before the DB. The apiserver runs authz before storage lookup, so a check on a name that does not exist yet will be denied and cached. Examples: a GET on a dashboard UID before it is imported or provisioned, or a check before the creator's permission row is written. Then the creator is refused for the full TTL even though the DB now grants access. That is the exact problem this PR is meant to fix. Granting a user access to a resource they were just denied has the same delay. Fix: give denials a much shorter TTL, or delete or bypass matching denial entries when resource permissions are written.",
+  "pkg/services/authz/rbac/service_test.go:981 - The denial-cache test seeds a deny, so it would pass without the denial cache.. The comment says the permission cache grants access, to show the denial cache wins. But the map value is `false`, so `checkPermission` denies anyway. The DB fallback (an empty fakeStore) also denies. The test would pass even if the denial cache were never read. Set the value to `true` so the test actually checks that the denial short-circuits."
+ ]
+}

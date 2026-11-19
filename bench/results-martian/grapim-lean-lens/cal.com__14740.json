@@ -1,0 +1,149 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "head_sha": "92f44dcea7ff19e9123a30c63c167a2938df5a55",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:33:01.651Z",
+ "seconds": 34.105,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 158,
+   "end_line": 165,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The calendar event is updated with the caller's credentials, not the organizer's.",
+   "body": "`EventManager` is built from `ctx.user` and that user's credentials. When an attendee or a team admin adds guests, the handler tries to update the organizer's calendar event and video references using the caller's integrations. The update then fails or misses the event, so the organizer's calendar never gets the new attendees. The handler already loads `booking.user` with `credentials` and then never uses them. Build the EventManager from the booking organizer (`booking.user`) and that user's credentials."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 46,
+   "end_line": 48,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Team admin check uses && so only team owners get access, not admins.",
+   "body": "`isTeamAdmin` already covers ADMIN and OWNER roles, and `isTeamOwner` covers only OWNER. Joining them with `&&` means a team admin who is not an owner fails the check and gets FORBIDDEN on team bookings. The variable is named `isTeamAdminOrOwner`, so `||` was meant.",
+   "suggestion": "  const isTeamAdminOrOwner =\n    (await isTeamAdmin(user.id, booking.eventType?.teamId ?? 0)) ||\n    (await isTeamOwner(user.id, booking.eventType?.teamId ?? 0));"
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 74,
+   "end_line": 78,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Blocklist and existing-attendee checks are case-sensitive, so they can be bypassed.",
+   "body": "The blocklist entries are lowercased, but `guest` is not. Submitting `Blocked@Example.com` therefore gets past `BLACKLISTED_GUEST_EMAILS`. The existing-attendee comparison is case-sensitive too, so an existing attendee can be added again with different casing. Lowercase both sides before comparing.",
+   "suggestion": "  const uniqueGuests = guests.filter(\n    (guest) =>\n      !booking.attendees.some((attendee) => guest.toLowerCase() === attendee.email.toLowerCase()) &&\n      !blacklistedGuestEmails.includes(guest.toLowerCase())\n  );"
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 168,
+   "end_line": 168,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Emails are sent using the raw `guests` list instead of the filtered `uniqueGuests`.",
+   "body": "`sendAddGuestsEmails` decides who counts as a new guest from `newGuests`. Because it gets the unfiltered input, an existing attendee whose email was also submitted receives a fresh 'scheduled' email instead of the 'guests added' notice. Pass `uniqueGuests`.",
+   "suggestion": "    await sendAddGuestsEmails(evt, uniqueGuests);"
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts",
+   "line": 5,
+   "end_line": 5,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The server schema allows duplicate and unlimited guest emails.",
+   "body": "Only the client checks that emails are unique. A direct API call with `guests: [\"a@x.com\",\"a@x.com\"]` passes the handler's filter, because it only compares against existing attendees, and `createMany` inserts two attendee rows. The list also has no size limit, so one call can send booking emails to any number of addresses. Enforce uniqueness and a maximum length on the server.",
+   "suggestion": "  guests: z\n    .array(z.string().email())\n    .max(10)\n    .refine((emails) => new Set(emails.map((e) => e.toLowerCase())).size === emails.length),"
+  },
+  {
+   "path": "packages/emails/email-manager.ts",
+   "line": 539,
+   "end_line": 547,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The attendee email-disable setting is ignored when guests are added.",
+   "body": "The sibling `sendLocationChangeEmails` skips attendee emails when `eventTypeDisableAttendeeEmail(eventTypeMetadata)` is set. `sendAddGuestsEmails` does not take that metadata and always emails every attendee, so event types that turn off attendee emails still send them here. Accept the event type metadata and apply the same check."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 165,
+   "end_line": 165,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A calendar update failure after the DB write returns an error, but the guests are already saved.",
+   "body": "The attendees are written to the database before `updateCalendarAttendees` runs, and that call has no error handling. If the calendar provider fails, the mutation returns an error and no emails go out, but the guests stay saved. If the user retries, those guests are filtered out as existing attendees, so the request fails with `emails_must_be_unique_valid`. Wrap the call in a try/catch and log the error, as is already done for the email send."
+  },
+  {
+   "path": "apps/web/components/dialog/AddGuestsDialog.tsx",
+   "line": 36,
+   "end_line": 41,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The invalid-email warning stays visible after a successful add or an overlay close.",
+   "body": "`setIsInvalidEmail(true)` is cleared only by the Cancel button. Suppose a user submits an invalid email, fixes it, and the add succeeds, or closes the dialog through `onOpenChange` (Escape or a click outside). Next time the dialog opens, it still shows \"Emails must be unique and valid\", and an overlay close also keeps the old email inputs. Reset `isInvalidEmail` in `onSuccess` and in the `onOpenChange` handler.",
+   "suggestion": "    onSuccess: async () => {\n      showToast(t(\"guests_added\"), \"success\");\n      setIsOpenDialog(false);\n      setMultiEmailValue([\"\"]);\n      setIsInvalidEmail(false);\n      utils.viewer.bookings.invalidate();\n    },"
+  },
+  {
+   "path": "apps/web/components/dialog/AddGuestsDialog.tsx",
+   "line": 43,
+   "end_line": 44,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The fallback error toast can never be shown.",
+   "body": "`message` is a template string that always contains at least `: `, so it is always truthy and `t(\"unable_to_add_guests\")` is never used. When the error has no code, users see `undefined: ...` instead. Build the message only when `err.message` is present.",
+   "suggestion": "      const message = err.message ? `${err.data?.code ? `${err.data.code}: ` : \"\"}${t(err.message)}` : \"\";\n      showToast(message || t(\"unable_to_add_guests\"), \"error\");"
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 8,
+  "cacheWrite": 84553,
+  "cacheRead": 14108,
+  "output": 8666,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 15,
+   "hunks": 22,
+   "reviewedHunks": 22,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 98669,
+   "outputTokens": 8666,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 15,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.5989386
+}

@@ -1,0 +1,79 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "trueagi-io__PeTTa__302",
+ "url": "https://github.com/trueagi-io/PeTTa/pull/302",
+ "head_sha": "7408bb3f2750867b003e15fba47eef3e528a5571",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:44:54.741Z",
+ "seconds": 169.213,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/filereader.pl",
+   "line": 30,
+   "end_line": 32,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Leftover inert-statement records from a failed load or non-file compile get reported against a later, unrelated load.",
+   "body": "`check_statement/1` saves `inert_statement/2` facts every time code is compiled, but `report_inert_statements/0` only runs after an outermost `load_metta_file_impl` finishes normally. Two cases leave facts behind:\n- If the load throws (a type error, a syntax error, or the strict inert error itself after a partial retract), `setup_call_cleanup` rethrows and the report is skipped. The facts stay in the database.\n- Code compiled outside any file load (Python `process_metta_string`, the REPL, `eval`) is recorded but never judged.\n\nIn a long-lived session, the next successful `load_metta_file` of a clean file then reports those old statements. Under `--strict` it throws `inert_statements` for code the new file does not contain.\n\nFix: clear `inert_statement/2` when an outermost load starts and when it fails, for example with `retractall` in a cleanup around the outermost load. Statements compiled outside a file load should either be judged right away or kept apart from file loads."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 46846,
+  "cacheRead": 39144,
+  "output": 15556,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 22,
+   "hunks": 35,
+   "reviewedHunks": 34,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 85994,
+   "outputTokens": 15556,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "src/typecheck/unified_checker_cache.pl",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/translator.pl",
+    "line": 13,
+    "end_line": 15,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`data` erasure lives only in constrain_args, so clauses compiled with ConstrainArgs=false keep the literal `(data ...)` head.",
+    "body": "The new pattern erasure only happens inside `constrain_args/3`. `stage_function_clauses` calls `translate_clause(Term, Clause, false, _)` when `ho_specialization(_, F)` holds. If that path skips `constrain_args` for head arguments, a clause head like `(= (apply-pair $f (data $a $b)) ...)` compiles in the generic version as the tuple `($a $b)`. In the specialized version it stays the literal three-element `(data $a $b)`, which never matches a constructed tuple. The specialized call would then silently find nothing while the generic one works. I could not see how `translate_clause` handles ConstrainArgs=false. If it skips `constrain_args` for the head, apply `erase_explicit_data` to head arguments on that path too, so both versions match the same values."
+   }
+  ]
+ },
+ "cost_usd": 0.5531948000000001
+}

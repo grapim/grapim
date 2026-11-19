@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "gofr-dev__gofr__4568",
+ "url": "https://github.com/gofr-dev/gofr/pull/4568",
+ "head_sha": "66ef4a0e8ea0e5c7ff937ed16f9f7d3e3a2c2c7c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:14:01.435Z",
+ "seconds": 12.823,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 8595,
+  "cacheRead": 3527,
+  "output": 1009,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 12124,
+   "outputTokens": 1009,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0638684
+}

@@ -1,0 +1,163 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "head_sha": "9966ec5a13e331659c3ea00981f9b11b0faf821f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:24:04.905Z",
+ "seconds": 66.7,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 335,
+   "end_line": 338,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "Closing the strategy shuts down the shared queue pool, so after a rebalance every message is dropped and still committed.",
+   "body": "The factory builds `FixedQueuePool` once in `__init__` and hands the same object to every strategy that `create_with_partitions` returns. Arroyo calls `close()`/`join()` on the old strategy at each partition revocation. `close()` calls `queue_pool.shutdown()`, which shuts down every `queue.Queue` and stops every worker thread. On the next assignment, the new `SimpleQueueProcessingStrategy` gets the same dead pool. `work_queue.put` then raises `queue.ShutDown`, and the `except Exception` in `submit` catches it. That handler logs the error and marks the offset complete, so the commit loop commits messages that were never processed. Fix: the strategy must not shut down a pool it doesn't own. Either create the pool per strategy in `create_thread_queue_parallel_worker`, or have `close()` only drain or wait and leave pool shutdown to `factory.shutdown()`. Also stop treating a failed `put` as a completed offset."
+  },
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 185,
+   "end_line": 185,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "performance",
+   "title": "The queues have no size limit, so there is no backpressure and memory can grow without bound.",
+   "body": "`queue.Queue()` has no `maxsize`, and `submit` never raises `MessageRejected`. When processing is slower than consumption, which is exactly the slow-item case this PR targets, Arroyo keeps polling. Messages pile up in memory until the process runs out of memory. Every item queued past the commit point is also redelivered on restart. This contradicts the class docstring's claim of 'Natural backpressure when queues fill up'. Bound the queues and raise `MessageRejected` from `submit` when the target queue is full."
+  },
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 317,
+   "end_line": 325,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "data_loss",
+   "title": "Submit failures, including a shut-down queue, are marked complete and committed.",
+   "body": "Any exception in `submit` (a decoder bug, `grouping_fn` raising, or `put` failing because the queue was shut down) is swallowed and the offset is marked complete. The message is never processed, yet its offset is committed and nothing retries it. Decode failures already come back as `None` and are handled above. Infrastructure errors such as `queue.ShutDown` should propagate so the message is not committed."
+  },
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 335,
+   "end_line": 345,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "On close, the commit thread stops before the queues drain, so work finished during shutdown is never committed.",
+   "body": "`close()` sets `shutdown_event` and joins the commit thread first, then calls `queue_pool.shutdown()`. `shutdown()` also sets `worker.shutdown = True`, so each worker exits after its current item even though the queue uses `immediate=False`. Items that finish during shutdown are never committed, and the remaining queued items are abandoned. After every rebalance or restart, up to the whole in-memory backlog is reprocessed. Drain the queues first, then commit the final contiguous offsets with `force=True` on the main thread, and only then stop."
+  },
+  {
+   "path": "tests/sentry/uptime/consumers/test_results_consumer.py",
+   "line": 1911,
+   "end_line": 1922,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The error-handling test asserts the opposite of the code's behaviour and passes only because of timing.",
+   "body": "The worker completes the offset even when processing raises, so both 100 and 101 become committable, and the commit loop commits `{partition: 102}` on its next 1-second tick. The test breaks out about 0.2s after the second call and asserts that the partition was *not* committed. It passes only if it finishes before the commit tick, so it is flaky. It also contradicts its own docstring, which says errors should not block commits. Wait for the commit and assert `committed_offsets[test_partition] == 102`, or whatever the intended behaviour is."
+  },
+  {
+   "path": "tests/sentry/uptime/consumers/test_results_consumer.py",
+   "line": 1921,
+   "end_line": 1922,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "Error-handling test asserts no commit, which contradicts the behaviour it claims to test and depends on timing.",
+   "body": "The docstring says errors must not block offset commits, and `OrderedQueueWorker` marks a failed item's offset complete in `finally`. So after both items are processed, the commit loop commits offset 102 within about one second. The assertion `len(committed_offsets) == 0 or test_partition not in committed_offsets` expects the opposite. It passes only because the wait loop stops about 0.2s after processing, before the 1s commit tick. If the commit thread fires earlier, the test fails at random. It also never checks the intended behaviour. Wait for the commit and assert `committed_offsets[test_partition] == 102`."
+  },
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 273,
+   "end_line": 291,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The commit callback is called from a background thread, outside Arroyo's thread.",
+   "body": "`_commit_loop` calls `commit_function`, which is Arroyo's `Commit` callback, from its own daemon thread. Arroyo's StreamProcessor commit path writes its buffered offsets and calls `stage_offsets`/`commit_offsets` on the Kafka consumer, and it expects that to happen on the thread that runs `poll()`/`submit()`. Calling it at the same time as `_run_once` can race on the buffered-offset state and on the librdkafka consumer. Gather the committable offsets in the background if needed, but call `commit` from `poll()` on the main thread."
+  },
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 293,
+   "end_line": 325,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "data_loss",
+   "title": "An error in `submit` marks the offset as processed, so the message is committed without being handled.",
+   "body": "Any exception while submitting is logged and then the offset is added and completed: a decode or grouping failure, or a failure in `queue_pool.submit` such as a shut-down queue. The message is then committed as if it had been handled. Transient or infrastructure errors become permanent message loss instead of stopping the consumer or being retried. Only skip offsets for errors you know are permanent, such as a payload that can't be decoded, and re-raise the rest."
+  },
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 250,
+   "end_line": 255,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Strategy docstring promises backpressure and commit-only-on-success, which the code does not do.",
+   "body": "The docstring says there is \"natural backpressure when queues fill up\" and that offsets are \"only committed after successful processing\". But the queues are created as unbounded `queue.Queue()` objects, so `put` never blocks and there is no backpressure. Also, failed items are marked complete in the worker's `finally` and get committed, as are decode or submit errors. Fix: change the docstring to match the code, or bound the queues (`queue.Queue(maxsize=...)`) if backpressure is really wanted."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 14,
+  "cacheWrite": 131412,
+  "cacheRead": 115138,
+  "output": 17106,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 246564,
+   "outputTokens": 17106,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "tests/sentry/remote_subscriptions/__init__.py",
+    "reason": "no content change"
+   },
+   {
+    "path": "tests/sentry/remote_subscriptions/consumers/__init__.py",
+    "reason": "no content change"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+    "line": 89,
+    "end_line": 93,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Commits stop for good when the partition has gaps in its offsets.",
+    "body": "The commit scan stops at the first offset that is not in `all_offsets`. Kafka offsets are not always contiguous: transaction control markers and compacted topics leave gaps. A partition with such a gap never commits past it, so the committed offset stays fixed and `all_offsets` keeps growing for the life of the process. Use the order in which messages arrived (for example, track the previous offset seen per partition) instead of assuming `offset + 1` exists. I could not confirm whether the uptime-results topic is ever transactional or compacted."
+   }
+  ]
+ },
+ "cost_usd": 1.0222636
+}

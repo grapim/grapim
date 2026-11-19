@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "umbraco__UmbracoDocs__8737",
+ "url": "https://github.com/umbraco/UmbracoDocs/pull/8737",
+ "head_sha": "e958f3680edf514cba8c45cce441f6a78cf72c8c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:30:40.346Z",
+ "seconds": 20.79,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "19/umbraco-ui-builder/actions/the-basics.md",
+   "line": 47,
+   "end_line": 48,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Action samples likely won't compile in a project with ImplicitUsings turned on.",
+   "body": "The comment says that leaving out `using System;` keeps `Action<>` unambiguous. That only holds when the project has `<ImplicitUsings>` turned off. With it turned on, the SDK adds `global using System;`. That puts `System.Action<T>` in the same scope as `Umbraco.UIBuilder.Configuration.Actions.Action<T>`. Then `: Action<ActionResult>` in `LowercaseEmailsAction` fails with CS0104 (ambiguous reference). The same happens to `: Action<SendPeopleSettings, ActionResult>` in `SendPeopleAction`. I believe the default Umbraco project template turns ImplicitUsings on, but I could not check that here. The PR says the samples compiled, but its build settings are not shown. If the template does turn it on, readers who copy these samples get a build error. Fix: add an alias such as `using Action = Umbraco.UIBuilder.Configuration.Actions.Action<...>`, or write the base type with its full name. Then reword the comment so it does not suggest that avoiding `using System;` is enough."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20909,
+  "cacheRead": 3527,
+  "output": 1830,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 24438,
+   "outputTokens": 1830,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1418584
+}

@@ -1,0 +1,28 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Unsafe raw List deserialization without type safety. Calling Optional.get() directly on the Optional returned by RecoveryAuthnCodesUtils.getCredential(user) without checking isPresent() can lead to a NoSuchElementException if the Optional is empty.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "G1 is about calling Optional.get() without checking isPresent (and unsafe raw List deserialization). C1 is about myUser being null in getCredentials, which is a different null dereference."
+  },
+  {
+   "comment": "After creating the RecoveryAuthnCodesCredentialModel, consider setting its id from the stored credential (e.g., myUser.recoveryCodes.getId()); otherwise getId() will be null and downstream removal by id (e.g., removeStoredCredentialById in the authenticator flow) may not work.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the missing credential id on RecoveryAuthnCodesCredentialModel."
+  }
+ ],
+ "candidates": [
+  "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java:232 - getCredentials dereferences myUser without a null check.. `getMyUser(user)` returns null when the user is not in the provider's map, for example after the user is removed from the provider. The other methods guard against this (`isConfiguredFor`, `getDisableableCredentialTypesStream`). `getCredentials` reads `myUser.recoveryCodes` directly, so it throws a NullPointerException. That can happen when `getFederatedCredentialsStream()` is called for such a user, for example from the recovery-code authenticator or the login bean. Fix: return `Stream.empty()` when `myUser` is null."
+ ]
+}

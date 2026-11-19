@@ -1,0 +1,77 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": " The findMembers() call is now asynchronous and unhandled. The controller may not have member data immediately available, creating a race condition.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate points out the unhandled async findMembers race condition."
+  },
+  {
+   "comment": "In the next action, capping the next offset at user_count can produce an empty page (e.g., total equal to limit results in offset == total, showing 2/2 with no members). This can cause confusing UX on the last page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 describes the same problem: the next offset can equal user_count, which gives an empty page."
+  },
+  {
+   "comment": "The remove_member test uses xhr :put to call the remove_member action, but the route defines delete 'members' => 'groups#remove_member' requiring DELETE method.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the test using PUT while the route requires DELETE."
+  },
+  {
+   "comment": "The `totalPages` calculation using `Math.floor(user_count / limit) + 1` produces an extra page when `user_count` is an exact multiple of `limit`, leading to incorrect pagination. For example, with 100 users and a limit of 50, it reports 3 pages instead of 2, allowing navigation to an empty page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same off-by-one error in the totalPages calculation."
+  },
+  {
+   "comment": "Expected to return a value at the end of function - code paths without explicit returns will return undefined",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.7,
+   "reasoning": "C3 flags the bare return in findMembers that returns undefined, which is the same inconsistent-return issue."
+  },
+  {
+   "comment": "The route provides the group's ID in params[:id], but the code attempts to read it from params[:group_id], causing the action to fail. This results in a broken feature when trying to access group memberships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions reading params[:group_id] when the route provides params[:id]."
+  }
+ ],
+ "candidates": [
+  "The 'next' pagination action allows offset to become exactly user_count, which will request an empty page of members - offset should be capped to the start of the last page (max(user_count - limit, 0))",
+  "totalPages uses Math.floor(user_count / limit) + 1, which creates an extra page whenever user_count is an exact multiple of limit (e.g. 100/50 => 3), making pagination UI incorrect",
+  "findMembers returns 'return ;' when the group has no name, which returns undefined and can break call sites that expect a promise",
+  "group.visible is always overwritten based on params, so requests that omit visible will unintentionally set it to false",
+  "name isn't stripped on update (unlike create), allowing leading/trailing whitespace through",
+  "Splitting usernames without stripping/deduping can fail to add users when there are spaces (e.g. 'bob, sam')",
+  "Splitting usernames without deduping can raise a unique constraint error when adding existing members (group_users has a unique index on [group_id,user_id])",
+  "group.add persists via the association, so the later group.save is redundant and can report failure after members were already added",
+  "Using group.users.delete(user_id) removes the join row without destroy callbacks, so the GroupUser counter cache (groups.user_count) won't be updated and membership side-effects can be skipped",
+  "The subsequent group.save isn't needed for join-table removal",
+  "The group_member template references member and automatic, but the corresponding view doesn't define those bindings - in Ember list item views the item is typically available as content/context, so this will render blanks",
+  "The group_member template will always show the remove link for automatic groups since automatic will be undefined"
+ ]
+}

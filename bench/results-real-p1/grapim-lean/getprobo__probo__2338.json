@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "getprobo__probo__2338",
+ "url": "https://github.com/getprobo/probo/pull/2338",
+ "head_sha": "3d9aa25dc2adcad26de3112d48dc8eeea49802cb",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:29:22.705Z",
+ "seconds": 61.452,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 73010,
+  "cacheRead": 7122,
+  "output": 6517,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 19,
+   "hunks": 29,
+   "reviewedHunks": 29,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 80136,
+   "outputTokens": 6517,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 19,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 3,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "pkg/coredata/migrations/20261116T173127Z.sql",
+    "line": 125,
+    "end_line": 136,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Backfill aborts the migration if any AWS connector account has a NULL external_account_id",
+    "body": "`assets_sources.external_account_id` is `NOT NULL`, but the backfill copies `a.external_account_id` from every AWS connector account without filtering NULLs. If `connector_accounts.external_account_id` is nullable, for example on an account created before its identity was resolved, one such row makes the INSERT fail and the whole migration fails at deploy. I can't see the `connector_accounts` schema, so I couldn't confirm the column is nullable. Fix: add `AND a.external_account_id IS NOT NULL` to the WHERE clause."
+   },
+   {
+    "path": "pkg/coredata/migrations/20261116T173127Z.sql",
+    "line": 135,
+    "end_line": 141,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Backfill links and schedules sources for disabled or disconnected connector accounts",
+    "body": "The description says a source is made due only when an AWS account is created, enabled or reconnected. The backfill does not check whether the account is enabled or connected: it picks the most recently updated account per external ID, sets it as the link and sets `next_sync_at = NOW()`. This causes two problems:\n- A disabled account becomes a due source, so the worker tries to sync it right away.\n- If the newest row for an external ID is disabled and an older one is active, the source is linked to the disabled one.\n\nI can't see whether `connector_accounts` has a status column or whether the worker skips such accounts. If it has one, filter on it or sort active accounts first in the `ORDER BY`."
+   },
+   {
+    "path": "pkg/itam/asset_sync_worker.go",
+    "line": 399,
+    "end_line": 409,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The stale sweep makes a source due again while its original sync may still be running.",
+    "body": "`RecoverStale` marks any sync older than 15 minutes as FAILED and sets the source's `next_sync_at` to `now-1s`. Nothing stops the goroutine still running that sync. Because no sync for the source is RUNNING any more, `Claim` immediately starts a second one, so two workers list the same AWS account at once. When the first one finishes, `FinishIfRunning` updates no rows and `store` returns `errSyncNotRunning`. That rolls back every asset it gathered, and the attempt is counted toward the stale cap.\n\nTrigger: a sync slower than `assetSyncStaleAfter`, for example many CloudFront pages under throttling with SDK retries. The source can then reach the 3-attempt cap and wait a day even though each run was making progress.\n\nFix: bound each sync with `context.WithTimeout(ctx, staleAfter)` inside `Process`, so a sync cannot outlive the sweep. Alternatively, have the sweep skip syncs whose worker is still alive, for example by tracking a heartbeat."
+   }
+  ]
+ },
+ "cost_usd": 0.4968304
+}

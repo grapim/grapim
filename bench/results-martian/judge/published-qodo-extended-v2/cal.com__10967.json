@@ -1,0 +1,68 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A null reference occurs in GoogleCalendarService.createEvent() and updateEvent() when mainHostDestinationCalendar is destructured from evt.destinationCalendar but evt.destinationCalendar is null or an empty array, causing mainHostDestinationCalendar to be undefined.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "G1 is about destructuring a null or empty destinationCalendar in GoogleCalendarService.createEvent/updateEvent. C1 describes the same pattern, but in EventManager.create, which is a different code location. I didn't count it as a match."
+  },
+  {
+   "comment": "The optional chaining on mainHostDestinationCalendar?.integration is redundant since you already check mainHostDestinationCalendar in the ternary condition.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the redundant optional chaining."
+  },
+  {
+   "comment": "Logic error: when externalCalendarId is provided, you're searching for a calendar where externalId === externalCalendarId, but this will always fail since you're looking for a calendar that matches itself. Should likely find by credentialId or use different logic.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 describes the destinationCalendar.find lookup that compares against externalCalendarId itself and so never finds a match."
+  },
+  {
+   "comment": "Logic inversion in organization creation: The slug property is now conditionally set when IS_TEAM_BILLING_ENABLED is true, instead of when it's false as originally intended. This change, combined with requestedSlug still being set when IS_TEAM_BILLING_ENABLED is true, results in both properties being set when billing is enabled, and neither when disabled",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 describes the inverted slug/requestedSlug condition in organization creation."
+  },
+  {
+   "comment": "The Calendar interface now requires createEvent(event, credentialId), but some implementations (e.g., Lark/Office365) still declare createEvent(event) only—this breaks the interface contract (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C4 is about the wrong calendar being used per host, not about implementations failing to match the interface signature."
+  },
+  {
+   "comment": "The `credential` may be undefined when passed to `updateEvent` if `reference.credentialId` is set but the credential is not found. This can lead to a runtime error when `updateEvent` is called with an undefined credential, which should be handled to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions an undefined credential being passed to updateEvent."
+  }
+ ],
+ "candidates": [
+  "EventManager.create destructures the first destinationCalendar and unconditionally reads .integration, which throws when destinationCalendar is null/empty, breaking the Google Meet to Daily fallback for events without a Google destination calendar",
+  "In GoogleCalendarService's updateEvent and deleteEvent, the else-branch of the ternary runs only when externalCalendarId is falsy, then searches destinationCalendar.find comparing against that same falsy value which never matches any real calendar entry, making the fallback always return undefined",
+  "Organization creation sets team.slug only when team billing is enabled and sets neither slug nor metadata.requestedSlug when billing is disabled, breaking downstream flows that require one of them to exist",
+  "EventManager.createAllCalendarEvents loops over every destinationCalendar entry but passes the full event containing all destinationCalendars into each integration, causing Office365/Lark integrations to read only the first destinationCalendar and create events against the wrong calendar id/token combination for secondary hosts",
+  "When neither eventType.destinationCalendar nor organizerUser.destinationCalendar exists, evt.destinationCalendar is set to null, causing the subsequent evt.destinationCalendar?.push(...teamDestinationCalendars) to be a no-op due to optional chaining on null, silently discarding all team members' destination calendars for collective events"
+ ]
+}
