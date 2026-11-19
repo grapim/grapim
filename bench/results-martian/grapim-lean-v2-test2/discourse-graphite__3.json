@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "head_sha": "5f8a130277dbddc95d133cd2832be639baf89213",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:35:13.181Z",
+ "seconds": 26.167,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/models/blocked_email.rb",
+   "line": 11,
+   "end_line": 12,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Blocked-email lookup is case-sensitive, so changing the letter case gets past the block.",
+   "body": "`BlockedEmail.where(email: email)` is an exact, case-sensitive match. If `bad@spammers.org` is blocked, signing up as `Bad@Spammers.org` finds no record and the block is skipped. I can't see whether User lowercases the email before validation runs. If it doesn't, nothing here does. Fix: store blocked emails in lowercase and compare with `where('lower(email) = ?', email.to_s.downcase)`, or lowercase the email in both places."
+  },
+  {
+   "path": "app/models/blocked_email.rb",
+   "line": 14,
+   "end_line": 16,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The match_count increment can lose updates when signups overlap.",
+   "body": "`record.match_count += 1; record.save` reads the count, adds one in Ruby and writes it back. When two signup attempts for the same blocked email run at once, both read the same value and one increment is lost. Use an atomic SQL update instead: `BlockedEmail.where(id: record.id).update_all(['match_count = match_count + 1, last_match_at = ?', Time.zone.now])`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 9093,
+  "cacheRead": 3262,
+  "output": 2130,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 13,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 12357,
+   "outputTokens": 2130,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0887254
+}

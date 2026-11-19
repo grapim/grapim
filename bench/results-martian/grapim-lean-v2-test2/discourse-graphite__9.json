@@ -1,0 +1,90 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__9",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+ "head_sha": "ecfa17b5a79dfdc91e7a4d50b42ae78a35d0a293",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:32:44.680Z",
+ "seconds": 30.334,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "config/initializers/i18n.rb",
+   "line": 17,
+   "end_line": 17,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The fallback chain depends on SiteSetting.default_locale, but the translation cache key does not include it.",
+   "body": "`FallbackLocaleList#[]` builds the chain from the current `SiteSetting.default_locale`. The accelerator's cache key is `\"#{key}#{config.locale}#{config.backend.object_id}\"`, which leaves out that value. If an admin changes the default locale, any string that was resolved by falling back to the old site locale keeps being served from the LRU cache in the old language. Fix: add `SiteSetting.default_locale` to the cache key, or clear `@cache` when the setting changes."
+  },
+  {
+   "path": "lib/freedom_patches/translate_accelerator.rb",
+   "line": 62,
+   "end_line": 65,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Fallback locales are only loaded in web requests, and a failed fallback gets cached.",
+   "body": "`translate` still lazy-loads only `config.locale`. Fallback locales (the site default and `:en`) are loaded only by `I18n.fallbacks.ensure_loaded!`, and only `ApplicationController#set_locale` calls it. Sidekiq jobs, mailers, rake tasks and anything else that runs outside a controller never load those locales. So when a key is missing from the user's locale there, the Fallbacks backend finds nothing in the unloaded fallback locale and returns \"translation missing\". `@cache.getset` then stores that result under `key+locale` and keeps returning it even after the fallback locale is loaded later. Fix: load the fallback chain inside `translate`/`load_locale`, for example `I18n.fallbacks[config.locale].each { |l| ensure_loaded!(l) }`, instead of relying on the controller."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 3539,
+  "cacheRead": 3262,
+  "output": 2485,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 7,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 6803,
+   "outputTokens": 2485,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "config/cloud/cloud66/files/production.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/environments/production.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/environments/profile.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/initializers/pluralization.rb",
+    "reason": "file deleted (no new lines to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.06805539999999999
+}

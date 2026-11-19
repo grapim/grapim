@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "head_sha": "5f8a130277dbddc95d133cd2832be639baf89213",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:35:28.502Z",
+ "seconds": 28.798,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/models/blocked_email.rb",
+   "line": 12,
+   "end_line": 12,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Blocked-email lookup is case-sensitive, so changing the case of the address gets around the block.",
+   "body": "`BlockedEmail.where(email: email)` is an exact, case-sensitive match in Postgres. If `bad@spammers.org` is blocked, signing up as `Bad@Spammers.org` finds no record, `should_block?` returns false, and the registration goes through. The validator gets the raw attribute value. I can't see whether User downcases the email before validation runs. Fix: store blocked emails in lowercase and compare with `where('lower(email) = ?', email.downcase)`, or downcase both sides."
+  },
+  {
+   "path": "app/models/blocked_email.rb",
+   "line": 13,
+   "end_line": 17,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The match_count update reads, adds and writes back, so concurrent matches overwrite each other.",
+   "body": "`record.match_count += 1; record.save` reads the count, adds one and writes the whole value back. When two signups with the same blocked email are validated at the same time, both read N and both write N+1, so one match is lost. Also, every `valid?` call on the user increments the counter, so a single signup that validates more than once is counted more than once. Use an atomic update instead: `BlockedEmail.where(id: record.id).update_all(['match_count = match_count + 1, last_match_at = ?', Time.zone.now])`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 9070,
+  "cacheRead": 3262,
+  "output": 1858,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 13,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 12334,
+   "outputTokens": 1858,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.08317039999999999
+}

@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__90939",
+ "url": "https://github.com/grafana/grafana/pull/90939",
+ "head_sha": "b1613e320acff00623e6efc59f00ee68c7684a97",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:52:52.605Z",
+ "seconds": 10.449,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/api/webassets/webassets.go",
+   "line": 48,
+   "end_line": 49,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "performance",
+   "title": "Cache is not checked again after taking the write lock.",
+   "body": "If several requests arrive while the cache is empty (for example right after startup), they all see `ret == nil`. Each one then waits for the write lock and reloads the manifest from disk, one after another, even though the first one already filled the cache. Fix: after `Lock()`, check again with `if cfg.Env != setting.Dev && entryPointAssetsCache != nil { return entryPointAssetsCache, nil }` before loading the assets."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 3187,
+  "cacheRead": 3262,
+  "output": 514,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 1,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 6451,
+   "outputTokens": 514,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 1,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0268754
+}

@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__80528",
+ "url": "https://github.com/getsentry/sentry/pull/80528",
+ "head_sha": "dcdcadb771128e79259cc9eff9c70c38fc597976",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:24:58.159Z",
+ "seconds": 17.997,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 12600,
+  "cacheRead": 3262,
+  "output": 898,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 15864,
+   "outputTokens": 898,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0816204
+}

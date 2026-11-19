@@ -1,0 +1,82 @@
+{
+ "tool": "grapim-lean-v2-test1",
+ "pr_id": "discourse-graphite__10",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/10",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The EmbeddableHost model's before_validation callback calls self.host.sub! to strip http://, https://, and path segments, but if self.host is nil, this raises NoMethodError.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 describes the same problem: host.sub! raises an error when host is nil."
+  },
+  {
+   "comment": "The update and destroy methods in Admin::EmbeddableHostsController do not validate the existence of the EmbeddableHost record retrieved by ID. If EmbeddableHost.where(id: params[:id]).first returns nil (i.e., the host does not exist), attempting to call methods on the nil object (e.g., save_host or destroy) will result in a NoMethodError.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.96,
+   "reasoning": "C5 describes the same problem: a nil record from where().first causes a NoMethodError in update/destroy."
+  },
+  {
+   "comment": "record_for_host compares lower(host) = ? but does not normalize the parameter’s case, so mixed‑case referer hosts may fail to match even though comparison intends to be case‑insensitive.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate says the parameter's case isn't normalized in record_for_host. C2 mentions lowercasing, but only for the migrated data."
+  },
+  {
+   "comment": "Because this migration inserts embeddable_hosts rows with raw SQL, any existing embeddable_hosts values that include http:// or /https:// or path segments won’t go through the EmbeddableHost model’s normalization, so the new host lookup (which compares only the bare host) may fail for migrated data. Consider ensuring that migrated hosts are normalized to the same format as newly created EmbeddableHost records so existing embedding configurations keep working.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same problem: hosts inserted by the migration aren't normalized, so lookups fail."
+  },
+  {
+   "comment": "The contents of `category_fabricator.rb` and `embeddable_host_fabricator.rb` have been swapped, resulting in the loss of original category fabricators and potentially causing errors in fabricator usage.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the swapped fabricator files."
+  },
+  {
+   "comment": "The SQL query in the `app/controllers/admin/embeddable_hosts_controller.rb` file uses string interpolation (`'#{h}'`) to insert values, which is vulnerable to SQL injection. It should use parameter binding or proper quoting to prevent this security vulnerability.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C4 describes the same '#{h}' SQL injection through string interpolation. The golden comment gives the controller as the file, but the code it quotes is in the migration."
+  },
+  {
+   "comment": "The migration accesses execute(...)[0]['id'] without checking if the query returned any rows, which causes a crash when no embed_category setting exists. This can lead to a broken feature when attempting to edit category/host relationships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same problem: execute(...)[0]['id'] runs without checking that the query returned any rows."
+  }
+ ],
+ "candidates": [
+  "db/migrate/20150818190757_create_embeddable_hosts.rb:9 - Migration crashes when the embed_category setting has no matching row.. `execute(...)[0]['id']` assumes the query returns a row. Settings left at their default are not stored in `site_settings`, and the setting may also name a category that was renamed or deleted. In those cases the result is empty and `PG::Result#[0]` raises IndexError, so the migration aborts on most installs. It never reaches the `category_id == 0` fallback. Check `ntuples > 0` before reading the row. Line 15 makes the same assumption about `uncategorized_category_id`.",
+  "db/migrate/20150818190757_create_embeddable_hosts.rb:22 - Migrated hosts are not normalized, so existing embeds stop working.. The old setting accepted entries like `http://discourse.org` or `https://example.com/1234`, and the old specs used exactly those. The migration inserts each line as-is through raw SQL, which skips the model's `before_validation` stripping. It also keeps any `\\r` or surrounding whitespace. `EmbeddableHost.record_for_host` compares `lower(host)` against the bare `uri.host`, so these rows never match. After the upgrade, embedding and topic retrieval fail with 'invalid referer host' for those sites. Strip the scheme, path and whitespace, lowercase each entry, and skip blank lines before inserting.",
+  "app/models/embeddable_host.rb:5 - `before_validation` crashes when the host is nil.. `self.host.sub!` raises NoMethodError when `host` is nil. This happens when the admin endpoint receives a request without `embeddable_host[host]`, or with any `EmbeddableHost.new` that has no host. The result is a 500 error instead of a validation error. Guard the callback with `return if host.blank?`. Adding `validates :host, presence: true` would also make the error explicit.",
+  "db/migrate/20150818190757_create_embeddable_hosts.rb:25 - Host values are put into SQL without quoting.. Each host from the setting is placed inside `'#{h}'`. A value containing a single quote breaks the migration, and a crafted value runs arbitrary SQL. Escape the value with `ActiveRecord::Base.connection.quote(h)` or use bound parameters.",
+  "app/controllers/admin/embeddable_hosts_controller.rb:10 - An unknown id causes a NoMethodError and a 500 response.. `update` and `destroy` use `where(...).first` and then call methods on a possibly nil result. A stale or invalid id raises NoMethodError and returns a 500 response. Use `EmbeddableHost.find(params[:id])` so the request returns 404 instead."
+ ]
+}

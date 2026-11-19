@@ -1,0 +1,31 @@
+{
+ "tool": "grapim-lean-v2-test3",
+ "pr_id": "keycloak__32918",
+ "url": "https://github.com/keycloak/keycloak/pull/32918",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "InfinispanIdentityProviderStorageProvider.getForLogin() recursively calls session.identityProviders().getById() instead of idpDelegate.getById(), causing the cache lookup to re-enter the same caching layer.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C2 is about the update/invalidation check comparing a wrapped model, not about getForLogin calling session.identityProviders().getById() recursively. It suggests idpDelegate.getById, but for a different issue."
+  },
+  {
+   "comment": "Cleanup reference uses incorrect alias - should be 'idp-alias-' + i instead of 'alias'.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 identifies the same problem: the cleanup uses the literal 'alias' instead of 'idp-alias-' + i."
+  }
+ ],
+ "candidates": [
+  "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/organization/cache/OrganizationCacheTest.java:381 - Cleanup removes the literal alias \"alias\" instead of the IDPs the test creates.. `testRealm().identityProviders().get(\"alias\")::remove` binds to an IDP named `\"alias\"`, which does not exist. None of the `idp-alias-*` providers created here are removed after the test. They stay in the shared test realm and can break later tests that count or list IDPs, or that call `getForLogin`. The same mistake is on line 425. Fix: capture the real alias, e.g. `String alias = \"idp-alias-\" + i; getCleanup().addCleanup(testRealm().identityProviders().get(alias)::remove);`, and do the same for `idp-alias-20`.",
+  "model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/idp/InfinispanIdentityProviderStorageProvider.java:93 - The update check compares a wrapped model with the raw updated model, so the login cache can go stale.. `idpById` comes from `getById`. It may be wrapped by `createOrganizationAwareIdentityProviderModel`; the new comments in `OrganizationAwareIdentityProviderBean` say the wrapper can make `isEnabled()` return false, for example when the organization is disabled. In that case `getLoginPredicate().test(original)` is false even though the stored IDP qualifies for login and is in the cached ID list. If the update then makes the IDP unavailable for login (for example it sets hideOnLogin=true or link-only), both predicate checks are false and nothing is invalidated. The IDP stays in the cached login list and is shown again once the organization is re-enabled. Fix: run the predicate on the unwrapped stored model (for example `idpDelegate.getById(...)`), or always invalidate when the original model is wrapped. I could not see `getById` or the wrapper, so I can't confirm that the wrapper changes `isEnabled()` here."
+ ]
+}

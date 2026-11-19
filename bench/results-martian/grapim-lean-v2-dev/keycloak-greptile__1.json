@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "head_sha": "3214b188de808fdb0fff335556b686f1b0a63218",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:33:51.869Z",
+ "seconds": 43.357,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java",
+   "line": 160,
+   "end_line": 162,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The new `user != null` check turns off passkeys on the normal login page.",
+   "body": "`isConditionalPasskeysEnabled` returns true only when `user != null`. Before this change, `fillContextForm` ran only when no user was selected, i.e. on the ordinary first login page. Both callers (`authenticate` at line 115 and `challenge` at line 137) now skip `fillContextForm` when no user is set. So on a fresh login with no user, the conditional-UI/webauthn form is never set up, and the existing tests that assert `//form[@id='webauth']` on a fresh login would fail.\n\nAt the same time, any re-authenticating user gets passkey data, even a user with no passwordless credential. That goes against the new test `reauthenticationOfUserWithoutPasskey`.\n\nFix: `return webauthnAuth != null && webauthnAuth.isPasskeysEnabled() && (user == null || user.credentialManager().isConfiguredFor(WebAuthnCredentialModel.TYPE_PASSWORDLESS));`"
+  },
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernameForm.java",
+   "line": 47,
+   "end_line": 47,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`isConditionalPasskeysEnabled()` is called without an argument, but the only version shown takes a `UserModel`.",
+   "body": "`UsernamePasswordForm` defines only `isConditionalPasskeysEnabled(UserModel user)`. This call passes no argument, so it will not compile unless there is a no-argument overload I can't see.\n\nThe intent also looks wrong. When passkeys are enabled, re-authentication always shows the username form, even when the current user has no passkey. Previously that case returned `success()`.\n\nFix: pass `context.getUser()`. Then a re-authenticating user without a passkey still skips the form as before."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 23000,
+  "cacheRead": 3262,
+  "output": 3366,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 26264,
+   "outputTokens": 3366,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1829804
+}

@@ -1,0 +1,33 @@
+{
+ "tool": "grapim-lean-v2-test1",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 reports the same missing key prop on GrafanaRuleListItem."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "G2 is about the Silence drawer not rendering when there is no ruler rule. C4 has the same root cause (only promRule is passed), but it describes Delete and Pause missing from the menu, not the Silence action having no visible effect."
+  }
+ ],
+ "candidates": [
+  "public/app/features/alerting/unified/hooks/useAbilities.ts:227 - The deprecated `useAllAlertRuleAbilities` no longer treats federated rule groups as read-only.. The old code set `isFederated = isFederatedRuleGroup(rule.group)`, which made Update, Delete and Pause unsupported for Mimir federated groups. It now hands off to `useAllRulerRuleAbilities`, which hard-codes `isFederated = false` (line 245, with a TODO). Every caller of `useAllAlertRuleAbilities` / `useAlertRuleAbility` (for example the legacy `RuleActionsButtons` and `RuleDetails`) will now show Edit and Delete for federated rules, which these flows cannot handle. Fix: keep the federated check, for example by passing `rule.group` (or a precomputed flag) into the shared hook.",
+  "public/app/features/alerting/unified/rule-list/FilterView.tsx:157 - The `key` prop was dropped from the Grafana rule items in the filtered list.. `GrafanaRuleLoader` used to get `key={key}`. The new `<GrafanaRuleListItem>` inside `rules.map` has no key, but the `datasource` and default branches still have one. React will warn about the missing key and will match list items by position. When the filtered list changes (paging, polling, new filter results), each row's state, such as an open menu, silence drawer or delete modal, can stay on the wrong row. Fix: add `key={key}` back.",
+  "public/app/features/alerting/unified/hooks/useAbilities.ts:302 - The prom-based abilities now block Pause, Restore and Export for Grafana recording rules.. The ruler version keys Pause, Restore, DeletePermanently and ModifyExport on `rulerRuleType.grafana.rule(rule)`, which is true for both alerting and recording rules. The new version uses `prometheusRuleType.grafana.alertingRule(rule)`, so Grafana recording rules shown in the list view (which now has only the prom rule) lose these actions. The comment above it says \"All GrafanaPromRuleDTO rules are Grafana-managed by definition\", which suggests `prometheusRuleType.grafana.rule(rule)` was intended. Fix: use that for these entries and keep `isAlertingRule` only for Silence.",
+  "public/app/features/alerting/unified/rule-list/GrafanaRuleListItem.tsx:47 - The list view loses the Delete and Pause actions for Grafana rules.. The list item now passes only `promRule` to `RuleActionsButtons`/`AlertRuleMenu`, so `rulerRule` is undefined. The menu's Delete and Pause items need a `RulerRuleDTO` (`handleDelete(rule: RulerRuleDTO, …)`). The updated test shows that even with delete and update permissions the menu has only 4 items (silence, copy link, duplicate, export). Before this change, users could pause and delete rules from the list. The PR describes adding permission checks for pause and delete, but those actions are now gone from this view. Either support them from the prom rule (fetch the ruler rule when the action is used) or state the removal explicitly."
+ ]
+}

@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__32918",
+ "url": "https://github.com/keycloak/keycloak/pull/32918",
+ "head_sha": "e944e2acf1e64421860a8e827f93ad06c169621b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:51:48.838Z",
+ "seconds": 34.265,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/organization/cache/OrganizationCacheTest.java",
+   "line": 381,
+   "end_line": 381,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Test cleanup removes a provider named \"alias\" instead of the ones it created.",
+   "body": "The cleanup is registered as `testRealm().identityProviders().get(\"alias\")::remove`, which targets a provider with the literal alias \"alias\". None of the `idp-alias-N` providers created here are removed. They stay in the realm and can change the IDP counts and cache state that later tests in this class see. The same mistake is on line 425. Fix: capture the real alias, e.g. `String alias = \"idp-alias-\" + i; getCleanup().addCleanup(testRealm().identityProviders().get(alias)::remove);`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 14738,
+  "cacheRead": 3262,
+  "output": 2730,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 8,
+   "reviewedHunks": 8,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 18002,
+   "outputTokens": 2730,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1289504
+}

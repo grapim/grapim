@@ -5,10 +5,11 @@
 // a held (low-confidence) finding the second look confirmed (verdict keep) is
 // posted too. So `martian.mjs judge --tool <to>` scores what cloud review posts.
 //
-//   node bench/second-look-apply.mjs --results bench/results-martian --rows bench/results-martian/second-look.json [--from grapim-lean] [--to grapim-lean-sl] [--held] [--tag t]
+//   node bench/second-look-apply.mjs --results bench/results-martian --rows bench/results-martian/second-look.json [--from grapim-lean] [--to grapim-lean-sl] [--held] [--tag t] [--split dev|test]
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterSecondLook } from '../src/airev/verify.js';
 
 const argv = process.argv.slice(2);
@@ -25,7 +26,9 @@ const rows = JSON.parse(fs.readFileSync(opt('rows', path.join(results, 'second-l
 
 fs.mkdirSync(to, { recursive: true });
 const n = { kept: 0, dropped: 0, missing: 0, promoted: 0 };
-for (const file of fs.readdirSync(from).filter((f) => f.endsWith('.json')).sort()) {
+// --split dev|test: only that half of data/martian-split.json.
+const half = opt('split') ? new Set(JSON.parse(fs.readFileSync(fileURLToPath(new URL('./data/martian-split.json', import.meta.url)), 'utf8'))[opt('split')]) : null;
+for (const file of fs.readdirSync(from).filter((f) => f.endsWith('.json') && (!half || half.has(f.slice(0, -5)))).sort()) {
   const r = JSON.parse(fs.readFileSync(path.join(from, file), 'utf8'));
   const mine = rows.filter((x) => x.url === r.url);
   const rowOf = (f) => mine.find((x) => x.path === f.path && x.line === f.line && x.title === f.title);

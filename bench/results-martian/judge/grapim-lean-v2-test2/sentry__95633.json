@@ -1,0 +1,33 @@
+{
+ "tool": "grapim-lean-v2-test2",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The magic number 50 for max_wait is used repeatedly throughout the tests. Consider extracting this as a named constant to improve maintainability.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the repeated magic number 50 for max_wait."
+  },
+  {
+   "comment": "The test test_thread_queue_parallel_error_handling has a docstring that doesn't match the test implementation.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    3
+   ],
+   "confidence": 0.8,
+   "reasoning": "C3 is about test_thread_queue_parallel_error_handling. It says the test contradicts its own docstring ('errors don't block offset commits'), because the assertion checks the opposite. That is the same mismatch between docstring and implementation."
+  }
+ ],
+ "candidates": [
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:335 - After the first rebalance, the shared queue pool is shut down and later messages are dropped but still committed.. `close()`/`join()` call `self.queue_pool.shutdown()`. That pool belongs to the factory and is reused by every strategy that `create_with_partitions` returns (it only asserts the pool is not None). After the first partition revocation, arroyo closes the old strategy, so the queues are shut down and the workers exit. In the next strategy, `queue_pool.submit` calls `work_queue.put()`, which raises `queue.ShutDown`. The `except` in `submit` catches it, logs it, and then marks the offset complete. Every message after that is skipped without processing, and its offset is committed.\n\nThe tracker also keeps outstanding offsets from the revoked partition, which can stall commits if that partition comes back. Fix: give each strategy its own pool, or don't shut down the factory pool in `close()`. Also clear the tracker state for revoked partitions.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:185 - The work queues have no size limit, so there is no backpressure despite the docstring's claim.. `queue.Queue()` is created without `maxsize`, so `put()` never blocks and `submit` never raises `MessageRejected`. If the result processor slows down (for example a slow DB or a hot subscription), the consumer keeps reading from Kafka and the queues grow without limit until the process runs out of memory. Fix: set a bounded `maxsize`. When the target queue is full, raise `MessageRejected` from `submit` (or use `put(block=False)`) so arroyo pauses consumption.",
+  "tests/sentry/uptime/consumers/test_results_consumer.py:1916 - The error-handling test asserts the opposite of what the code does and only passes on timing.. The worker marks offsets complete in `finally`, even when processing fails. So offsets 100 and 101 both become committable, and the commit loop commits 102 at its next wake-up, at most 1s later. The test passes only if its assertion runs before that tick (it sleeps 0.2s). If the tick falls inside that window, `test_partition` is in `committed_offsets` and the test fails, so it is flaky. It also contradicts its own docstring (\"errors don't block offset commits\"). Fix: wait for the commit and assert `committed_offsets[test_partition] == 102`.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:273 - The arroyo `Commit` callback is called from a background thread.. `_commit_loop` runs on its own thread and calls `commit_function` → arroyo's `commit`. In StreamProcessor, that callback updates commit-policy state and buffered offsets that the main `_run_once` loop also reads and writes, and none of it is synchronized. Commits can therefore race with the main loop or be lost. Fix: compute the committable offsets on the background thread if you like, but make the actual `commit(...)` call from `poll()` on the consumer thread, the way `CommitOffsets` does. I could not see arroyo's internals here to confirm the exact failure."
+ ]
+}

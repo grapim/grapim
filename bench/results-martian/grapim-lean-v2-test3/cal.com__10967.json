@@ -1,0 +1,163 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "head_sha": "de628295646d0848226618108a52f2f1e5d04ac0",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:44:02.451Z",
+ "seconds": 58.462,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/core/EventManager.ts",
+   "line": 118,
+   "end_line": 119,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Crash when the location is Google Meet and there is no destination calendar.",
+   "body": "`mainHostDestinationCalendar` is `undefined` when `evt.destinationCalendar` is null or empty. `mainHostDestinationCalendar.integration` has no optional chaining, so it throws a TypeError whenever `evt.location === MeetLocationType`. The old code fell back to Cal Video here; now booking creation throws. Use `mainHostDestinationCalendar?.integration`."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/organizations/create.handler.ts",
+   "line": 151,
+   "end_line": 153,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The organization slug condition is inverted, which is unrelated to this PR.",
+   "body": "Before, the slug was set directly only when team billing was disabled; with billing enabled it was stored as `requestedSlug` until payment. Now the slug is set immediately when billing is enabled, so payment is bypassed for claiming it. When billing is disabled the organization is created with no slug at all. The calendar PR does not cover this change. Revert it to `...(!IS_TEAM_BILLING_ENABLED ? { slug } : {})`."
+  },
+  {
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "line": 315,
+   "end_line": 317,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "deleteEvent fallback can never match and always falls through to \"primary\".",
+   "body": "This has the same bug as updateEvent: the `find` only runs when `externalCalendarId` is falsy, and then it compares against that falsy value, so it returns undefined. Deletes for references without an `externalCalendarId` now target the `primary` calendar instead of the configured destination calendar. The event stays in the real calendar, or the delete returns 404. Use the first destination calendar's externalId as the fallback."
+  },
+  {
+   "path": "packages/core/EventManager.ts",
+   "line": 169,
+   "end_line": 170,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Video references lose their credentialId.",
+   "body": "Before, non-calendar results (video) stored `result.credentialId`. Now `credentialId` is `undefined` whenever `!isCalendarType`. Cancellation looks for `bookingVideoReference.credentialId` to pick the right video credential, so new video references fall back to the less precise legacy path or are not deleted. Keep `result.credentialId` for both branches."
+  },
+  {
+   "path": "packages/features/bookings/lib/handleNewBooking.ts",
+   "line": 1063,
+   "end_line": 1079,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Collective hosts' calendars are dropped when the organizer has no destination calendar.",
+   "body": "When neither the event type nor the organizer has a destination calendar, `evt.destinationCalendar` is `null`, so `evt.destinationCalendar?.push(...teamDestinationCalendars)` does nothing. The other hosts' destination calendars are silently lost and they get no calendar event. Initialise with `[]` (this also matches the `[]` default used elsewhere and in the updated webhook e2e expectation, which this `null` contradicts) and then push."
+  },
+  {
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "line": 147,
+   "end_line": 154,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A destination calendar without a credentialId now writes to \"primary\" instead of its externalId.",
+   "body": "The target calendar is now chosen only by `credentialId`. A destination calendar row with no `credentialId` (legacy rows, or the `else` branch in `createAllCalendarEvents`) never matches, so the event lands in `primary` instead of the user's chosen calendar. Before, `destinationCalendar.externalId` was used. If no entry matches by credentialId, fall back to the main destination's `externalId`."
+  },
+  {
+   "path": "packages/app-store/office365calendar/lib/CalendarService.ts",
+   "line": 73,
+   "end_line": 73,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "Office365 (and similarly Lark/CalDAV) use the main host's calendar id with every host's credential.",
+   "body": "`createAllCalendarEvents` now calls `createEvent` once per host destination, each time with that host's credential. This service always takes `destinationCalendar[0].externalId` (the main host's), so a second host's call posts to `/me/calendars/<main host calendar id>` with the second host's token. That returns 404, and the failure is swallowed. Lark and the generic CalDAV service (which filters on the main host's externalId and so matches no calendars) behave the same way. Collective multi-host invites therefore only work for Google, which is what the PR sets out to fix. Pick the destination entry whose `credentialId` matches the current credential, as the Google service does."
+  },
+  {
+   "path": "packages/core/EventManager.ts",
+   "line": 208,
+   "end_line": 209,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "updateLocation references lose externalCalendarId.",
+   "body": "`externalCalendarId` now comes from `result.externalId`. That field is only set by `CalendarManager.createEvent`; the update results returned by `updateAllCalendarEvents` do not set it (see the updateEvent shown in CalendarManager). References recreated after a location change are therefore saved with `externalCalendarId: undefined`, and later update and cancel calls go to the wrong (primary) calendar. Carry over the original reference's `externalCalendarId`."
+  },
+  {
+   "path": "packages/core/EventManager.ts",
+   "line": 375,
+   "end_line": 381,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "References for legacy destinations without a credentialId get no externalCalendarId.",
+   "body": "In the branch without a `credentialId`, `createEvent(c, event)` is called without `destination.externalId`. The resulting reference stores `externalCalendarId: undefined`, whereas before it stored the destination's externalId. Because of the Google fallback bug, later updates and deletes on these bookings then hit an undefined calendar or `primary`. Pass `destination.externalId` here as well."
+  },
+  {
+   "path": "packages/features/bookings/lib/handleCancelBooking.ts",
+   "line": 444,
+   "end_line": 444,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Recurring cancellation repeats once per reference and still deletes only the first reference per booking.",
+   "body": "The recurring branch now sits inside the loop over references. For a collective booking with N calendar references, it runs the full delete over all of the organizer's credentials N times, causing duplicate and failing deletes. It also still uses `updBooking.references.find(...)`, so other hosts' events in the recurring series are never deleted. Run the recurring deletion once and iterate over every `_calendar` reference of each booking, using each reference's own credential."
+  },
+  {
+   "path": "packages/features/bookings/lib/handleNewBooking.ts",
+   "line": 757,
+   "end_line": 761,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "The new try/catch turns errors into generic HTTP errors and exposes Prisma messages.",
+   "body": "Any error from loading users becomes a 500 \"Unable to load users\", including the deliberate empty-list validation, which is a client error. Prisma known-request errors become a 400 whose message is the raw Prisma message, exposing internal details. The request does not cover this change. Drop the wrapper, or throw a 400 for the validation error with a non-internal message."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 38617,
+  "cacheRead": 3262,
+  "output": 5966,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 22,
+   "hunks": 49,
+   "reviewedHunks": 49,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 41881,
+   "outputTokens": 5966,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 22,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 2,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.31306540000000005
+}

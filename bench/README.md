@@ -230,6 +230,38 @@ What to say with these numbers, and what not:
 - CodeRabbit's terms of service bar its customers from disclosing benchmark results. These numbers use reviews a third party published, not a run of ours; get advice before publishing them.
 - Martian's own leaderboard lists only tools with roughly 600 to 1,000 reviewed public pull requests and an attributable bot identity. Its monthly online tracker (which pull requests developers changed after a bot's review) is a different measure from this fixed set, and the two scores cannot be compared.
 
+## Precision work of 2026-11-19: the hand-checked real-repo set and the second look
+
+**The real-repo set** (`data/real-prs.json`, `data/real-labels.json`, stored first-pass reviews in `results-real/grapim-lean`): 95 public pull requests from the runs of 11/16, 11/17 and 11/18 whose findings people checked by hand. 70 labels: 24 real, 35 false, 6 noise (true but not worth a comment: docs wording, a go.mod marker, an intended design), 5 unsure. False ones by cause: code outside the diff rules them out (13), guesses the model said it could not check (5), scope remarks (5), docs and trivia (6), unlikely triggers (3). `real-score.mjs` sorts every finding into inline, summary ("Worth a look") or hidden and counts by label; `--rows` applies second-look verdicts, `--held verify` the cloud rule below.
+
+    node bench/verify-eval.mjs --via-cli --tools --held --concurrency 2 --data bench/data/real-prs.json --results bench/results-real --out rows.json
+    node bench/real-score.mjs --rows rows.json --held verify
+
+**What changed** (src/airev/verify.js, cloud-review-worker.js): the second look answers keep, unsure or drop; it drops findings the repository contradicts and remarks that are not defects (scope without a failure, docs wording, go.mod or lock file details); an unsure finding is posted only when it is a blocker or confidence high. The low-confidence "Worth a look" points go through it too: confirmed ones are posted, the rest are not shown.
+
+Real-repo set, what a team sees (labelled findings only):
+
+| | real inline (of 24) | false shown | noise shown | inline precision |
+|---|---|---|---|---|
+| First pass, as on 11/18 (no second look) | 23 (+1 in summary) | 35 (20 inline) | 6 | 47% |
+| Old second look (partial: the plan's session limit stopped 43 of 50 PRs) | 22 | 34 | 6 | 47% |
+| "Chill": only high-confidence blockers and warnings inline | 4 (+20 in summary) | 35 (3 inline) | 6 | 57% |
+| V1 second look (strict remark list, narrow triggers unsure) | 19 | 1 | 1 | 90% |
+| **V2 second look (shipped)** | **20** | **2** | **2** | **83%** |
+
+V2 keeps all four findings the 11/18 run confirmed by hand (one, FlexMeasures, is a held point it confirmed and posted). It loses four labelled-real ones: two description-mismatch findings on VallierDev/uu-remote-linux#204 and one on Sakurairo#1438 that the second look reads as intended from the PR text, and the approval-gate finding on nlmixr2/rxode2#1693 (unsure). Not adopted: P1, a first-pass prompt that discouraged scope remarks (`results-real-p1/prompt.patch`): scope findings 6 -> 1, but the rerun lost about half of the real findings on those PRs.
+
+Martian (core profile, our judge). Dev half, used for tuning; held-out half, three first-pass runs (`grapim-lean`, `-r2`, `-r3`, made 11/15) each given a fresh V2 second look and judged again (`grapim-lean-v2-test1..3`):
+
+| | Precision | Recall | F1 |
+|---|---|---|---|
+| Dev: first pass / old second look / V2 (re-judged) | 51.6 / 55.2 / 59.0 | 59.0 / 57.8 / 55.4 | 55.1 / 56.5 / 57.1 |
+| Held-out: first pass, mean of 3 | 47.1 | 57.8 | 51.9 (50.0, 55.0, 50.6) |
+| **Held-out: V2, mean of 3** | **51.0** | **49.8** | **50.4** (48.6, 56.2, 46.4) |
+| Held-out: Cubic v2 / Qodo Extended v2 / Bugbot / Augment | 65.8 / 65.7 / 64.6 / 57.5 | 64.0 / 61.3 / 56.0 / 61.3 | 64.9 / 63.4 / 60.0 / 59.4 |
+
+On Martian the V2 second look buys about 4 points of precision for 8 of recall: it drops small real defects the golden comments include (a dead encoder, a wrong logger, an ERB `end if` it misreads as harmless) and some findings the golden list confirms but the repository makes look intended. With lens passes (61% recall on dev) V2 does worse (F1 50.6 on dev): it keeps 43 of 73 unmatched findings. Rank 1 on Martian is not reached; the gap is about 13 F1 to Cubic v2 on the held-out half, and it is the verifier's discrimination between real and plausible findings, not recall.
+
 ## Martian's online tracker, measured here (online.mjs)
 
 Martian's online board (the default view of codereview.withmartian.com) does not use an answer key. For merged public pull requests a bot reviewed, it asks what the developer fixed after the bot's first review, and matches the bot's suggestions to those fixes. `online.mjs` runs the same three steps with Martian's prompts (MIT licence) on any bot's pull requests, so Grapim can be measured the same way before it is listed:
