@@ -463,6 +463,15 @@ ${siteFooter()}
 // the docs page that explains it.
 const CHANGES = [
   {
+    date: '2026-11-19',
+    items: [
+      { title: 'The merge decision', body: 'The review comment now opens with a verdict: Safe to merge, Check these first, or Do not merge. Below it: what the agent was asked (its recorded prompt, else the pull request title), what it did beyond that, such as deleted or skipped tests, checks turned off or a migration nobody asked for, and the tests. Every item links to its comment, its line or its check run.', link: ['/docs/review#the-merge-decision', 'How the merge decision works'] },
+      { title: 'CI results on the card', body: 'Cloud review reads the pull request’s check runs and commit statuses from GitHub, never running your code, and updates the card when CI finishes. In your own CI, the new test-command input runs your tests on your runner before the review.', link: ['/docs/review#tests-on-the-card', 'Tests on the card'] },
+      { title: 'Merge gate', body: 'On Governance, Grapim can approve low-risk pull requests (safe to merge, CI passed, nothing sensitive, small) and ask CODEOWNERS to review high-risk ones, failing the check until they do. Off by default, with a suggest-only mode to watch first, and every decision logged.', link: ['/docs/review#merge-gate', 'Set up the merge gate'] },
+    ],
+    more: [],
+  },
+  {
     date: '2026-11-16',
     items: [
       { title: 'A second look before posting', body: 'Every finding is checked again against the code around it, where it is used, the commit messages and what the author said on the pull request. Findings that context contradicts are dropped instead of posted.', link: ['/docs/review#a-second-look-before-posting', 'How the second look works'] },
