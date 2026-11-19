@@ -53,7 +53,7 @@ import { GitHubClient } from './client.js';
 import { JobQueue } from './queue.js';
 import { parseComment, repeats, teamFeedback } from './review-memory.js';
 import { cleanTeamConfig } from './review-config.js';
-import { createMergeCard } from './merge-card.js';
+import { cardCheck, createMergeCard } from './merge-card.js';
 import { withoutVerdict } from '../../airev/decision.js';
 import { CHECK_NAME } from './pull.js';
 
@@ -724,13 +724,14 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
         title: nothing ? 'Nothing reviewed' : `${countText(n)[0].toUpperCase()}${countText(n).slice(1)}`,
         summary: nothing ? 'No changed lines were reviewed. The summary comment on the pull request says why.' : `Reviewed ${plural(st.reviewedFiles ?? 0, 'file')} at ${head.slice(0, 7)}: ${countText(n)}. The comments and the summary are on the pull request.`,
       };
-      // The merge gate (auto-approve) fails the check on a high-risk pull request.
-      const final = decision?.check ?? baseCheck;
+      // With a card: its verdict is the title, and the merge gate (auto-approve)
+      // fails the check on a high-risk pull request (merge-card.js cardCheck).
+      const final = decision ? cardCheck({ base: baseCheck, verdict: decision.card?.verdict, gate: decision.check }) : baseCheck;
       await check(client, repo, checkId, {
         status: 'completed',
         conclusion: final.conclusion,
         // Short, as the other review checks are: the full summary is the PR comment.
-        output: { title: final.title, summary: baseCheck.summary },
+        output: { title: final.title, summary: final.summary },
       });
       decision?.save(checkId, baseCheck, CLOUD_MARKER);
       return { done: true, counts: n, cost };

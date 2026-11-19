@@ -357,7 +357,10 @@ const ciNames = (ci, list, ctx, n = 3) => `${list.slice(0, n).map((x) => a(ci.ur
 // findings: what this review found and stands by (posted inline, posted on an
 // earlier commit and still there, or moved to the summary); nits never count.
 // reason: a few words for the heading; evidence: one line, linked.
-export function verdictOf({ findings = [], beyond = [], ci = null, stats = {}, links = new Map(), moved = [], ctx = {} }) {
+// listed: keys (findingKey) of the findings a list under the card already
+// shows (the cloud summary's findings list); those are not repeated as items,
+// only counted on one line that links to the first of them.
+export function verdictOf({ findings = [], beyond = [], ci = null, stats = {}, links = new Map(), moved = [], ctx = {}, listed = [] }) {
   const reviewed = stats.reviewedHunks ?? 0;
   const movedKeys = new Set(moved.map(key));
   const findingItem = (f) => {
@@ -369,18 +372,32 @@ export function verdictOf({ findings = [], beyond = [], ci = null, stats = {}, l
   const ranked = [...findings].filter((f) => f.severity === 'blocker' || f.severity === 'warning').sort((x, y) => SEV_RANK[x.severity] - SEV_RANK[y.severity]);
   const blockers = ranked.filter((f) => f.severity === 'blocker');
   const warnings = ranked.filter((f) => f.severity === 'warning');
+  const inList = new Set(listed);
+  const below = ranked.filter((f) => inList.has(key(f)));
+  const own = (list) => list.filter((f) => !inList.has(key(f))).map(findingItem);
+  const sevCounts = (list) => [['blocker', 'blocker'], ['warning', 'warning']].map(([s, w]) => list.filter((f) => f.severity === s).length && plural(list.filter((f) => f.severity === s).length, w)).filter(Boolean).join(', ');
+  // The findings the list below shows, said once on the evidence line and
+  // linked to the first one's comment (the list's first row links there too).
+  const belowUrl = below.length ? links.get(key(below[0])) ?? null : null;
+  const belowText = (text) => (belowUrl && HTTPS.test(belowUrl) ? `[${text}](${belowUrl})` : text);
   const failedCi = ci?.state === 'failed';
   const span = `${reviewed}${stats.hunks ? ` of ${stats.hunks}` : ''} changed ${stats.hunks === 1 || (!stats.hunks && reviewed === 1) ? 'hunk' : 'hunks'}`;
   if (blockers.length || failedCi) {
-    const items = [...blockers.map(findingItem), ...(failedCi ? [{ text: `Failing: ${ciNames(ci, ci.failed, ctx)}` }] : []), ...warnings.map(findingItem)];
+    const items = [...own(blockers), ...(failedCi ? [{ text: `Failing: ${ciNames(ci, ci.failed, ctx)}` }] : []), ...own(warnings)];
     const reason = [blockers.length && plural(blockers.length, 'blocker'), failedCi && plural(ci.failed.length, 'failing check')].filter(Boolean).join(', ');
-    return { verdict: 'block', reason, items: items.slice(0, MAX_ITEMS), more: Math.max(0, items.length - MAX_ITEMS), evidence: `Reviewed ${span}${blockers.length ? `: ${plural(blockers.length, 'blocker')}${warnings.length ? `, ${plural(warnings.length, 'warning')}` : ''}` : ''}${failedCi ? `; CI failed` : ''}.` };
+    const allBelow = below.length > 0 && below.length === ranked.length;
+    let evidence = `Reviewed ${span}`;
+    if (blockers.length) evidence += `: ${allBelow ? belowText(`${sevCounts(ranked)}, listed below`) : sevCounts(ranked)}`;
+    if (failedCi) evidence += '; CI failed';
+    if (below.length && !(blockers.length && allBelow)) evidence += `; ${belowText(`${sevCounts(below)}, listed below`)}`;
+    return { verdict: 'block', reason, items: items.slice(0, MAX_ITEMS), more: Math.max(0, items.length - MAX_ITEMS), evidence: `${evidence}.` };
   }
   const beyondItems = beyond.filter((b) => !(b.kind === 'scope_finding' && b.finding?.severity === 'warning')).map((b) => ({ text: b.text }));
-  const items = [...(reviewed ? [] : [{ text: 'Grapim could not review these changes: read them yourself' }]), ...warnings.map(findingItem), ...beyondItems];
-  if (items.length) {
+  const items = [...(reviewed ? [] : [{ text: 'Grapim could not review these changes: read them yourself' }]), ...own(warnings), ...beyondItems];
+  if (items.length || warnings.length) {
     const reason = [!reviewed && 'nothing reviewed', warnings.length && plural(warnings.length, 'warning'), beyondItems.length && `${plural(beyondItems.length, 'change')} beyond the request`].filter(Boolean).join(', ');
-    return { verdict: 'check', reason, items: items.slice(0, MAX_ITEMS), more: Math.max(0, items.length - MAX_ITEMS), evidence: reviewed ? `Reviewed ${span}; no blocker.` : 'Nothing was sent to the model.' };
+    const evidence = reviewed ? `Reviewed ${span}; no blocker${below.length ? `; ${belowText(`${sevCounts(below)}, listed below`)}` : ''}.` : 'Nothing was sent to the model.';
+    return { verdict: 'check', reason, items: items.slice(0, MAX_ITEMS), more: Math.max(0, items.length - MAX_ITEMS), evidence };
   }
   const wait = ci?.state === 'running' ? 'once CI passes' : ci?.state === 'none' ? 'no CI ran' : ci?.state === 'unknown' ? 'CI not read' : '';
   return { verdict: 'safe', reason: wait, items: [], more: 0, evidence: `Reviewed ${span}: no blocker or warning, nothing beyond the request.` };
@@ -441,20 +458,23 @@ export function renderCard({ asked, beyond, verdict, ci, notes = [], ctx = {}, g
 // Everything from one review -> the card's parts (no gate line yet).
 // input: { facts, runs (hub runs, optional), pr: { title, body, issues },
 //   findings, stats, ci, links, moved, prUrl }
-export function decideCard({ facts = null, runs = [], pr = null, findings = [], stats = {}, ci = null, links = new Map(), moved = [], prUrl = null }) {
+export function decideCard({ facts = null, runs = [], pr = null, findings = [], stats = {}, ci = null, links = new Map(), moved = [], prUrl = null, listed = [] }) {
   const ctx = { prUrl: validPrUrl(prUrl) };
   const asked = askedOf({ runs: [...(facts?.runs ?? []), ...runs], pr });
   const beyond = beyondOf({ facts, asked, findings, links, ctx });
-  const verdict = verdictOf({ findings, beyond, ci, stats, links, moved, ctx });
+  const verdict = verdictOf({ findings, beyond, ci, stats, links, moved, ctx, listed });
   const notes = testNotes({ facts, asked });
   return { asked, beyond, verdict, ci, notes, ctx };
 }
 
 // The card again with new CI results (cloud review, when CI finishes after
 // the review). card: what decideCard returned (stored as JSON).
-export function withCi(card, ci, { findings = [], stats = {}, links = new Map(), moved = [] } = {}) {
-  return { ...card, ci, verdict: verdictOf({ findings, beyond: card.beyond, ci, stats, links, moved, ctx: card.ctx ?? {} }) };
+export function withCi(card, ci, { findings = [], stats = {}, links = new Map(), moved = [], listed = [] } = {}) {
+  return { ...card, ci, verdict: verdictOf({ findings, beyond: card.beyond, ci, stats, links, moved, ctx: card.ctx ?? {}, listed }) };
 }
+
+// The check run's title in the card's words: "Do not merge: 1 failing check".
+export const verdictTitle = (verdict) => `${VERDICTS[verdict.verdict]}${verdict.reason ? `: ${verdict.reason}` : ''}`;
 
 // The review summary under a card: its "Fix before merging" line goes, since
 // the card's heading already gives the verdict (it stays without a card).

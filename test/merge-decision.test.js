@@ -253,6 +253,41 @@ test('card: warnings and unrequested changes -> Check these first, at most 3 ite
   assert.match(renderCard(running), /This card updates when they finish\./);
 });
 
+test('card under a findings list: findings counted on one linked line, not listed again; CI failures and unlisted findings stay as items; the check takes the verdict', async () => {
+  const { cardCheck } = await import('../src/hub/github/merge-card.js');
+  const key = decisionLib.findingKey;
+  const url = 'https://github.com/acme/api/pull/7#discussion_r9';
+  const links = new Map([[key(BLOCKER), url]]);
+  const failedCi = ciStatus({ checkRuns: [{ name: 'test', status: 'completed', conclusion: 'failure', html_url: 'https://github.com/acme/api/runs/2' }], statuses: [] });
+  const all = decideCard({ findings: [BLOCKER, WARNING], stats: { reviewedHunks: 2, hunks: 2 }, ci: passedCi, links, prUrl: PR_URL, listed: [key(BLOCKER), key(WARNING)] });
+  assert.equal(all.verdict.verdict, 'block');
+  assert.deepEqual(all.verdict.items, []);
+  assert.equal(all.verdict.evidence, `Reviewed 2 of 2 changed hunks: [1 blocker, 1 warning, listed below](${url}).`);
+  assert.doesNotMatch(renderCard(all), /^1\. /m);
+  // CI failing too: the failing check is an item, the list is not.
+  const ci = decideCard({ findings: [BLOCKER, WARNING], stats: { reviewedHunks: 2, hunks: 2 }, ci: failedCi, links, prUrl: PR_URL, listed: [key(BLOCKER), key(WARNING)] });
+  assert.deepEqual(ci.verdict.items.map((i) => i.text.slice(0, 9)), ['Failing: ']);
+  assert.match(ci.verdict.evidence, /; CI failed\.$/);
+  // A finding the list does not show (repeated from an earlier review) stays an item.
+  const part = decideCard({ findings: [BLOCKER, WARNING], stats: { reviewedHunks: 2, hunks: 2 }, ci: passedCi, links, prUrl: PR_URL, listed: [key(WARNING)] });
+  assert.equal(part.verdict.items.length, 1);
+  assert.match(part.verdict.items[0].text, /^\[Blocker: /);
+  assert.equal(part.verdict.evidence, 'Reviewed 2 of 2 changed hunks: 1 blocker, 1 warning; 1 warning, listed below.');
+  // Only listed warnings: still "Check these first", never safe.
+  const warn = decideCard({ findings: [WARNING], stats: { reviewedHunks: 2, hunks: 2 }, ci: passedCi, prUrl: PR_URL, listed: [key(WARNING)] });
+  assert.equal(warn.verdict.verdict, 'check');
+  assert.equal(warn.verdict.evidence, 'Reviewed 2 of 2 changed hunks; no blocker; 1 warning, listed below.');
+  // No list (the Action): numbered items as before.
+  assert.equal(decideCard({ findings: [BLOCKER, WARNING], stats: { reviewedHunks: 2, hunks: 2 }, ci: passedCi, links, prUrl: PR_URL }).verdict.items.length, 2);
+  // The check: the verdict as the title; green never sits under "Do not merge".
+  const base = { conclusion: 'success', title: 'No findings', summary: 's' };
+  assert.deepEqual(cardCheck({ base, verdict: decideCard({ findings: [], stats: { reviewedHunks: 2 }, ci: failedCi }).verdict }), { conclusion: 'neutral', title: 'Do not merge: 1 failing check', summary: 's' });
+  assert.deepEqual(cardCheck({ base, verdict: warn.verdict }), { conclusion: 'success', title: 'Check these first: 1 warning', summary: 's' });
+  assert.equal(cardCheck({ base, verdict: decideCard({ findings: [], stats: { reviewedHunks: 2 }, ci: passedCi }).verdict }).title, 'Safe to merge');
+  assert.equal(cardCheck({ base: { ...base, conclusion: 'failure' }, verdict: all.verdict }).conclusion, 'failure');
+  assert.deepEqual(cardCheck({ base, verdict: all.verdict, gate: { conclusion: 'failure', title: 'Needs a person: x' } }), { conclusion: 'failure', title: 'Needs a person: x', summary: 's' });
+});
+
 test('card: an agent edits tests its prompt did not mention; source changed with no tests; skips', () => {
   const facts = decisionFacts({ files: [file('src/a.js', { added: ['x'], runs: [run('r', 'Speed up the users query')] }), file('test/a.test.js', { added: ["it.skip('slow', () => {})"], runs: [run('r', 'Speed up the users query')] })] });
   const card = decideCard({ facts, stats: { reviewedHunks: 2 }, ci: passedCi, prUrl: PR_URL });
@@ -600,7 +635,10 @@ test('high risk: review requested from CODEOWNERS (never the author), the check 
   const three = await setup(t, { gh: { ci: 'failure' }, gate: { mode: 'suggest' } });
   await three.cloud.review(three.job, AbortSignal.timeout(60_000));
   assert.deepEqual(three.gh.s.requested, []);
-  assert.equal(cloudCheck(three.gh).conclusion, 'success');
+  // Suggest: the gate does not decide; CI failing with no blocker -> neutral,
+  // never green under "Do not merge", titled by the card.
+  assert.equal(cloudCheck(three.gh).conclusion, 'neutral');
+  assert.equal(cloudCheck(three.gh).output.title, 'Do not merge: 1 failing check');
   assert.match(three.gh.s.comments[0].body, /\(suggest only\) · High risk: 1 CI check failed\. With auto-approve on, Grapim would ask <code>alice<\/code> to review/);
   assert.equal(three.db.prepare('SELECT action FROM gh_gate_log').get().action, 'would_route');
 });

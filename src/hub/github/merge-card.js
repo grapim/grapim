@@ -11,7 +11,7 @@
 // a new review. Nothing here runs code from the repository: CI results are
 // what GitHub already has.
 
-import { CARD_MARKER, ciStatus, decideCard, findingKey, findingLinks, isHttpsUrl, renderCard, spliceCard, withCi } from '../../airev/decision.js';
+import { CARD_MARKER, ciStatus, decideCard, findingKey, findingLinks, isHttpsUrl, renderCard, spliceCard, verdictTitle, withCi } from '../../airev/decision.js';
 import { compilePattern } from '../rules.js';
 import { checkTitle, CODEOWNERS_PATHS, gateDecision, gateLine, ownersFor, parseCodeowners, sensitivePaths } from './merge-gate.js';
 
@@ -41,6 +41,18 @@ const NAME = /^[A-Za-z0-9_.-]{1,100}$/;
 const MAX_PATHS = 1000;
 const LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const compact = (f) => ({ path: f.path, line: f.line, ...(f.endLine ? { endLine: f.endLine } : {}), severity: f.severity, category: f.category, title: String(f.title ?? '').slice(0, 200) });
+// The review check under a card. base: the review's own check ({ conclusion,
+// title, summary }: failure on a blocker, neutral when nothing was reviewed);
+// gate: the merge gate's check, when it decides. The title is the card's
+// verdict, so the two never disagree in words, and a check that would pass
+// under a "Do not merge" card (CI failing, no blocker) is neutral instead.
+export function cardCheck({ base, verdict, gate = null }) {
+  if (gate) return { ...base, conclusion: gate.conclusion, title: gate.title };
+  if (!verdict) return base;
+  const conclusion = verdict.verdict === 'block' && base.conclusion === 'success' ? 'neutral' : base.conclusion;
+  return { ...base, conclusion, title: verdictTitle(verdict) };
+}
+
 const ciKey = (ci) => `${ci.state}|${ci.failed.join(',')}|${ci.running.length}`;
 
 export function createMergeCard({ db, now, log = () => {}, slug = null, gate = null, teams = null, ownChecks = [] }) {
@@ -216,9 +228,12 @@ export function createMergeCard({ db, now, log = () => {}, slug = null, gate = n
     for (const { finding, url } of Array.isArray(posted.links) ? posted.links : []) {
       if (finding && isHttpsUrl(url) && !links.has(findingKey(finding))) links.set(findingKey(finding), url);
     }
+    // The findings the summary's own list shows (cloud-review.js): the card
+    // counts them on one line instead of listing them again.
+    const listed = (Array.isArray(posted.links) ? posted.links : []).filter((r) => r?.finding).map((r) => findingKey(r.finding));
     const ci = await readCi(client, repo, job.headSha);
     ci.live = true;
-    const card = decideCard({ facts, runs: hubRuns, pr: request ?? { title: pr?.title, body: pr?.body }, findings, stats, ci, links, moved, prUrl: pr?.html_url ?? null });
+    const card = decideCard({ facts, runs: hubRuns, pr: request ?? { title: pr?.title, body: pr?.body }, findings, stats, ci, links, moved, prUrl: pr?.html_url ?? null, listed });
     const cfg = team && gate ? gate.forRepo(team, job.owner, job.name, result.gate ?? null) : null;
     const paths = (facts?.files ?? []).map((f) => f.path).slice(0, MAX_PATHS);
     const sensitive = cfg ? sensitivePaths(facts, gate.teamRules(team.id)) : [];
@@ -232,7 +247,7 @@ export function createMergeCard({ db, now, log = () => {}, slug = null, gate = n
       log(`merge gate failed: ${String(err?.message ?? err).slice(0, 200)}`);
     }
     const markdown = renderCard({ ...card, gate: g.line });
-    const state = { card, findings: findings.map(compact), links: [...links], moved, stats, facts: facts ? { size: facts.size, truncated: !!facts.truncated } : null, sensitive, paths, author, trusted, base, gateFile: result.gate ?? null };
+    const state = { card, findings: findings.map(compact), links: [...links], listed, moved, stats, facts: facts ? { size: facts.size, truncated: !!facts.truncated } : null, sensitive, paths, author, trusted, base, gateFile: result.gate ?? null };
     const save = (checkId, baseCheck, marker) => {
       if (!Number.isSafeInteger(Number(job.repoId)) || !Number.isSafeInteger(job.number)) return;
       db.prepare(
@@ -264,7 +279,7 @@ export function createMergeCard({ db, now, log = () => {}, slug = null, gate = n
     ci.live = true;
     if (ciKey(ci) === row.ci) return { skipped: 'unchanged' };
     const links = new Map(Array.isArray(state.links) ? state.links : []);
-    const card = withCi(state.card, ci, { findings: state.findings ?? [], stats: state.stats ?? {}, links, moved: state.moved ?? [] });
+    const card = withCi(state.card, ci, { findings: state.findings ?? [], stats: state.stats ?? {}, links, moved: state.moved ?? [], listed: Array.isArray(state.listed) ? state.listed : [] });
     const team = row.team_id && teams ? teams.get(row.team_id) : null;
     const job = { installationId: row.installation_id, repoId: row.repo_gh_id, owner: row.owner, name: row.name, number: row.number, headSha: row.head_sha };
     const cfg = team && gate ? gate.forRepo(team, row.owner, row.name, state.gateFile ?? null) : null;
@@ -289,9 +304,8 @@ export function createMergeCard({ db, now, log = () => {}, slug = null, gate = n
     }
     const base = state.baseCheck ?? null;
     if (row.check_id && base) {
-      // Short, as at review time (baseCheck.summary); the gate may change
-      // the conclusion and title.
-      const check = g.check ?? base;
+      // As at review time: the card's verdict as the title, the short summary.
+      const check = cardCheck({ base, verdict: card.verdict, gate: g.check });
       await client.request('PATCH', `/repos/${repo}/check-runs/${row.check_id}`, { conclusion: check.conclusion, output: { title: check.title, summary: base.summary ?? (body ?? markdown).replace(row.marker, '').trim().slice(0, 64_000) } });
     }
     db.prepare('UPDATE gh_merge_cards SET state = ?, ci = ?, updated_at = ? WHERE installation_id = ? AND repo_gh_id = ? AND number = ?').run(JSON.stringify({ ...state, card }), ciKey(ci), now(), row.installation_id, row.repo_gh_id, row.number);
