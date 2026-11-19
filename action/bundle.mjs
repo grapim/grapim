@@ -19,7 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const FILES = ['render.js', 'pr.js'];
-export const REVIEW_ENTRIES = ['airev/index.js', 'provenance/render.js', 'provenance/pr.js'];
+export const REVIEW_ENTRIES = ['airev/index.js', 'airev/decision.js', 'provenance/render.js', 'provenance/pr.js'];
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = path.join(here, '..', 'src');
 const SRC = path.join(SRC_ROOT, 'provenance');

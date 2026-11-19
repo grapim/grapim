@@ -11,6 +11,7 @@ import { CONFIG_FILE, parseConfigText } from '../../airev/config.js';
 import { pathToFileURL } from 'node:url';
 import { verifyFindings } from '../../airev/verify.js';
 import { COUNTS_RE, VERDICT_RE, WORTH_RE, countsBold, verdictLine, rankFindings } from '../../airev/findings.js';
+import { factsFromGit } from '../../airev/decision.js';
 import { git } from '../../provenance/pr.js';
 import { mergeReviewConfig } from './review-config.js';
 
@@ -97,7 +98,10 @@ async function main() {
       result.summary = withCounts(String(result.summary ?? '').replace(WORTH_RE, ''), posted, removed);
     }
   }
-  return { ok: true, result: { ...result, failOn: config.failOn } };
+  // What the merge decision card needs (airev/decision.js): paths, counts, test
+  // skips, the runs and their prompts. Never fails the review.
+  const facts = factsFromGit({ cwd: job.dir, base: job.base, head: job.head, config, log: (line) => process.stderr.write(`${line}\n`) });
+  return { ok: true, result: { ...result, failOn: config.failOn, ...(facts ? { facts } : {}), gate: config.gate ?? null } };
 }
 
 // After the second look: the posted findings it kept, plus the held ones it

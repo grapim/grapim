@@ -11,6 +11,7 @@
 // What the pull request asked for (its title, description and the issues it
 // closes) goes to the engine as one more untrusted intent source.
 
+import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -34,8 +35,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export async function loadLib() {
   const dist = new URL('./dist/', import.meta.url);
   if (!fs.existsSync(fileURLToPath(new URL('airev/index.js', dist)))) throw new Error('action/review/dist is missing: run node action/bundle.mjs.');
-  const [engine, pr, render] = await Promise.all([import('./dist/airev/index.js'), import('./dist/provenance/pr.js'), import('./dist/provenance/render.js')]);
+  const [engine, pr, render, decision] = await Promise.all([import('./dist/airev/index.js'), import('./dist/provenance/pr.js'), import('./dist/provenance/render.js'), import('./dist/airev/decision.js')]);
   return {
+    decision,
     reviewChanges: engine.reviewChanges,
     loadConfig: engine.loadConfig,
     validateConfig: engine.validateConfig,
@@ -257,6 +259,18 @@ export function diffLines(files) {
 
 const fits = (c, lines) => (lines[c.path] ?? []).some((h) => h.has(c.line) && (c.start_line === undefined || h.has(c.start_line)));
 
+// Review comments on the pull request, for the card's links.
+async function listComments(request, repo, number) {
+  const all = [];
+  for (let page = 1; page <= 10; page++) {
+    const r = await request('GET', `/repos/${repo}/pulls/${number}/comments?per_page=100&page=${page}`);
+    if (!r.ok || !Array.isArray(r.json)) break;
+    all.push(...r.json);
+    if (r.json.length < 100) break;
+  }
+  return all;
+}
+
 async function prFiles(request, repo, number) {
   const files = [];
   for (let page = 1; page <= 30; page++) {
@@ -355,6 +369,34 @@ export function currentBase(lib, dir, { env = {}, base, head, number }, log = ()
   return p[0];
 }
 
+// The test-command input: the customer's own tests, on the customer's own
+// runner, before the review, so the merge decision card can say whether they
+// pass. This is the one place the Action runs repository code, and only when
+// the workflow asks for it. The command gets the runner's environment minus
+// every credential the Action knows of (model keys, the GitHub token, the
+// Actions runtime and OIDC tokens): a pull request's tests must not read the
+// model key. Its output goes to the job log only, never to a comment.
+export const TEST_TIMEOUT_MS = 20 * 60 * 1000;
+const TEST_ENV_DROP = /^(INPUT_|ACTIONS_RUNTIME_|ACTIONS_ID_TOKEN_|ACTIONS_CACHE_|ACTIONS_RESULTS_)/;
+export function testEnv(env) {
+  const out = {};
+  for (const [k, v] of Object.entries(env)) {
+    if (SECRETS.includes(k) || TEST_ENV_DROP.test(k) || /(?:^|_)(?:API_KEY|SECRET|TOKEN|PASSWORD)$/.test(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+export function runTestCommand({ command, cwd, env = process.env, log = () => {}, timeoutMs = TEST_TIMEOUT_MS, spawn = spawnSync, clock = Date.now }) {
+  const started = clock();
+  log(`Grapim Review: running the test-command before the review: ${redact(command, env).slice(0, 200)}`);
+  const r = spawn(command, { cwd, env: testEnv(env), shell: true, encoding: 'utf8', timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+  const timedOut = r.error?.code === 'ETIMEDOUT' || (r.signal === 'SIGTERM' && clock() - started >= timeoutMs - 1000);
+  const exitCode = typeof r.status === 'number' ? r.status : 1;
+  const tail = `${r.stdout ?? ''}${r.stderr ?? ''}`.split('\n').slice(-200).join('\n');
+  printSafely(log, `test-command output (last 200 lines, exit ${timedOut ? 'timed out' : exitCode}):`, redact(tail, env));
+  return { exitCode, timedOut, ms: clock() - started };
+}
+
 const isConfigError = (err, lib) => (lib.ConfigError && err instanceof lib.ConfigError) || err?.name === 'ConfigError';
 
 // -> { status, exitCode, counts?, review?, markdown? }
@@ -420,6 +462,17 @@ export async function runReview({ env = process.env, cwd, fetch = globalThis.fet
   // The diff GitHub shows: from the merge base, like the review engine's lines.
   const mergeBase = (lib.git?.(dir, ['merge-base', base, head], { allowFail: true }) ?? '').trim() || base;
 
+  // The customer's tests on this runner, when the workflow names them.
+  const testCommand = input('test-command');
+  let ci = { state: 'skipped', failed: [], running: [], total: 0, partial: false, urls: {} };
+  if (testCommand && lib.decision) {
+    const t = (lib.runTests ?? runTestCommand)({ command: testCommand, cwd: dir, env, log });
+    const server = String(env.GITHUB_SERVER_URL || 'https://github.com').replace(/\/+$/, '');
+    const runUrl = env.GITHUB_RUN_ID && /^\d+$/.test(env.GITHUB_RUN_ID) ? `${server}/${repo}/actions/runs/${env.GITHUB_RUN_ID}` : null;
+    ci = lib.decision.ciFromCommand({ command: testCommand, ...t, url: runUrl });
+    if (env.GITHUB_OUTPUT) fs.appendFileSync(env.GITHUB_OUTPUT, `tests=${ci.state}\n`);
+  }
+
   let result;
   try {
     result = await lib.reviewChanges({ cwd: dir, base: mergeBase, head, config, provider, ...(prRequest ? { request: prRequest } : {}), fetchImpl: fetch, log, now });
@@ -432,6 +485,20 @@ export async function runReview({ env = process.env, cwd, fetch = globalThis.fet
   const n = counts(findings);
   const reviewedHunks = result.stats?.reviewedHunks ?? 0;
   setOutputs(env, n, reviewedHunks);
+
+  // The merge decision card (airev/decision.js) on top of the summary: the
+  // verdict, what was asked, what went beyond it, and the tests.
+  const facts = lib.decision?.factsFromGit ? lib.decision.factsFromGit({ cwd: dir, base: mergeBase, head, config, log }) : null;
+  const prUrl = typeof pr.html_url === 'string' ? pr.html_url : null;
+  let verdict = null;
+  const withCard = (links = new Map(), moved = []) => {
+    if (!lib.decision) return result.summary;
+    const card = lib.decision.decideCard({ facts, pr: prRequest ?? { title: pr.title, body: pr.body }, findings, stats: { reviewedHunks, hunks: result.stats?.hunks ?? 0 }, ci, links, moved, prUrl });
+    verdict = card.verdict.verdict;
+    // The card's heading is the verdict: the summary's own "Fix before merging" line goes.
+    const below = lib.decision.withoutVerdict ? lib.decision.withoutVerdict(result.summary) : result.summary;
+    return [lib.decision.renderCard(card), below].filter(Boolean).join('\n\n');
+  };
   const exitCode = failOn === 'blocker' && n.blocker > 0 ? 1 : 0;
   const done = (out) => {
     log(`Grapim Review: ${countText(n)} in ${plural(reviewedHunks, 'reviewed hunk')}.`);
@@ -440,7 +507,8 @@ export async function runReview({ env = process.env, cwd, fetch = globalThis.fet
   };
 
   // The job summary always gets everything.
-  const full = summaryMarkdown({ summary: result.summary, extra: findings, heading: 'Findings', md });
+  const full = summaryMarkdown({ summary: withCard(), extra: findings, heading: 'Findings', md });
+  if (env.GITHUB_OUTPUT && verdict) fs.appendFileSync(env.GITHUB_OUTPUT, `verdict=${verdict}\n`);
   if (env.GITHUB_STEP_SUMMARY) fs.appendFileSync(env.GITHUB_STEP_SUMMARY, full.split('\n').filter((l) => !l.startsWith('<!-- grapim')).join('\n'));
 
   if (!token || fork) {
@@ -494,7 +562,9 @@ export async function runReview({ env = process.env, cwd, fetch = globalThis.fet
   }
 
   // 2. The summary comment, created once and updated in place.
-  const markdown = summaryMarkdown({ summary: result.summary, extra: moved, heading: 'Not on a changed line', md });
+  // Each finding in the card links to its inline comment.
+  const links = lib.decision && review ? lib.decision.findingLinks(findings, await listComments(request, repo, number), (c) => c.user?.type === 'Bot') : new Map();
+  const markdown = summaryMarkdown({ summary: withCard(links, moved), extra: moved, heading: 'Not on a changed line', md });
   const existing = await findOurs(request, `/repos/${repo}/issues/${number}/comments`, (c) => c.body.startsWith(MARKER));
   if (existing && existing.body === markdown) return done({ status: 'unchanged', review, markdown, moved: moved.length });
   const r = existing

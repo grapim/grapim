@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { git } from '../provenance/pr.js';
+import { repoGate } from './gate-config.js';
 
 export const CONFIG_FILE = '.grapim/review.json';
 export const DEFAULT_MODEL = 'claude-opus-5-5';
@@ -30,6 +31,8 @@ export const DEFAULT_CONFIG = Object.freeze({
   // first missed (the same prompt does not always notice the same things);
   // the findings are merged, and a problem raised twice is posted once.
   passes: 1,
+  // The merge gate (gate-config.js): null leaves the team's setting as it is.
+  gate: null,
 });
 
 const MAX_CONFIG_BYTES = 64 * 1024;
@@ -127,6 +130,13 @@ export function validateConfig(raw) {
   if ('maxFiles' in raw) c.maxFiles = int('maxFiles', raw.maxFiles, 1, 1000);
   if ('failOn' in raw) c.failOn = oneOf('failOn', raw.failOn, FAIL_ON);
   if ('passes' in raw) c.passes = int('passes', raw.passes, 1, 3);
+  if ('gate' in raw) {
+    try {
+      c.gate = repoGate(raw.gate);
+    } catch (err) {
+      throw new ConfigError(`${CONFIG_FILE}: ${err.message}`);
+    }
+  }
   return c;
 }
 
