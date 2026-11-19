@@ -6,6 +6,7 @@
 
 import { html, raw } from './html.js';
 import { LOGO } from './icons.js';
+import { aboutReviews, DEFAULT_CREDIT, DEFAULT_SEAT_CREDIT, EXTRA_REVIEW_PRICE, REVIEW_COST_ESTIMATE } from '../github/cloud-review.js';
 
 export const SIGN_IN = '/hub/auth/github';
 
@@ -212,9 +213,15 @@ function summaryEnd() {
 
 // The plan table under the cards, as Vercel and Cloudflare lay theirs out.
 // Each cell is the same fact as the cards above (and src/hub/plans.js limits);
-// true draws a check, false a dash.
+// true draws a check, false a dash. The pull request counts come from the
+// credits in cloud-review.js at REVIEW_COST_ESTIMATE a review.
+const FREE_PRS = aboutReviews(DEFAULT_CREDIT.free);
+const TEAM_PRS = aboutReviews(DEFAULT_SEAT_CREDIT.team);
+const GOV_PRS = aboutReviews(DEFAULT_SEAT_CREDIT.governance);
+const EXTRA = `$${EXTRA_REVIEW_PRICE.toFixed(2)}`;
 const COMPARE = [
-  ['Cloud review a month', 'About 50 pull requests', 'About 55 per seat', 'About 110 per seat', 'Agreed with you'],
+  ['Cloud review a month', `About ${FREE_PRS} pull requests`, `About ${TEAM_PRS} per author`, `About ${GOV_PRS} per author`, 'Agreed with you'],
+  ['Extra pull requests', `${EXTRA} each, up to your limit`, `${EXTRA} each, up to your limit`, `${EXTRA} each, up to your limit`, 'Agreed with you'],
   ['Public repositories', 'Reviewed free', 'Reviewed free', 'Reviewed free', 'Reviewed free'],
   ['Grapim Review in your own CI', true, true, true, true],
   ['People', 'Up to 3', 'As many as you need', 'As many as you need', 'As agreed'],
@@ -231,24 +238,24 @@ const PLANS = [
     per: '',
     bill: 'Free during early access',
     lede: 'For one team trying it on a repo.',
-    items: ['Cloud review of about 50 pull requests a month', 'Public repositories reviewed free, no account needed', 'Grapim Review in your own CI, free', 'Up to 3 people', '2 repos, 7 days of history'],
+    items: [`Cloud review of about ${FREE_PRS} pull requests a month`, 'Public repositories reviewed free, no account needed', 'Grapim Review in your own CI, free', 'Up to 3 people', '2 repos, 7 days of history'],
   },
   {
     name: 'Team',
     price: '$20',
-    per: 'per seat a month',
-    year: { price: '$16', bill: 'Billed yearly, $192 per seat' },
+    per: 'per author a month',
+    year: { price: '$16', bill: 'Billed yearly, $192 per author' },
     lede: 'For a team whose agents ship code every day.',
-    items: ['Everything in Free', 'Cloud review of about 55 pull requests a month per seat', 'As many seats as you need', 'Unlimited repos', '90 days of history'],
+    items: ['Everything in Free', `Cloud review of about ${TEAM_PRS} pull requests a month per author`, `Extra pull requests ${EXTRA} each, up to a limit you set`, 'Unlimited repos', '90 days of history'],
     mark: true,
   },
   {
     name: 'Governance',
     price: '$40',
-    per: 'per seat a month',
-    year: { price: '$32', bill: 'Billed yearly, $384 per seat' },
+    per: 'per author a month',
+    year: { price: '$32', bill: 'Billed yearly, $384 per author' },
     lede: 'When a person must approve what agents change.',
-    items: ['Everything in Team', 'Cloud review of about 110 pull requests a month per seat', 'Path rules: auto-approve or named reviewer', 'Merging waits until a person approves agent work', 'Reports and CSV export'],
+    items: ['Everything in Team', `Cloud review of about ${GOV_PRS} pull requests a month per author`, 'Path rules: auto-approve or named reviewer', 'Merging waits until a person approves agent work', 'Reports and CSV export'],
   },
   {
     name: 'Enterprise',
@@ -263,11 +270,11 @@ const PLANS = [
 // The first answer is open: it is the question a security reviewer asks first.
 const FAQ = [
   ['Does our code have to leave our machines?', 'Not if you choose so. Run Grapim Review in your own CI and it sends changes only to your Anthropic API key, Amazon Bedrock, Google Vertex AI or Microsoft Foundry, and Grapim’s servers receive nothing. The cloud review on the GitHub App fetches each pull request into a temporary folder on Grapim’s server, sends it to Anthropic for the review, and deletes it when the review ends.'],
-  ['What does a cloud review use up?', 'Each plan includes a monthly review credit: $10 on Free, $10 a seat on Team and $20 a seat on Governance. A typical pull request uses about $0.18 of it, so Free covers about 50 a month and each Team seat about 55. When it runs out, the check says so and reviews wait for the next month or a bigger plan.'],
+  ['What does a cloud review use up?', `Each plan includes a monthly review credit: about ${FREE_PRS} pull requests on Free, about ${TEAM_PRS} per author on Team and about ${GOV_PRS} per author on Governance. New commits on a pull request are re-reviewed by looking only at the files changed since the last review, so they use less. Past the included amount, extra pull requests are ${EXTRA} each, up to a monthly limit an owner sets in Settings, Review. At the limit, the check says so and reviews wait for the next month.`],
   ['Is it free for open source?', 'Yes. Install the GitHub App on a public repository and every pull request is reviewed free, about 50 a month per repository, with no account to create. Pull requests opened by bots are skipped, and a repository with fewer than 10 stars is reviewed when someone comments @grapim review.'],
   ['Is anything charged today?', 'No. Grapim is in early access and has no checkout. These are the prices we intend to charge once billing opens, and we will tell every team before that happens.'],
   ['Can we try Governance now?', 'Yes. Design partners get Governance as a pilot at no charge, set by us for your team. Talk to us and say which repos you want to start with.'],
-  ['What counts as a seat?', 'A member of your team in the Grapim hub. Agents are not seats, and neither are the machines that sync runs.'],
+  ['What counts as a seat?', 'A person who opens pull requests that Grapim reviews in a month. Agents and bots are not seats, and neither are the machines that sync runs. If more people open pull requests than you have seats, the review credit grows with them.'],
   ['Which agents are covered?', 'Claude Code, Codex CLI, Cursor and Gemini CLI, including files their shell commands change. Any other MCP client can report the files it claims.'],
 ];
 
@@ -322,7 +329,7 @@ const REVIEW_DOCS = '/docs/review';
 
 // The facts row under the product shot. Each one is checked against the code:
 // cloud review on the App (src/hub/github/cloud-review.js: Opus 5.5, about a
-// minute and $0.18 a pull request on the bench, a monthly credit per plan),
+// minute and $0.18 a first review on the bench, REVIEW_COST_ESTIMATE on average, a monthly credit per plan),
 // the agents in src/hub/github/agents.js, and the Action that calls only
 // api.github.com and the provider's endpoint (action/review/index.mjs).
 const FACTS = [
@@ -425,7 +432,7 @@ ${siteFooter()}
 }
 
 export function pricingPage({ origin, signedIn = false }) {
-  return html`${siteHead({ title: 'Pricing', description: 'Grapim plans: Free, Team at $20 and Governance at $40 per seat a month ($16 and $32 billed yearly), and Enterprise. Nothing is charged during early access.', path: '/pricing', origin })}
+  return html`${siteHead({ title: 'Pricing', description: 'Grapim plans: Free, Team at $20 and Governance at $40 per author a month ($16 and $32 billed yearly), and Enterprise. Nothing is charged during early access.', path: '/pricing', origin })}
 <body class="site">
 <a class="skip" href="#main">Skip to content</a>
 ${siteBar({ current: 'pricing', signedIn })}
@@ -453,7 +460,7 @@ ${siteBar({ current: 'pricing', signedIn })}
         <ul>${p.items.map((i) => html`<li>${ICON.check}<span>${i}</span></li>`)}</ul>
       </section>`)}
     </div>
-    <p class="fine">Cloud review is included in each plan’s monthly review credit; the pull request counts assume about $0.18 a review. Grapim Review in your own CI runs on your own model account, billed by your provider.</p>
+    <p class="fine">Cloud review is included in each plan’s monthly review credit; the pull request counts assume about $${REVIEW_COST_ESTIMATE.toFixed(2)} a review. A seat is a person who opens pull requests Grapim reviews; agents and bots are not seats. Grapim Review in your own CI runs on your own model account, billed by your provider.</p>
     <h2 class="compare-title">Compare plans</h2>
     <div class="compare-scroll"><table class="compare">
       <thead><tr><th scope="col"><span class="sr-only">Feature</span></th>${PLANS.map((p) => html`<th scope="col">${p.name}</th>`)}</tr></thead>

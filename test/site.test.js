@@ -88,7 +88,12 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   // Monthly or yearly: a toggle above the plans, yearly by default, no script; no yearly prices in a footnote.
   assert.match(pricing, /<input type="radio" name="cycle" id="cycle-year" value="year" checked>/);
   assert.match(pricing, /<span class="num by-year">\$16<\/span><span class="num by-month">\$20<\/span>/);
-  assert.match(pricing, /<span class="by-year">Billed yearly, \$384 per seat<\/span>/);
+  assert.match(pricing, /<span class="by-year">Billed yearly, \$384 per author<\/span>/);
+  // Seats are the people who open pull requests; the counts come from REVIEW_COST_ESTIMATE.
+  assert.match(pricing, /About 100 per author/);
+  assert.match(pricing, /About 200 per author/);
+  assert.match(pricing, /A person who opens pull requests that Grapim reviews in a month\. Agents and bots are not seats/);
+  assert.match(pricing, /extra pull requests are \$0\.25 each, up to a monthly limit an owner sets/);
   assert.match(pricing, /Save 20%/);
   assert.ok(!/Yearly: Team/.test(pricing), 'yearly prices are not a footnote');
   for (const p of ['free', 'team', 'governance', 'enterprise']) assert.match(pricing, new RegExp(`<h2 id="plan-${p}">`));

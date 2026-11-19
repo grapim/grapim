@@ -10,8 +10,8 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { CLOUD_CHECK, CLOUD_MARKER, cloudConfig, costMicros, createCloudReview, DEFAULT_MODEL, findingsList, provenanceSection, withFindingsList } from '../src/hub/github/cloud-review.js';
-import { cleanTeamConfig, mergeReviewConfig, parseTeamForm, TeamConfigError } from '../src/hub/github/review-config.js';
+import { aboutReviews, CLOUD_CHECK, CLOUD_MARKER, cloudConfig, costMicros, createCloudReview, DEFAULT_CREDIT, DEFAULT_MODEL, DEFAULT_SEAT_CREDIT, findingsList, provenanceSection, REVIEW_COST_ESTIMATE, withFindingsList } from '../src/hub/github/cloud-review.js';
+import { cleanTeamConfig, mergeReviewConfig, parseTeamForm, TeamConfigError, teamFormValues } from '../src/hub/github/review-config.js';
 
 const TOKEN = 'ghs_cloudtest_secret_token';
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
@@ -161,24 +161,112 @@ test('review credit: Team and Governance get it per seat, never below the free p
   const { cloud } = await setup(t, { env: { GRAPIM_REVIEW_MONTHLY_CREDIT: '{"free":10}' } });
   const budget = (team) => cloud.usage(team).budget;
   assert.equal(budget({ id: 'team1', plan: 'free' }), 10);
-  assert.equal(budget({ id: 'team1', plan: 'team', seats: 5 }), 50, '$10 a seat');
-  assert.equal(budget({ id: 'team1', plan: 'governance', seats: 5 }), 100, '$20 a seat');
-  assert.equal(budget({ id: 'team1', plan: 'team', seats: 0 }), 10, 'one seat at least, and the free credit as a floor');
+  assert.equal(budget({ id: 'team1', plan: 'team', seats: 5 }), 60, '$12 a seat');
+  assert.equal(budget({ id: 'team1', plan: 'governance', seats: 5 }), 125, '$25 a seat');
+  assert.equal(budget({ id: 'team1', plan: 'team', seats: 0 }), 12, 'one seat at least');
   assert.equal(budget({ id: 'team1', plan: 'enterprise' }), 1000, 'Enterprise stays a flat credit');
-  const c = cloudConfig({ GRAPIM_REVIEW_SEAT_CREDIT: '{"team":12,"governance":-1}' });
-  assert.equal(c.seatCredit.team, 12);
-  assert.equal(c.seatCredit.governance, 20, 'a bad value keeps the default');
+  const c = cloudConfig({ GRAPIM_REVIEW_SEAT_CREDIT: '{"team":8,"governance":-1}' });
+  assert.equal(c.seatCredit.team, 8);
+  assert.equal(c.seatCredit.governance, 25, 'a bad value keeps the default');
+  const low = await setup(t, { env: { GRAPIM_REVIEW_SEAT_CREDIT: '{"team":2}' } });
+  assert.equal(low.cloud.usage({ id: 'team1', plan: 'team', seats: 3 }).budget, 10, 'the free credit as a floor');
+});
+
+test('the "about N pull requests" numbers come from REVIEW_COST_ESTIMATE', () => {
+  assert.equal(REVIEW_COST_ESTIMATE, 0.12);
+  assert.equal(aboutReviews(DEFAULT_CREDIT.free), 80);
+  assert.equal(aboutReviews(DEFAULT_SEAT_CREDIT.team), 100);
+  assert.equal(aboutReviews(DEFAULT_SEAT_CREDIT.governance), 200);
 });
 
 test('review credit counts members when they outnumber the seats bought', async (t) => {
   const { cloud } = await setup(t, { members: 8 });
-  assert.equal(cloud.usage({ id: 'team1', plan: 'team', seats: 5 }).budget, 80);
-  assert.equal(cloud.usage({ id: 'team1', plan: 'team', seats: 12 }).budget, 120);
+  assert.equal(cloud.usage({ id: 'team1', plan: 'team', seats: 5 }).budget, 96);
+  assert.equal(cloud.usage({ id: 'team1', plan: 'team', seats: 12 }).budget, 144);
 });
 
 test('review credit reads the seats bought from the teams table when the team object lacks them', async (t) => {
   const { cloud } = await setup(t, { seats: 6 });
-  assert.equal(cloud.usage({ id: 'team1', plan: 'team' }).budget, 60);
+  assert.equal(cloud.usage({ id: 'team1', plan: 'team' }).budget, 72);
+});
+
+// A finished review this month (or at `at`), for the credit tests.
+const pastReview = (db, { author, status = 'done', oss = 0, cost = 0, at = Date.now(), team = 'team1' }) =>
+  db.prepare("INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, cost_micros, oss, author) VALUES (?, 'acme', 'api', 1, '-', ?, ?, ?, ?, ?)").run(team, status, at, cost, oss, author);
+
+test('review credit scales with the people who opened the pull requests reviewed this month, not with hub members', async (t) => {
+  const { cloud, db } = await setup(t, { members: 3 });
+  const team = { id: 'team1', plan: 'team', seats: 0 };
+  assert.equal(cloud.usage(team).budget, 36, '3 members, no authors yet');
+  for (let i = 0; i < 10; i++) pastReview(db, { author: `dev${i}` });
+  pastReview(db, { author: 'DEV1' });
+  assert.equal(cloud.usage(team).authors, 10, 'one author counted once, whatever the case');
+  assert.equal(cloud.usage(team).budget, 120, '$12 for each of 10 authors');
+  assert.equal(cloud.usage({ ...team, plan: 'governance' }).budget, 250, '$25 for each on Governance');
+  assert.equal(cloud.usage({ ...team, seats: 20 }).budget, 240, 'seats bought still count when they are more');
+  assert.equal(cloud.usage({ id: 'team1', plan: 'free' }).budget, 10, 'the free plan stays flat');
+});
+
+test('review credit: bots, public repositories, skipped reviews, chats and last month are not authors', async (t) => {
+  const { cloud, db } = await setup(t);
+  const team = { id: 'team1', plan: 'team', seats: 1 };
+  pastReview(db, { author: 'alice' });
+  pastReview(db, { author: 'dependabot[bot]' });
+  pastReview(db, { author: 'renovate[bot]' });
+  pastReview(db, { author: 'Copilot[BOT]' });
+  pastReview(db, { author: 'bob', status: 'no_credit' });
+  pastReview(db, { author: 'carol', status: 'chat' });
+  pastReview(db, { author: 'dave', oss: 1 });
+  pastReview(db, { author: null });
+  pastReview(db, { author: '' });
+  pastReview(db, { author: 'erin', at: Date.UTC(2020, 0, 15) });
+  pastReview(db, { author: 'frank', team: 'team2' });
+  assert.equal(cloud.usage(team).authors, 1);
+  assert.equal(cloud.usage(team).budget, 12);
+});
+
+test('extra reviews: past the included credit, reviews go on up to the owner\'s limit, marked extra', async (t) => {
+  const { cloud, db, model, gh, job } = await setup(t, { plan: 'team' });
+  cloud.setEnabled('team1', true, 'u1');
+  // alice already used the whole included $12.
+  pastReview(db, { author: 'alice', cost: 12_000_000 });
+  const r1 = await cloud.review({ ...job, author: 'alice' }, AbortSignal.timeout(30_000));
+  assert.equal(r1.skipped, 'no_credit', 'no extra reviews allowed by default');
+  assert.equal(model.s.requests.length, 0);
+  assert.match(gh.s.checks.at(-1).output.summary, /An owner can allow extra reviews in Settings, Review\./);
+
+  cloud.setTeamConfig('team1', { maxComments: 10, extraReviews: 10 }, 'u1');
+  const u = cloud.usage({ id: 'team1', plan: 'team' });
+  assert.equal(u.extraReviews, 10);
+  assert.equal(u.included, 12);
+  assert.ok(Math.abs(u.budget - 13.2) < 1e-9, 'included + 10 x REVIEW_COST_ESTIMATE');
+  const r2 = await cloud.review({ ...job, author: 'alice' }, AbortSignal.timeout(30_000));
+  assert.equal(r2.done, true);
+  const row = db.prepare("SELECT extra, author FROM cloud_reviews WHERE status = 'done' ORDER BY id DESC LIMIT 1").get();
+  assert.deepEqual({ ...row }, { extra: 1, author: 'alice' });
+  assert.equal(cloud.usage({ id: 'team1', plan: 'team' }).extraUsed, 1);
+  // The extra settings never reach the review engine's config.
+  assert.equal(cloud.teamConfig('team1').extraReviews, 10);
+  assert.equal('extraReviews' in mergeReviewConfig({ team: cloud.teamConfig('team1') }), false);
+});
+
+test('a new author brings their own credit: their first review is within the included credit, not extra', async (t) => {
+  const { cloud, db, job } = await setup(t, { plan: 'team' });
+  cloud.setEnabled('team1', true, 'u1');
+  pastReview(db, { author: 'alice', cost: 12_000_000 });
+  const r = await cloud.review({ ...job, author: 'bob' }, AbortSignal.timeout(30_000));
+  assert.equal(r.done, true);
+  assert.equal(db.prepare("SELECT extra FROM cloud_reviews WHERE author = 'bob'").get().extra, 0);
+  assert.equal(cloud.usage({ id: 'team1', plan: 'team' }).authors, 2);
+});
+
+test('an old hub gets the extra column', async () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec("CREATE TABLE cloud_reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, team_id TEXT NOT NULL, owner TEXT NOT NULL, name TEXT NOT NULL, number INTEGER NOT NULL, head_sha TEXT NOT NULL, status TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER, findings INTEGER NOT NULL DEFAULT 0, blockers INTEGER NOT NULL DEFAULT 0, input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0, cost_micros INTEGER NOT NULL DEFAULT 0, error TEXT)");
+  db.prepare("INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at) VALUES ('t', 'a', 'b', 1, '-', 'done', 1)").run();
+  const cloud = createCloudReview({ db, now: Date.now, log: () => {}, teams: { get: (id) => ({ id, plan: 'free' }) } }, { env: {} });
+  cloud.close();
+  assert.equal(db.prepare('SELECT extra FROM cloud_reviews').get().extra, 0);
 });
 
 test('a pull request is reviewed in the cloud: check in progress, inline review, summary, blocker fails the check, cost counted', async (t) => {
@@ -548,8 +636,19 @@ test('team review settings: defaults < team (Settings, Review) < the repository\
   assert.deepEqual(cleanTeamConfig('nope'), {});
 
   // The form: checked and capped.
-  assert.deepEqual(parseTeamForm({ failOn: 'blocker', maxComments: '50', ignore: ' a/**\r\n\r\nb/*.js\na/** ', instructions: ' hi\r\n ' }), { failOn: 'blocker', maxComments: 50, ignore: ['a/**', 'b/*.js'], instructions: 'hi' });
+  assert.deepEqual(parseTeamForm({ failOn: 'blocker', maxComments: '50', ignore: ' a/**\r\n\r\nb/*.js\na/** ', instructions: ' hi\r\n ' }), { failOn: 'blocker', maxComments: 50, ignore: ['a/**', 'b/*.js'], instructions: 'hi', extraReviews: 0 });
   assert.equal(parseTeamForm({ maxComments: '1' }).failOn, 'never', 'an unticked box');
+  // Extra reviews a month: a whole number from 0 to 100,000; empty is 0.
+  assert.equal(parseTeamForm({ maxComments: '1', extraReviews: '' }).extraReviews, 0);
+  assert.equal(parseTeamForm({ maxComments: '1', extraReviews: ' 250 ' }).extraReviews, 250);
+  assert.equal(parseTeamForm({ maxComments: '1', extraReviews: '100,000' }).extraReviews, 100_000);
+  for (const extraReviews of ['-1', '100001', '1.5', '1e3', 'ten', '9999999']) {
+    assert.throws(() => parseTeamForm({ maxComments: '1', extraReviews }), /Extra reviews a month must be a whole number from 0 to 100,000/, extraReviews);
+  }
+  assert.equal(cleanTeamConfig({ extraReviews: 40 }).extraReviews, 40);
+  for (const bad of [-1, 100_001, 1.5, '40', null]) assert.equal('extraReviews' in cleanTeamConfig({ extraReviews: bad }), false, String(bad));
+  assert.equal(teamFormValues({}).extraReviews, 0);
+  assert.equal('extraReviews' in mergeReviewConfig({ team: { extraReviews: 40 } }), false, 'billing, not an engine setting');
   for (const form of [{ maxComments: '0' }, { maxComments: '51' }, { maxComments: '-3' }, { maxComments: '1e1' }, { maxComments: '15', ignore: 'a\n'.repeat(51) }, { maxComments: '15', ignore: 'x'.repeat(201) }, { maxComments: '15', ignore: 'a/../b' }, { maxComments: '15', instructions: 'y'.repeat(2001) }]) {
     assert.throws(() => parseTeamForm(form), TeamConfigError, JSON.stringify(form).slice(0, 60));
   }

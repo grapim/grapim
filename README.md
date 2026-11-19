@@ -12,7 +12,7 @@ Grapim reviews every pull request and comments on the lines that need attention.
 
 It runs two ways:
 
-- **Cloud review.** Install the Grapim GitHub App at [app.grapim.com](https://app.grapim.com) and turn on Cloud review. Each pull request is reviewed in about a minute on Grapim's model account. Every plan includes a monthly review credit.
+- **Cloud review.** Install the Grapim GitHub App at [app.grapim.com](https://app.grapim.com) and turn on Cloud review. Each pull request is reviewed in about a minute on Grapim's model account. Every plan includes a monthly review credit, counted per person who opens pull requests (agents and bots are not seats), and an owner can allow extra reviews past it.
 - **In your own CI.** Add one workflow file ([action/review](action/review/README.md)). The review runs on your GitHub runner with your own Anthropic, Amazon Bedrock, Google Vertex AI or Microsoft Foundry account, and Grapim's servers receive nothing.
 
 Setup for both: [app.grapim.com/docs/review](https://app.grapim.com/docs/review).
