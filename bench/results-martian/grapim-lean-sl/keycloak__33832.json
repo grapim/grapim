@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "head_sha": "79d11c4890cc4792e3dc3535af59e4e5f7a2739d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:31:36.202Z",
+ "seconds": 39.479,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "common/src/main/java/org/keycloak/common/crypto/CryptoIntegration.java",
+   "line": 57,
+   "end_line": 70,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "Removing the multiple-provider error lets a FIPS setup silently run on a non-FIPS provider.",
+   "body": "Before this change, finding more than one `CryptoProvider` was a hard error. Now the providers are sorted by `order()` and the first one wins. `DefaultCryptoProvider`, `FIPS1402Provider` and `WildFlyElytronProvider` all return 200, so when both the default and the FIPS jars are on the classpath (a common packaging mistake), the sort keeps ServiceLoader's classpath order. The non-FIPS BouncyCastle provider can then be chosen, and the only trace is a debug log line. A FIPS deployment that used to fail fast now quietly uses non-compliant crypto.\n\nFix: still throw (or at least log a warning) when two or more providers share the highest order. Only allow picking by order when there is a single highest provider, such as the authz-client fallback at 100."
+  },
+  {
+   "path": "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java",
+   "line": 114,
+   "end_line": 115,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Two ASN.1 encoders are built and thrown away.",
+   "body": "`ASN1Encoder.create().write(rBigInteger)` and `ASN1Encoder.create().write(sBigInteger)` each build an encoding and then discard it. The return statement right below builds both again. These look like leftovers; remove the two lines."
+  },
+  {
+   "path": "authz/client/src/test/java/org/keycloak/authorization/client/test/ECDSAAlgorithmTest.java",
+   "line": 42,
+   "end_line": 42,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "The ES384 and ES512 tests sign with a P-256 key, so they never test those curves' sizes.",
+   "body": "`KeyPairGenerator.getInstance(\"EC\").genKeyPair()` uses the JDK's default curve, which is P-256. That means r and s are always 32 bytes or fewer, even in the ES384 and ES512 tests. The 48- and 66-byte paths in `integerToBytes` and `concatenatedRSToASN1DER` are only checked with small values, so a size-handling bug for P-384 or P-521 would still pass. Fix: initialize the generator with the matching curve for each algorithm (`secp256r1`, `secp384r1`, `secp521r1`)."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20881,
+  "cacheRead": 3262,
+  "output": 2965,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 24145,
+   "outputTokens": 2965,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1643654
+}

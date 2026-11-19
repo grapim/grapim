@@ -1,0 +1,32 @@
+{
+ "tool": "published-augment",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the GrafanaRuleListItem rendered in the list has no key prop."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.93,
+   "reasoning": "None of the candidates mention the Silence drawer not rendering because there is no ruler rule."
+  }
+ ],
+ "candidates": [
+  "In rules.map(...), the grafana branch returns <GrafanaRuleListItem /> without a key prop, even though key is available from ruleWithOrigin - missing keys can cause incorrect React reconciliation when the list updates",
+  "promResponse.data.groups.at(0)?.rules.map(...) can still throw if groups is empty because optional chaining only applies to the .rules access, not the subsequent .map - need to guard groups.at(0)/rules before mapping to avoid runtime crash when API returns no groups",
+  "Component-level doc comment says loader fetches from 'Prometheus and Ruler endpoints' but implementation now only calls the Prometheus API - comment is outdated and misleading"
+ ]
+}

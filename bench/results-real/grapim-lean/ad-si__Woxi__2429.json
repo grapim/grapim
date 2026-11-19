@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "ad-si__Woxi__2429",
+ "url": "https://github.com/ad-si/Woxi/pull/2429",
+ "head_sha": "b112503b1761cd1b7f02697ab23ef66c2ca19a75",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:26:58.910Z",
+ "seconds": 28.034,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/functions/plot.rs",
+   "line": 6182,
+   "end_line": 6185,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Per-line grid opacity checks both axis styles instead of the line's own axis.",
+   "body": "`grid_alpha` returns the default 0.4 opacity for a line with its own color only when neither axis has a `GridLinesStyle`. Now that x and y can be styled separately, the closure is shared by both axes but checks both slots. Example: `GridLinesStyle -> {Automatic, Directive[Red]}` with `GridLines -> {{{2, Blue}}, Automatic}`. The x axis has no style, but its blue line is drawn fully opaque at 1.0 because the y axis is styled. The fix is to pass the axis's own style slot into `grid_alpha`: `.0` for vertical lines and `.1` for horizontal lines."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 25913,
+  "cacheRead": 3527,
+  "output": 2311,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 25,
+   "reviewedHunks": 25,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 29442,
+   "outputTokens": 2311,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1764984
+}

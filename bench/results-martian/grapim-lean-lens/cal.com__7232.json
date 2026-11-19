@@ -1,0 +1,134 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "head_sha": "6048e2a86b50e81e1e3b1b467dfea5a895add3dc",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:32:26.064Z",
+ "seconds": 53.676,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/features/ee/workflows/api/scheduleEmailReminders.ts",
+   "line": 53,
+   "end_line": 77,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "One failed SendGrid cancel stops all remaining cancellations and the row deletes.",
+   "body": "All the cancel calls share one try/catch. If any `client.request` call throws (a bad or already-cancelled batch_id, a rate limit, or another SendGrid error), the loop stops. Reminders later in the list never get their cancel request. Also, the queued `prisma.workflowReminder.delete` calls are lazy PrismaPromises that only run inside `Promise.all`, so none of them run, including those for reminders SendGrid already cancelled. On the next run the same reminder is fetched again and can fail the same way, which can block cancellations for good, and cancelled bookings still get their emails. Fix: put a try/catch around each reminder and delete (or flag) each one separately, so one failure can't block the rest."
+  },
+  {
+   "path": "packages/features/bookings/lib/handleNewBooking.ts",
+   "line": 964,
+   "end_line": 975,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Reschedule still cancels emails immediately, so the 100-pending-cancellation limit still applies",
+   "body": "This path passes `immediateDelete = true`, so it still POSTs a `cancel` status to `/v3/user/scheduled_sends`. That is the same call the PR says fails once 100 cancellations are pending, and `deleteScheduledEmailReminder` swallows the error, so reminders for rescheduled bookings are still sent. The original booking row is kept (it is only marked cancelled), so the deferred path would work here. Also, the try/catch does not catch anything: the async calls are not awaited, and they catch their own errors. Fix: call `deleteScheduledEmailReminder(reminder.id, reminder.referenceId)` without immediateDelete, and await the calls."
+  },
+  {
+   "path": "packages/features/ee/workflows/api/scheduleEmailReminders.ts",
+   "line": 43,
+   "end_line": 51,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Reminders cancelled shortly before they are due are never cancelled at SendGrid",
+   "body": "Cancelling a booking now only sets `cancelled: true`, and the real cancel happens in this cron, which runs every 15 minutes. Take a reminder due 5 minutes after the booking is cancelled. The next cron run can come after the send time, so the email is still sent. Lines 33-40 then delete the past row without ever cancelling it. Fix: in `deleteScheduledEmailReminder`, when the reminder's scheduledDate is within the cron window (about the next hour), cancel at SendGrid right away. Only defer reminders that are further out."
+  },
+  {
+   "path": "packages/features/bookings/lib/handleCancelBooking.ts",
+   "line": 487,
+   "end_line": 487,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The reminder cancel/delete database writes are no longer awaited before the response.",
+   "body": "Before this change, the reminder deletes were part of `prismaPromises` and awaited. Now `deleteScheduledEmailReminder` and `deleteScheduledSMSReminder` are async calls that nothing waits for. The handler can send its response before the `cancelled: true` update or the SMS delete finishes. On serverless platforms that may stop work after the response, so the reminder may never be flagged and the email is still sent. Errors are also only logged. The same pattern appears in `bookings.tsx` and `workflows.tsx`. Fix: collect the returned promises and await them (for example, add them to `prismaPromises`)."
+  },
+  {
+   "path": "packages/features/bookings/lib/handleNewBooking.ts",
+   "line": 968,
+   "end_line": 968,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "Rescheduling still cancels at SendGrid right away, so it still hits the 100 pending-cancellation limit.",
+   "body": "The PR says the problem is SendGrid's limit of 100 pending scheduled-send cancellations, and that cancelled or rescheduled bookings should be cancelled later by the cron. Here rescheduling passes `immediateDelete = true`, which sends the `POST /v3/user/scheduled_sends` cancel straight away. Rescheduling happens often, so this keeps filling the pending-cancellation list. Once it reaches 100, these cancels and other immediate ones fail, and the old booking's reminders are sent anyway. Workflow and step deletion also pass `true`. Fix: drop the `true` so rescheduling uses the deferred `cancelled` flag.",
+   "suggestion": "          deleteScheduledEmailReminder(reminder.id, reminder.referenceId);"
+  },
+  {
+   "path": "packages/features/ee/workflows/components/WorkflowStepContainer.tsx",
+   "line": 390,
+   "end_line": 390,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Restructuring the SMS verification UI is outside the requested fix.",
+   "body": "The request is about cancelling workflow reminders for cancelled or rescheduled bookings. This hunk restructures the phone-number verification UI and changes the render condition from `isPhoneNumberNeeded || isSenderIdNeeded` to `isPhoneNumberNeeded`. That changes what is rendered when only a sender ID is needed. The request doesn't cover this; consider moving it to a separate PR."
+  },
+  {
+   "path": "packages/features/ee/workflows/lib/reminders/emailReminderManager.ts",
+   "line": 225,
+   "end_line": 225,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Reminders cancelled shortly before their send time are never cancelled at SendGrid.",
+   "body": "Marking the reminder as cancelled only works if the cron runs before the email goes out. The cron runs every 15 minutes, and it first deletes every reminder whose `scheduledDate` is in the past. Example: a booking is cancelled 10 minutes before its reminder is due and the next cron run is 12 minutes away. By then the email has been sent, and the row is removed by the past-date `deleteMany` without ever being cancelled. Fix: when `scheduledDate` is within the next hour (or close to it), cancel at SendGrid right away instead of only setting `cancelled: true`. To do that, pass the scheduled date in or look it up."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings.tsx",
+   "line": 487,
+   "end_line": 487,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Reschedule reminder cancellation is fire-and-forget",
+   "body": "The old code awaited `Promise.all(remindersToDelete)`. The new loop calls the async delete helpers without awaiting them, so the request can finish, and a serverless function can be suspended, before the reminders are marked cancelled or deleted. The old booking's reminders can then still be sent. Fix: `await Promise.all(bookingToReschedule.workflowReminders.map(...))`, returning the helper's promise for each reminder."
+  }
+ ],
+ "usage": {
+  "requests": 8,
+  "input": 18,
+  "cacheWrite": 97809,
+  "cacheRead": 52220,
+  "output": 16407,
+  "models": {
+   "claude-opus-5-5": 8
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 21,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 150047,
+   "outputTokens": 16407,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.827701
+}

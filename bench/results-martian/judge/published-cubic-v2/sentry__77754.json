@@ -1,0 +1,49 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "sentry__77754",
+ "url": "https://github.com/getsentry/sentry/pull/77754",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The AssignmentSource dataclass uses queued: datetime = timezone.now() as a default field value, which evaluates timezone.now() once at class definition time and shares that single datetime instance across all objects.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the timezone.now() default is evaluated only once."
+  },
+  {
+   "comment": "The method name has a typo: test_from_dict_inalid_data should be test_from_dict_invalid_data.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the typo in the method name."
+  },
+  {
+   "comment": "Method name says 'empty_array' but tests empty dict - consider renaming to 'test_from_dict_empty_dict' for clarity.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the empty_array vs. empty dict naming mismatch."
+  },
+  {
+   "comment": "to_dict() returns a datetime for queued; if this dict is passed in task kwargs (e.g., via apply_async), JSON serialization may fail depending on the serializer, which can cause enqueue errors.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 identifies the same issue: the datetime in to_dict breaks JSON serialization of task kwargs."
+  }
+ ],
+ "candidates": [
+  "`timezone.now()` is evaluated once at class definition time, so every instance that relies on the default will share the same stale timestamp. Use `field(default_factory=timezone.now)` to get a fresh value per instance.",
+  "`asdict()` keeps `queued` as a `datetime` object. If this dict is serialized to JSON (e.g., as Celery task kwargs), it will raise `TypeError`. Convert `queued` to an ISO string in `to_dict` and parse it back in `from_dict`."
+ ]
+}

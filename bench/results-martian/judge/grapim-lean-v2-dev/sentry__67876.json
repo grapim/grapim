@@ -1,0 +1,40 @@
+{
+ "tool": "grapim-lean-v2-dev",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Null reference if github_authenticated_user state is missing",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G1 is about a null reference when the github_authenticated_user state is missing. No candidate covers this. C1 is about the sender metadata, which is a different key."
+  },
+  {
+   "comment": "OAuth state uses pipeline.signature (static) instead of a per-request random value",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "G2 is about the OAuth state using the static pipeline.signature instead of a random value. C2 mentions the pipeline signature, but only as a test-coverage concern, not as a security issue."
+  },
+  {
+   "comment": "The code attempts to access integration.metadata[sender][login] without checking for the existence of the sender key. This causes a KeyError for integrations where the sender metadata was not set during creation",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 raises the same KeyError when metadata['sender']['login'] is accessed without a sender key."
+  }
+ ],
+ "candidates": [
+  "src/sentry/integrations/github/integration.py:501 - Accessing `metadata[\"sender\"][\"login\"]` directly crashes when the integration has no sender. The new check reads `integration.metadata[\"sender\"][\"login\"]` without a fallback. As far as the code shown goes, only integrations created by the installation webhook store `sender`. An integration created another way, such as an older one or one built through `build_integration`, would raise `KeyError` here. That happens when a user re-installs after the OrganizationIntegration was removed but the Integration row stayed, and the user gets a 500 instead of the error page. I could not see `build_integration`'s metadata, so I could not confirm which paths store `sender`. Fix: use `integration.metadata.get(\"sender\", {}).get(\"login\")` and show `error()` when it is missing.",
+  "tests/sentry/integrations/github/test_integration.py:388 - `test_installation_not_found` no longer tests the 404 path. The assertion on \"The GitHub installation could not be found.\" was removed. The new request sends `state=ddd023...`, which does not match the pipeline signature, so the response now comes from the state-mismatch branch in OAuthLoginView. The test passes whether or not a 404 installation is handled, so the 404 path is no longer covered. Fix: run the full flow (init, OAuth callback with the correct state, then `installation_id`) and assert the 'installation could not be found' message again.",
+  "src/sentry/integrations/github/integration.py:423 - Network and API failures in the token exchange and user lookup cause a 500. `safe_urlopen` is called outside the `try`, and `get_user_info` is not wrapped either. A connection error or timeout during the token exchange, or an API error from `/user` (a revoked token or a GitHub outage), raises an exception out of the view. The user gets a 500 instead of the 'Invalid installation request' page, even though the PR says that page is shown when the access token cannot be obtained. Fix: put `safe_urlopen` and `get_user_info` inside `try` blocks and return `error(request, self.active_organization)` when they fail."
+ ]
+}

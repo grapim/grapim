@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "headintheclouddev__typings-suitescript-2.0__447",
+ "url": "https://github.com/headintheclouddev/typings-suitescript-2.0/pull/447",
+ "head_sha": "9f7b8950c062a928232eb35d04ea1cdd3e391496",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:31:53.748Z",
+ "seconds": 15.292,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17708,
+  "cacheRead": 3527,
+  "output": 893,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 1,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21237,
+   "outputTokens": 893,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 1,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1071134
+}

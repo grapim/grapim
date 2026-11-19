@@ -1,0 +1,63 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "sentry__93824",
+ "url": "https://github.com/getsentry/sentry/pull/93824",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In the SpanFlusher flush loop, metric tags inconsistently use 'shard' (e.g., in spans.buffer.flusher.produce and spans.buffer.segment_size_bytes) and 'shards' (in spans.buffer.flusher.wait_produce) for the same shard identifier value. This prevents correct metric aggregation across flush stages — dashboards and alerts filtering by tag 'shard' will miss data tagged as 'shards' and vice versa.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same inconsistency: the tag is 'shard' in one metric and 'shards' in the other."
+  },
+  {
+   "comment": "The test_basic function in test_consumer.py uses a monkeypatched time.sleep that returns immediately, but then calls time.sleep(0.1) expecting it to actually wait.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same problem: time.sleep is monkeypatched, so the later sleep doesn't wait."
+  },
+  {
+   "comment": "Because flusher processes are created via multiprocessing.get_context('spawn').Process, they are instances of multiprocessing.context.SpawnProcess, which on POSIX is not a subclass of multiprocessing.Process, so this isinstance check will always be false and hung processes won't be killed here.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions that the isinstance check fails for SpawnProcess."
+  },
+  {
+   "comment": "Sleep in test_consumer.py won’t actually wait because time.sleep was monkeypatched above; consider restoring sleep or using a different sync to ensure the flusher has time to process.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "Same issue as G2, and C2 covers it."
+  },
+  {
+   "comment": "Breaking out of the loop when the deadline has elapsed can skip terminating remaining flusher processes, potentially leaving them running after shutdown; consider ensuring termination is attempted even if the deadline is exceeded.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions skipping termination when the deadline is exceeded."
+  }
+ ],
+ "candidates": [
+  "The metrics tag key is inconsistent between spans.buffer.flusher.produce (uses 'shard') and spans.buffer.flusher.wait_produce (uses 'shards'). This makes it harder to correlate timings for the same shard set.",
+  "time.sleep is monkeypatched to a no-op at the start of the test, so the later time.sleep(0.1) does not actually wait and can make the test flaky. Prefer a deterministic wait or call an unpatched sleep function.",
+  "The docstring claims this creates 'one process per shard', but the implementation can share shards across processes when max_processes is lower than the shard count. Adjust the wording to reflect the configurable upper bound.",
+  "self.num_processes can become 0 (e.g. empty buffer.assigned_shards, or max_processes=0 since 'max_processes or ...' treats 0 as falsy). That leads to 'i % self.num_processes' raising ZeroDivisionError during shard mapping. Add validation and avoid using 'or' for the defaulting behavior.",
+  "Creating a separate SpansBuffer per process means each process will independently apply spans.buffer.max-flush-segments (default 500) per cycle. In aggregate this can increase the total flushed segments per wall-clock cycle by ~num_processes× compared to the previous single-flusher behavior, which may have significant Kafka/Redis load implications. Consider splitting the configured flush budget across processes, or updating the option/documentation to reflect the new semantics.",
+  "With default=1, the new --flusher-processes option forces single-process flushing unless explicitly overridden, which conflicts with the stated goal of spawning per-shard processes. Also, type=int allows 0/negative values that can break flusher initialization. Consider defaulting to None (meaning 'one per shard') and enforcing a minimum of 1 when provided."
+ ]
+}

@@ -1,0 +1,58 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same non-atomic count-then-insert race that can exceed the limit."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "C2 notes that the error reaches auth as a 401. However, it accepts that auth is blocked and only asks for a better error code. G2 objects to authentication being blocked at all, where tagging used to be async and non-blocking."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate says that zero affected rows is being misread as the device limit being reached."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises the inconsistent time-window calculation."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the cache being filled before the limit check."
+  }
+ ],
+ "candidates": [
+  "Device-limit enforcement is non-atomic: CountDevices(...) is executed and then INSERT ... ON CONFLICT is performed, allowing concurrent requests to observe count < limit and insert/update concurrently, temporarily exceeding the configured limit",
+  "ErrDeviceLimitReached is a plain error, so when it bubbles up through auth middleware it gets turned into a generic 401 Unauthorized response, losing the real reason. It should be an errutil error (e.g., 429) with a public message so API clients can distinguish it",
+  "device_limit is read from [auth.anonymous] but is not present in conf/defaults.ini's [auth.anonymous] section, making the new setting undiscoverable for users and won't appear in the default config shipped with Grafana",
+  "Device-limit enforcement adds an extra COUNT query to every tagged request when the limit is enabled",
+  "The new test only asserts that inserting a new device fails once the limit is reached, but doesn't verify that an existing device can still be updated when the limit is reached (the updateDevice path)"
+ ]
+}

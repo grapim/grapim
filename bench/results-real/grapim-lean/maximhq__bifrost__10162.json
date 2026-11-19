@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "maximhq__bifrost__10162",
+ "url": "https://github.com/maximhq/bifrost/pull/10162",
+ "head_sha": "e3b1d6c78b46026415423cc76ad5abc3d73a5ce4",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:10:48.860Z",
+ "seconds": 97.442,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 56280,
+  "cacheRead": 54749,
+  "output": 8676,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 14,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 111033,
+   "outputTokens": 8676,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "core/providers/anthropic/responses.go",
+    "line": 6350,
+    "end_line": 6350,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`droppedAsEmpty` may be left unused after removing the lookahead, which would break the build.",
+    "body": "The removed `midConvPlacementOK` closure called `droppedAsEmpty`, and that helper is still declared just above the removed block. Its comment says it exists for a lookahead (\"Turn-shape checks below must not count it … the item a lookahead skips\"). If `ToAnthropicResponsesRequest` has no other call to `droppedAsEmpty`, Go fails with \"declared and not used\" and the package won't compile. I could not see the rest of the function to confirm whether another caller exists. If there is none, delete the `droppedAsEmpty` closure and its comment along with the lookahead."
+   }
+  ]
+ },
+ "cost_usd": 0.46588579999999996
+}

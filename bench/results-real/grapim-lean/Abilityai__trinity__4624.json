@@ -1,0 +1,74 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Abilityai__trinity__4624",
+ "url": "https://github.com/Abilityai/trinity/pull/4624",
+ "head_sha": "1e58780fbfeaaec8f1bdde05120b5f3dacc8bae7",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:15:00.626Z",
+ "seconds": 37.049,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/backend/services/github_token_provider.py",
+   "line": 84,
+   "end_line": 86,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "A covered repo passed in URL or other non-canonical form silently gets the platform PAT.",
+   "body": "`normalize_repo` returns None for `https://github.com/acme/app`, `git@github.com:acme/app.git`, `acme/app/` and similar strings. `token_for_repo` then returns None, which means \"not covered\", and `resolve_github_token` falls back to the platform PAT. So if a caller passes a covered repo as a clone URL (a common shape in this codebase's git paths), it gets the wide-reach platform PAT instead of the scoped token. FR-4 exists to rule that out, and nothing signals that it happened. Fix: either canonicalize the URL forms to `owner/repo` before validating, or treat an unparseable repo as an error (raise `GithubTokenUnavailable` or `ValueError`) whenever a provider is registered, so it never falls through to the PAT."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 6,
+  "cacheWrite": 40355,
+  "cacheRead": 43642,
+  "output": 3446,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 17,
+   "hunks": 19,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 84003,
+   "outputTokens": 3446,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 17,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "tests/unit/test_credential_sanitizer_backend.py",
+    "line": 115,
+    "end_line": 122,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "other",
+    "title": "A wall-clock bound in a unit test can fail on a slow or loaded CI runner.",
+    "body": "The bounded pattern still backtracks up to about 512 characters at each of the 16,000 `ghs_` start positions, roughly 8M regex steps, and `sanitize_text` also runs every other pattern. On a shared CI runner this can come close to the 0.5 s limit and fail intermittently. The same test is in `test_credential_sanitizer_agent.py`. Consider a looser bound, or compare against a baseline measured in the same test run."
+   }
+  ]
+ },
+ "cost_usd": 0.2794474
+}

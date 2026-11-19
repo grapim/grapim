@@ -1,0 +1,33 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 points out the same missing key prop on GrafanaRuleListItem."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C4 covers Delete and Pause going missing because there is no rulerRule. G2 is a different problem: the silence drawer never renders. No candidate mentions SilenceGrafanaRuleDrawer."
+  }
+ ],
+ "candidates": [
+  "public/app/features/alerting/unified/hooks/useAbilities.ts:242 - Federated rule groups are no longer treated as immutable in the legacy abilities hook.. `useAllAlertRuleAbilities(CombinedRule)` used to compute `isFederated = isFederatedRuleGroup(rule.group)`, and that value made federated Mimir groups immutable. It now delegates to `useAllRulerRuleAbilities`, which hardcodes `isFederated = false`. In the existing list and detail views, a rule from a federated Mimir group (one with `source_tenants`) now gets Update, Delete and Pause abilities. Users can then edit or delete rules the UI deliberately protected, and saving the group through the UI can drop its federation settings. Keep the federated check in `useAllAlertRuleAbilities`, for example by passing `isFederatedRuleGroup(rule.group)` into the shared hook as a parameter, until the ruler-based hook can work it out itself.",
+  "public/app/features/alerting/unified/hooks/useAbilities.ts:308 - With skipToken, the Grafana prom-rule ability still reports Duplicate as supported.. `useGrafanaPromRuleAbilities(skipToken, ...)` calls `useAllGrafanaPromRuleAbilities(undefined)`. When `rule` is undefined, `useIsGrafanaPromRuleEditable` returns `loading: false`, so `MaybeSupported` is `AlwaysSupported` and `duplicateSupported` is too. That makes Duplicate `[true, hasCreatePermission]`. `AlertRuleMenu` combines the ruler and Grafana checks with OR, so Duplicate appears for every cloud/Mimir rule (where skipToken is passed) whenever the user has `alert.rules:create`. This happens even when the ruler check says it isn't supported, for example when the ruler is unavailable or still loading, or when the rule is plugin-provided. Fix: when `rule` is undefined, return `NotSupported` for every action. For example, set `const MaybeSupported = !rule || loading ? NotSupported : AlwaysSupported;`.",
+  "public/app/features/alerting/unified/rule-list/FilterView.tsx:157 - The `key` prop was dropped from the Grafana list item rendered inside `rules.map`.. The old `GrafanaRuleLoader` element received `key={key}`. The new `GrafanaRuleListItem` gets no key, even though `key` is still destructured from `ruleWithOrigin` and the sibling branches still pass it. React will warn, and it will match items by position. As more pages load or filters change, rows can keep the state of the wrong rule, such as an open silence drawer, delete modal or clone redirect in `RuleActionsButtons`. Add `key={key}` back.",
+  "public/app/features/alerting/unified/rule-list/GrafanaGroupLoader.test.tsx:191 - The new list view loses the Delete and Pause actions, and the test locks that in.. The test grants AlertingRuleDelete and AlertingRuleUpdate on the folder, then asserts that the menu holds exactly 4 items: silence, copy link, duplicate and export. Delete and Pause are missing because the list view no longer loads a `rulerRule`, and `AlertRuleMenu` builds the pause and delete items only from `rulerRule` (`handleDelete` needs a `RulerRuleDTO`). Users who have permission to delete or pause a Grafana rule can no longer do it from the list, even though `canDelete` and `canPause` are now computed from the Prometheus rule. Either support delete and pause using the Prometheus rule identifier, or state the removal explicitly. The test should not assert an item count that hides the regression."
+ ]
+}

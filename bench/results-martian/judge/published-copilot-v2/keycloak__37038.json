@@ -1,0 +1,36 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "keycloak__37038",
+ "url": "https://github.com/keycloak/keycloak/pull/37038",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In GroupPermissionsV2.canManage(), the permission fallback checks for both VIEW and MANAGE scopes (hasPermission(null, AdminPermissionsSchema.VIEW, AdminPermissionsSchema.MANAGE)), but canManage() should only grant access for MANAGE scope, not VIEW. This means users with only VIEW permission on groups can pass the canManage() check, granting them write access they should not have. The canView() method correctly checks both VIEW and MANAGE, but canManage() should only check MANAGE.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: canManage() accepts the VIEW scope, so a user with only view permission gets manage access."
+  },
+  {
+   "comment": "In getGroupIdsWithViewPermission, hasPermission is called with groupResource.getId() and the same groupResource.getId() is added to granted, but hasPermission resolves resources by name (treating the argument as a group id) and the GroupPermissionEvaluator contract says this method returns group IDs that are later used as UserModel.GROUPS and in getUsersCount group filters. This mismatch means per-group VIEW_MEMBERS/MANAGE_MEMBERS permissions may not yield the expected group IDs for filtering and counts, and evaluation may effectively only look at the type-level 'all-groups' resource; consider revisiting whether this should operate on the underlying group ids (resource names) instead so it aligns with the JPA queries and the interface contract.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.92,
+   "reasoning": "C2 identifies the same mismatch: the method returns resource IDs instead of group IDs (the resource names), which breaks the user filtering and counts."
+  }
+ ],
+ "candidates": [
+  "canManage() treats the view scope as sufficient for manage access (hasPermission(..., VIEW, MANAGE)), which would allow callers with only view permissions to manage groups - this is a privilege escalation risk; manage checks should require the manage scope only",
+  "getGroupIdsWithViewPermission() returns authorization resource IDs (groupResource.getId()) rather than Keycloak group IDs, causing user search/count to incorrectly return 0 users or mis-filter since these IDs are used by JpaUserProvider to filter memberships by groupId - should use the resource name (which is the groupId per AdminPermissionsSchema.getOrCreateResource) instead",
+  "Javadoc says method returns a 'Stream' but the signature returns a Set<String>, which is misleading for API consumers",
+  "Extra trailing semicolon after field initialization that can trigger style/checkstyle violations",
+  "Typo in comment: 'initializaed' should be 'initialized'"
+ ]
+}

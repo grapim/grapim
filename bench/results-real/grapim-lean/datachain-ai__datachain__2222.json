@@ -1,0 +1,68 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "datachain-ai__datachain__2222",
+ "url": "https://github.com/datachain-ai/datachain/pull/2222",
+ "head_sha": "362c4ccfe64f7d0f590272ac9791a99db2fbe254",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:09:40.981Z",
+ "seconds": 53.513,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 44721,
+  "cacheRead": 3426,
+  "output": 4947,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 38,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 8,
+   "inputTokens": 48149,
+   "outputTokens": 4947,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 13,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "src/datachain/lib/dc/storage.py",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/datachain/lib/listing.py",
+    "line": 632,
+    "end_line": 654,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The version `sources` field is reused to store a version string, then parsed as a semver.",
+    "body": "An unchanged refresh writes its own version string into the previous version's `sources` field (`sources=version`). Every later refresh then calls `semver.value(prev_ver.sources)` whenever that field is non-empty. `sources` is a general dataset-version metadata field. If an existing listing version has anything other than a semver string there, `semver.value` raises. That could be a listing made by an older release, one imported from Studio, or one with sources set some other way. The refresh would then fail on that `ValueError` and release its reservation, so `read_storage(update=True)` or an expired-TTL refresh breaks for that bucket. Writing into `sources` also overwrites whatever it held before. I could not see what older listings store in `sources`. The fix: keep the fence in a field reserved for it, or only parse `sources` when it is a valid version and treat anything else as no fence."
+   }
+  ]
+ },
+ "cost_usd": 0.32323820000000003
+}

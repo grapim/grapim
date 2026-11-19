@@ -1,0 +1,32 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "keycloak__36882",
+ "url": "https://github.com/keycloak/keycloak/pull/36882",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect method call for exit codes. The picocli.exit() method calls System.exit() directly, which is problematic:",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.92,
+   "reasoning": "C1 points out the same problem: picocli.exit() calls System.exit directly, which is the wrong way to handle this condition."
+  },
+  {
+   "comment": "Need to add changelog/release notes documenting the exit code change and migration guidance",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate asks for changelog or migration notes. C3 is about the docs wording being too broad, which is a different issue."
+  }
+ ],
+ "candidates": [
+  "`picocli.exit()` calls `System.exit(4)` for non-zero exit codes, which is a hard JVM termination path designed for build failures. For a 'feature disabled' condition, this bypasses graceful shutdown and makes the subsequent `return` unreachable. Consider throwing a `PropertyException` instead, consistent with how other error conditions in these commands are handled, or setting the exit code on the `CommandSpec` to let picocli handle it through its normal lifecycle",
+  "The default-strategy test case returns before the new rolling-updates feature flag is enabled, so the `null` branch no longer covers the rolling-update path",
+  "Documentation warning is broader than the implementation: the default `<not set>` strategy still works without `rolling-updates`, so saying the operator will fail is misleading"
+ ]
+}

@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "G1 is about a missing argument in the call in UsernameForm.authenticate(), which would be a compile error. C1 is about UsernamePasswordForm and the inverted user-null logic, not a missing argument."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 points out that requiring user != null means fillContextForm is never called on the first login, when no user is set yet, so the conditional passkey UI is lost. That is the same issue as G2."
+  }
+ ],
+ "candidates": [
+  "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java:161 - Passkey check is inverted: it now needs a user, so first login never gets conditional passkeys.. `isConditionalPasskeysEnabled` returns true only when `user != null`. The old code filled the WebAuthn data when no user was selected (`context.getUser() == null`). Both `authenticate()` (line 115) and `challenge(context, error, field)` (line 137) now call this helper, so a normal first login with no user identified never calls `webauthnAuth.fillContextForm`. The login page loses the conditional passkey UI and the `webauth` form, and it also loses them after a failed password attempt. The tests in this PR expect that form on the first login page (e.g. PasskeysUsernamePasswordFormTest lines 196 and 238). The `user != null` term also shows passkeys on re-authentication to users who have no passkey credential. Fix: enable passkeys when no user is selected, or when the selected user has a passwordless credential, e.g. `webauthnAuth != null && webauthnAuth.isPasskeysEnabled() && (user == null || user.credentialManager().isConfiguredFor(webauthnAuth.getCredentialType()))`."
+ ]
+}

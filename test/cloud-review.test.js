@@ -202,7 +202,11 @@ test('a pull request is reviewed in the cloud: check in progress, inline review,
   assert.ok(gh.s.comments[0].body.startsWith(CLOUD_MARKER));
   // Short check, the verdict up front, the commit in the footer, feedback explained inline.
   assert.match(check.output.summary, /^Reviewed \d+ files? at [0-9a-f]{7}: 1 blocker\. The comments and the summary are on the pull request\.$/);
-  assert.match(gh.s.comments[0].body, /\*\*Fix before merging:\*\*/);
+  // The merge decision card's heading is the verdict; the summary's own
+  // "Fix before merging" line would repeat it, so it goes (it stays without a card).
+  assert.match(gh.s.comments[0].body, /^### Do not merge · 1 blocker$/m);
+  assert.doesNotMatch(gh.s.comments[0].body, /\*\*Fix before merging:\*\*/);
+  assert.equal(gh.s.comments[0].body.match(/^### /gm).length, 2, 'the card, then the review: one verdict');
   assert.match(gh.s.comments[0].body, /<sub>Reviewed by <a href="https:\/\/github\.com\/grapim\/grapim">Grapim<\/a> at commit <code>[0-9a-f]{7}<\/code><\/sub>\n$/);
   assert.match(gh.s.reviews[0].comments[0].body, /React 👍 or 👎, or reply/);
   assert.ok(!JSON.stringify({ checks: gh.s.checks, reviews: gh.s.reviews, comments: gh.s.comments }).includes(TOKEN), 'the token never reaches a comment or check');
@@ -227,10 +231,31 @@ test('summary: a numbered list of the inline findings, each linking to its comme
   const id = gh.s.reviews[0].id * 100;
   const body = gh.s.comments[0].body;
   assert.ok(body.includes(`\n1. **Blocker** · [a is now 10](https://github.com/acme/api/pull/7#discussion_r${id}) · \`src/small.js:1\`\n`), body);
-  // Right under the counts and the verdict, before anything else.
-  assert.ok(body.indexOf('**Fix before merging:**') < body.indexOf('\n1. **Blocker**'));
+  // Under the card, right under the counts, before anything else.
+  assert.ok(body.indexOf('<!-- /grapim:card -->') < body.indexOf('**1 blocker** in 1 file.'));
+  assert.ok(body.indexOf('**1 blocker** in 1 file.') < body.indexOf('\n1. **Blocker**'));
   assert.ok(body.indexOf('\n1. **Blocker**') < body.indexOf('<sub>Reviewed by'));
   assert.ok(!/Not on a changed line/.test(body));
+  // The card does not list the findings again: one line, linked to the list's first comment.
+  assert.ok(body.includes(`\nReviewed 1 of 1 changed hunk: [1 blocker, listed below](https://github.com/acme/api/pull/7#discussion_r${id}).\n`), body);
+  assert.ok(!body.includes('1. [Blocker:'), 'no numbered finding items on the card');
+  assert.equal(gh.s.checks.find((c) => c.name === CLOUD_CHECK).output.title, 'Do not merge: 1 blocker');
+});
+
+test('summary: when the merge decision card fails, the summary keeps its own verdict line and the check its own result', async (t) => {
+  const { cloud, gh, job } = await setup(t);
+  cloud.setEnabled('team1', true, 'u1');
+  cloud.cards.prepare = async () => {
+    throw new Error('card broke');
+  };
+  assert.equal((await cloud.review(job, AbortSignal.timeout(60_000))).done, true);
+  const body = gh.s.comments[0].body;
+  assert.ok(!body.includes('<!-- grapim:card -->'));
+  assert.ok(body.startsWith(`${CLOUD_MARKER}\n### <a href="https://github.com/grapim/grapim">Grapim Review</a>`), body.slice(0, 200));
+  assert.ok(body.indexOf('**Fix before merging:** a is now 10.') < body.indexOf('\n1. **Blocker**'));
+  const check = gh.s.checks.find((c) => c.name === CLOUD_CHECK);
+  assert.equal(check.conclusion, 'failure');
+  assert.match(check.output.summary, /^Reviewed \d+ files? at [0-9a-f]{7}: 1 blocker\./);
 });
 
 test('summary: the list still renders, without links, when listing the comments fails or the URL is not GitHub', async (t) => {
@@ -384,7 +409,8 @@ test('a review that looked at nothing ends neutral as "Nothing reviewed", never 
   assert.equal(r.done, true, JSON.stringify(r));
   const check = gh.s.checks.find((c) => c.name === CLOUD_CHECK);
   assert.equal(check.conclusion, 'neutral');
-  assert.equal(check.output.title, 'Nothing reviewed');
+  // The title is the card's verdict (merge-card.js cardCheck).
+  assert.equal(check.output.title, 'Check these first: nothing reviewed');
 });
 
 test('second look: a finding the author already explained is dropped before posting; strangers cannot do that', async (t) => {
@@ -538,7 +564,10 @@ test('a cloud review runs with the team\'s settings, and the repository\'s .grap
   assert.equal(r.done, true, JSON.stringify(r));
   assert.equal(r.counts.blocker, 1);
   let check = gh.s.checks.filter((c) => c.name === CLOUD_CHECK).at(-1);
-  assert.equal(check.conclusion, 'success', 'failOn never: the blocker is a comment, the check passes');
+  // failOn never: the blocker does not fail the check; under the card's
+  // "Do not merge" it is neutral, not green.
+  assert.equal(check.conclusion, 'neutral', 'failOn never: the blocker does not fail the check');
+  assert.equal(check.output.title, 'Do not merge: 1 blocker');
   assert.ok(model.s.requests.some((q) => q.text.includes('TEAM-NOTE: we use Postgres.')), 'the team note reaches the reviewer');
 
   // The repository's file on the base branch says failOn blocker: it wins over the team.

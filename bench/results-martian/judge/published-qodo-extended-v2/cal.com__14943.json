@@ -1,0 +1,31 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block).",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "G1 is about a lost-update race: retryCount + 1 reads a value that may be stale, so the fix is an atomic increment. C2 is about the update throwing when the reminder was deleted concurrently, which is a different failure."
+  },
+  {
+   "comment": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same issue: the retryCount OR branch has no SMS method filter, so it deletes non-SMS reminders."
+  }
+ ],
+ "candidates": [
+  "The second OR branch in the deleteMany query deletes ANY WorkflowReminder with retryCount > 1 regardless of method type, because it lacks a method: WorkflowMethods.SMS filter, causing non-SMS reminders (EMAIL, WHATSAPP) to be unintentionally deleted by the SMS cron job",
+  "In scheduleSMSReminders, the catch block calls prisma.workflowReminder.update() to increment retryCount, but that update can throw if the reminder was deleted concurrently, escaping the catch and aborting the entire cron run"
+ ]
+}

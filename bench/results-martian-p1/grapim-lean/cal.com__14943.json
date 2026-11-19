@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "head_sha": "c790227e0cda780e6fea9bb03af27948d9e286b9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:44:57.783Z",
+ "seconds": 24.072,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+   "line": 38,
+   "end_line": 42,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "data_loss",
+   "title": "Retry-count delete branch is not limited to SMS reminders.",
+   "body": "The second `OR` branch deletes every `workflowReminder` with `retryCount > 1`, whatever its `method`. Right now only this SMS cron increments `retryCount`. The column lives on the shared model, though, so once the email or WhatsApp schedulers start using it (or something else writes it), the SMS cron will silently delete those reminders. Add `method: WorkflowMethods.SMS` to the retry branch, or move the method filter outside the `OR`, so this handler deletes only SMS reminders."
+  },
+  {
+   "path": "packages/features/ee/workflows/api/scheduleSMSReminders.ts",
+   "line": 190,
+   "end_line": 197,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "An exception from the update inside `catch` stops the rest of the batch.",
+   "body": "Before this change the `catch` block only logged, so one bad reminder could not stop the loop. Now it runs `prisma.workflowReminder.update` first. If that update throws, the error escapes the handler and every remaining reminder in this cron run is skipped. This happens when the row has already been deleted (P2025 'record not found', for example when a booking is cancelled at the same time) or when the original error was itself a DB failure. Wrap the increment in its own try/catch, or use `updateMany` with the id, which does not throw when no row matches. Log the original error before attempting the increment."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 6279,
+  "cacheRead": 7122,
+  "output": 1284,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 13405,
+   "outputTokens": 1284,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0585154
+}

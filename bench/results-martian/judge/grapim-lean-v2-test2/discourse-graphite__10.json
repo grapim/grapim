@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean-v2-test2",
+ "pr_id": "discourse-graphite__10",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/10",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The EmbeddableHost model's before_validation callback calls self.host.sub! to strip http://, https://, and path segments, but if self.host is nil, this raises NoMethodError.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.97,
+   "reasoning": "C4 points out that host.sub! raises NoMethodError when host is nil."
+  },
+  {
+   "comment": "The update and destroy methods in Admin::EmbeddableHostsController do not validate the existence of the EmbeddableHost record retrieved by ID. If EmbeddableHost.where(id: params[:id]).first returns nil (i.e., the host does not exist), attempting to call methods on the nil object (e.g., save_host or destroy) will result in a NoMethodError.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 points out that update and destroy hit nil when the id is unknown."
+  },
+  {
+   "comment": "record_for_host compares lower(host) = ? but does not normalize the parameter’s case, so mixed‑case referer hosts may fail to match even though comparison intends to be case‑insensitive.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.95,
+   "reasoning": "C5 points out that the lookup argument is never lowercased, so mixed-case referers don't match."
+  },
+  {
+   "comment": "Because this migration inserts embeddable_hosts rows with raw SQL, any existing embeddable_hosts values that include http:// or /https:// or path segments won’t go through the EmbeddableHost model’s normalization, so the new host lookup (which compares only the bare host) may fail for migrated data. Consider ensuring that migrated hosts are normalized to the same format as newly created EmbeddableHost records so existing embedding configurations keep working.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out that the migration copies hosts without normalizing them, so lookups fail."
+  },
+  {
+   "comment": "The contents of `category_fabricator.rb` and `embeddable_host_fabricator.rb` have been swapped, resulting in the loss of original category fabricators and potentially causing errors in fabricator usage.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the fabricator files being swapped."
+  },
+  {
+   "comment": "The SQL query in the `app/controllers/admin/embeddable_hosts_controller.rb` file uses string interpolation (`'#{h}'`) to insert values, which is vulnerable to SQL injection. It should use parameter binding or proper quoting to prevent this security vulnerability.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.6,
+   "reasoning": "C2 flags the '#{h}' value interpolated into SQL and suggests quoting it. That interpolation is in the migration, while the golden comment places it in the controller file, so the match is less certain."
+  },
+  {
+   "comment": "The migration accesses execute(...)[0]['id'] without checking if the query returned any rows, which causes a crash when no embed_category setting exists. This can lead to a broken feature when attempting to edit category/host relationships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the crash on [0]['id'] when the query returns no rows."
+  }
+ ],
+ "candidates": [
+  "db/migrate/20150818190757_create_embeddable_hosts.rb:9 - Migration crashes when no embed_category row matches a category.. `execute(...)[0]['id']` indexes a PG::Result. If the `embed_category` setting was never set, or its value doesn't match a category name, the result is empty, `[0]` raises IndexError and the migration aborts. That is the default case on most sites. The `uncategorized_category_id` lookup on line 15 has the same problem when that setting row is missing (it falls back to a default and may not be stored). Check `cmd_tuples`/`ntuples` before indexing, and fall back to a default when there is no row.",
+  "db/migrate/20150818190757_create_embeddable_hosts.rb:22 - Existing hosts are copied unnormalized and interpolated straight into SQL.. The old setting accepted values like `http://discourse.org` and `https://example.com/1234`; the old specs used exactly these. The migration copies them as-is, along with any trailing `\\r` or spaces from `split(\"\\n\")`. It skips the model's `before_validation` stripping. `record_for_host` compares against `uri.host`, so these migrated rows never match, and embedding stops working for those sites once the setting is deleted. The value is also interpolated into the SQL string, so a host containing a quote breaks the migration. Strip the scheme, path and whitespace, skip blank entries, and quote the value (e.g. `ActiveRecord::Base.connection.quote(h)`).",
+  "app/controllers/admin/embeddable_hosts_controller.rb:9 - update/destroy raise NoMethodError on an unknown id.. `EmbeddableHost.where(id: params[:id]).first` returns nil for a missing id, for example a host another admin already deleted. `save_host(nil)` and `nil.destroy` then raise and return a 500 error. Use `find` (which gives a 404) or return `render_json_error`/404 when the record is nil. `params[:embeddable_host][:host]` also fails when the `embeddable_host` key is missing.",
+  "app/models/embeddable_host.rb:5 - before_validation crashes when host is nil.. `self.host.sub!` raises NoMethodError when `host` is nil. That happens with `EmbeddableHost.new` and no host, or a create/update request without `embeddable_host[:host]`. The result is a 500 error instead of a validation error. Guard the block with `if host.present?`, or use `self.host = host.to_s.sub(...)`.",
+  "app/models/embeddable_host.rb:14 - Host lookup fails for mixed-case referers and for hosts saved with a port.. `where(\"lower(host) = ?\", host)` lowercases the stored column but not the argument. `URI(...).host` keeps the original case, so a referer like `http://EvilTrout.com/x` is rejected. The validation also explicitly allows a port (`example.com:8080`), which the callback does not strip. `uri.host` never includes the port, so such a record can never match. Downcase the argument, and either strip the port on save or compare it as well."
+ ]
+}

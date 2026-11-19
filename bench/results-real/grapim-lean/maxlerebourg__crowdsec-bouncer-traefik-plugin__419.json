@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "maxlerebourg__crowdsec-bouncer-traefik-plugin__419",
+ "url": "https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin/pull/419",
+ "head_sha": "56305e5f9a5d2639b1468de051b0167f3b6ebae8",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:27:10.811Z",
+ "seconds": 11.207,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 10362,
+  "cacheRead": 3527,
+  "output": 728,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 10,
+   "reviewedHunks": 10,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 13891,
+   "outputTokens": 728,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.06708339999999999
+}

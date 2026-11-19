@@ -1,0 +1,35 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 says the same thing: UsernameForm calls isConditionalPasskeysEnabled() without the UserModel argument."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 points to the same problem. Because the method requires user != null, conditional passkey UI isn't set up on the initial login page, where the user is still null. C2 names UsernamePasswordForm instead of UsernameForm, but the root issue is the same."
+  }
+ ],
+ "candidates": [
+  "UsernameForm calls isConditionalPasskeysEnabled() with no arguments, but the only available method is isConditionalPasskeysEnabled(UserModel). This won't compile.",
+  "isConditionalPasskeysEnabled(UserModel) currently requires user != null, which prevents UsernamePasswordForm from setting enableWebAuthnConditionalUI on the initial login screen (where context.getUser() is null) and on error challenges before the user is set, so themes/base/login/passkeys.ftl won't render the conditional passkeys form.",
+  "Unused import: PasswordCredentialModel is imported but never referenced in this test class, which will fail Java compilation.",
+  "Unused import: NoSuchElementException is no longer referenced in this test (the previous Assert.assertThrows usages were removed), so the import will cause a compilation error."
+ ]
+}

@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "chalk-ai__chalk-go__791",
+ "url": "https://github.com/chalk-ai/chalk-go/pull/791",
+ "head_sha": "c3719ce87d9f5a2553e4f4ac982f42cba766062a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:13:22.227Z",
+ "seconds": 19.219,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 6697,
+  "cacheRead": 3426,
+  "output": 1444,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 1,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 10125,
+   "outputTokens": 1444,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 1,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0630582
+}

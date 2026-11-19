@@ -1,0 +1,94 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "head_sha": "5f8a130277dbddc95d133cd2832be639baf89213",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:29:55.294Z",
+ "seconds": 32.297,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/models/blocked_email.rb",
+   "line": 12,
+   "end_line": 12,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Blocked-email lookup is case-sensitive, so a block is bypassed by changing letter case.",
+   "body": "`BlockedEmail.where(email: email)` is an exact string match. If `bad@spammers.org` is blocked, signing up as `Bad@Spammers.org` (or `BAD@spammers.org`) finds no record and passes validation, even though it is the same mailbox. Normalize both sides: store emails downcased (e.g. in `set_defaults`/before_validation) and look up with `email.to_s.downcase.strip`, or compare with `lower(email) = ?`."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/controllers/create_account_controller.js",
+   "line": 274,
+   "end_line": 276,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "An empty `errors.email` array is truthy in JS, so a valid email gets marked as rejected.",
+   "body": "In this Rails version, `EmailValidator#validate_each` calls `record.errors[attribute].blank?`, and that lookup adds `email: []` to the errors hash. `user.errors.to_hash` then sends `\"email\": []` back even when nothing is wrong with the email. In JavaScript `[]` is truthy, so if signup fails for some other reason (for example a username that's already taken or a short password), the user's valid email still goes into `rejectedEmails`. After that the email field shows \"invalid\" and the user can't submit with their own address. The fix is to check that the array is non-empty, as in the suggestion.",
+   "suggestion": "          if (result.errors && result.errors.email && result.errors.email.length > 0 && result.values) {\n            createAccountController.get('rejectedEmails').pushObject(result.values.email);\n          }"
+  },
+  {
+   "path": "app/models/blocked_email.rb",
+   "line": 13,
+   "end_line": 17,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Match statistics are rolled back when a signup is actually blocked.",
+   "body": "`should_block?` runs during `User` validation. In Rails, `save` runs validation inside a transaction, and when it returns false that transaction is rolled back. So when an email is blocked, `user.save` fails, and the `match_count`/`last_match_at` update made here is undone. Hits are recorded only for `do_nothing` records or when the user saves, which is the opposite of what the stats are for. I could not see whether the controller uses `user.save`, but that is the usual path. The read-modify-write `match_count += 1` also loses counts when two requests run at once. One fix is to record the hit outside the user's transaction, for example from the controller after validation fails. Use an atomic `update_all` increment instead of `+= 1` and `save`."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/controllers/create_account_controller.js",
+   "line": 69,
+   "end_line": 74,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Emails the server rejected are labelled \"invalid\" on the form, whatever the real reason was.",
+   "body": "The hunk at line 275 adds an email to `rejectedEmails` whenever the server sends back any `errors.email`. That covers \"has already been taken\", \"is not allowed from that email provider\" and the new \"is not allowed.\" for blocked emails. This check then always shows `I18n.t('user.email.invalid')` (\"please enter a valid email\" style text). So someone whose well-formed email is already registered or blocked is told the address is invalid, which contradicts the server's error flash. Fix: store the server's message (`result.errors.email[0]`) next to each rejected email and show that as the reason here, or use a message that fits every case."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 12,
+  "cacheWrite": 40361,
+  "cacheRead": 39506,
+  "output": 7662,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 13,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 79879,
+   "outputTokens": 7662,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.3629942
+}

@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "head_sha": "8ab88145113dd23a930e23b9cbbcf8b30e4c0b17",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:26:55.197Z",
+ "seconds": 41.114,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/api/paginator.py",
+   "line": 838,
+   "end_line": 843,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "OptimizedCursorPaginator can't handle the datetime key used by audit logs.",
+   "body": "The audit log endpoint uses this paginator with `order_by=\"-datetime\"`, so `getattr(item, self.key)` returns a `datetime`. `math.floor`/`math.ceil` on a datetime raises `TypeError` in `build_cursor`, so every request with `optimized_pagination=true` that returns rows fails with a 500. `value_from_cursor` also passes the raw integer cursor value to `build_queryset`, where it is compared with a DateTimeField. `DateTimePaginator` converts both ways (epoch ↔ datetime). Fix: subclass `DateTimePaginator` or reuse its `get_item_key`/`value_from_cursor`."
+  },
+  {
+   "path": "src/sentry/api/paginator.py",
+   "line": 877,
+   "end_line": 882,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "Negative cursor offsets are passed straight into a queryset slice.",
+   "body": "A client can send a cursor like `0:-10:0`, and `queryset[-10:...]` then runs on a Django QuerySet. Django rejects negative indexing (\"Negative indexing is not supported\"), so this branch can only raise a 500. The comments say it gives \"access to data beyond normal pagination bounds\" and claim it is \"safe because permissions are checked at the queryset level\". Any client-controlled feature meant to bypass pagination bounds should be removed, not shipped behind a query flag. Fix: drop the branch and clamp the offset to `max(0, offset)` as before."
+  },
+  {
+   "path": "src/sentry/scripts/spans/add-buffer.lua",
+   "line": 46,
+   "end_line": 53,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Switching from Redis sets to sorted sets breaks segment keys that already exist at deploy time.",
+   "body": "Keys written by the old code are SETs. After deploy, `zadd` in `process_spans` and `zcard`/`zunionstore` in this script fail with WRONGTYPE on those keys, and so does `zscan` in flush. The consumer and flusher then error on every batch that touches an in-flight segment until those keys expire. Fix: use a new key prefix for the sorted-set format, or handle and clean up legacy SET keys."
+  },
+  {
+   "path": "src/sentry/api/endpoints/organization_auditlogs.py",
+   "line": 71,
+   "end_line": 83,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "The \"admin-only\" gate trusts `has_global_access` and can dereference a missing member.",
+   "body": "`organization_context.member.has_global_access` is true for any member of an org with open membership, not only administrators, so ordinary members can turn on the negative-offset path. When the user is not a superuser and `member` is None (for example, staff access without membership), this line raises `AttributeError`. It also checks `is_superuser` instead of an active superuser session. Fix: remove this path or gate it on `is_active_superuser(request)` or an explicit scope, and guard against `member is None`."
+  },
+  {
+   "path": "src/sentry/scripts/spans/add-buffer.lua",
+   "line": 47,
+   "end_line": 53,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "ZUNIONSTORE sums the scores of duplicate members.",
+   "body": "`zunionstore` uses `AGGREGATE SUM` by default. When the same payload is in both sets (for example, a redelivered Kafka message), its score becomes twice its end timestamp. That corrupts the ordering the eviction depends on. Add `\"AGGREGATE\", \"MAX\"` to both calls."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 16632,
+  "cacheRead": 3262,
+  "output": 3860,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 20,
+   "reviewedHunks": 20,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 19896,
+   "outputTokens": 3860,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1610204
+}

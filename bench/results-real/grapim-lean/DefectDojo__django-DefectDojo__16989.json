@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "DefectDojo__django-DefectDojo__16989",
+ "url": "https://github.com/DefectDojo/django-DefectDojo/pull/16989",
+ "head_sha": "bb4c0e3ddba219c994fddf971198996b45819d79",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:08:43.812Z",
+ "seconds": 43.269,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 11909,
+  "cacheRead": 15079,
+  "output": 3760,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 26992,
+   "outputTokens": 3760,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "unittests/test_auditlog_history_indexes.py",
+    "line": 15,
+    "end_line": 15,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "A top-level `import psycopg` stops the whole test module loading under psycopg2.",
+    "body": "The migration under test handles both drivers: it reads `sqlstate` for psycopg and `pgcode` for psycopg2. That suggests psycopg2 may still be a supported setup. This module now imports `psycopg` (v3) at the top. On a setup that has only psycopg2, the import raises `ModuleNotFoundError`. The whole module then fails to load, including the existing history index tests that never need psycopg, and the new test fails instead of skipping. I could not check which drivers the project supports. If psycopg2 is supported, import psycopg inside the new test and skip when the import fails, or use `unittest.skipUnless`."
+   }
+  ]
+ },
+ "cost_usd": 0.13777679999999998
+}

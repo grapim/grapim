@@ -1,0 +1,42 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "BlockedEmail.should_block_email? method has side effects during a read operation - it updates statistics even when just checking if an email should be blocked. This could cause race conditions in concurrent environments and makes the method name misleading.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 flags the same side effects inside a predicate method."
+  },
+  {
+   "comment": "The regex pattern @(#{domains}) in email_in_restriction_setting? method only matches domain suffixes, not full domains with proper boundary anchoring. An attacker can register evil.example.com to bypass a whitelist entry for example.com.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate points out the regex domain-boundary bypass. C3 is about malformed emails, which is a different problem."
+  },
+  {
+   "comment": "The case-sensitive email lookup in `BlockedEmail.should_block?` creates a bypass risk, allowing 'User@Example.com' to bypass a block on 'user@example.com'. This can lead to unauthorized access to blocked users.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.93,
+   "reasoning": "C2 flags the same case-sensitivity bypass."
+  }
+ ],
+ "candidates": [
+  "should_block? is a predicate method but has write side effects (increments match_count, sets last_match_at, saves record), violating command-query separation; callers expect a ? method to be a pure read but every invocation silently mutates the database",
+  "Normalize the email before querying in BlockedEmail.should_block?; otherwise blocked addresses can be bypassed by changing case",
+  "EmailValidator no longer rejects malformed email addresses, so validates :email, email: true can now accept values like sam@sam or sam"
+ ]
+}

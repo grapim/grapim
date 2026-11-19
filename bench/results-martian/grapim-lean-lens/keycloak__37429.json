@@ -1,0 +1,148 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "head_sha": "02f48f776f43734d1ac8914d3ad6a7115acdcb33",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:24:16.792Z",
+ "seconds": 69.734,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "themes/src/main/resources-community/theme/base/account/messages/messages_lt.properties",
+   "line": 101,
+   "end_line": 101,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Lithuanian totpStep1 replaced with Italian text.",
+   "body": "The new value of `totpStep1` in the Lithuanian bundle is Italian (\"Installa una delle seguenti applicazioni sul tuo cellulare:\"). Lithuanian users will see an Italian sentence in the TOTP setup step. It looks like it was copied from `messages_it`. Use a Lithuanian translation instead, for example \"Įdiekite vieną iš šių programėlių savo mobiliajame telefone:\"."
+  },
+  {
+   "path": "themes/src/main/resources-community/theme/base/account/messages/messages_zh_CN.properties",
+   "line": 112,
+   "end_line": 112,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Simplified Chinese bundle now contains Traditional Chinese text.",
+   "body": "The new `totpStep1` value \"在您的手機上安裝以下應用程式之一：\" is Traditional Chinese (手機, 應用程式), probably copied from zh_TW. The rest of this zh_CN file is Simplified Chinese. Use the Simplified form."
+  },
+  {
+   "path": "themes/src/main/resources-community/theme/base/login/messages/messages_lt.properties",
+   "line": 71,
+   "end_line": 71,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Lithuanian loginTotpStep1 replaced with Italian text.",
+   "body": "`loginTotpStep1` in the Lithuanian login bundle is now Italian. Lithuanian users setting up OTP will see an Italian instruction on the login page. Replace it with Lithuanian text."
+  },
+  {
+   "path": "js/apps/account-ui/maven-resources/theme/keycloak.v3/account/messages/messages_en.properties",
+   "line": 188,
+   "end_line": 188,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Account UI message switched from i18next `{{0}}` to MessageFormat syntax.",
+   "body": "The account UI (keycloak.v3) renders these bundles with i18next. Every other placeholder in the file uses `{{...}}`. The new value uses `{0}` and an ICU `{2,choice,...}` clause, which i18next does not evaluate by default. The user-profile validation error would then show the raw `{0}`/`{2,choice,0#values|1#value|1<values}` text instead of the attribute name and counts. I could not see how the UI passes parameters to this key. Unless it formats it with Java MessageFormat, keep the `{{n}}` form here."
+  },
+  {
+   "path": "js/apps/admin-ui/maven-resources/theme/keycloak.v2/admin/messages/messages_en.properties",
+   "line": 3138,
+   "end_line": 3138,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Admin UI message switched from i18next `{{0}}` to MessageFormat syntax.",
+   "body": "The admin UI bundle uses i18next interpolation (`{{error}}`, `{{fieldName}}` in the surrounding lines). Changing this key to `{0}` plus an ICU `choice` clause probably makes the admin console show unreplaced placeholders and raw choice syntax for multivalued-size validation errors. Keep `{{0}}`/`{{1}}`/`{{2}}` unless this key is formatted server-side."
+  },
+  {
+   "path": "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java",
+   "line": 67,
+   "end_line": 80,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Read errors in verifySafeHtml escape as RuntimeException and skip the MojoExecutionException handling.",
+   "body": "`verify()` catches `IOException` and rethrows it as `MojoExecutionException`, so Maven reports a clean build failure that names the file. The new `verifySafeHtml()` catches its own `IOException`s and rethrows them as `RuntimeException`, which skips that handler.\n\nThe path most likely to hit this is the English counterpart. It is derived by rewriting the path: `resources-community` becomes `resources`, and the locale suffix becomes `_en`. For any translated bundle with no matching English file at that location, `new FileInputStream(englishFile)` throws `FileNotFoundException`. The plugin then aborts on an unchecked exception instead of reporting a normal verification failure. Examples are a theme laid out differently, or `replaceAll` also rewriting `resources-community` elsewhere in the absolute path.\n\nFix: declare `verifySafeHtml() throws IOException` and drop the `RuntimeException` wrapping, so the existing `MojoExecutionException` path handles it. Alternatively, treat a missing English file as an empty bundle or as a reported message instead of a crash."
+  },
+  {
+   "path": "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java",
+   "line": 102,
+   "end_line": 111,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The diff-trimming logic can overlap and throw StringIndexOutOfBoundsException.",
+   "body": "`start` (common prefix) and `end` (common suffix) are computed independently, so `start + end` can exceed `sanitized.length()`. For example, value `<b><u></u></b>` sanitizes to `<b></b>`, which gives start=4 and end=5 on a string of length 7. `sanitized.substring(start, sanitized.length() - end)` then throws. That aborts the verifier with a stack trace instead of reporting the illegal HTML. Limit the suffix loop to the characters after the prefix."
+  },
+  {
+   "path": "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java",
+   "line": 124,
+   "end_line": 127,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "Choice-format normalisation hides arbitrary HTML from the sanitizer check.",
+   "body": "For `linkExpirationFormatter.timePeriodUnit*` and `error-invalid-multivalued-size`, every `{n,choice,...}` block is replaced with `...` before sanitizing. Any markup inside the choice is never checked. For example, a translation `{0,choice,0#<img src=x onerror=alert(1)>|1#x}` passes the verifier. These strings end up in emails and login pages. Instead of dropping the whole choice body, strip only the `<` comparison operators (e.g. replace `([0-9])<` with `$1 lt `) so the choice texts are still sanitized."
+  },
+  {
+   "path": "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java",
+   "line": 157,
+   "end_line": 157,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Anchor error message omits the key and file, and the `key` parameter goes unused.",
+   "body": "`santizeAnchors` takes `key` but never uses it, so the failure message does not say which file or key is wrong. The sibling \"Illegal HTML\" message names both. Include them so the failure can be traced."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 10,
+  "cacheWrite": 282269,
+  "cacheRead": 70219,
+  "output": 15616,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 48,
+   "hunks": 52,
+   "reviewedHunks": 52,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 352498,
+   "outputTokens": 15616,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 47,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "misc/theme-verifier/src/test/resources/duplicateKeys_en.properties",
+    "reason": "no content change"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 1.7377488
+}

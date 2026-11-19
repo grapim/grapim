@@ -1,0 +1,30 @@
+{
+ "tool": "published-augment",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "G1 is about a missing argument, which would cause a compile error. C1 talks about what happens when user is null, not about a missing parameter."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same problem: because user != null is required, fillContextForm is skipped on the initial login page."
+  }
+ ],
+ "candidates": [
+  "isConditionalPasskeysEnabled(UserModel user) requires user != null, which means webauthnAuth.fillContextForm() won't run when the username/password form is the first step and no user is identified yet; since the templates render the #webauth form only when enableWebAuthnConditionalUI is set, this could unintentionally disable conditional passkeys on the initial login page"
+ ]
+}

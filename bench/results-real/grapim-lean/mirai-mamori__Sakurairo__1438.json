@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "mirai-mamori__Sakurairo__1438",
+ "url": "https://github.com/mirai-mamori/Sakurairo/pull/1438",
+ "head_sha": "c1709d7d5c572c6ea2d55f13c10002a81446fab0",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:23:43.975Z",
+ "seconds": 40.166,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "inc/classes/Captcha.php",
+   "line": 121,
+   "end_line": 129,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "The shared mint limit lets anyone lock a chosen IP, or a whole site, out of login.",
+   "body": "The login, register and lost-password pages now use the same per-IP mint bucket as the anonymous REST endpoint. Once the bucket is full, `login_CAPTCHA()` outputs only an error message, and `CAPTCHA_CHECK` then rejects every login attempt. The IP comes from `get_the_user_ip()`, which trusts the rightmost `X-Forwarded-For` entry by default. On a site exposed directly to the internet, an attacker can send about 30 anonymous `GET /captcha` requests with `X-Forwarded-For: <admin IP>`. That fills the admin's bucket, and the admin cannot log in for 10 minutes. The attacker can repeat this indefinitely. Behind a reverse proxy that does not forward the client IP, every visitor shares one bucket, so 30 page loads lock everyone out of login and commenting. Before this change there was no limiter, so this lockout is new. Possible fixes: key the bucket on `REMOTE_ADDR` unless a trusted proxy is configured, and don't let the REST bucket block rendering of the login form's captcha (for example, use separate buckets, or throttle only the REST endpoint)."
+  },
+  {
+   "path": "inc/theme-plus.php",
+   "line": 223,
+   "end_line": 223,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Errors the user can act on are now replaced with a generic \"try again\" message.",
+   "body": "Every `WP_Error` from `wp_handle_comment_submission()` now returns 'Comment submission failed. Please try again.' This includes core errors that carry data and tell the user what to fix: `require_name_email` (name or email missing), `require_valid_email`, `require_valid_comment` (empty comment), `comment_duplicate`, `comment_flood` and `comment_too_long`. A visitor who leaves out their email, or posts a duplicate, is told to retry, but retrying will always fail and nothing says why. Only errors without data (such as `comment_on_draft` and `comment_id_not_found`) reveal post state. Keep `get_error_message()` for the error codes that are safe to show, and use the generic message only for the post-state codes."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20559,
+  "cacheRead": 3527,
+  "output": 3571,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 12,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 24088,
+   "outputTokens": 3571,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.17492839999999998
+}

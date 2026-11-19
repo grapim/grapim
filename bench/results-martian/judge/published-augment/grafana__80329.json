@@ -1,0 +1,33 @@
+{
+ "tool": "published-augment",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "Both point out that the code logs at Error level when nothing has gone wrong, which pollutes the error logs."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "Both point out that changing the ticker from 10 minutes to 1 minute raises database load and contention."
+  }
+ ],
+ "candidates": [
+  "Cleanup paths log at Error level even when there is no error and include potentially huge ids slices, which could flood logs and create false error signals during normal operation",
+  "Changing the CleanUpService ticker from 10 minutes to 1 minute could cause the cleanup loop to run nearly continuously if srv.clean() takes >1 minute (ticks accumulate), increasing load and lock contention"
+ ]
+}

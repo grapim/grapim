@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__40940",
+ "url": "https://github.com/keycloak/keycloak/pull/40940",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returning null from getSubGroupsCount() violates the GroupModel contract (Javadoc says it never returns null) and may lead to NPEs in callers that expect a non-null count.",
+   "severity": "Critical",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions getSubGroupsCount returning null."
+  },
+  {
+   "comment": "The reader thread isn’t waited for; flipping deletedAll to true and asserting immediately can race and miss exceptions added just after the flag change, making this test flaky.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same race: the reader thread is never joined before the assertion runs."
+  }
+ ],
+ "candidates": [
+  "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java:139 - The test checks for errors before the reader thread has finished.. The reader thread is started but never kept or joined. Right after the last delete, the main thread sets `deletedAll` and runs `assertThat(caughtExceptions, empty())` straight away. The reader can still be inside a `groups(...)` call at that moment, so an exception from that last read (the one most likely to hit a deleted group) is added after the assertion has already passed. The test can then pass even though the NPE still happens. Keep a reference to the `Thread` and call `join()` (with a timeout) after `deletedAll.set(true)` and before the assertion. This also stops the thread from outliving the test."
+ ]
+}

@@ -1,0 +1,48 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry__77754",
+ "url": "https://github.com/getsentry/sentry/pull/77754",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The AssignmentSource dataclass uses queued: datetime = timezone.now() as a default field value, which evaluates timezone.now() once at class definition time and shares that single datetime instance across all objects.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: timezone.now() is evaluated once, when the class is defined."
+  },
+  {
+   "comment": "The method name has a typo: test_from_dict_inalid_data should be test_from_dict_invalid_data.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the typo in the test name."
+  },
+  {
+   "comment": "Method name says 'empty_array' but tests empty dict - consider renaming to 'test_from_dict_empty_dict' for clarity.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention that the test name doesn't match what it tests."
+  },
+  {
+   "comment": "to_dict() returns a datetime for queued; if this dict is passed in task kwargs (e.g., via apply_async), JSON serialization may fail depending on the serializer, which can cause enqueue errors.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates raise the problem of serializing a datetime in the to_dict output."
+  }
+ ],
+ "candidates": [
+  "src/sentry/integrations/services/assignment_source.py:18 - `queued` default is computed once at import time, not per instance.. `queued: datetime = timezone.now()` runs once, when the class is defined. Every `AssignmentSource` built without an explicit `queued` (including every one from `from_integration`) gets the same timestamp: the moment the worker process imported this module. Anything that reads `queued` to order events or detect stale sync requests gets wrong values, and they get more wrong the longer the process runs. Fix: use `queued: datetime = field(default_factory=timezone.now)` and import `field` from `dataclasses`.",
+  "src/sentry/integrations/mixins/issues.py:411 - `assignment_source` was added to the abstract `sync_status_outbound`, but the task passes it to `sync_assignee_outbound`.. The new task code calls `installation.sync_assignee_outbound(..., assignment_source=parsed_assignment_source)`. The abstract `sync_assignee_outbound` signature was not changed, so the argument only gets through its `**kwargs`. Meanwhile the explicit `assignment_source` parameter was added to `sync_status_outbound`, and none of the code shown passes it there. The declared interface doesn't match how the code calls it, so implementers will look for the parameter on the wrong method. Fix: move the `assignment_source: AssignmentSource | None = None` parameter to `sync_assignee_outbound` and take it out of `sync_status_outbound`.",
+  "src/sentry/integrations/services/assignment_source.py:31 - If the payload fails to parse, `from_dict` returns None and the cycle guard is silently skipped.. When `cls(**input_dict)` raises, for example because a payload from an older or newer version has an extra or missing key, `from_dict` returns None with no log. `should_sync` then treats the change as having no source and syncs back to the integration it came from, which brings back the loop this PR is meant to stop, with nothing to show why. Log the parse failure, or ignore unknown keys, so the guard isn't lost without a trace."
+ ]
+}

@@ -1,0 +1,68 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__36882",
+ "url": "https://github.com/keycloak/keycloak/pull/36882",
+ "head_sha": "62bf98939eda58f0d0a1a41a58aa6d4ecdc24dba",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:25:29.504Z",
+ "seconds": 25.918,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "docs/guides/templates/kc.adoc",
+   "line": 53,
+   "end_line": 53,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Documented command overrides the user's configured feature set with only `rolling-updates`.",
+   "body": "This macro now adds a hard-coded `--features=rolling-updates` to every `update-compatibility` example. A CLI option takes precedence over `keycloak.conf` and env vars, so this flag replaces any `features` the deployment already sets instead of adding to them. A user who copies the example gets metadata or a check run for a feature set that differs from what the server actually runs, which can give a wrong rolling/recreate verdict. On an optimized image built with other features, it can also cause a build-option mismatch. The docs should tell users to add `rolling-updates` to their existing `--features` list (or to their config), not override the list with this single value."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 8,
+  "cacheWrite": 43517,
+  "cacheRead": 14108,
+  "output": 4227,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 11,
+   "hunks": 14,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 57633,
+   "outputTokens": 4227,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "quarkus/tests/integration/src/test/java/org/keycloak/it/cli/dist/UpdateCommandDistTest.java",
+    "reason": "ignored by .grapim/review.json"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.3049786
+}

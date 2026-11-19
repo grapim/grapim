@@ -1,0 +1,78 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The addGuests.handler.ts blacklist check uses blacklistedGuestEmails.includes(guest) after lowercasing the blacklist but not the input guest emails, allowing attackers to bypass BLACKLISTED_GUEST_EMAILS restrictions by submitting emails with uppercase characters.",
+   "severity": "High",
+   "category": "security",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 describes the same bypass of the case-sensitive blacklist check."
+  },
+  {
+   "comment": "The logic for checking team admin/owner permissions is incorrect. This condition uses AND (&&) which requires both isTeamAdmin AND isTeamOwner to be true, but it should use OR (||) since a user needs to be either an admin OR an owner to have permission.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 flags the same mistaken use of && instead of || in the admin/owner check."
+  },
+  {
+   "comment": "The sendAddGuestsEmails function in email-manager.ts passes the full calendarEvent.attendees array when determining which attendees receive AttendeeScheduledEmail vs AttendeeAddGuestsEmail, but checks if newGuests.includes(attendee.email) where newGuests is the input guests array.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.75,
+   "reasoning": "C4 also points out that newGuests is the unfiltered input guests list, so existing attendees can be classified wrongly when emails are sent."
+  },
+  {
+   "comment": "uniqueGuests filters out existing attendees and blacklisted emails but does not deduplicate duplicates within the input; createMany can insert duplicate attendee rows if the client submits repeated emails.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.9,
+   "reasoning": "C5 points out that duplicate emails in the input are not deduplicated, so createMany inserts duplicate rows."
+  },
+  {
+   "comment": "Starting with an array containing an empty string may cause validation issues. Consider starting with an empty array [] and handling the empty state in the MultiEmail component instead.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers starting the email list with an array containing an empty string."
+  },
+  {
+   "comment": "The `sendAddGuestsEmails` function does not check the `disableStandardEmails` flags in the `EventType` metadata, which may result in sending emails to hosts/attendees even when standard emails are disabled for the event type.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    6
+   ],
+   "confidence": 0.9,
+   "reasoning": "C6 points out that sendAddGuestsEmails ignores the event type metadata settings that disable emails."
+  }
+ ],
+ "candidates": [
+  "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts:158 - The calendar event is updated with the caller's credentials, not the organizer's.. `EventManager` is built from `ctx.user` and that user's credentials. When an attendee or a team admin adds guests, the handler tries to update the organizer's calendar event and video references using the caller's integrations. The update then fails or misses the event, so the organizer's calendar never gets the new attendees. The handler already loads `booking.user` with `credentials` and then never uses them. Build the EventManager from the booking organizer (`booking.user`) and that user's credentials.",
+  "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts:46 - Team admin check uses && so only team owners get access, not admins.. `isTeamAdmin` already covers ADMIN and OWNER roles, and `isTeamOwner` covers only OWNER. Joining them with `&&` means a team admin who is not an owner fails the check and gets FORBIDDEN on team bookings. The variable is named `isTeamAdminOrOwner`, so `||` was meant.",
+  "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts:74 - Blocklist and existing-attendee checks are case-sensitive, so they can be bypassed.. The blocklist entries are lowercased, but `guest` is not. Submitting `Blocked@Example.com` therefore gets past `BLACKLISTED_GUEST_EMAILS`. The existing-attendee comparison is case-sensitive too, so an existing attendee can be added again with different casing. Lowercase both sides before comparing.",
+  "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts:168 - Emails are sent using the raw `guests` list instead of the filtered `uniqueGuests`.. `sendAddGuestsEmails` decides who counts as a new guest from `newGuests`. Because it gets the unfiltered input, an existing attendee whose email was also submitted receives a fresh 'scheduled' email instead of the 'guests added' notice. Pass `uniqueGuests`.",
+  "packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts:5 - The server schema allows duplicate and unlimited guest emails.. Only the client checks that emails are unique. A direct API call with `guests: [\"a@x.com\",\"a@x.com\"]` passes the handler's filter, because it only compares against existing attendees, and `createMany` inserts two attendee rows. The list also has no size limit, so one call can send booking emails to any number of addresses. Enforce uniqueness and a maximum length on the server.",
+  "packages/emails/email-manager.ts:539 - The attendee email-disable setting is ignored when guests are added.. The sibling `sendLocationChangeEmails` skips attendee emails when `eventTypeDisableAttendeeEmail(eventTypeMetadata)` is set. `sendAddGuestsEmails` does not take that metadata and always emails every attendee, so event types that turn off attendee emails still send them here. Accept the event type metadata and apply the same check.",
+  "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts:165 - A calendar update failure after the DB write returns an error, but the guests are already saved.. The attendees are written to the database before `updateCalendarAttendees` runs, and that call has no error handling. If the calendar provider fails, the mutation returns an error and no emails go out, but the guests stay saved. If the user retries, those guests are filtered out as existing attendees, so the request fails with `emails_must_be_unique_valid`. Wrap the call in a try/catch and log the error, as is already done for the email send.",
+  "apps/web/components/dialog/AddGuestsDialog.tsx:36 - The invalid-email warning stays visible after a successful add or an overlay close.. `setIsInvalidEmail(true)` is cleared only by the Cancel button. Suppose a user submits an invalid email, fixes it, and the add succeeds, or closes the dialog through `onOpenChange` (Escape or a click outside). Next time the dialog opens, it still shows \"Emails must be unique and valid\", and an overlay close also keeps the old email inputs. Reset `isInvalidEmail` in `onSuccess` and in the `onOpenChange` handler.",
+  "apps/web/components/dialog/AddGuestsDialog.tsx:43 - The fallback error toast can never be shown.. `message` is a template string that always contains at least `: `, so it is always truthy and `t(\"unable_to_add_guests\")` is never used. When the error has no code, users see `undefined: ...` instead. Build the message only when `err.message` is present."
+ ]
+}

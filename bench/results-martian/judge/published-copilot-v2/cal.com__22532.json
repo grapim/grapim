@@ -1,0 +1,57 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The updateManyByCredentialId call uses an empty data object, which prevents Prisma's @updatedAt decorator from updating the updatedAt timestamp. This results in inaccurate cache status tracking, as the timestamp isn't updated when the cache is refreshed. To fix this, explicitly set the updatedAt field.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 flags the same empty-data updateManyByCredentialId call and gives the same fix: set updatedAt explicitly. The effect it describes is a bit different, but it is the same underlying issue."
+  },
+  {
+   "comment": "logic: macOS-specific sed syntax with empty string after -i flag will fail on Linux systems",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 makes the same point: `sed -i ''` is macOS-only syntax and fails on Linux."
+  },
+  {
+   "comment": "Throwing a generic Error for authentication failures results in a 500 response in tRPC. Instead, it should return a structured TRPCError with an appropriate code, such as FORBIDDEN, to accurately reflect the error type.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 makes the same point: a generic Error becomes a 500 in tRPC, so it should use TRPCError with a proper code."
+  },
+  {
+   "comment": "Date is formatted with hardcoded 'en-US' locale instead of using the user's locale from useLocale, which can lead to incorrect date representation for users in different locales.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.97,
+   "reasoning": "C4 raises the same issue: the date uses a hardcoded 'en-US' locale instead of the user's locale."
+  }
+ ],
+ "candidates": [
+  "Calling updateManyByCredentialId with an empty update object will result in an invalid Prisma update (no fields to SET), causing a runtime error that breaks the sync flow. If the goal is to bump SelectedCalendar.updatedAt, explicitly set it in the update data.",
+  "sed -i '' is BSD/macOS-specific and will fail on GNU sed (common on Linux). Make the in-place edit portable across macOS/Linux.",
+  "Throwing a plain Error will be converted to an INTERNAL_SERVER_ERROR by tRPC, which is misleading for a not-found/unauthorized credential. Use TRPCError with an appropriate code so clients can handle it correctly.",
+  "Hard-coding 'en-US' for the cache timestamp ignores the user's selected locale. Use the runtime locale so the date/time formatting matches the rest of the app.",
+  "The cache deletion mutation doesn't invalidate the connectedCalendars query, so the displayed cache status/timestamp can remain stale until a manual refresh. Add an onSettled handler similar to the disconnect mutation.",
+  "dev:cron now uses npx tsx, but tsx is not listed as a dependency in this workspace or the repo root. This will trigger a network download or fail offline. Since ts-node is still a dependency, prefer keeping ts-node until tsx is added as a dependency."
+ ]
+}

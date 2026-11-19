@@ -1,0 +1,128 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "head_sha": "02f48f776f43734d1ac8914d3ad6a7115acdcb33",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:27:52.445Z",
+ "seconds": 72.975,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java",
+   "line": 102,
+   "end_line": 111,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The diff-trimming loops can overlap, which crashes the verifier with StringIndexOutOfBoundsException.",
+   "body": "The suffix loop at line 107 is limited only by the full string lengths, so `start + end` can be larger than the length of `value` or `sanitized`. Example: a translation with a missing `</p>`, such as `<p>a<p>b</p>`. The sanitizer returns `<p>a</p><p>b</p>`, which gives start=5 and end=8. Line 111 then calls `value.substring(5, 4)` and throws. The plugin crashes instead of reporting `Illegal HTML`, and this is exactly the kind of translation mistake the check is meant to catch. Fix: limit the suffix loop so it never reaches characters the prefix loop already counted."
+  },
+  {
+   "path": "themes/src/main/resources-community/theme/base/account/messages/messages_lt.properties",
+   "line": 101,
+   "end_line": 101,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The Lithuanian totpStep1 is now in Italian.",
+   "body": "The new value, \"Installa una delle seguenti applicazioni sul tuo cellulare:\", is Italian. Lithuanian users will see Italian text on the account TOTP setup page. Use a Lithuanian translation, for example \"Įdiekite vieną iš šių programėlių savo mobiliajame telefone:\"."
+  },
+  {
+   "path": "themes/src/main/resources-community/theme/base/login/messages/messages_lt.properties",
+   "line": 71,
+   "end_line": 71,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The Lithuanian loginTotpStep1 is now in Italian.",
+   "body": "The new value is the Italian sentence \"Installa una delle seguenti applicazioni sul tuo cellulare:\". Lithuanian users will see it on the login OTP setup screen. Use a Lithuanian translation instead."
+  },
+  {
+   "path": "js/apps/account-ui/maven-resources/theme/keycloak.v3/account/messages/messages_en.properties",
+   "line": 188,
+   "end_line": 188,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Account UI message switched from i18next `{{0}}` placeholders to MessageFormat syntax, which i18next does not interpolate.",
+   "body": "The account UI translates this key on the client with i18next, as the earlier `{{0}}` placeholders show. `{0}` and `{2,choice,...}` are not interpolated there, so users will see the raw placeholders and choice syntax in the validation error. I could not check how the account UI translates this error. Revert to `{{n}}` placeholders, or use i18next pluralization."
+  },
+  {
+   "path": "js/apps/admin-ui/maven-resources/theme/keycloak.v2/admin/messages/messages_en.properties",
+   "line": 3138,
+   "end_line": 3138,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Admin UI message switched from i18next `{{0}}` placeholders to MessageFormat syntax, which i18next does not interpolate.",
+   "body": "The admin UI bundle uses i18next interpolation (`{{error}}`, `{{fieldName}}` in nearby keys), and the old value used `{{0}}`. The new value uses `{0}` and `{2,choice,...}`, which i18next leaves as they are. The user-profile multivalued-size error will show raw text like \"Attribute {0} must have at least {1} and at most {2} {2,choice,0#values|1#value|1<values}.\" I could not check how the admin UI translates this error. Keep the i18next form here, or use i18next plurals."
+  },
+  {
+   "path": "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java",
+   "line": 107,
+   "end_line": 107,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Limit the suffix scan so it cannot overlap the common prefix.",
+   "body": "This is the one-line fix for the substring crash described above: stop the suffix scan before it reaches characters already counted in `start`."
+  },
+  {
+   "path": "themes/src/main/resources-community/theme/base/account/messages/messages_zh_CN.properties",
+   "line": 112,
+   "end_line": 112,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The Simplified Chinese file now has a Traditional Chinese string.",
+   "body": "\"在您的手機上安裝以下應用程式之一：\" is written in Traditional Chinese (zh_TW) characters, but this is the zh_CN file. Use the Simplified form."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 69396,
+  "cacheRead": 978,
+  "output": 5963,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 48,
+   "hunks": 52,
+   "reviewedHunks": 52,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 70376,
+   "outputTokens": 5963,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 47,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "misc/theme-verifier/src/test/resources/duplicateKeys_en.properties",
+    "reason": "no content change"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.46644359999999996
+}

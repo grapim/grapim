@@ -1,0 +1,69 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry__93824",
+ "url": "https://github.com/getsentry/sentry/pull/93824",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In the SpanFlusher flush loop, metric tags inconsistently use 'shard' (e.g., in spans.buffer.flusher.produce and spans.buffer.segment_size_bytes) and 'shards' (in spans.buffer.flusher.wait_produce) for the same shard identifier value. This prevents correct metric aggregation across flush stages — dashboards and alerts filtering by tag 'shard' will miss data tagged as 'shards' and vice versa.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 points out the same mismatch: the wait_produce metric uses the 'shards' tag while the other flusher metrics use 'shard'."
+  },
+  {
+   "comment": "The test_basic function in test_consumer.py uses a monkeypatched time.sleep that returns immediately, but then calls time.sleep(0.1) expecting it to actually wait.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [
+    5
+   ],
+   "confidence": 0.95,
+   "reasoning": "C5 flags the same problem: time.sleep is monkeypatched to a no-op, so the added sleep does not wait."
+  },
+  {
+   "comment": "Because flusher processes are created via multiprocessing.get_context('spawn').Process, they are instances of multiprocessing.context.SpawnProcess, which on POSIX is not a subclass of multiprocessing.Process, so this isinstance check will always be false and hung processes won't be killed here.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1,
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 identifies that a SpawnProcess fails the isinstance(multiprocessing.Process) check, so kill() never runs. C2 also notes the same isinstance check never matches spawn-context processes."
+  },
+  {
+   "comment": "Sleep in test_consumer.py won’t actually wait because time.sleep was monkeypatched above; consider restoring sleep or using a different sync to ensure the flusher has time to process.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [
+    5
+   ],
+   "confidence": 0.95,
+   "reasoning": "This is the same issue as G2: the sleep is a no-op because time.sleep was monkeypatched, and C5 describes exactly that."
+  },
+  {
+   "comment": "Breaking out of the loop when the deadline has elapsed can skip terminating remaining flusher processes, potentially leaving them running after shutdown; consider ensuring termination is attempted even if the deadline is exceeded.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out that the break after the deadline skips terminate() for the remaining processes."
+  }
+ ],
+ "candidates": [
+  "src/sentry/spans/consumers/process/flusher.py:253 - A hung flusher process is never killed before a replacement starts.. Processes come from `multiprocessing.get_context(\"spawn\").Process`, which builds a `SpawnProcess`. `SpawnProcess` inherits from `BaseProcess`, not from `multiprocessing.Process`, so `isinstance(process, multiprocessing.Process)` is always False and `kill()` never runs. The old code called `kill()` with no type check.\n\nWhen a process is flagged as `hang`, it keeps running while `_create_process_for_shards` starts a second process for the same shards. Both then flush the same Redis shards at once, which can produce duplicate or broken segments. Each restart also leaves one more stray process running.\n\nFix: check for threads instead, e.g. `if not isinstance(process, threading.Thread): process.kill()`, or check against `multiprocessing.process.BaseProcess`.",
+  "src/sentry/spans/consumers/process/flusher.py:337 - `join` skips terminating the remaining processes once the deadline passes.. When the timeout runs out partway through the loop, the `break` exits before `terminate()` runs for the current process and every process after it. The old code always terminated the process after waiting. Now, on shutdown or rebalance with a timeout, the later flusher processes keep running.\n\nThe same `isinstance(process, multiprocessing.Process)` check also never matches the spawn-context processes, so `terminate()` is never called on them anyway.\n\nFix: remove the `break` and let the `while` condition handle the deadline, so every process reaches termination. Use a check that matches `SpawnProcess`.",
+  "src/sentry/spans/consumers/process/flusher.py:31 - The docstring says the flusher creates one process per shard, but `max_processes` caps that and the CLI default is 1.. The code makes `min(max_processes, len(assigned_shards))` processes and spreads the shards across them round-robin. `--flusher-processes` defaults to 1, so by default a single process handles every shard. Change the docstring to say processes are capped by `max_processes`, with shards shared among them.",
+  "src/sentry/spans/consumers/process/flusher.py:199 - The `wait_produce` metric uses the tag `shards`, but the other flusher metrics use `shard`.. `spans.buffer.flusher.produce` and `segment_size_bytes` are tagged `shard`, but `wait_produce` is tagged `shards`. Dashboards that filter or group by `shard` will not see this metric.",
+  "tests/sentry/spans/consumers/process/test_consumer.py:60 - The added `time.sleep(0.1)` does nothing because the test replaces `time.sleep` with a no-op.. Earlier in this test, `monkeypatch.setattr(\"time.sleep\", lambda _: None)` replaces `time.sleep`, so this call returns immediately. The test still depends on thread timing to flush before `join` sets `stopped`, so it can still be flaky.\n\nFix: wait on a real condition instead, e.g. poll until `messages` is not empty using an unpatched timer.",
+  "CLAUDE.md:449 - CLAUDE.md guidance change is unrelated to the multiprocess flusher.. This PR is about running one span flusher process per Redis shard. The new `hasattr`/`isinstance` example in CLAUDE.md changes shared agent guidance that the request does not cover. Consider moving it to its own PR.",
+  "src/sentry/spans/consumers/process/flusher.py:60 - A negative `--flusher-processes` value crashes the consumer at startup.. With `--flusher-processes=-1`, `num_processes` becomes `min(-1, n) = -1`. `range(-1)` is empty, so the map has no keys, and `i % -1 == 0` then raises `KeyError` on `process_to_shards_map[0]`. A value of 0 quietly falls back to one process per shard.\n\nFix: reject values below 1 when parsing the option, or clamp with `max(1, ...)`."
+ ]
+}

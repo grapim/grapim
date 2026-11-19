@@ -1,0 +1,52 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "OptimizedCursorPaginator's negative-offset branch in get_result() passes cursor.offset directly as start_offset to queryset slicing when enable_advanced_features is True and cursor.offset < 0.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same issue: OptimizedCursorPaginator passing negative offsets to queryset slicing when advanced features are enabled."
+  },
+  {
+   "comment": "In BasePaginator.get_result(), when cursor.is_prev is True, it sets start_offset = offset without clamping, allowing negative offset values to be passed to queryset slicing.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G2 is about BasePaginator's unclamped is_prev branch. C1 only covers OptimizedCursorPaginator's advanced-features path, so it isn't the same issue."
+  },
+  {
+   "comment": "OptimizedCursorPaginator.get_item_key uses floor/ceil on a datetime key (order_by='-datetime'), causing TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same bug: math.floor/ceil used on datetime keys."
+  },
+  {
+   "comment": "Accessing .has_global_access on organization_context.member can raise an AttributeError when organization_context is None, particularly for non-superuser non-member users.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the AttributeError on organization_context.member."
+  }
+ ],
+ "candidates": [
+  "OptimizedCursorPaginator allows negative offsets when enable_advanced_features=True, but Django QuerySets don't support negative indexing and will raise AssertionError",
+  "OptimizedCursorPaginator uses math.floor/ceil on datetime field values when used with order_by='-datetime' for audit logs, causing runtime exception since datetime is not numeric",
+  "Span buffer segment keys changed from SET to ZSET without migration layer while keeping same key namespace, causing WRONGTYPE errors during rolling deploys when old SET-typed keys still exist",
+  "ZUNIONSTORE in span buffer Lua script uses default SUM aggregation instead of MAX/MIN, corrupting timestamp scores when duplicate payload members exist across merged sets",
+  "Removed max_segment_spans safety check in _load_segment_data method, allowing pre-existing oversized Redis sorted sets to be processed without Python-side protection during rolling deployment"
+ ]
+}

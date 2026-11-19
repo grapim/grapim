@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "head_sha": "6ad6fe3899f630ccf922ce7ac681147dc7987435",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:47:34.828Z",
+ "seconds": 35.65,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/search/events/datasets/discover.py",
+   "line": 1046,
+   "end_line": 1050,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "upsampled_count() counts events with no sample_weight as 0.",
+   "body": "`sum(sample_weight)` skips NULLs. In an allowlisted project, any event stored without a sample_weight adds nothing to the count. That includes events ingested before the project was allowlisted and events sent without error_sampling context. Error counts for those ranges drop, possibly to 0. The comment says the schema guarantees the column is set, but nothing shown enforces that. Default missing weights to 1: `Function(\"sum\", [Function(\"ifNull\", [Column(\"sample_weight\"), 1])])`."
+  },
+  {
+   "path": "sentry-repo",
+   "line": 1,
+   "end_line": 1,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "An unrelated submodule gitlink `sentry-repo` was committed.",
+   "body": "The PR adds a gitlink to a nested `sentry-repo` checkout at commit a5d29095. The upsampling feature does not need it, and it looks like a local clone committed by accident. It can break checkouts and CI that run submodule init without a matching .gitmodules entry. Remove it from the change."
+  },
+  {
+   "path": "src/sentry/api/helpers/error_upsampling.py",
+   "line": 135,
+   "end_line": 138,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The substring check treats negated or mixed queries as error-only.",
+   "body": "`\"event.type:error\" in query` also matches `!event.type:error` and `event.type:error OR event.type:transaction`. For those queries on the discover dataset, `count()` is rewritten to `upsampled_count()`, which counts the non-error rows by sample_weight (NULL, so 0) and returns wrong totals. Parse the query and require a positive `event.type:error` filter with no OR or negation, or fall back to no upsampling when the query is ambiguous."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 16532,
+  "cacheRead": 3262,
+  "output": 2837,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 19796,
+   "outputTokens": 2837,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1400604
+}

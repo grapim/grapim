@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "kyegomez__swarms__3332",
+ "url": "https://github.com/kyegomez/swarms/pull/3332",
+ "head_sha": "1fa3e484c7c323453e357d53a2004fb930f3d8fe",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:15:49.740Z",
+ "seconds": 12.433,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 10526,
+  "cacheRead": 3527,
+  "output": 532,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 14055,
+   "outputTokens": 532,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0639834
+}

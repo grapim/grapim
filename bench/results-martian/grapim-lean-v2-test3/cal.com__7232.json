@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "head_sha": "6048e2a86b50e81e1e3b1b467dfea5a895add3dc",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:41:50.220Z",
+ "seconds": 47.634,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/features/ee/workflows/lib/reminders/emailReminderManager.ts",
+   "line": 225,
+   "end_line": 225,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Reminders cancelled shortly before their send time are still sent.",
+   "body": "The default path now only sets `cancelled: true` and leaves the real SendGrid cancel to the cron, which runs every 15 minutes and only acts on reminders due within the next hour. Example: a booking is cancelled at 10:02, its reminder is due at 10:10, and the cron runs at 10:00 and 10:15. The 10:00 run happened before the flag was set, and by 10:15 the email has gone out and `deleteMany(lte now)` removes the row. Any cancellation made less than one cron interval before the send time does nothing. Fix: when `scheduledDate` is within the cron window (for example the next hour), cancel at SendGrid right away instead of only setting the flag."
+  },
+  {
+   "path": "packages/features/ee/workflows/api/scheduleEmailReminders.ts",
+   "line": 53,
+   "end_line": 77,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "One failed SendGrid cancel stops the whole batch, and no deletes run.",
+   "body": "All the cancel requests sit inside a single try. If any `client.request` throws (bad or expired batch_id, a rate limit, or the 100 pending-cancellation limit), the loop stops. The remaining reminders are never cancelled. The queued `prisma.workflowReminder.delete` calls are lazy PrismaPromises, so they never run either, not even for reminders whose cancel already succeeded. On the next run the same failing reminder is first again and blocks every later one, so those emails get sent. Fix: handle errors per reminder (try/catch inside the loop) and delete each row once its own cancel succeeds."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 23167,
+  "cacheRead": 6524,
+  "output": 4590,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 21,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 29695,
+   "outputTokens": 4590,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2089558
+}

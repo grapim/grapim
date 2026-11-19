@@ -32,7 +32,15 @@ inputs:
     description: true to compare the change with what the pull request asked for (its title and description, and up to 3 issues it closes with "Fixes #N", read with github-token). false to leave them out.
     required: false
     default: 'true'
+  test-command:
+    description: A shell command that runs your tests (like "npm test" or "pytest -q"), run on this runner before the review. Its result goes on the merge decision card. It runs the pull request's code, with the model credentials and the GitHub token removed from its environment. Empty to skip.
+    required: false
+    default: ''
 outputs:
+  verdict:
+    description: The merge decision card's verdict: safe, check or block.
+  tests:
+    description: passed or failed when test-command ran, else empty.
   blockers:
     description: Blocker findings.
   warnings:

@@ -48,6 +48,7 @@ import { githubPage, githubSection, policyCard, reviewSettingsCard } from './pag
 import { CHECK_NAME, processPullRequest } from './pull.js';
 import { CLOUD_CHECK, createCloudReview } from './cloud-review.js';
 import { parseTeamForm, TeamConfigError, teamFormValues } from './review-config.js';
+import { createMergeGate, gateCard, GateConfigError, parseGateForm } from './merge-gate.js';
 import { JobQueue } from './queue.js';
 import { GITHUB_SCHEMA, migrateGitHubSchema } from './schema.js';
 import { provenanceSource } from './source.js';
@@ -124,7 +125,9 @@ export function createGitHubApp(hub, options = {}) {
   const governance = typeof options.governance === 'function' ? options.governance : defaultGovernance(hub);
   const stop = new AbortController();
   const rules = new PathRules({ db, now });
-  const cloud = createCloudReview(hub, { auth, installs, apiBase, fetch: fetchImpl, slug: cfg.slug, env: options.env ?? process.env, gitUrl: options.gitUrl ?? null, signal: stop.signal, ...(options.provenanceWaitMs !== undefined ? { provenanceWaitMs: options.provenanceWaitMs } : {}) });
+  // The merge gate (merge-gate.js): Governance, like path rules and require-approval.
+  const gate = createMergeGate({ db, now, governance, rules, log });
+  const cloud = createCloudReview(hub, { gate, auth, installs, apiBase, fetch: fetchImpl, slug: cfg.slug, env: options.env ?? process.env, gitUrl: options.gitUrl ?? null, signal: stop.signal, ...(options.provenanceWaitMs !== undefined ? { provenanceWaitMs: options.provenanceWaitMs } : {}) });
   const scans = new HistoryScans({ db, now, log, auth, apiBase, fetch: fetchImpl, sleep: options.sleep, maxWaitMs: options.maxWaitMs ?? RATE_WAIT_MS, signal: stop.signal, timers: options.historyTimers !== false, ...(options.rescanMs !== undefined ? { rescanMs: options.rescanMs } : {}) });
   // Starts the 90-day scan; an install-time scan never fails the link.
   const startScan = (teamId, userId, reason) => {
@@ -435,10 +438,25 @@ export function createGitHubApp(hub, options = {}) {
         return queued ? { queued: true, chat: true } : { ignored: 'no_mention' };
       }
       case 'check_run':
+        if (p.action === 'completed') return onCi(p, p.check_run?.head_sha, p.check_run?.app?.slug);
         return p.action === 'requested_action' ? onRequestedAction(p) : { ignored: 'action' };
+      // CI finished on a commit: the merge decision card of its newest review
+      // is redone (merge-card.js). check_suite needs the "Check suite" event;
+      // status needs "Commit statuses: read" and the "Status" event.
+      case 'check_suite':
+        return p.action === 'completed' ? onCi(p, p.check_suite?.head_sha, p.check_suite?.app?.slug) : { ignored: 'action' };
+      case 'status':
+        return p.state && p.state !== 'pending' ? onCi(p, p.sha, null) : { ignored: 'action' };
       default:
         return { ignored: 'event' };
     }
+  }
+
+  function onCi(p, headSha, appSlug) {
+    const row = installs.get(p?.installation?.id);
+    if (!row || row.deleted_at || row.suspended_at) return { ignored: 'unlinked' };
+    if (!/^[0-9a-f]{40}$/.test(String(headSha ?? ''))) return { ignored: 'bad_event' };
+    return cloud.onCiEvent({ installationId: row.id, headSha, appSlug: appSlug ?? null }) ? { queued: true, card: true } : { ignored: 'no_card' };
   }
 
   // A click on an "Approve" button of our check. The webhook signature is
@@ -689,6 +707,28 @@ export function createGitHubApp(hub, options = {}) {
       TEAM_FORM,
     );
 
+    // Settings, Review, Merge gate (owners, Governance).
+    router.post(
+      '/hub/teams/:team/settings/review/gate',
+      (ctx) => {
+        const team = teams.get(ctx.member.team.id);
+        if (!governance(team)) throw new HttpError(402, 'plan_required', 'The merge gate is on the Governance plan.');
+        let value;
+        try {
+          value = parseGateForm(ctx.form);
+        } catch (err) {
+          if (!(err instanceof GateConfigError)) throw err;
+          if (!hub.renderSettings) throw new HttpError(400, 'bad_request', err.message);
+          const draft = { mode: ['off', 'suggest', 'auto-approve'].includes(ctx.form.gateMode) ? ctx.form.gateMode : 'off', maxLines: String(ctx.form.gateMaxLines ?? '').slice(0, 10), excludeAuthors: String(ctx.form.gateExclude ?? '').slice(0, 4000).split(/\r\n?|\n/), reviewers: String(ctx.form.gateReviewers ?? '').slice(0, 4000).split(/\r\n?|\n/), reposText: String(ctx.form.gateRepos ?? '').slice(0, 20_000) };
+          return hub.renderSettings(ctx, { section: 'review', error: err.message, review: reviewSettingsSection(team, ctx.session.csrf, 'owner', null, draft) }, 400);
+        }
+        gate.save(team.id, value, ctx.session.user.id);
+        log('merge gate saved');
+        redirect(ctx.res, `/hub/teams/${team.id}/settings/review?done=gate_saved#merge-gate`);
+      },
+      TEAM_FORM,
+    );
+
     router.post(
       '/hub/teams/:team/github/policy',
       (ctx) =>
@@ -874,15 +914,17 @@ ${cfg.configured ? cloud.card(team, csrf) : ''}`;
 
   // Settings, Review: every member reads it, owners change it. draft: what
   // was typed, shown again with the error that refused it.
-  function reviewSettingsSection(team, csrf, role, draft = null) {
-    return reviewSettingsCard({
+  function reviewSettingsSection(team, csrf, role, draft = null, gateDraft = null) {
+    const merge = gateCard({ team, csrf, owner: role === 'owner', allowed: governance(team), values: gate.settings(team.id), recent: gate.recent(team.id, 10), draft: gateDraft });
+    return html`${reviewSettingsCard({
       team,
       csrf,
       owner: role === 'owner',
       cloud: { available: cfg.configured && cloud.config.configured, linked: installs.forTeam(team.id).length > 0, enabled: cloud.enabled(team.id) },
       values: draft ?? teamFormValues(cloud.teamConfig(team.id)),
       checkName: CLOUD_CHECK,
-    });
+    })}
+${merge}`;
   }
 
   const notifySection = (team, csrf) => (hub.notify ? notifyCard({ team, csrf, info: hub.notify.info(team.id) }) : null);
@@ -918,6 +960,7 @@ ${cfg.configured ? cloud.card(team, csrf) : ''}`;
       deliveries.sweep();
       db.prepare('DELETE FROM gh_pull_runs WHERE updated_at < ?').run(now() - PULL_DAYS * 24 * 60 * 60 * 1000);
       db.prepare('DELETE FROM gh_check_actions WHERE created_at < ?').run(now() - PULL_DAYS * 24 * 60 * 60 * 1000);
+      cloud.cards.sweep(PULL_DAYS);
       for (const [k, v] of notices) if (now() - v.at >= NOTICE_MS) notices.delete(k);
     } catch {}
   }, 60 * 60 * 1000);
@@ -942,6 +985,7 @@ ${cfg.configured ? cloud.card(team, csrf) : ''}`;
     rules,
     scans,
     rulesFor,
+    gate,
     autoApprove,
     onSync,
     decideRun,

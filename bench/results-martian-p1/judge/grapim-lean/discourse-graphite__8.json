@@ -1,0 +1,67 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": " The findMembers() call is now asynchronous and unhandled. The controller may not have member data immediately available, creating a race condition.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions the unhandled asynchronous findMembers() call or the race condition."
+  },
+  {
+   "comment": "In the next action, capping the next offset at user_count can produce an empty page (e.g., total equal to limit results in offset == total, showing 2/2 with no members). This can cause confusing UX on the last page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.55,
+   "reasoning": "C1 describes the same case: total equals limit, so next goes to offset == total and shows an empty page 2/2. It blames the totalPages formula rather than the offset cap, but the symptom and example are the same."
+  },
+  {
+   "comment": "The remove_member test uses xhr :put to call the remove_member action, but the route defines delete 'members' => 'groups#remove_member' requiring DELETE method.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the test using PUT when the route requires DELETE."
+  },
+  {
+   "comment": "The `totalPages` calculation using `Math.floor(user_count / limit) + 1` produces an extra page when `user_count` is an exact multiple of `limit`, leading to incorrect pagination. For example, with 100 users and a limit of 50, it reports 3 pages instead of 2, allowing navigation to an empty page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points to the same off-by-one in totalPages when user_count is an exact multiple of limit."
+  },
+  {
+   "comment": "Expected to return a value at the end of function - code paths without explicit returns will return undefined",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions code paths that return undefined because they have no explicit return."
+  },
+  {
+   "comment": "The route provides the group's ID in params[:id], but the code attempts to read it from params[:group_id], causing the action to fail. This results in a broken feature when trying to access group memberships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the params[:id] vs params[:group_id] mismatch."
+  }
+ ],
+ "candidates": [
+  "app/assets/javascripts/admin/controllers/admin-group.js.es6:11 - totalPages counts one page too many when user_count is a multiple of limit.. `Math.floor(user_count / limit) + 1` gives 2 for a group of exactly 50 members with limit 50. The counter then shows `1/2`, `showingLast` is false, and \"next\" goes to offset 50, which shows an empty member list on page 2/2. Use `Math.ceil(user_count / limit)`. With that change, user_count 0 still gives 0.",
+  "app/assets/javascripts/discourse/routes/group-members.js.es6:11 - The public group members page now stops at 50 members and has no way to page.. `/groups/:name/members` now always uses limit 50; before, non-automatic groups returned every member. The public `group/members.hbs` template has no next/previous controls, so in any group with more than 50 members everyone past the 50th (in username order) can no longer be seen on that page. Either add pagination to the public page or request all members there.",
+  "app/assets/javascripts/admin/controllers/admin-group.js.es6:61 - addMembers never clears the input and ignores failures, so adding again can hit duplicate memberships.. The TODO is left in: after a successful add the usernames stay in the selector. If the admin clicks Add again, or enters someone who is already a member, the server calls `group.add(user)` for users already in the group. If `group_users` has a unique constraint, that raises an error and returns a 500. The promise has no rejection handler, so the admin is not told anything failed. `removeMember` has the same missing error handling. Clear `usernames` once the add succeeds, show errors to the admin, and have the server skip users who are already members.",
+  "app/assets/javascripts/discourse/models/group.js:23 - Removing the last member on the last page leaves an empty page.. After `removeMember`, `findMembers` is called again with the same offset, and the clamp uses the old `user_count`. Example: limit 50 and 51 members, so page 2 holds one member. Removing that member reloads at offset 50, the server returns no members and total 50, and the admin sees an empty list on a page past the end. When the returned page is empty and offset > 0, step the offset back by `limit` (or clamp it to the last valid page) and fetch again."
+ ]
+}

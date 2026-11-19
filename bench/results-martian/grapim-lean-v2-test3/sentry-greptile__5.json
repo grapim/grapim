@@ -1,0 +1,140 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "head_sha": "ea188e2d736fd6ed27c1dba8aae63b7268e2a7a9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:22:45.166Z",
+ "seconds": 58.878,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx",
+   "line": 65,
+   "end_line": 68,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Hidden attributes are only filtered out when a search term is entered.",
+   "body": "`HIDDEN_ATTRIBUTES` is applied only inside the `filter` that runs after the `if (!searchQuery.trim()) return sorted;` early return. With an empty search box, which is the default, `is_segment`, `project_id` and `received` are still shown. They disappear only once the user types something. Apply the hidden-attribute filter before the early return, e.g. `const sorted = sortAttributes(attributes).filter(a => !HIDDEN_ATTRIBUTES.includes(a.name));`."
+  },
+  {
+   "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+   "line": 100,
+   "end_line": 100,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Every paginated page gets all of the replay's errors.",
+   "body": "The same full `error_events` list goes to `analyze_recording_segments` for every page of segments. `gen_request_data` emits any errors left over after the page's events, so each page sends Seer every error of the replay, including errors from other pages' time ranges. Errors appear in each page's summary even when they did not happen in that window. Filter the errors to each page's segment time range, or only append trailing errors on the last page."
+  },
+  {
+   "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+   "line": 118,
+   "end_line": 119,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Zipping error_ids with events.values() can pair an ID with the wrong event.",
+   "body": "`nodestore.backend.get_multi` returns a dict keyed by node ID. If a backend leaves missing nodes out of the dict, or returns keys in a different order, the positional `zip(error_ids, events.values())` pairs error IDs with the wrong data and silently drops the last ones. I could not check which behaviour each backend has. Look each event up by its node ID instead: `for eid, nid in zip(error_ids, node_ids) if (data := events.get(nid))`."
+  },
+  {
+   "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+   "line": 153,
+   "end_line": 155,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Error timestamps in seconds are compared with replay event timestamps in milliseconds.",
+   "body": "Event timestamps in nodestore are float seconds, but rrweb replay events use epoch milliseconds. `error['timestamp'] < event['timestamp']` is therefore true for every error at the first replay event, so all errors are sent to Seer in a bundle before any breadcrumb. That defeats the chronological interleaving this code is meant to do. Convert the error timestamps to milliseconds, or the replay timestamps to seconds, before comparing."
+  },
+  {
+   "path": "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx",
+   "line": 39,
+   "end_line": 42,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The query cache key leaves out the organization, so different orgs can share cached attribute keys.",
+   "body": "The old `useApiQuery` key contained the URL `/organizations/${slug}/trace-items/attributes/`. The new key is `['use-trace-item-attribute-keys', queryOptions]`, and `queryOptions` holds only the item type, attribute type, project IDs and datetime. The `queryFn` still calls the current organization's endpoint.\n\nTrigger: the user is on the default \"all projects\" selection, so `selection.projects` is `[]` and the key is the same in every org. If the user switches org in the same session, react-query can serve the first org's attribute list from cache for the second org. At best this shows wrong data until a refetch.\n\nI could not check the app's default `staleTime`; it decides how long the wrong data stays on screen.\n\nFix: add `organization.slug` to the query key."
+  },
+  {
+   "path": "static/app/views/performance/newTraceDetails/traceTabsAndVitals.tsx",
+   "line": 27,
+   "end_line": 27,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Second placeholder group lost its gap and centring.",
+   "body": "The old `FlexBox` had `align-items: center` and `gap: space(1)`. The second group is now a bare `<Flex>`, so the three 100px placeholders sit flush against each other and are no longer vertically centred. Use `<Flex align=\"center\" gap={space(1)}>` as the first group does."
+  }
+ ],
+ "usage": {
+  "requests": 5,
+  "input": 10,
+  "cacheWrite": 197244,
+  "cacheRead": 16310,
+  "output": 9073,
+  "models": {
+   "claude-opus-5-5": 5
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 106,
+   "hunks": 228,
+   "reviewedHunks": 191,
+   "aiHunks": 0,
+   "skippedHunks": 37,
+   "inputTokens": 213564,
+   "outputTokens": 9073,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 100,
+   "reviewedAiHunks": 0,
+   "requests": 5,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "src/sentry/options/defaults.py",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "tests/sentry/migrations/test_0917_convert_org_saved_searches_to_views.py",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/endpoints/test_organization_detector_details.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/endpoints/test_organization_detector_index.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/processors/test_delayed_workflow.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/snuba/api/endpoints/test_organization_events_stats.py",
+    "reason": "over the maxFiles limit (100)"
+   }
+  ],
+  "deletedTests": [
+   "tests/sentry/migrations/test_0917_convert_org_saved_searches_to_views.py"
+  ],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 1.170982
+}

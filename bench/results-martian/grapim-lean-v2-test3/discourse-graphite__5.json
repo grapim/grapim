@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__5",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/5",
+ "head_sha": "5b229316ee4c661836ed1161139692a3e8527444",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:35:34.596Z",
+ "seconds": 22.108,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/assets/stylesheets/common/base/topic-post.scss",
+   "line": 264,
+   "end_line": 265,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Making `.small-action` a flex container stops its `float: right` button from aligning right.",
+   "body": "`.small-action` is now `display: flex`. Browsers ignore `float` on flex items, so the `float: right` on `.small-action` `button` (and the `float: left` on `.topic-avatar`) no longer has any effect. Nothing in this rule pushes the button to the right edge: `.small-action-desc` doesn't grow and the button has no `margin-left: auto`. So small-action posts that show an edit/delete button will place it right after the description text instead of at the right edge. I couldn't check the markup order, so I don't know exactly where the button lands. Fix: add `margin-left: auto` to the button (or `flex: 1` to `.small-action-desc`), and remove the floats that no longer do anything."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 4957,
+  "cacheRead": 3262,
+  "output": 1787,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 8221,
+   "outputTokens": 1787,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0611854
+}

@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "nlmixr2__rxode2__1693",
+ "url": "https://github.com/nlmixr2/rxode2/pull/1693",
+ "head_sha": "591d42add1773b5667e9db8e19f3e75954767fa3",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:39:47.556Z",
+ "seconds": 52.417,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": ".github/workflows/pkgdown.yaml",
+   "line": 36,
+   "end_line": 55,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "`/ci` runs fork pull-request code with a `contents: write` token.",
+   "body": "Under `issue_comment`, the workflow runs in the base repository's context with its full token. The job has `contents: write` and `statuses: write`, puts `GITHUB_PAT: secrets.GITHUB_TOKEN` in the environment, and then checks out `refs/pull/N/merge`. It then builds the pull request's package and site, which runs its R code. Any PR code, including from a fork, can read `GITHUB_PAT` and push to `main` or `gh-pages`. A maintainer only has to comment `/ci`, and the attacker can push a malicious commit between that comment and the checkout. Skipping the deploy step does not help. Do not check out PR code in `issue_comment` jobs that hold write permissions or secrets. Drop `contents: write` for these runs, or leave pkgdown out of `/ci`."
+  },
+  {
+   "path": ".github/workflows/R-CMD-check.yaml",
+   "line": 9,
+   "end_line": 17,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Unrelated CI trigger rewrite stops pull requests from being checked on push.",
+   "body": "The PR is about removing the `fmax()` call in `vmnorm0()`, but it also rewrites the triggers of all four workflows. It drops the `pull_request` trigger and replaces it with `pull_request_review` and a `/ci` comment. As a result, opening a PR or pushing to one no longer runs R-CMD-check, lint or coverage. Required status checks on PRs will no longer report unless someone approves the PR with the magic phrase or comments `/ci`, so a commit pushed after that approval is never checked. The request does not cover this. Move the CI policy change to its own PR, or restore the `pull_request` trigger."
+  },
+  {
+   "path": ".github/workflows/R-CMD-check.yaml",
+   "line": 31,
+   "end_line": 31,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "The approval gate does not check who reviewed the PR.",
+   "body": "The `pull_request_review` path only checks `review.state == 'approved'` and that the review body contains 'ready to be merged'. It does not check `review.author_association`. On a public repository, any GitHub user can submit an approving review, including the PR's own author through another account. So anyone can start the full CI matrix, which goes against the intent that a reviewer starts CI. Add `contains(fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]'), github.event.review.author_association)` as the `/ci` path does. The same applies to the other three workflows."
+  },
+  {
+   "path": ".github/workflows/R-CMD-check.yaml",
+   "line": 72,
+   "end_line": 72,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The status is reported on a head SHA that may not be the code that was tested.",
+   "body": "The first step fetches `head.sha` and stores it in `CI_PR_HEAD_SHA`. The checkout then fetches `refs/pull/N/merge` afterwards, and that ref may have moved or been recomputed for a newer head. A push between the two steps gets tested, but the result is posted to the older SHA. Or a stale merge ref gets tested, and its result is reported as the head's. Either way, an unverified commit can end up green. Check out the exact SHA you report on, for example `pr.data.head.sha` or the merge commit SHA taken from the same API call. The same issue is in lint, pkgdown and test-coverage."
+  },
+  {
+   "path": ".github/workflows/R-CMD-check.yaml",
+   "line": 31,
+   "end_line": 31,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`startsWith(body, '/ci')` also matches other comments.",
+   "body": "A maintainer comment such as `/cite this` or `/circle back` starts the whole CI matrix, because the check only looks at the prefix. Unlike the review path, the `/ci` path also does not check that the PR's base is main or master, so stacked PRs run despite what the header comment says. Match the exact command, for example `github.event.comment.body == '/ci'`."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 6,
+  "cacheWrite": 22356,
+  "cacheRead": 25460,
+  "output": 6019,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 9,
+   "reviewedHunks": 9,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 47822,
+   "outputTokens": 6019,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 6,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.237276
+}

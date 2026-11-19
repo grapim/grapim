@@ -1,0 +1,46 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "grafana__90045",
+ "url": "https://github.com/grafana/grafana/pull/90045",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The context is being created with d.Log instead of the log variable that was initialized with additional context values (name, kind, method). This means those values won't be propagated to the logging context.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same bug: klog.NewContext uses d.Log instead of the enriched log variable."
+  },
+  {
+   "comment": "In DualWriterMode3's DeleteCollection method, when a storage operation fails, recordStorageDuration is incorrectly called with recordLegacyDuration instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.5,
+   "reasoning": "Both point to the legacy and storage duration metrics being swapped in Mode3 DeleteCollection. However, C2 describes the swap in the opposite direction (the legacy call is recorded as storage), so it may refer to a different line. Partial match."
+  },
+  {
+   "comment": "Inconsistency: using name instead of options.Kind for metrics recording differs from other methods.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 identifies that name is used instead of options.Kind in the metric label."
+  }
+ ],
+ "candidates": [
+  "In Delete (line 97), klog.NewContext(ctx, d.Log) stores the base logger instead of the enriched log variable that includes name, kind, and method fields",
+  "Mode3 DeleteCollection records the async legacy delete-collection duration into the storage histogram instead of legacy histogram",
+  "DualWriterMode3.Delete records the storage duration metric with the object name in the kind label instead of options.Kind, creating unbounded Prometheus label cardinality",
+  "Mode3 Delete/DeleteCollection tests only mock unified storage calls but the implementation spawns async legacy calls on success, which will hit unmocked methods and fail",
+  "Mode3 Create error test doesn't stub Storage.Create, so it won't exercise the intended 'unified store fails' error path"
+ ]
+}

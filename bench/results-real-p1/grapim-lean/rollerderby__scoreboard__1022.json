@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "rollerderby__scoreboard__1022",
+ "url": "https://github.com/rollerderby/scoreboard/pull/1022",
+ "head_sha": "9bdc5f1c645e87ec01540cf90f9808663e883c12",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:41:53.014Z",
+ "seconds": 24.459,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17830,
+  "cacheRead": 3561,
+  "output": 994,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21393,
+   "outputTokens": 994,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.10975019999999999
+}

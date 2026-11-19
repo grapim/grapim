@@ -1,0 +1,68 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__40940",
+ "url": "https://github.com/keycloak/keycloak/pull/40940",
+ "head_sha": "4def149a50c4b9b2c24fbb753ac60fe4f4df0cac",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:20:18.157Z",
+ "seconds": 28.314,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java",
+   "line": 139,
+   "end_line": 157,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The reader thread is never joined, and it spins forever if a delete throws.",
+   "body": "`deletedAll` is only set after every `remove()` succeeds. If a delete throws (for example a 404 or a server error), the flag stays false. The non-daemon reader thread then loops forever, calling the admin API against a realm that is being torn down, and can hang the test JVM.\n\nEven on success, the assertion runs right after `deletedAll.set(true)` without waiting for the thread. An exception from the request still in flight is added after the check and lost. The thread also outlives the test and runs during realm cleanup.\n\nThe test can also pass without testing anything if the deletes finish before the thread makes its first request.\n\nFix: keep a reference to the thread, set the flag in a `finally` block, call `join()` with a timeout before asserting, and mark the thread as a daemon."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 5896,
+  "cacheRead": 3262,
+  "output": 1355,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 5,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 9160,
+   "outputTokens": 1355,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "services/src/main/java/org/keycloak/utils/GroupUtils.java",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.057240400000000004
+}

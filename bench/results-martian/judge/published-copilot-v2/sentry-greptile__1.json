@@ -1,0 +1,50 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "sentry-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The OptimizedCursorPaginator in organization_auditlogs.py attempts to use negative slice offsets on Django querysets, but Django querysets do not support negative slicing and will raise an AssertionError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out the same problem: Django querysets don't support slicing with a negative offset."
+  },
+  {
+   "comment": "When requests are authenticated with API keys or org auth tokens (which have user_id=None), organization_context.member is None. Line 71 attempts to access organization_context.member.has_global_access without checking if member is None, causing an AttributeError crash when optimized_pagination=true is used, even though the request passed all permission checks with valid org:write scope.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the null-member AttributeError that happens with API-key auth."
+  },
+  {
+   "comment": "get_item_key assumes a numeric key, but the paginator is used with order_by=-datetime in the audit logs endpoint; calling math.floor/ceil on a datetime will raise a TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same TypeError: get_item_key calls math.floor/ceil on a datetime key."
+  },
+  {
+   "comment": "Importing non-existent OptimizedCursorPaginator",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mention the import of a non-existent OptimizedCursorPaginator."
+  }
+ ],
+ "candidates": [
+  "The advanced negative-offset branch slices the queryset with a negative start index where Django QuerySet slicing does not support negative indices, causing runtime errors",
+  "OptimizedCursorPaginator.get_item_key assumes self.key is numeric and calls math.floor/ceil directly, which will raise TypeError for DateTimeField keys like datetime used in audit logs endpoint",
+  "The added comment claims 'Allow negative offsets' but Cursor itself doesn't implement/validate that behavior and the rest of the pagination code treats negative offsets as invalid input, making the comment misleading"
+ ]
+}

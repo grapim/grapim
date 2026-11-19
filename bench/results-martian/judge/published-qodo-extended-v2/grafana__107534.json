@@ -1,0 +1,20 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "grafana__107534",
+ "url": "https://github.com/grafana/grafana/pull/107534",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The applyTemplateVariables method is called with request.filters as the third parameter, but this parameter is not used in the corresponding test setup.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.72,
+   "reasoning": "G1 is about the test setup: applyTemplateVariables is now called with request.filters as a third argument, but the tests don't account for that parameter. C1 is about a runtime bug where ad-hoc filters get applied more than once and end up duplicated. C1 does say the tests miss this, but only because runQuery is mocked. That is a different problem from G1's test-parameter mismatch, so it doesn't match."
+  }
+ ],
+ "candidates": [
+  "Ad-hoc filters are applied multiple times because applyTemplateVariables is called in runSplitQuery and runShardSplitQuery, and then again inside DataSourceWithBackend.query() via super.query(). Since addAdHocFilters unconditionally appends each filter label without deduplication, filters get duplicated. For shard splitting, applyTemplateVariables is called 3 times total: in runShardSplitQuery, then runSplitQuery, then super.query(). The tests don't catch this because they mock datasource.runQuery, bypassing super.query() entirely."
+ ]
+}

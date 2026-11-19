@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__97529",
+ "url": "https://github.com/grafana/grafana/pull/97529",
+ "head_sha": "26fed312840cd76b766cbd2158e17a7e6c0ec548",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:22:17.692Z",
+ "seconds": 46.459,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/server/module_server_test.go",
+   "line": 35,
+   "end_line": 38,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "Storage-server integration test is now skipped for Postgres instead of fixed.",
+   "body": "This test now skips whenever `GRAFANA_TEST_DB=postgres`. That disables the only Postgres coverage for the storage-server module target. The PR summary calls this \"Enhanced PostgreSQL integration test compatibility\", but the test is simply switched off. It happens in the same PR that moves resource-server init into the constructor, which is exactly the kind of startup change this test would catch. Fix the Drone failure, or track it explicitly, instead of skipping the test."
+  },
+  {
+   "path": "pkg/storage/unified/resource/server.go",
+   "line": 258,
+   "end_line": 262,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Removing the per-request `Init` checks means requests are no longer rejected after `Stop`.",
+   "body": "`Stop` sets `s.initErr = \"service is stopping\"`. Before this change, every handler (Create, Update, Delete, Read, List, Watch, Search, History, Origin, IsHealthy, PutBlob, GetBlob) called `s.Init`, which returns `s.initErr`, so requests arriving during shutdown got a clean error. With those checks gone, `initErr` is never read after construction. During shutdown, requests still reach the cancelled backend and the stopped watcher. `IsHealthy` can also keep reporting healthy while the server stops. Fix: keep a cheap check in the handlers, for example a helper that returns `s.initErr` when it is set, or remove the `Stop` assignment if this behaviour is meant to go away."
+  },
+  {
+   "path": "pkg/storage/unified/resource/search.go",
+   "line": 216,
+   "end_line": 216,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "New `TotalDocs()` call reads the index cache map without a lock while the event goroutine can write to it.",
+   "body": "The event-handling goroutine starts just above this line. `handleEvent` can reach `getOrCreateIndex` → `build` → `BuildIndex`, which writes `b.cache[key]` under `cacheMu`. `bleveBackend.TotalDocs` loops over `b.cache` without taking `cacheMu`. If a write event for a namespace or resource without an index arrives at startup, the two can overlap. Go then aborts with \"concurrent map iteration and map write\", taking the whole server down at startup. Fix: take `cacheMu` (read lock) inside `TotalDocs`, or call it before starting the event goroutine. I could not see whether `handleEvent` always builds through this path."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 12,
+  "cacheWrite": 55127,
+  "cacheRead": 45771,
+  "output": 9404,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 19,
+   "reviewedHunks": 10,
+   "aiHunks": 0,
+   "skippedHunks": 9,
+   "inputTokens": 100910,
+   "outputTokens": 9404,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.47291720000000004
+}

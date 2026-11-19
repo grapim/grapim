@@ -1,0 +1,35 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The enableSqlExpressions function has flawed logic that always returns false, effectively disabling SQL expressions unconditionally:",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: enableSqlExpressions always returns false."
+  },
+  {
+   "comment": "The DB methods NewInMemoryDB().RunCommands, DB.QueryFramesInto, and DB.TablesList in pkg/expr/sql/db.go return hardcoded 'not implemented' errors after removing the go-duck dependency.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.7,
+   "reasoning": "C2 is about the placeholder DB methods that return 'not implemented' errors, which is the same code the golden comment flags."
+  }
+ ],
+ "candidates": [
+  "enableSqlExpressions function computes a boolean but always returns false, making the feature-flag check dead code - should be simplified to single 'return false'",
+  "Placeholder implementation returns generic 'not implemented' error instead of explicit 'SQL expressions are disabled' message",
+  "Missing unit test coverage for the new SQL-disablement behavior in ExpressionQueryReader",
+  "Variable still named 'duckDB' but DuckDB dependency has been removed - should be renamed to avoid confusion"
+ ]
+}

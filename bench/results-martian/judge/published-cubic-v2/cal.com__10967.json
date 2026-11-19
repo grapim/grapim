@@ -1,0 +1,66 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A null reference occurs in GoogleCalendarService.createEvent() and updateEvent() when mainHostDestinationCalendar is destructured from evt.destinationCalendar but evt.destinationCalendar is null or an empty array, causing mainHostDestinationCalendar to be undefined.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same problem: mainHostDestinationCalendar is undefined when destinationCalendar is null or empty."
+  },
+  {
+   "comment": "The optional chaining on mainHostDestinationCalendar?.integration is redundant since you already check mainHostDestinationCalendar in the ternary condition.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the redundant optional chaining."
+  },
+  {
+   "comment": "Logic error: when externalCalendarId is provided, you're searching for a calendar where externalId === externalCalendarId, but this will always fail since you're looking for a calendar that matches itself. Should likely find by credentialId or use different logic.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.5,
+   "reasoning": "C3 flags the same find logic that compares calendar IDs to externalCalendarId as broken. The angle differs, though: C3 covers the case where the argument is missing, while G3 covers the self-matching search when it is provided."
+  },
+  {
+   "comment": "Logic inversion in organization creation: The slug property is now conditionally set when IS_TEAM_BILLING_ENABLED is true, instead of when it's false as originally intended. This change, combined with requestedSlug still being set when IS_TEAM_BILLING_ENABLED is true, results in both properties being set when billing is enabled, and neither when disabled",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the inverted slug / IS_TEAM_BILLING_ENABLED logic."
+  },
+  {
+   "comment": "The Calendar interface now requires createEvent(event, credentialId), but some implementations (e.g., Lark/Office365) still declare createEvent(event) only—this breaks the interface contract (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the interface signature mismatch."
+  },
+  {
+   "comment": "The `credential` may be undefined when passed to `updateEvent` if `reference.credentialId` is set but the credential is not found. This can lead to a runtime error when `updateEvent` is called with an undefined credential, which should be handled to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the undefined credential passed to updateEvent."
+  }
+ ],
+ "candidates": [
+  "`mainHostDestinationCalendar` will be `undefined` when `evt.destinationCalendar` is `null` or an empty array (the `?? []` fallback produces `[]`, and destructuring yields `undefined`). Accessing `.integration` on it throws a `TypeError`. Add a guard before dereferencing",
+  "`externalId` is never forwarded to the provider create call, so multi-host creates still target the first destination calendar instead of each host's calendar",
+  "The fallback compares every calendar ID to `externalCalendarId`, so when that argument is missing updates stop targeting the event's destination calendar"
+ ]
+}

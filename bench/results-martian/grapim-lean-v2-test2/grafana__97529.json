@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__97529",
+ "url": "https://github.com/grafana/grafana/pull/97529",
+ "head_sha": "26fed312840cd76b766cbd2158e17a7e6c0ec548",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:24:02.655Z",
+ "seconds": 36.164,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/storage/unified/resource/search.go",
+   "line": 216,
+   "end_line": 216,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The new TotalDocs() call reads the bleve cache map without a lock while indexes can be written into it.",
+   "body": "This line runs after the event goroutine has started (lines 208-214). `handleEvent` can call `getOrCreateIndex`, which leads to `BuildIndex` writing `b.cache[key]`. `bleveBackend.TotalDocs` loops over `b.cache` without taking `cacheMu`. If an event for a namespace with no index yet arrives during this call, Go aborts the process with \"concurrent map iteration and map write\". The lock change in this PR also means writers now hold `cacheMu` only briefly, which makes them more likely to overlap with this read. Take `cacheMu` (ideally an RWMutex read lock) inside `TotalDocs`, or compute the total before starting the watch goroutine."
+  },
+  {
+   "path": "pkg/storage/unified/resource/server.go",
+   "line": 258,
+   "end_line": 262,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Removing the per-request Init checks also removes the \"service is stopping\" guard set by Stop.",
+   "body": "`Stop` still sets `s.initErr = \"service is stopping\"`. Before this change, every RPC called `s.Init(ctx)`, which returned that error, so requests that arrived after Stop were rejected. With all of those calls removed, nothing reads `initErr` after construction. Create, Update, Delete, Read, List, Watch, Search and the blob calls that arrive during shutdown now run against a backend whose context has already been cancelled, and its watcher has stopped. Keep a cheap check in each handler, for example an atomic `stopping` flag or a read of `s.initErr`, so these requests still fail fast with a clear error."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 12166,
+  "cacheRead": 3262,
+  "output": 2461,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 19,
+   "reviewedHunks": 10,
+   "aiHunks": 0,
+   "skippedHunks": 9,
+   "inputTokens": 15430,
+   "outputTokens": 2461,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1107104
+}

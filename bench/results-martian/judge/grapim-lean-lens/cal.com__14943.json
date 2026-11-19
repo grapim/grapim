@@ -1,0 +1,31 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block).",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C2 is about the catch block's update throwing and stopping the cron run. It is not about a stale-read race on the retryCount increment, so nothing matches G1."
+  },
+  {
+   "comment": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 raises the same problem: the retryCount delete branch has no SMS method filter, so it also deletes non-SMS reminders."
+  }
+ ],
+ "candidates": [
+  "packages/features/ee/workflows/api/scheduleSMSReminders.ts:38 - The retryCount delete branch isn't limited to SMS reminders.. The second `OR` branch matches any `workflowReminder` with `retryCount > 1`, whatever its `method`. This SMS cron job will therefore also delete EMAIL or WHATSAPP reminders once any code raises their `retryCount` (the column now exists on every reminder). That deletes reminders this job does not own. In the code shown, only this handler raises the count, so the trigger depends on other writers I can't see. Add `method: WorkflowMethods.SMS` to the retry branch, or put the method filter outside the `OR`.",
+  "packages/features/ee/workflows/api/scheduleSMSReminders.ts:190 - A failed update inside the catch block stops the whole cron run.. The new `prisma.workflowReminder.update` runs inside `catch`, and nothing catches errors from it. It can throw, for example with P2025 when the reminder was deleted at the same time (a cancelled booking) or when the original error came from the database. Then the exception leaves the `for` loop, every remaining reminder is skipped and the request fails. Before this change, the catch block only logged. Wrap the increment in its own try/catch, or use `.catch(() => {})`, so one reminder's failure cannot stop the batch."
+ ]
+}

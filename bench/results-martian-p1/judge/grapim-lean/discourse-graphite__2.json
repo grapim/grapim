@@ -1,0 +1,32 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "logic: Potential nil pointer exception - if no TopicUser record exists, tu will be nil and calling methods on it will crash",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out that tu can be nil when no TopicUser row exists, which makes the call crash."
+  },
+  {
+   "comment": "Typo in property name: 'stopNotificiationsText' should be 'stopNotificationsText' (missing 'n' in 'Notifications')",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the stopNotificiationsText typo."
+  }
+ ],
+ "candidates": [
+  "app/controllers/topics_controller.rb:105 - Unsubscribe crashes when the user has no TopicUser row.. `TopicUser.find_by` returns nil when the user has no `topic_users` row for the topic. That happens when they get emails through category or tag watching, or when they were mentioned in a topic they never opened. `tu.notification_level` then raises NoMethodError, so the unsubscribe link in the email returns a 500 error. Use `TopicUser.change(current_user.id, topic_id, notification_level: ...)`, which creates the row if needed, or handle the nil case before reading the level.",
+  "config/locales/server.en.yml:1852 - `unsubscribe_link` now needs `%{unsubscribe_url}`, which other emails don't pass.. MessageBuilder calls `I18n.t('unsubscribe_link', template_args)` for every email built with `add_unsubscribe_link: true`. Only `UserNotifications#send_notification_email` now passes `unsubscribe_url`. Other mailers that set `add_unsubscribe_link` (digest and similar) will hit `I18n::MissingInterpolationArgument` or render a broken string. The spec had to add `unsubscribe_url` just to keep passing, which shows the same failure. I could not see the other mailers, so check them. Fix: use a separate key for the per-topic line and add it only when `unsubscribe_url` is present.",
+  "app/controllers/topics_controller.rb:98 - A GET request changes notification state and has no CSRF protection.. `unsubscribe` is a plain GET that writes `notification_level` with no token. Any third-party page, image tag or email link prefetcher that loads `/t/x/123/unsubscribe` for a logged-in user silently changes their notification level for that topic. The change also steps down on every load: watching/tracking → regular, then regular → muted. So reloading the page, or a prefetch followed by a click, mutes the topic even though the user only asked to stop emails. Make the change idempotent (always set one target level). Better still, show a confirmation page and apply the change with a POST/PUT that carries a CSRF token, or require a signed per-user token in the link."
+ ]
+}

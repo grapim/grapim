@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-v2-test2",
+ "pr_id": "keycloak__40940",
+ "url": "https://github.com/keycloak/keycloak/pull/40940",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returning null from getSubGroupsCount() violates the GroupModel contract (Javadoc says it never returns null) and may lead to NPEs in callers that expect a non-null count.",
+   "severity": "Critical",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate addresses getSubGroupsCount returning null."
+  },
+  {
+   "comment": "The reader thread isn’t waited for; flipping deletedAll to true and asserting immediately can race and miss exceptions added just after the flag change, making this test flaky.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 explicitly notes the assertion runs right after deletedAll.set(true) without joining the thread, so in-flight exceptions are missed."
+  }
+ ],
+ "candidates": [
+  "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java:139 - The reader thread is never joined, and it spins forever if a delete throws.. `deletedAll` is only set after every `remove()` succeeds. If a delete throws (for example a 404 or a server error), the flag stays false. The non-daemon reader thread then loops forever, calling the admin API against a realm that is being torn down, and can hang the test JVM.\n\nEven on success, the assertion runs right after `deletedAll.set(true)` without waiting for the thread. An exception from the request still in flight is added after the check and lost. The thread also outlives the test and runs during realm cleanup.\n\nThe test can also pass without testing anything if the deletes finish before the thread makes its first request.\n\nFix: keep a reference to the thread, set the flag in a `finally` block, call `join()` with a timeout before asserting, and mark the thread as a daemon."
+ ]
+}

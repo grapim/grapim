@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "mui__base-ui__6198",
+ "url": "https://github.com/mui/base-ui/pull/6198",
+ "head_sha": "9cefcf0a973941e775f1d9fc62dc303f1ffe8d00",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:32:06.844Z",
+ "seconds": 32.768,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 8324,
+  "cacheRead": 3561,
+  "output": 1979,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 7,
+   "reviewedHunks": 7,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 11887,
+   "outputTokens": 1979,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0819202
+}

@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "endformdev__playwright-intent__12",
+ "url": "https://github.com/endformdev/playwright-intent/pull/12",
+ "head_sha": "1ac4256d36330b7ba5ee9b29d9f3c8ab42ddfa3e",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:28:29.043Z",
+ "seconds": 31.393,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "playwright-intent/src/step/step-path.ts",
+   "line": 45,
+   "end_line": 45,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The joined titles folder is no longer cut to the name limits.",
+   "body": "Before this change, `sanitizeSegment` ran on the joined titles, so the folder name was always cut to 150 bytes. Now each title is slugified on its own (up to 64 characters / 150 bytes each) and the results are joined with `--` with no cut afterwards. A test inside two or three describes with long titles gets a folder name of about 130–200 characters. With non-ASCII titles it reaches 302+ bytes, which is over the 255-byte name limit on ext4 and APFS. Writing the step then fails with `ENAMETOOLONG`, and long paths break the 260-character Windows limit this change says it keeps. Fix: cut the joined name again, for example `cut(titles.map(slugify).join(TITLE_SEPARATOR)).replace(EDGE_PUNCTUATION, \"\")`, or give the folder its own limit."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18289,
+  "cacheRead": 3561,
+  "output": 2331,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 17,
+   "reviewedHunks": 17,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 21852,
+   "outputTokens": 2331,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.13878520000000003
+}

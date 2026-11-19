@@ -1,0 +1,50 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "sentry__77754",
+ "url": "https://github.com/getsentry/sentry/pull/77754",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The AssignmentSource dataclass uses queued: datetime = timezone.now() as a default field value, which evaluates timezone.now() once at class definition time and shares that single datetime instance across all objects.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points to the same issue: the timezone.now() default is evaluated once, when the class is defined."
+  },
+  {
+   "comment": "The method name has a typo: test_from_dict_inalid_data should be test_from_dict_invalid_data.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out the same typo in the test name ('inalid' instead of 'invalid')."
+  },
+  {
+   "comment": "Method name says 'empty_array' but tests empty dict - consider renaming to 'test_from_dict_empty_dict' for clarity.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention that the 'empty_array' test name doesn't fit a test that uses an empty dict."
+  },
+  {
+   "comment": "to_dict() returns a datetime for queued; if this dict is passed in task kwargs (e.g., via apply_async), JSON serialization may fail depending on the serializer, which can cause enqueue errors.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates raise the risk that the datetime returned by to_dict() could fail JSON serialization."
+  }
+ ],
+ "candidates": [
+  "`queued` is set with `timezone.now()` at class definition time, so every `AssignmentSource` instance will share the same timestamp. Use a dataclass `field(default_factory=timezone.now)` so the timestamp is evaluated per instance.",
+  "Typo in test name: `inalid` -> `invalid`.",
+  "`sync_status_outbound` is now declared with an `assignment_source` parameter, but status syncing doesn't pass/use this and many implementations (e.g., `ExampleIntegration.sync_status_outbound`) don't accept it. This increases the chance of a future runtime `TypeError` if callers start passing `assignment_source`. Consider removing this parameter here (or switching to `**kwargs: Any` only, as other abstract methods do)."
+ ]
+}

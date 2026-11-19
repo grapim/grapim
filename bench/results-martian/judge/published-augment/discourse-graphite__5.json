@@ -1,0 +1,41 @@
+{
+ "tool": "published-augment",
+ "pr_id": "discourse-graphite__5",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Mixing float: left with flexbox causes layout issues. Further this PR removes the float-based right alignment for .d-header .panel, which may cause the login panel in the non-Ember/noscript header (where .panel is nested inside .row and not a flex item) to stack under the title instead of remaining right-aligned.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the float/flexbox mixing or the panel layout."
+  },
+  {
+   "comment": "-ms-align-items never existed in any version of IE/Edge; the correct legacy property is -ms-flex-align.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same invalid -ms-align-items property."
+  },
+  {
+   "comment": "-webkit-box-ordinal-group and -moz-box-ordinal-group require values starting from 1, not 0. If $val is 0, this will cause incorrect rendering in older browsers, leading to layout issues.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out the same 1-based ordinal-group problem."
+  }
+ ],
+ "candidates": [
+  "-ms-align-items is not a recognized MS flexbox property (IE10/11 use -ms-flex-align instead), keeping it emits invalid CSS declarations and makes debugging harder",
+  "For legacy -webkit-box/-moz-box flexbox syntax, *-box-ordinal-group is 1-based (whereas modern order is 0-based), so using $val directly can shift ordering by 1 in older browsers - need to offset the *-box-ordinal-group value"
+ ]
+}

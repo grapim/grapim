@@ -1,0 +1,56 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The downsize method is defined twice. The second definition, which expects a single dimensions string parameter, overrides the first, which expected separate max_width and max_height parameters. This makes the original method unreachable and breaks existing code that calls it with separate width and height arguments.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same problem: the second downsize definition overrides the first, which breaks callers that pass width and height separately."
+  },
+  {
+   "comment": "Hardcoding maxSizeKB = 10 * 1024 ignores Discourse.SiteSettings['max_' + type + '_size_kb'], so the client-side limit can diverge from server-side and per-type settings (also applies to the 413 handler below).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 points out the hardcoded client-side 10 MB limit that ignores the per-type max size settings. C3 makes a similar point, but about the server controller, not the client-side limit."
+  },
+  {
+   "comment": "Passing 80% as the dimensions can fail for animated GIFs when allow_animated_thumbnails is true, since the animated path uses gifsicle --resize-fit which expects WxH geometry, not a percentage; downsizing would then silently fail.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [
+    5
+   ],
+   "confidence": 0.85,
+   "reasoning": "C5 says that if the animated path is chosen, gifsicle --resize-fit gets '80%' when it expects WxH."
+  },
+  {
+   "comment": "The loop checking `tempfile.size` may never terminate correctly due to stale cached size, leading to potential infinite loops or incorrect file handling after modifications.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.8,
+   "reasoning": "C4 notes that the tempfile handle can read stale content, so tempfile.size inside the downsize loop can be wrong."
+  }
+ ],
+ "candidates": [
+  "app/models/optimized_image.rb:149 - Second `downsize` definition silently replaces the 5-argument one.. Ruby does not overload methods by arity. The new `def self.downsize(from, to, dimensions, opts={})` replaces the `downsize(from, to, max_width, max_height, opts={})` defined just above it, so the first one never runs. Any existing caller that passes width and height separately, such as `downsize(from, to, w, h, opts)`, will now get an `ArgumentError`, or its `h` will be taken as `opts`. Give the dimension-string version a different name (for example `downsize_to`), or have one method accept both forms, and update the callers to match.",
+  "app/assets/javascripts/discourse/lib/utilities.js:182 - Client size check is now a fixed 10 MB for every upload type.. `max_attachment_size_kb` and `max_image_size_kb` are no longer used on the client. Sites that allow attachments larger than 10 MB will now have them rejected in the browser. Attachments over the configured limit but under 10 MB will now go to the server and only fail there, because only images get downsized. Keep `max_attachment_size_kb` for attachments and use the raised cap only for images.",
+  "app/controllers/uploads_controller.rb:55 - Hardcoded 10 MB cap ignores the configured size settings.. The download limit was `SiteSetting.max_image_size_kb` and is now a fixed 10 MB. If an admin sets a limit above 10 MB, API URL uploads that the settings allow are now rejected. Use the larger of the setting and the downsizing allowance, or make the cap a site setting.",
+  "app/controllers/uploads_controller.rb:64 - The downsize loop ignores failures and may leave `tempfile` reading stale content.. The return value of `OptimizedImage.downsize` is ignored. If `convert` fails, for example on a corrupt or unsupported image, the loop runs the failing shell command five times and then uploads the original file anyway. The file is also rewritten in place at `tempfile.path`, and `ImageOptim#optimize_image!` usually swaps the file in by renaming a new one over it. If it does, the open `tempfile` handle still points to the old inode, so `tempfile.size` and the data `Upload.create_for` reads would be the original, oversized image. Write the output to a new path, stop when `downsize` returns false, and reopen the file before creating the upload. I could not check how image_optim replaces the file here.",
+  "app/controllers/uploads_controller.rb:67 - Animated GIFs are never detected because the tempfile path has no .gif extension.. `optimize` picks the animated instructions only when `from =~ /\\.GIF$/i`. Here `from` is `tempfile.path`, a Rack multipart or download temp name that normally has no extension. Animated GIFs therefore go through the plain `convert` path, which can flatten them or keep only the first frame, even when `allow_animated_thumbnails` is on. If the animated path is chosen, `\"80%\"` is also passed to gifsicle's `--resize-fit`, which expects WxH. Decide whether the file is animated from `filename`, and pass dimensions that gifsicle accepts."
+ ]
+}

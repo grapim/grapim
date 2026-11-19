@@ -1,0 +1,34 @@
+{
+ "tool": "grapim-lean-v2-test3",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The magic number 50 for max_wait is used repeatedly throughout the tests. Consider extracting this as a named constant to improve maintainability.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the repeated magic number 50 for max_wait."
+  },
+  {
+   "comment": "The test test_thread_queue_parallel_error_handling has a docstring that doesn't match the test implementation.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    5
+   ],
+   "confidence": 0.9,
+   "reasoning": "C5 points out that the error-handling test's docstring contradicts what the test actually asserts."
+  }
+ ],
+ "candidates": [
+  "src/sentry/remote_subscriptions/consumers/result_consumer.py:131 - The factory builds one queue pool and shuts it down on the first rebalance, so every later message is dropped but still committed.. The factory creates `queue_pool` once in `__init__`, and every strategy from `create_with_partitions` shares it. When partitions are revoked, arroyo calls `close()`/`join()` on the strategy, which calls `queue_pool.shutdown()`. That stops all worker threads and shuts down every queue.\n\nOn the next assignment, the new `SimpleQueueProcessingStrategy` gets the same dead pool. `work_queue.put` then raises `queue.ShutDown`. The broad `except` in `submit` catches it and marks the offset complete, so each message is skipped and its offset is committed. After the first rebalance the consumer silently drops all uptime results.\n\nThe offset tracker also keeps stale outstanding offsets for revoked partitions. Those offsets can block commits for that partition forever.\n\nFix: create the pool and its `OffsetTracker` in `create_with_partitions`, one per strategy. Alternatively, have the strategy's `close` leave the shared pool running and let only `factory.shutdown()` stop it.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:184 - The queues are unbounded, so there is no backpressure despite the docstring's claim.. `queue.Queue()` is created without `maxsize`, so `submit` never blocks or raises `MessageRejected`. If one group or worker is slow, the consumer keeps reading from Kafka and piling items into memory without limit. That can end in OOM, and it makes the redelivery window after a crash grow with the backlog. The strategy docstring promises \"Natural backpressure when queues fill up\", which does not happen.\n\nFix: bound the queues, or track the total number of outstanding items, and raise `MessageRejected` from `submit` once the limit is reached.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:335 - `close`/`join` stop the commit thread before the work is drained and never make a final commit.. `close()` sets `shutdown_event` and joins the commit thread first, then shuts down the pool. Items that finish after that point, and items still queued, are never committed. Workers also check `self.shutdown = True` and stop pulling more items. Every rebalance or restart therefore re-delivers up to about a second of finished work plus everything still queued.\n\nFix: in `join`, wait for the queues to drain within the timeout, then compute and commit the final contiguous offsets on the calling thread before tearing down.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:273 - The arroyo `commit` callback is called from a background thread.. `_commit_loop` runs on its own thread and calls `commit_function`, which calls arroyo's `Commit`. Arroyo expects strategies to call commit from the processing thread, inside `submit`/`poll`/`join`. The `StreamProcessor` stores the offsets in internal state and flushes them in `_run_once` without a lock. Calling it from another thread can race with the main loop, and a commit can also arrive after revocation, for partitions this consumer no longer owns.\n\nFix: work out the committable offsets in `poll()`, and in `join()` for a final commit, and call `commit` there on the main thread. Drop the separate commit thread.",
+  "tests/sentry/uptime/consumers/test_results_consumer.py:1921 - The error-handling test asserts that nothing was committed, the opposite of its docstring, and depends on timing.. The docstring says errors should not block commits for other messages. The real behaviour is that offsets 100 and 101 both complete and offset 102 gets committed. The assertion instead requires that no commit has happened yet. It only passes if the 1-second commit loop has not fired before the check. With the DB work done to create results, that window can be passed, and then the test fails intermittently. Either way it never checks the behaviour it describes.\n\nFix: wait for the commit and assert `committed_offsets[test_partition] == 102`."
+ ]
+}

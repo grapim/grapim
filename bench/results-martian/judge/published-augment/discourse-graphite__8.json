@@ -1,0 +1,69 @@
+{
+ "tool": "published-augment",
+ "pr_id": "discourse-graphite__8",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/8",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": " The findMembers() call is now asynchronous and unhandled. The controller may not have member data immediately available, creating a race condition.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers the async findMembers race condition."
+  },
+  {
+   "comment": "In the next action, capping the next offset at user_count can produce an empty page (e.g., total equal to limit results in offset == total, showing 2/2 with no members). This can cause confusing UX on the last page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.65,
+   "reasoning": "C1 says that next sets the offset to user_count, which gives an empty last page. That is the same issue G2 describes."
+  },
+  {
+   "comment": "The remove_member test uses xhr :put to call the remove_member action, but the route defines delete 'members' => 'groups#remove_member' requiring DELETE method.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out the same mismatch: the spec uses xhr :put, but the route is DELETE."
+  },
+  {
+   "comment": "The `totalPages` calculation using `Math.floor(user_count / limit) + 1` produces an extra page when `user_count` is an exact multiple of `limit`, leading to incorrect pagination. For example, with 100 users and a limit of 50, it reports 3 pages instead of 2, allowing navigation to an empty page.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same overcount from Math.floor(...)+1 when user_count is an exact multiple of limit."
+  },
+  {
+   "comment": "Expected to return a value at the end of function - code paths without explicit returns will return undefined",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions a function that is missing a return value."
+  },
+  {
+   "comment": "The route provides the group's ID in params[:id], but the code attempts to read it from params[:group_id], causing the action to fail. This results in a broken feature when trying to access group memberships.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions the params[:id] vs params[:group_id] mismatch."
+  }
+ ],
+ "candidates": [
+  "totalPages uses Math.floor(user_count / limit) + 1, which over-counts when user_count is an exact multiple of limit (e.g. 50/50 -> 2 pages), allowing next to set offset to user_count, yielding an empty last page and incorrect currentPage/totalPages display",
+  "Spec uses xhr :put for remove_member but the route is defined as DELETE /admin/groups/:group_id/members - using PUT can let the spec pass while the real route/verb would behave differently",
+  "The automatic variable may not be in scope for the item view template - if it resolves against the member context it may be undefined, causing the remove control to show even for automatic groups, which would allow clicking remove and likely surface a 422 without UI handling",
+  "offset = params[:offset].to_i can produce negative offsets and limit can be <= 0, which may raise or produce invalid queries in ActiveRecord - need to clamp/sanitize limit and offset before calling .limit(...).offset(...)"
+ ]
+}

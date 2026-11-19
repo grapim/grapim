@@ -1,0 +1,35 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "grafana__90939",
+ "url": "https://github.com/grafana/grafana/pull/90939",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The GetWebAssets function implements an incomplete double-checked locking pattern for caching web assets. The function first checks if the cache is populated using a read lock (RLock), and if the cache is empty, it acquires a write lock to populate it. However, it fails to re-check whether the cache was populated by another goroutine while waiting to acquire the write lock.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1,
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 points out directly that the cache isn't checked again after the write lock is acquired. C4 also recommends re-checking the cache while holding the exclusive lock."
+  },
+  {
+   "comment": "In addition to the missing double-check, the function has a critical flaw in its error handling: it unconditionally assigns the fetch result to the cache (line 69: entryPointAssetsCache = result) regardless of whether the fetch succeeded or failed. When an error occurs during asset fetching, result is nil, and this nil value overwrites any previously valid cache entry.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mention that a failed fetch writes a nil result over a valid cached entry."
+  }
+ ],
+ "candidates": [
+  "Cached value isn't re-checked after acquiring the write lock, causing each waiter to re-read after the first goroutine releases the lock",
+  "Write lock is taken before doing network/file I/O, which can cause serialized and repeated manifest reads under concurrent requests",
+  "In dev mode, the current implementation unnecessarily serializes every call",
+  "Should only use the mutex to coordinate cache reads/writes and re-check the cache under the exclusive lock, while doing expensive I/O without holding the lock",
+  "Missing concurrency-focused test (run under go test -race) that calls GetWebAssets from multiple goroutines to prevent regressions of the data race and verify caching behavior under contention"
+ ]
+}

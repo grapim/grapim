@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 flags debug information that is logged at Error level and suggests switching to Debug, which is the same issue as G1."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the cleanup ticker interval changing from 10 minutes to 1 minute."
+  }
+ ],
+ "candidates": [
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:534 - Leftover debug logging at Error level dumps every batch's full ID list.. Each batch calls `r.log.Error` twice, and one of those calls logs the full `ids` slice. The same pattern is at lines 554/557 and 576/579. These calls also run when nothing is deleted, so every cleanup cycle writes Error-level entries for each annotation type and for tags, even on a healthy system. With large batch sizes (the test uses 32767), each entry carries tens of thousands of IDs. That floods the logs, sets off error alerting, and hides real failures. The `err` logged at 534/554/576 is always nil at that point. Remove these calls, or log at Debug level with only the counts."
+ ]
+}

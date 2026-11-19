@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "sentry__93824",
+ "url": "https://github.com/getsentry/sentry/pull/93824",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In the SpanFlusher flush loop, metric tags inconsistently use 'shard' (e.g., in spans.buffer.flusher.produce and spans.buffer.segment_size_bytes) and 'shards' (in spans.buffer.flusher.wait_produce) for the same shard identifier value. This prevents correct metric aggregation across flush stages — dashboards and alerts filtering by tag 'shard' will miss data tagged as 'shards' and vice versa.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 points out the same shard/shards tag mismatch."
+  },
+  {
+   "comment": "The test_basic function in test_consumer.py uses a monkeypatched time.sleep that returns immediately, but then calls time.sleep(0.1) expecting it to actually wait.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 says the monkeypatched sleep makes the 0.1 sleep a no-op."
+  },
+  {
+   "comment": "Because flusher processes are created via multiprocessing.get_context('spawn').Process, they are instances of multiprocessing.context.SpawnProcess, which on POSIX is not a subclass of multiprocessing.Process, so this isinstance check will always be false and hung processes won't be killed here.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 says the SpanFlusher isinstance check always fails, so the hung process is never killed."
+  },
+  {
+   "comment": "Sleep in test_consumer.py won’t actually wait because time.sleep was monkeypatched above; consider restoring sleep or using a different sync to ensure the flusher has time to process.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "Same issue as G2: the sleep is a no-op because sleep was monkeypatched."
+  },
+  {
+   "comment": "Breaking out of the loop when the deadline has elapsed can skip terminating remaining flusher processes, potentially leaving them running after shutdown; consider ensuring termination is attempted even if the deadline is exceeded.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates covers breaking out of the loop at the deadline and skipping termination of the remaining processes."
+  }
+ ],
+ "candidates": [
+  "src/sentry/spans/consumers/process/flusher.py:253 - A hung flusher process is no longer killed before its replacement starts.. In production, flusher processes are created with `mp_context.Process` from the spawn context, so they are `SpawnProcess` objects. `SpawnProcess` subclasses `BaseProcess`, not `multiprocessing.Process`, so `isinstance(process, multiprocessing.Process)` is always False and `kill()` is never called. The old code called `self.process.kill()` with no condition.\n\nWhen a process is restarted for `hang`, the stuck process keeps running and a second one starts for the same shards. The two share the same `stopped`, `healthy_since` and `backpressure_since` values. If the old one recovers, both flush the same segments and produce duplicates. Each restart can leak another process, up to MAX_PROCESS_RESTARTS of them.\n\nFix: call `kill()` on anything that is not a `threading.Thread`, for example `if not isinstance(process, threading.Thread): process.kill()`, or check against `multiprocessing.process.BaseProcess`.",
+  "tests/sentry/spans/consumers/process/test_consumer.py:60 - The added `time.sleep(0.1)` does nothing because the test replaces `time.sleep` with a no-op.. `test_basic` calls `monkeypatch.setattr(\"time.sleep\", lambda _: None)`, so the new `time.sleep(0.1)` returns immediately. It gives the flusher thread no time to process after the drift change.\n\nThe test still races: `step.join()` sets `stopped`, and the thread can exit before it flushes the segment. When that happens `(msg,) = messages` fails, so the test stays flaky.\n\nFix: wait for the result explicitly, for example poll until `messages` is non-empty within a deadline before calling `join()`, or keep a reference to the real sleep before patching it.",
+  "src/sentry/spans/consumers/process/flusher.py:199 - The `wait_produce` metric uses the tag key `shards`; the other new metrics use `shard`.. `spans.buffer.flusher.produce` and `segment_size_bytes` are tagged with `shard`, but `spans.buffer.flusher.wait_produce` is tagged with `shards`. Dashboards or queries that filter on `shard` will miss this metric. Use the same key for all of them."
+ ]
+}

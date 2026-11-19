@@ -14,6 +14,57 @@ It runs in one of two ways:
 - **Cloud review**: install the Grapim GitHub App and turn it on. Grapim runs the review on its own model account. Nothing to set up in CI.
 - **In your own CI**: add one workflow file. The review runs on your GitHub runner with your own model account, and Grapim's servers receive nothing.
 
+## The merge decision
+
+The summary comment opens with a short card that answers whether the pull request can be merged. The verdict is the first line:
+
+- **Safe to merge**: no blocker or warning, nothing beyond what was asked, and CI is not failing. "Once CI passes" or "no CI ran" is added when that is the case.
+- **Check these first**: up to three things to look at, each linked to its inline comment or to the line in the diff.
+- **Do not merge**: a blocker, or a failing CI check. Each is linked to its comment or its check run.
+
+Below it, one line of evidence (how many changed hunks were reviewed), then:
+
+- **Asked**: what the change was asked to do. When Grapim has the agent run that wrote the lines, this is the run's recorded prompt. Otherwise, for a person's pull request or an agent nobody recorded, it is the pull request's title, and the card says which one it used.
+- **Beyond the request**: what the change does that the request does not mention, each linked to its file: deleted or skipped tests, test cases removed from a file, checks turned off (`eslint-disable`, `@ts-ignore`, `# noqa`, `continue-on-error`), database migrations, CI changes, files deleted, test files an agent edited when its prompt did not mention tests, and the reviewer's own scope findings. A change the request mentions (a migration asked for, tests asked for) is not listed.
+- **Tests**: see below.
+
+Nits never appear on the card. When nothing is wrong the card is five lines.
+
+```text Summary comment, top
+### Do not merge · 1 blocker, 1 failing check
+
+Reviewed 5 of 5 changed hunks: 1 blocker, 1 warning; CI failed.
+
+1. Blocker: Drops users.email, which login still reads · db/migrations/0042_drop_email.sql:2
+2. Failing: test (22)
+3. Warning: The cursor is not validated · src/users.js:31
+
+**Asked** (run prompt) Claude Code: "Add cursor pagination to GET /users"
+
+**Also beyond the request**
+- Deletes 1 test file: test/users.test.js
+- Changes the database: db/migrations/0042_drop_email.sql
+
+**Tests** · failed: test (22). Deletes 1 test file.
+```
+
+### Tests on the card
+
+Grapim never runs your repository's code on its servers. The Tests line reads what GitHub already has for the pull request's head commit:
+
+- **Cloud review** reads the head's check runs (GitHub Actions and any other App) and its commit statuses, leaving out Grapim's own checks: passed, failed (naming the failing checks, each linked), still running, or no CI. When CI is still running at review time, the card is updated when it finishes, and so is the merge gate. Commit statuses (from older CI services) need the App's "Commit statuses: read" permission; without it Grapim reads check runs only.
+- **In your own CI**, set `test-command` and the Action runs it on your runner before the review:
+
+  ```yaml
+        - uses: grapim/grapim/action/review@main
+          with:
+            test-command: npm test
+  ```
+
+  The command runs the pull request's code on your runner, so the Action removes the model credentials, the GitHub token and the Actions runtime and OIDC tokens from its environment. Its output goes to the job log only. `actions/checkout` still leaves the workflow's token in `.git/config` (the review needs it to fetch the Grapim notes), so keep the job's `permissions:` to what the review needs, as in the examples above. Without `test-command`, the card says the tests were not run. The outputs `verdict` (`safe`, `check` or `block`) and `tests` (`passed` or `failed`) can drive later steps.
+
+The Tests line also says when source files changed but no test was added or changed, and when tests were deleted, removed or skipped (`it.skip`, `xit`, `describe.only`, `@pytest.mark.skip`, `self.skipTest`, `t.Skip`, `#[ignore]`, `@Disabled`).
+
 ## Cloud review
 
 1. Sign in at [app.grapim.com](https://app.grapim.com) and connect the GitHub App: **Settings**, **GitHub**, **Connect**.
@@ -40,7 +91,7 @@ Public repositories are reviewed free. [Install the GitHub App](https://github.c
 
 ### A second look before posting
 
-Before cloud review posts anything, every finding goes back to the model with the code around it, where the names it mentions are used in the repository, the commit messages, and what the author and people with write access said on the pull request. A finding that context contradicts is dropped: the author already explained the change, the condition it needs cannot happen in this code, or the value it calls wrong is right. The summary says how many were dropped. If the second look fails, every finding is posted as before.
+Before cloud review posts anything, every finding goes back to the model with the code around it, where the names it mentions are used in the repository, the commit messages, and what the author and people with write access said on the pull request. The second look can also search and read the whole repository at the pull request's head. A finding is dropped when that context contradicts it (the author already explained the change, the condition it needs cannot happen in this code, the value it calls wrong is right, the library does not behave that way) or when it is a remark rather than a defect (the change goes beyond its description without breaking anything, docs wording, a go.mod or lock file detail). One whose key fact the second look cannot settle is posted only if it is a blocker or the reviewer traced it fully. The low-confidence points the reviewer was unsure of are checked the same way: the ones the second look confirms are posted, the rest are not shown. The summary says how many were dropped. If the second look fails, every finding is posted as before.
 
 ### On every new push
 
@@ -237,11 +288,12 @@ If no review appears, open the job's log in the **Actions** tab. Each problem is
 | `maxComments` | `15` | The most severe findings are kept. |
 | `maxFiles` | `100` | Riskiest files first; the rest are listed as not reviewed. |
 | `failOn` | `blocker` | `blocker` fails the job when the review finds a blocker. `never` only comments. |
+| `gate` | none | The merge gate for this repository, see [Merge gate](#merge-gate). It can only make the team's gate stricter. |
 | `passes` | `1` | How many times each change is reviewed, 1 to 3. With 2 or more, a high-confidence finding is posted from any pass and a medium-confidence one only when two passes raised it; the rest are listed under "Worth a look". About a third more cost and twice the time. |
 
 The review always reads this file from the pull request's **base** branch, never from the pull request itself. A pull request cannot loosen its own review, for example with `"ignore": ["**"]` or `"failOn": "never"`. A change to the file takes effect once it is merged.
 
-The workflow can also set `provider`, `model`, `fail-on` and `config-path` as inputs under `with:`. An input wins over the config file.
+The workflow can also set `provider`, `model`, `fail-on` and `config-path` as inputs under `with:`. An input wins over the config file. `test-command` runs your tests before the review, see [Tests on the card](#tests-on-the-card).
 
 ## What the comments look like
 
@@ -256,9 +308,9 @@ send a 1 MB header and it is written to the orders table on every retry.
 Written by Claude Code run: "Add idempotency keys to POST /orders"
 ```
 
-The review is a comment. It never uses "request changes" and never approves.
+The review is a comment. It never uses "request changes", and it approves only when a team turned the [merge gate](#merge-gate) to auto-approve.
 
-One summary comment is updated in place on every push: counts by severity, which agent runs were reviewed and how deeply, what was skipped and why, the model, the provider and the tokens used. It ends with where the code went:
+One summary comment is updated in place on every push. It opens with [the merge decision](#the-merge-decision), then counts by severity, which agent runs were reviewed and how deeply, what was skipped and why, the model, the provider and the tokens used. It ends with where the code went:
 
 ```text Summary comment, last line
 Your code was sent only to Anthropic API. Grapim received nothing.
@@ -273,6 +325,36 @@ With `failOn` set to `blocker` (the default), the job fails after posting when t
 The workflow file itself comes from the pull request's branch, so a pull request could edit the job. When the job is a required check, protect `.github/workflows/` with a CODEOWNERS entry and turn on **Require review from Code Owners**.
 
 This is separate from the Grapim GitHub App's check, which waits for a teammate's approval of each agent run in the hub: see [GitHub App and PR check](/docs/github). You can require both.
+
+## Merge gate
+
+On the Governance plan, cloud review can act on the merge decision. It is off by default; owners set it in **Settings**, **Review**, **Merge gate**, for all repositories or per repository (`acme/api auto-approve`, one per line).
+
+After each review, Grapim sorts the pull request:
+
+- **Low risk**: the card says Safe to merge, CI passed, no file on a sensitive path (the config file's `sensitive` list and your [path rules](/docs/rules) that need approval), at most the changed-line limit (400 by default), the author has write access to the repository, and the author is not on the exclude list.
+- **High risk**: Do not merge (a blocker), a failing CI check, a sensitive path, or tests or files deleted or skipped that the request did not ask for.
+- Anything else: nothing happens, the card speaks for itself.
+
+What the gate does depends on its mode:
+
+| Mode | Low risk | High risk |
+|---|---|---|
+| Off | nothing | nothing |
+| Suggest only | the card says the pull request qualifies for auto-approval | the card says who would be asked to review |
+| Auto-approve | Grapim submits an approving review with a one-line reason, once per commit | Grapim requests a review from the CODEOWNERS of the changed files (else the approvers your path rules name, else your reviewer list), dismisses its own earlier approval, and fails the **Grapim Review (cloud)** check with the reason as its title |
+
+Start with **Suggest only** and watch a few pull requests before you turn on auto-approve. When CI finishes after the review, the gate runs again on the new results, so a pull request whose tests were still running can be approved once they pass. CODEOWNERS is read from the base branch (`.github/CODEOWNERS`, `CODEOWNERS` or `docs/CODEOWNERS`), and the pull request's author is never asked to review it.
+
+A repository's `.grapim/review.json` can only make the gate stricter: lower the mode, lower the line limit, add authors to exclude or reviewers to ask.
+
+```json .grapim/review.json
+{
+  "gate": { "mode": "suggest", "maxLines": 200, "excludeAuthors": ["dependabot[bot]"], "reviewers": ["acme/platform"] }
+}
+```
+
+Every approval, review request and dismissal is logged, and **Settings**, **Review** lists the most recent ones with their reasons. Before relying on auto-approve, check in one repository how your branch rules treat the App's approval, and keep **Require review from Code Owners** on for paths a person must always see.
 
 ## Run it on your machine
 
@@ -289,7 +371,7 @@ It exits with code 1 when it finds a blocker. Options are in the [CLI reference]
 
 - **Model costs are yours.** Every request goes to your model account and is billed there by the provider. Grapim does not charge for the review or see your usage. The summary comment lists the tokens each review used.
 - **What gets reviewed.** By default every changed line. `"review": "ai-and-sensitive"` skips human-written lines outside `sensitive` paths to keep the cost down; a repository with no Grapim notes yet has no known authors, so it reviews every changed line there too.
-- **What gets posted.** The reviewer rates how sure it is of each finding. High and medium findings become inline comments. Low ones are listed in the summary under "Worth a look", one line each.
+- **What gets posted.** The reviewer rates how sure it is of each finding. High and medium findings become inline comments. Low ones are listed in the summary under "Worth a look", one line each; in cloud review the second look checks them first and posts only the ones it confirms.
 - **Size.** Up to `maxFiles` files per review, riskiest first. A review sends at most about 600,000 input tokens. Files over the limit are listed as not reviewed.
 - **When a request fails.** A request that still fails after retries, or that the model declines, is listed under not reviewed in the summary. Rejected credentials or a model that is not enabled stop the job with a failure.
 - **Forks.** A pull request from a fork gets no secrets, so it is not reviewed and the job passes.

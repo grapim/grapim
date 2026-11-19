@@ -1,0 +1,72 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The addGuests.handler.ts blacklist check uses blacklistedGuestEmails.includes(guest) after lowercasing the blacklist but not the input guest emails, allowing attackers to bypass BLACKLISTED_GUEST_EMAILS restrictions by submitting emails with uppercase characters.",
+   "severity": "High",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "Both describe the case-sensitivity bypass of the blacklist check."
+  },
+  {
+   "comment": "The logic for checking team admin/owner permissions is incorrect. This condition uses AND (&&) which requires both isTeamAdmin AND isTeamOwner to be true, but it should use OR (||) since a user needs to be either an admin OR an owner to have permission.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "Both point out that && is used where || is needed for the admin/owner check."
+  },
+  {
+   "comment": "The sendAddGuestsEmails function in email-manager.ts passes the full calendarEvent.attendees array when determining which attendees receive AttendeeScheduledEmail vs AttendeeAddGuestsEmail, but checks if newGuests.includes(attendee.email) where newGuests is the input guests array.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.7,
+   "reasoning": "Both concern which guests array is passed to sendAddGuestsEmails, which makes the newGuests.includes check pick the wrong email template."
+  },
+  {
+   "comment": "uniqueGuests filters out existing attendees and blacklisted emails but does not deduplicate duplicates within the input; createMany can insert duplicate attendee rows if the client submits repeated emails.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.9,
+   "reasoning": "Both say duplicate emails in the input aren't removed, so duplicate attendee rows can be created."
+  },
+  {
+   "comment": "Starting with an array containing an empty string may cause validation issues. Consider starting with an empty array [] and handling the empty state in the MultiEmail component instead.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions starting with an array that contains an empty string."
+  },
+  {
+   "comment": "The `sendAddGuestsEmails` function does not check the `disableStandardEmails` flags in the `EventType` metadata, which may result in sending emails to hosts/attendees even when standard emails are disabled for the event type.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the disableStandardEmails check."
+  }
+ ],
+ "candidates": [
+  "Guest emails are not normalized (case/base-email) before blacklist comparison, allowing bypass of BLACKLISTED_GUEST_EMAILS with different casing or plus-addressing",
+  "addGuestsHandler requires user to be BOTH team admin AND team owner (using && instead of ||), blocking team admins who are not owners from adding guests to team bookings",
+  "Line 168 passes the original unfiltered guests array to sendAddGuestsEmails instead of uniqueGuests, causing existing attendees to receive wrong email template (AttendeeScheduledEmail instead of AttendeeAddGuestsEmail)",
+  "No server-side deduplication of guest emails, allowing duplicate attendee rows to be created for the same booking since there's no unique constraint on (bookingId, email)",
+  "MultiEmail component uses useLocale() hook but is missing the 'use client' directive, which can break Next.js App Router usage when rendered from a Server Component"
+ ]
+}

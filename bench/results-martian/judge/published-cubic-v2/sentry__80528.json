@@ -1,0 +1,34 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "sentry__80528",
+ "url": "https://github.com/getsentry/sentry/pull/80528",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The function modifies the config variable to include display values but then returns the original monitor.config instead of the modified version.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out that the modified config is not returned and the original monitor.config is returned instead."
+  },
+  {
+   "comment": "The code fetches MonitorCheckIn objects by ID when the required data already exists in previous_checkins. This creates an unnecessary database query.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 says MonitorCheckIn gets re-queried from the database even though previous_checkins already holds the data."
+  }
+ ],
+ "candidates": [
+  "Bug: `config` is copied and updated with the human-readable `schedule_type`, but the return dict references `monitor_environment.monitor.config` (the original) instead of the local `config`. The `schedule_type` transformation is lost.",
+  "The `failed_checkin: MonitorCheckIn` parameter forces the caller to re-query `MonitorCheckIn` objects from the database even though `previous_checkins` already contains the relevant check-in data and `monitor_environment` is already known at the call site. Consider passing `monitor_environment` and `trace_id` directly instead of requiring a full model fetch.",
+  "Require at least `failure_issue_threshold` check-ins before opening the incident."
+ ]
+}

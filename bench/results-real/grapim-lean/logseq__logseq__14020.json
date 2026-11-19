@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "logseq__logseq__14020",
+ "url": "https://github.com/logseq/logseq/pull/14020",
+ "head_sha": "22a6bf6bca3577835e0f0ba6129a683a6ff56612",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-16T22:36:17.662Z",
+ "seconds": 37.539,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/main/frontend/handler.cljs",
+   "line": 228,
+   "end_line": 249,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Clearing the current repo before startup empties the repo list, so Desktop opens the demo graph instead of the user's other graphs.",
+   "body": "`<discard-missing-electron-current-repo!` (and the graph-absent catch in `<start-runtime!`) sets the current repo to nil before `repo-handler/get-repos` runs. On Electron, `persist-db/<list-db` returns `(p/resolved [])` when there is neither a `remote-repo` nor a current repo, and its new graph-absent catch also returns `[]`. If `get-repos` goes through `<list-db`, `repos` comes back empty and `resolve-startup-repo` returns nil. `<open-startup-repo!` then calls `new-db!` on the demo repo. The \"fall back to the next registered graph\" path is never reached, and a user whose last-opened graph was deleted lands in the demo graph even though other graphs are still on disk. I could not see `get-repos`, so this depends on it using `<list-db`. Fix: pick a surviving graph from the `getGraphs` result and start its runtime, or set it as the current repo, before listing repos."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17390,
+  "cacheRead": 3527,
+  "output": 3654,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 20919,
+   "outputTokens": 3654,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/main/frontend/handler.cljs",
+    "line": 76,
+    "end_line": 78,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The current repo is compared to raw `getGraphs` names, which may not use the same format.",
+    "body": "`discard-unregistered-current-repo!` checks whether the full repo URL (e.g. `logseq_db_foo`) is in the strings returned by the `getGraphs` IPC call. If that handler returns graph directory names without the `logseq_db_` prefix, or paths, no entry ever matches. The last-opened graph would then be cleared on every Desktop launch, not just when it was deleted. I could not see what the Electron `getGraphs` handler returns; the test only stubs it with prefixed names. Normalize both sides to the same form, for example by mapping the names through the same function that builds repo URLs, before comparing."
+   },
+   {
+    "path": "src/main/frontend/handler.cljs",
+    "line": 116,
+    "end_line": 120,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`restore-and-setup!` now rethrows graph-absent errors, which can break callers other than startup.",
+    "body": "Before this change, `restore-and-setup!` logged every error and resolved. Now a graph-absent error clears the global current repo and rejects. Only `<open-startup-repo!` was updated to handle the rejection. Any other caller, such as a graph switch or re-open path, would get an unhandled rejection with no current repo set. The clear also runs even when `repo` is not the current repo. I could not see the other call sites. Rethrow only from the startup path, or check `(= repo (state/get-current-repo))` before clearing."
+   }
+  ]
+ },
+ "cost_usd": 0.16074339999999998
+}

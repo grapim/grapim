@@ -1,0 +1,37 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "grafana__76186",
+ "url": "https://github.com/grafana/grafana/pull/76186",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The ContextualLoggerMiddleware methods (QueryData, CallResource, CheckHealth, CollectMetrics) panic when a nil request is received. This occurs because they directly access req.PluginContext (via the instrumentContext function) without first checking if req is nil. This is a regression, as previous middleware layers gracefully handled nil requests.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions a nil request panic."
+  },
+  {
+   "comment": "The traceID is no longer logged for plugin requests. During a refactoring, the tracing import and the logic to extract and add traceID from the context to log parameters were removed from the LoggerMiddleware. The newly introduced ContextualLoggerMiddleware does not add this information, resulting in missing traceID in plugin request logs and impacting debugging and request tracing capabilities.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C2 mentions missing attributes only as a general example of why tests would help. It doesn't identify that traceID was removed."
+  },
+  {
+   "comment": "The `TestLogger.FromContext` method returns a new `TestLogger` instance via `NewTestLogger()` instead of returning the receiver (f). This causes logs to be recorded on an un-referenced instance, leading to broken test assertions that expect logs to be recorded on the original logger.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers TestLogger.FromContext returning a new instance."
+  }
+ ],
+ "candidates": [
+  "The logger name still uses 'plugin.instrumentation' even though the instrumentation middleware has been renamed to metrics, making filtering/grep'ing logs inconsistent with the new naming",
+  "ContextualLoggerMiddleware lacks dedicated unit tests unlike most other middlewares in the package, which would help prevent regressions such as missing attributes or wrong endpoint labels"
+ ]
+}

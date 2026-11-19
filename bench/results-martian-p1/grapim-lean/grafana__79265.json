@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "head_sha": "bbd8c507cdf56f6b884373809e0b24abd4a2353d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:39:09.884Z",
+ "seconds": 44.164,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+   "line": 109,
+   "end_line": 118,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The device count and the insert are separate steps, so requests that arrive together can go over the limit.",
+   "body": "`CountDevices` and the upsert after it are not in one transaction and take no lock. If several new devices authenticate at the same moment while the count is `limit-1`, they all see a count below the limit and all insert. The configured limit is then exceeded. Run the count and the insert in one transaction with suitable locking, or use a conditional insert, if the limit has to hold exactly."
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+   "line": 83,
+   "end_line": 85,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`args` gets the query prepended again each time `WithDbSession` retries the closure.",
+   "body": "`args = append([]interface{}{query}, args...)` changes the variable from the enclosing function inside the session callback. `WithDbSession` reruns the callback on retryable errors, such as SQLite `database is locked`. On a rerun, `args` already starts with the query, so the query is prepended a second time. `Exec` then gets the SQL string as a bind parameter and the wrong number of arguments, and the update fails. Build the slice in a local variable inside the closure, e.g. `execArgs := append([]interface{}{query}, args...)`."
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+   "line": 95,
+   "end_line": 97,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "On MySQL, an existing device that is already within the limit can be refused because 0 rows were changed.",
+   "body": "By default, MySQL's `RowsAffected` counts only rows whose values actually change, not rows that match. If the limit is reached and an existing device sends a request with the same IP and user agent within the same second as its stored `updated_at` (MySQL stores seconds), the UPDATE matches the row but changes nothing. It returns 0, and the device gets `ErrDeviceLimitReached` and is locked out. Before returning the limit error, check whether the row exists, e.g. `SELECT 1 ... WHERE device_id=? AND updated_at BETWEEN ...`."
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/client.go",
+   "line": 44,
+   "end_line": 44,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A device that was refused can get in on its next request because the local cache still holds its tag.",
+   "body": "`TagDevice` → `tagDeviceUI` checks the local cache first. In the current implementation it also sets the cache key *before* it calls `CreateOrUpdateDevice`. When a new device hits the limit, the first request gets `ErrDeviceLimitReached` and is refused. The cache entry stays, though, so every request from the same device in the next ~29 minutes returns nil from `tagDeviceUI` and logs in anonymously. The limit only stops one request per device per cache period. I could not see `tagDeviceUI` itself. Fix: set the cache key only after `CreateOrUpdateDevice` succeeds, or delete it when the store returns an error."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17293,
+  "cacheRead": 3561,
+  "output": 2772,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 11,
+   "hunks": 19,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 20856,
+   "outputTokens": 2772,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1426252
+}

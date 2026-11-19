@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "espeak-ng__espeak-ng__2648",
+ "url": "https://github.com/espeak-ng/espeak-ng/pull/2648",
+ "head_sha": "b7b435eb2124bf140b33e3bddae3025a235240ba",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:20:19.382Z",
+ "seconds": 219.786,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "dictsource/nl_rules",
+   "line": 300,
+   "end_line": 303,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The linking -en- rule also removes final stress from Latinate -endeer/-enseer verbs.",
+   "body": "The new rules apply to any vowel, consonant, `en`, an L20 onset, then a final `ee`. L20 leaves out `t`, but it includes `d` and `s`. So Latinate verb forms such as `agendeer`/`agendeert`, `amendeer`/`amendeert`, `recenseer`/`recenseert` and `gecondenseerd` now match `@CenL20) ee (r_`, `(rt_` or `(rd_`. They get unstressed `I` in place of the stressed `'I`, and these words lose their only correct stress.\n\nNone of these is a linking -en- compound. Fix: narrow the context, for example by also leaving `d` and `s` out of the onsets used for the `ee (r…` variants, or add the affected stems as exceptions."
+  },
+  {
+   "path": "dictsource/nl_rules",
+   "line": 862,
+   "end_line": 862,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`model` has no guard for `modellen`/`modelleren`, unlike `hotel`, `tabel` and `snel`.",
+   "body": "The siblings `snel`, `hotel` and `tabel` each get a `(le` rule so that inflections with a doubled `l` are not split as compounds. `model` only gets `(C@P5` and `(l@P5`, so `modellen`, `modelleren` and `modellering` match `model (l@P5`.\n\nWhat goes wrong: `model` is split off as a stressed prefix `mo:d'E`, and the rest (`len`, `leren`) is translated as a second word. `modelleren` then gets primary stress on `-del-` instead of on `-le-`. `modellen` most likely gets a wrong final syllable too, the same failure the `snel (le` guard and the `sneller` test were added to prevent.\n\nFix: add `_) model (le  mo:d'El` before the `l@P5` rule, as for `hotel` and `tabel`.",
+   "suggestion": "           _) model (le      mo:d'El        // not a compound (nl-compound-stress exc)\n           _) model (l@P5    mo:d'E         // compound, final consonant not doubled (nl-compound-stress exc)"
+  },
+  {
+   "path": "dictsource/nl_rules",
+   "line": 969,
+   "end_line": 969,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Common adjectives derived from compounds now get first-element stress (oorspronkelijk, huishoudelijk).",
+   "body": "Adjectives in `-elijk` and `-ig` built on compounds take stress on the second element, which is why the PR adds `hoofdzakelijk`, `levensgevaarlijk` and `kunstmatig` to `nl_list`. Several equally common words of this kind are not covered, and the new prefix rules now catch them:\n- `oorspronkelijk` and `oorzakelijk` match `oor (C@P3`\n- `huishoudelijk` matches `huis (C@P4`\n- `spreekwoordelijk` matches `spreek (C@P6`\n\nEach comes out stressed on the first syllable (`'O:r...`, `h'Wys...`, `spr'e:k...`) instead of oorspr'onkelijk, huish'oudelijk and spreekw'oordelijk.\n\nFix: add these words to the exception block in `nl_list`, or add `(spronk` / `(houd` style guards without `P`, like the existing `-ig` manual rules."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 39703,
+  "cacheRead": 3527,
+  "output": 19671,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 29,
+   "reviewedHunks": 29,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 43232,
+   "outputTokens": 19671,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.5926484000000001
+}

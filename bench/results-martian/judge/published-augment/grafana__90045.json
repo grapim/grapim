@@ -1,0 +1,47 @@
+{
+ "tool": "published-augment",
+ "pr_id": "grafana__90045",
+ "url": "https://github.com/grafana/grafana/pull/90045",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The context is being created with d.Log instead of the log variable that was initialized with additional context values (name, kind, method). This means those values won't be propagated to the logging context.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: the context logger is set from d.Log instead of the enriched log variable."
+  },
+  {
+   "comment": "In DualWriterMode3's DeleteCollection method, when a storage operation fails, recordStorageDuration is incorrectly called with recordLegacyDuration instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "C3 describes the same kind of mistake (recordLegacyDuration called where recordStorageDuration belongs), but it places it in Create, not DeleteCollection. Because it is a different location, I don't count it as a match."
+  },
+  {
+   "comment": "Inconsistency: using name instead of options.Kind for metrics recording differs from other methods.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 flags the same problem: recordStorageDuration uses name instead of kind, which is inconsistent with the other methods."
+  }
+ ],
+ "candidates": [
+  "Context logger is set to d.Log instead of the enriched log, so name/kind/method values won't be attached to log lines emitted by downstream calls",
+  "recordStorageDuration is labeled with name here, but the metric's third label is kind; this will make the dual_writer_storage_duration_seconds{kind=...} series inconsistent with other methods",
+  "On unified-store Create failure this records recordLegacyDuration using startStorage, which should be recordStorageDuration (otherwise the legacy duration metric will be polluted)",
+  "The async legacy Create uses obj (the pre-storage object) rather than created returned by unified storage, which can drop server-assigned fields and cause legacy/unified divergence",
+  "Async legacy writes inherit the request ctx; if the apiserver cancels it when the request completes, the safe measure legacy write may be canceled before it runs",
+  "Mode3 previously attempted legacy deletion even when unified storage returned NotFound; now any error from Storage.Delete returns early and skips the legacy cleanup, which may leave stray legacy objects during migrations",
+  "The async legacy Update reuses the original objInfo; since Storage.Update already applied the update, calling Legacy.Update with the same UpdatedObjectInfo can compute a different object or run update logic twice",
+  "In TestMode3_Create, the failing case only stubs Legacy.Create, but Mode3 calls Storage.Create first; without a storage expectation this won't exercise the intended error path (and may panic due to an unexpected mock call)"
+ ]
+}

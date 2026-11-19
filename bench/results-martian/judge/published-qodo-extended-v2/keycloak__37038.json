@@ -1,0 +1,33 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "keycloak__37038",
+ "url": "https://github.com/keycloak/keycloak/pull/37038",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In GroupPermissionsV2.canManage(), the permission fallback checks for both VIEW and MANAGE scopes (hasPermission(null, AdminPermissionsSchema.VIEW, AdminPermissionsSchema.MANAGE)), but canManage() should only grant access for MANAGE scope, not VIEW. This means users with only VIEW permission on groups can pass the canManage() check, granting them write access they should not have. The canView() method correctly checks both VIEW and MANAGE, but canManage() should only check MANAGE.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "Both say canManage() also accepts VIEW, so a user with only VIEW passes the manage check."
+  },
+  {
+   "comment": "In getGroupIdsWithViewPermission, hasPermission is called with groupResource.getId() and the same groupResource.getId() is added to granted, but hasPermission resolves resources by name (treating the argument as a group id) and the GroupPermissionEvaluator contract says this method returns group IDs that are later used as UserModel.GROUPS and in getUsersCount group filters. This mismatch means per-group VIEW_MEMBERS/MANAGE_MEMBERS permissions may not yield the expected group IDs for filtering and counts, and evaluation may effectively only look at the type-level 'all-groups' resource; consider revisiting whether this should operate on the underlying group ids (resource names) instead so it aligns with the JPA queries and the interface contract.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.93,
+   "reasoning": "Both say getGroupIdsWithViewPermission uses the resource ID where it should use the group ID stored in the resource name, so the filtering IDs come out wrong."
+  }
+ ],
+ "candidates": [
+  "canManage() wrongly accepts VIEW permission - GroupPermissionsV2.canManage() (no-arg) checks both VIEW and MANAGE permissions via hasPermission(null, VIEW, MANAGE) with OR logic, allowing users with only VIEW permission to pass manage authorization checks and create top-level groups",
+  "getGroupIdsWithViewPermission returns wrong IDs - uses groupResource.getId() (the authorization framework's internal resource UUID) instead of groupResource.getName() (which stores the actual group ID), causing hasPermission() to fail per-group lookup and returning wrong IDs that won't match actual group IDs when used for user filtering"
+ ]
+}

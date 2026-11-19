@@ -1,0 +1,133 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "head_sha": "54486a059cd2032042189bb565646ba4e0f6bd61",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:39:22.453Z",
+ "seconds": 45.374,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 278,
+   "end_line": 279,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The clipboard write is not awaited, so a failed copy still shows the success toast and leaves a rejected promise unhandled.",
+   "body": "`navigator.clipboard.writeText` returns a promise. It rejects when the page is not a secure context, when permission is denied, or when the document is not focused. Here the promise is neither awaited nor given a `.catch`, and the toast is shown right after the call. When the write fails, the user is told \"Backup codes copied!\" although nothing was copied, and they may close the only screen that shows their codes. The rejection also goes unhandled.\n\nFix: await the write and show the success toast only after it resolves; on failure, show an error toast instead."
+  },
+  {
+   "path": "apps/web/playwright/login.2fa.e2e.ts",
+   "line": 50,
+   "end_line": 51,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The first test's switch assertion does nothing, and the test was not updated for the backup-codes screen.",
+   "body": "`expect(page.locator(...).isChecked()).toBeTruthy()` checks a Promise that was never awaited, so it always passes. The new comment points this out but leaves it in place. The test now stops on the backup-codes dialog and never clicks `backup-codes-close`, so `onEnable` never runs and the switch would not be checked. The test passes only because the assertion is broken. Click `backup-codes-close` after `fillOtp`, then use `await expect(page.locator('[data-testid=two-factor-switch][data-state=\"checked\"]')).toBeVisible()` as the second test does."
+  },
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 135,
+   "end_line": 135,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Closing the dialog on the backup-codes step skips onEnable, so the UI shows 2FA as off when it is already on.",
+   "body": "Once `enable` succeeds, the server has already turned 2FA on, but `onEnable()` now runs only from the new Close button. If the user dismisses the dialog with Escape or by clicking the overlay, `onOpenChange` runs instead. Neither `onEnable` nor `resetState` is called, so the parent's switch still shows 2FA as disabled while it is enabled. Because `step` stays at `DisplayBackupCodes`, reopening the modal shows the old codes with no way through the flow. I can't see the parent's `onOpenChange`, so I'm assuming it only closes the modal. Fix: call `onEnable()` and `resetState()` whenever the dialog closes while on this step, or block dismissal until the user clicks Close."
+  },
+  {
+   "path": "packages/features/auth/lib/next-auth-options.ts",
+   "line": 144,
+   "end_line": 156,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "A backup code is used up through an unguarded read-modify-write, so one code can be spent more than once.",
+   "body": "The backup-code branch decrypts `user.backupCodes`, which was read at the top of `authorize`. It then checks the submitted code and writes the re-encrypted array with an unconditional `prisma.user.update`. If two login requests with the same backup code arrive at the same time, both read the old array, both find the code, and both succeed. A single-use recovery code then grants two sessions, and the second write can also undo another code that was used in between. Fix it by making the consume step atomic. One way is an `updateMany` that matches `where: { id: user.id, backupCodes: user.backupCodes }`, treating `count === 0` as `IncorrectBackupCode`. Another is to do the read and write in a transaction that locks the row (`SELECT ... FOR UPDATE`)."
+  },
+  {
+   "path": "packages/ui/components/form/inputs/Input.tsx",
+   "line": 49,
+   "end_line": 49,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "The show/hide password button in the shared PasswordField is no longer reachable by keyboard.",
+   "body": "`tabIndex={-1}` takes the visibility toggle out of the tab order for every PasswordField in the app. Keyboard-only users can no longer show or hide passwords anywhere. The backup-codes request doesn't cover this change to a shared UI component. Revert it, or limit it to the 2FA modal through a prop."
+  },
+  {
+   "path": "apps/web/pages/api/auth/two-factor/totp/disable.ts",
+   "line": 50,
+   "end_line": 50,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Log message in the 2FA disable endpoint says \"backup code login\".",
+   "body": "This line seems to have been copied from the login handler in `next-auth-options.ts`. This endpoint turns 2FA off, so when the encryption key is missing the log points operators at the wrong flow (login). Change the message to describe disabling 2FA."
+  },
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 174,
+   "end_line": 174,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The hard-coded type=\"password\" stops the new PasswordField's show/hide toggle from working.",
+   "body": "This change swaps `TextField` for `PasswordField` but still passes `type=\"password\"` (line 176). `PasswordField` sets the input type from its own `isPasswordVisible` state, then spreads `{...props}` after it (see Input.tsx). The `type` you pass therefore overrides the toggle, and clicking the eye button never shows the password. I could not see the exact order of `type` and `{...props}` in Input.tsx, so this is not fully confirmed. Fix: remove `type=\"password\"` from this `PasswordField` and let the component manage the input type."
+  },
+  {
+   "path": "apps/web/public/static/locales/en/common.json",
+   "line": 2019,
+   "end_line": 2019,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "other",
+   "title": "The missing-backup-codes message points users to a settings option this change doesn't add.",
+   "body": "Users who turned on 2FA before this feature have `backupCodes` set to null. When they try \"Lost access\", they see \"Please generate them in your settings.\" In the code shown here, backup codes are only created as part of enabling 2FA, and there is no separate setting to generate them. The message sends users looking for an option that isn't there. Reword it to match what the app actually supports, for example by saying that backup codes are created when 2FA is set up."
+  }
+ ],
+ "usage": {
+  "requests": 8,
+  "input": 22,
+  "cacheWrite": 122481,
+  "cacheRead": 82677,
+  "output": 16344,
+  "models": {
+   "claude-opus-5-5": 8
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 34,
+   "reviewedHunks": 34,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 205180,
+   "outputTokens": 16344,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 16,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.9559084
+}

@@ -1,0 +1,55 @@
+{
+ "tool": "grapim-lean-v2-test2",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "OptimizedCursorPaginator's negative-offset branch in get_result() passes cursor.offset directly as start_offset to queryset slicing when enable_advanced_features is True and cursor.offset < 0.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 flags that negative cursor offsets in OptimizedCursorPaginator are passed straight to queryset slicing when advanced features are on."
+  },
+  {
+   "comment": "In BasePaginator.get_result(), when cursor.is_prev is True, it sets start_offset = offset without clamping, allowing negative offset values to be passed to queryset slicing.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.5,
+   "reasoning": "C2 notes that the is_prev branch also passes negative offsets through without clamping. However, it describes this in OptimizedCursorPaginator's else branch, not in BasePaginator, so it matches the same issue only partly."
+  },
+  {
+   "comment": "OptimizedCursorPaginator.get_item_key uses floor/ceil on a datetime key (order_by='-datetime'), causing TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies that math.floor/ceil on a datetime key raises TypeError."
+  },
+  {
+   "comment": "Accessing .has_global_access on organization_context.member can raise an AttributeError when organization_context is None, particularly for non-superuser non-member users.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 identifies the AttributeError when member is None for non-superuser callers who are not members."
+  }
+ ],
+ "candidates": [
+  "src/sentry/api/paginator.py:838 - OptimizedCursorPaginator handles the datetime key as a number, so the optimized audit-log path fails.. The audit-log endpoint uses this paginator with `order_by=\"-datetime\"`, so `getattr(item, self.key)` returns a `datetime`. `math.floor` and `math.ceil` raise `TypeError` on a datetime. `build_cursor` calls `get_item_key` on every non-empty page, so every `?optimized_pagination=true` request that returns rows ends in a 500.\n\n`value_from_cursor` also hands the raw integer cursor value to `build_queryset`, which then compares the `datetime` column with an int. Copy `DateTimePaginator`'s `get_item_key` and `value_from_cursor` (epoch conversion), or subclass `DateTimePaginator`.",
+  "src/sentry/api/paginator.py:877 - Negative cursor offsets are passed to Django queryset slicing, which raises.. A client can send a cursor such as `0:-5:0`, since `Cursor` keeps any int offset. With advanced features on, `queryset[-5:...]` runs. Django does not support negative indexing and raises (`ValueError`/`AssertionError`), so the request returns a 500 instead of the promised \"reverse pagination\". The `else` branch does the same for `is_prev` cursors with a negative offset.\n\nThe comments claiming the ORM handles negative slicing, and that this is safe, are wrong. Reject negative offsets (return a 400) or clamp them to 0.",
+  "src/sentry/api/endpoints/organization_auditlogs.py:71 - `organization_context.member` can be None, which crashes every audit-log request for those callers.. `enable_advanced` is computed on every request, even without the query flag. When the caller is not a superuser and has no organization membership (for example org-level auth tokens, or staff access), `organization_context.member` is None. `.has_global_access` then raises `AttributeError`, so the whole endpoint returns 500 for these callers.\n\n`request.user.is_superuser` also checks the raw flag instead of an active superuser session. Compute this only when `use_optimized` is set, guard against `member is None`, and use `is_active_superuser(request)`.",
+  "src/sentry/spans/buffer.py:197 - Switching keys from SET to ZSET breaks on keys that already exist in Redis during rollout.. Buffer keys written by the previous version are plain sets with a TTL. After deploy, `zadd`, the Lua script's `zcard`/`zunionstore`, and the flusher's `zscan` on those keys all fail with WRONGTYPE. The process batch then raises, and the consumer or flusher crashes or loops until the old keys expire. Old and new consumers running side by side during the rollout hit the same error.\n\nUse new key prefixes for the ZSET layout, or handle and migrate keys of the old type."
+ ]
+}

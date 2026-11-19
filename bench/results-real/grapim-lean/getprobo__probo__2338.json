@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "getprobo__probo__2338",
+ "url": "https://github.com/getprobo/probo/pull/2338",
+ "head_sha": "3d9aa25dc2adcad26de3112d48dc8eeea49802cb",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:40:51.866Z",
+ "seconds": 66.898,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/coredata/asset_source.go",
+   "line": 94,
+   "end_line": 98,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Ensure moves the source to whichever account was noted last, so deleting that account orphans the source.",
+   "body": "The identity key is (organization, provider, external_account_id), but more than one connector account can share an external ID, for example after a reconnect while the old connector still exists. Each `NoteConnectorAccount` call overwrites `connector_account_id` with the account being noted.\n\nHow it breaks: connector A is created first, then connector B for the same AWS account, so the source points at B. Later, A's org selection is updated (source_service hunk 2), which notes A and moves the source back to A. When A is deleted, the FK sets `connector_account_id` to NULL. `LoadNextDueForUpdateSkipLocked` then skips the source, so nothing is synced even though B is still connected. Syncing only starts again if B happens to be noted later.\n\nFix: when the linked account is deleted, re-link the source to another live connector account with the same organization, provider and external ID instead of just clearing the link. Alternatively, only re-point a source that is unlinked or whose current account is gone."
+  },
+  {
+   "path": "go.mod",
+   "line": 105,
+   "end_line": 105,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "other",
+   "title": "cloudfront is imported directly but listed as `// indirect`.",
+   "body": "`pkg/itam/cloudfront.go` imports `github.com/aws/aws-sdk-go-v2/service/cloudfront` directly, but go.mod marks the module `// indirect` and lists it in the indirect block. Running `go mod tidy` would rewrite go.mod, so any CI check that runs tidy and diffs the result will fail. Move the line into the direct `require` block without the comment."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 72808,
+  "cacheRead": 6852,
+  "output": 5998,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 19,
+   "hunks": 29,
+   "reviewedHunks": 29,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 79664,
+   "outputTokens": 5998,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 19,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "pkg/coredata/migrations/20261116T173127Z.sql",
+    "line": 131,
+    "end_line": 141,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Backfill links and schedules every AWS connector account, including disabled ones.",
+    "body": "At runtime a source is only created or made due when an AWS account is created, enabled or reconnected (`NoteConnectorAccount`). The backfill ignores whether the account is enabled: every AWS `connector_accounts` row gets a source that is linked and due now (`next_sync_at = NOW()`). Disabled or revoked accounts will therefore be claimed by the worker on its first run, which opens connector sessions for accounts the user turned off.\n\nThe tie-break has the same gap. It uses only `updated_at DESC`, so when an external id has both a recently disabled account and an older enabled one, the disabled one wins the link.\n\nI could not see whether the worker checks the account status before syncing; if it does, only the wrong link remains. Fix: filter or order on the account's enabled/active state, the same condition the service uses before calling `NoteConnectorAccount`. For example, add the status to the WHERE clause, or sort enabled rows first before `updated_at DESC`."
+   }
+  ]
+ },
+ "cost_usd": 0.4853864
+}

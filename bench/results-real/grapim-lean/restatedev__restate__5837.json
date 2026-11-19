@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "restatedev__restate__5837",
+ "url": "https://github.com/restatedev/restate/pull/5837",
+ "head_sha": "47d3b1abd28f6755979c52396960cac45e77cb92",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-16T22:32:27.607Z",
+ "seconds": 19.889,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "crates/worker/src/partition/invoker_storage_reader.rs",
+   "line": 83,
+   "end_line": 86,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Partition shutdown is turned into a generic storage error.",
+   "body": "`PartitionStore::snapshot()` fails with `AdmissionClosed` once the partition is closing or closed. This code throws that error away and returns `InvokerStorageReaderError::Storage(StorageError::OperationalError)`. As a result, the invocation task sees an ordinary journal-reader failure (`InvokerError::from_journal_reader`) and cannot tell that the partition is shutting down. During shutdown or leadership handover, invocations started in that window will be reported or retried as storage failures. They should instead stop quietly. The error also carries no context, so these failures cannot be diagnosed.\n\nFix: add a dedicated variant such as `InvokerStorageReaderError::Closed(#[from] AdmissionClosed)`, or map the error to a storage error that means shutdown. Then make the invoker treat that kind as cancellation rather than a retryable failure. I couldn't see how `from_journal_reader` classifies `OperationalError`, so the retry part is not confirmed."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 32632,
+  "cacheRead": 3527,
+  "output": 1695,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 37,
+   "reviewedHunks": 35,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 36161,
+   "outputTokens": 1695,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 14,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1977734
+}

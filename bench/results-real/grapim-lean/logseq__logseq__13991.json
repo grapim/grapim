@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "logseq__logseq__13991",
+ "url": "https://github.com/logseq/logseq/pull/13991",
+ "head_sha": "377bea9de162116a94dda6948e872e3130682304",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-16T22:36:44.400Z",
+ "seconds": 25.942,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/main/frontend/worker/sync/apply_txs.cljs",
+   "line": 824,
+   "end_line": 824,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Rollback now reverses user txs while later :fix txs on the same entities stay applied, so the reversal can be left half done.",
+   "body": "The old code reversed every tx in `rejected-and-after` in reverse order. That meant a `:fix` that came after a rejected user tx was undone first, and the user tx's reversed datoms then hit the values they expected. Now every `:fix` is skipped, including later ones that were not rejected and that rewrote `:block/order` on blocks the rejected user tx created or moved.\n\nExample trigger: the user inserts a block whose order collides with a sibling. `repair-applied-txs!` queues a `:fix` that changes the new block's order from X to Y. The server then rejects the insert. Reversing the insert retracts `[e :block/order X]`, which does nothing because the current value is Y, and retracts the block's other attributes. The result is an orphan entity that has only `:block/order Y`, plus a pending `:fix` that points at a block that no longer exists.\n\nFix: only keep a `:fix` applied when it is itself rejected and no earlier non-fix tx in the window is reversed. Otherwise, keep reversing every tx that comes after a reversed user tx, as before. For example, skip `:fix` txs only up to the first non-fix tx in `rejected-and-after`. I could not see `reverse-local-txs!`, so I could not confirm exactly what it emits."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 10096,
+  "cacheRead": 3527,
+  "output": 2017,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 13625,
+   "outputTokens": 2017,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0915334
+}

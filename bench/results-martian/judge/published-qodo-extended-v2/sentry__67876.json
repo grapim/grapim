@@ -1,0 +1,42 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Null reference if github_authenticated_user state is missing",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mention a null reference when the github_authenticated_user state is missing. C3 is about an unhandled exception from get_user_info, which is a different issue."
+  },
+  {
+   "comment": "OAuth state uses pipeline.signature (static) instead of a per-request random value",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies the same problem: pipeline.signature is static and is used as the OAuth state."
+  },
+  {
+   "comment": "The code attempts to access integration.metadata[sender][login] without checking for the existence of the sender key. This causes a KeyError for integrations where the sender metadata was not set during creation",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 identifies the same KeyError when the sender key is missing from metadata."
+  }
+ ],
+ "candidates": [
+  "OAuthLoginView uses pipeline.signature as the OAuth state, but pipeline.signature is a deterministic MD5 of pipeline view class names, making the state guessable and not session-specific, which breaks OAuth CSRF/replay protection",
+  "integration.metadata[\"sender\"][\"login\"] at line 503 will raise a KeyError for any Integration whose metadata lacks a sender key, since the sender field is only conditionally added during build_integration",
+  "get_user_info(payload[\"access_token\"]) at line 434 is called without exception handling, and since the function calls resp.raise_for_status() which raises HTTPError on non-2xx responses, it causes an unhandled 500 error instead of the graceful error page used by other failure modes"
+ ]
+}

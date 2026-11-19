@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "metabase__metabase__87035",
+ "url": "https://github.com/metabase/metabase/pull/87035",
+ "head_sha": "a5701152dc729f30ca4fe0b5a17d34d53ca3a9fd",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:13:23.295Z",
+ "seconds": 33.881,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 10415,
+  "cacheRead": 7054,
+  "output": 3359,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 17473,
+   "outputTokens": 3359,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1206818
+}

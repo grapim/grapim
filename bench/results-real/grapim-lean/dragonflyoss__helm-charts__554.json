@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "dragonflyoss__helm-charts__554",
+ "url": "https://github.com/dragonflyoss/helm-charts/pull/554",
+ "head_sha": "fc95812a3da3146f7187d9c2c170a2929eb205e8",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:38:54.474Z",
+ "seconds": 22.9,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 8579,
+  "cacheRead": 3527,
+  "output": 1590,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 7,
+   "reviewedHunks": 7,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 12108,
+   "outputTokens": 1590,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 6,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0754084
+}

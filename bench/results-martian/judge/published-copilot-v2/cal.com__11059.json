@@ -1,0 +1,102 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "cal.com__11059",
+ "url": "https://github.com/calcom/cal.com/pull/11059",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The parseRefreshTokenResponse function incorrectly sets refresh_token to the hardcoded string 'refresh_token' when it's missing from the OAuth refresh token response. This invalidates the token, breaking subsequent token refreshes and causing authentication failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same hardcoded refresh_token problem."
+  },
+  {
+   "comment": "The Zod schema in parseRefreshTokenResponse uses computed property keys [z.string().toString()] and [z.string().optional().toString()] in minimumTokenResponseSchema, which is invalid Zod syntax and will throw a runtime error.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 points to the same computed keys in the Zod schema."
+  },
+  {
+   "comment": "parseRefreshTokenResponse returns a Zod safeParse result ({ success, data, error }), not the credential key object. Persisting that as key stores the wrapper instead of the token payload; we should store the parsed data or use schema parse.",
+   "severity": "High",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate says the safeParse wrapper gets stored as the key."
+  },
+  {
+   "comment": "When APP_CREDENTIAL_SHARING_ENABLED and CALCOM_CREDENTIAL_SYNC_ENDPOINT are set, the refreshFunction helper returns the fetch Response, but several callers (for example GoogleCalendarService.refreshAccessToken expecting res.data, and HubspotCalendarService.refreshAccessToken expecting a HubspotToken) assume it returns the integration-specific token object. That mismatch will cause runtime errors in the sync-enabled path unless the return type or those call sites are adjusted.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 describes the same mismatch in return type."
+  },
+  {
+   "comment": "When the sync endpoint path is used, res is a fetch Response and has no .data; res?.data will be undefined and token.access_token will throw at runtime. This relies on a consistent return shape from refreshOAuthTokens, which isn’t guaranteed currently.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.8,
+   "reasoning": "C3 also covers callers that access .data on the fetch Response."
+  },
+  {
+   "comment": "The `refreshOAuthTokens` function is passed `credentialId` instead of `userId`, which breaks the credential sync functionality by causing incorrect user lookups. This issue can lead to failures in syncing user credentials, impacting user experience.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions credentialId being passed where userId is expected."
+  },
+  {
+   "comment": "The Salesforce integration checks `response.statusText` instead of `response.ok` when handling OAuth token refresh responses. This can lead to unreliable behavior, as a successful response may not be correctly identified, resulting in the use of stale credentials and potential authentication failures.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.9,
+   "reasoning": "C4 flags the same statusText check."
+  },
+  {
+   "comment": "The `jsforce.Connection` is created using stale `credentialKey.access_token` and `credentialKey.instance_url` after a token refresh, which can lead to authentication failures and incorrect data access. Ensure that the connection is established using the refreshed token values instead.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the stale jsforce connection."
+  },
+  {
+   "comment": "The `appCredentialWebhookRequestBodySchema.parse` function can throw on invalid payloads, resulting in 500 Internal Server Errors instead of the expected 400 Bad Request responses. This can lead to confusion for clients and hinder proper error handling.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    5
+   ],
+   "confidence": 0.9,
+   "reasoning": "C5 flags the same parse call that throws and returns 500."
+  }
+ ],
+ "candidates": [
+  "Forcing refresh_token to the literal string 'refresh_token' will overwrite the real refresh token when call sites persist tokenResponse.data back to the DB (e.g. Zoom/Office365), breaking subsequent refreshes and potentially locking users out of the integration",
+  "minimumTokenResponseSchema uses computed keys that evaluate to a single literal key instead of expressing 'any numeric property' in Zod, causing the schema to fail validation of real token responses and making refresh flows throw when sync is enabled",
+  "refreshOAuthTokens returns a fetch Response when sync is enabled, but returns provider-specific response types otherwise (AxiosResponse, HubSpot token object, GaxiosResponse), causing call sites that access .data or assume provider-specific return shape to break when credential syncing is enabled",
+  "Checking response.statusText !== 'OK' is brittle since statusText can vary and doesn't guarantee 2xx; should use response.ok or response.status for reliability and correct error status codes",
+  "Webhook handler doesn't enforce HTTP method and uses schema.parse(req.body) which throws and returns 500 on invalid payloads instead of using safeParse",
+  "APP_CREDENTIAL_SHARING_ENABLED is a string/undefined value (from && of env vars) but used as a boolean flag, causing potential string leakage and unclear downstream typing",
+  "req.headers[...] can be a string[] so direct equality check can incorrectly reject valid requests"
+ ]
+}

@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "wasmerio__wasmer__7143",
+ "url": "https://github.com/wasmerio/wasmer/pull/7143",
+ "head_sha": "a021148d9829695134936a2524c2bf0a8306bc34",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-16T22:35:21.626Z",
+ "seconds": 8.932,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 3982,
+  "cacheRead": 3527,
+  "output": 496,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 7511,
+   "outputTokens": 496,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.030543400000000002
+}

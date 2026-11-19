@@ -1,0 +1,34 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The magic number 50 for max_wait is used repeatedly throughout the tests. Consider extracting this as a named constant to improve maintainability.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the repeated magic number 50 or extracting a constant."
+  },
+  {
+   "comment": "The test test_thread_queue_parallel_error_handling has a docstring that doesn't match the test implementation.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.45,
+   "reasoning": "C1 targets the same test and points out its assertion doesn't match how the code behaves. That overlaps partly with the docstring/implementation mismatch, but C1 doesn't mention the docstring."
+  }
+ ],
+ "candidates": [
+  "test_thread_queue_parallel_error_handling asserts no offsets are committed after an error, but OrderedQueueWorker.run() unconditionally calls complete_offset in its finally block, so both errored and successful offsets ARE marked complete and committable - test only passes due to timing race with commit loop's 1-second delay",
+  "FixedQueuePool.shutdown sets worker.shutdown=True before shutting down the queues, so each worker can exit after processing at most one more item even when its queue still has backlog, causing graceful shutdown to drop in-memory queued work and leave offsets outstanding/uncommitted",
+  "OffsetTracker.get_committable_offsets builds list(self.all_offsets.keys()) without any lock while submit threads can add a new partition key on first-seen partitions, causing concurrent key insertion during list construction to raise and intermittently break the commit loop",
+  "Unit tests rely on probabilistic timing/distribution: asserting 20 hashed group keys must hit all 3 queues and asserting queue depth is >0 immediately after enqueuing even though workers can drain faster than the assertion runs, causing intermittent CI failures",
+  "In SimpleQueueProcessingStrategy.close(), the commit thread is joined before queue_pool.shutdown() is called, so items drained by workers after commit thread exits will have their offsets completed but never committed, causing unnecessary message reprocessing on restart"
+ ]
+}

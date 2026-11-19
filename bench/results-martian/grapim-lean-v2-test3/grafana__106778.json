@@ -1,0 +1,106 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "head_sha": "8df850371034b73dc4dd9908cc30fa09f12a1f97",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:31:08.207Z",
+ "seconds": 35.812,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "public/app/features/alerting/unified/hooks/useAbilities.ts",
+   "line": 243,
+   "end_line": 245,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Federated rule groups are no longer treated as read-only.",
+   "body": "`useAllAlertRuleAbilities` used to check `isFederatedRuleGroup(rule.group)` and mark federated Mimir rules as read-only. It now calls `useAllRulerRuleAbilities`, which hardcodes `isFederated = false`. Federated Mimir/Cortex rules in the existing list and detail views will now show Update, Delete and Pause as supported, so users can try to edit or delete groups the ruler doesn't let them change. Keep the federated check. For example, keep the old implementation for `CombinedRule`, or pass the group (or a precomputed federated flag) into `useAllRulerRuleAbilities` before you deprecate the old path."
+  },
+  {
+   "path": "public/app/features/alerting/unified/hooks/useAbilities.ts",
+   "line": 302,
+   "end_line": 302,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Grafana recording rules lose Pause, Restore, Export and DeletePermanently in the new list view.",
+   "body": "The ruler-based hook gates these actions on `rulerRuleType.grafana.rule(rule)`, which is true for every Grafana-managed rule, recording rules included. The new prom-based hook gates them on `prometheusRuleType.grafana.alertingRule(rule)`, even though the comment above it says all GrafanaPromRuleDTO rules are Grafana-managed. Now that the list view only has prom rules, Grafana recording rules lose the Pause and Export menu items they had before. Use `prometheusRuleType.grafana.rule(rule)` for these actions, and keep the alerting-rule check only for Silence."
+  },
+  {
+   "path": "public/app/features/alerting/unified/rule-list/FilterView.tsx",
+   "line": 157,
+   "end_line": 157,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The `key` prop was dropped from list items rendered inside `rules.map`.",
+   "body": "`GrafanaRuleLoader` was rendered with `key={key}`, but its replacement `GrafanaRuleListItem` has no key. Every item in this paginated, filtered list now has no key, so React logs a warning and reconciles by index. As the list grows or is re-filtered, per-item state (open menus, silence drawer, delete modal, clone redirect) can end up on the wrong rule. Add `key={key}` back."
+  },
+  {
+   "path": "public/app/features/alerting/unified/components/rule-viewer/AlertRuleMenu.tsx",
+   "line": 83,
+   "end_line": 87,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "The prom-based Pause and Delete abilities appear unused in the list view.",
+   "body": "`canPause` and `canDelete` now fall back to the Grafana prom-rule abilities so the list view can work without ruler data. Pausing and deleting still need a `rulerRule`: `handleDelete` takes a `RulerRuleDTO`, and the pause menu item works on the ruler rule. The new GrafanaGroupLoader test grants delete and update permissions and still expects exactly 4 menu items (silence, copy link, duplicate, export), with no Pause or Delete. So the extra prom checks do nothing for these two actions, and list-view users lose Pause and Delete even though the PR says they are supported. I couldn't see the menu-item rendering to confirm this. Either support pause and delete from `promRule`, or drop the prom fallback for these two actions."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 38385,
+  "cacheRead": 3262,
+  "output": 3359,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 26,
+   "reviewedHunks": 22,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 41649,
+   "outputTokens": 3359,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "public/app/features/alerting/unified/rule-list/GrafanaRuleLoader.tsx",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "public/app/features/alerting/unified/rule-list/hooks/prometheusGroupsGenerator.ts",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "public/locales/en-US/grafana.json",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2597654
+}

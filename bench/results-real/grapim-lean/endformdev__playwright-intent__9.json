@@ -1,0 +1,68 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "endformdev__playwright-intent__9",
+ "url": "https://github.com/endformdev/playwright-intent/pull/9",
+ "head_sha": "d6ac5fa3ede487e0ba6c5e86fb55ce6e8e72cea9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:15:29.765Z",
+ "seconds": 83.782,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "cache-api/src/storage/file-system.ts",
+   "line": 22,
+   "end_line": 24,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Concurrent PUTs to the same key can share a temp file name.",
+   "body": "The temp file name is `${file}.${process.pid}.${Date.now()}.tmp`. This file-system storage is meant for running the API on a single Node server. On that server, two `PUT`s for the same zip that land in the same millisecond get the same temp path. For example, two CI runs on `shared()` can finish together and both upload `main.zip`. Both requests then write into the same temp file at once, so the zip that gets renamed into place can mix bytes from both bodies. The second `fs.rename` then fails with `ENOENT` because the temp file is already gone, and the client gets a 500. A corrupted `main.zip` makes every later download fail, so every test fails with `IntentStoreError` until someone fixes the bucket. Fix: make the temp name unique per call, for example with `crypto.randomUUID()`."
+  }
+ ],
+ "usage": {
+  "requests": 3,
+  "input": 6,
+  "cacheWrite": 76249,
+  "cacheRead": 10278,
+  "output": 7519,
+  "models": {
+   "claude-opus-5-5": 3
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 45,
+   "hunks": 61,
+   "reviewedHunks": 59,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 86533,
+   "outputTokens": 7519,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 44,
+   "reviewedAiHunks": 0,
+   "requests": 3,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "playwright-intent/test-e2e/project/remote-store.ts",
+    "reason": "file deleted (no new lines to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.5337046
+}

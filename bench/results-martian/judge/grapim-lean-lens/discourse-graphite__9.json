@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "discourse-graphite__9",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The @loaded_locales instance variable in translate_accelerator.rb is lazily initialized and accessed by multiple concurrent threads without synchronization.",
+   "severity": "Low",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions thread-safety or synchronization of @loaded_locales."
+  },
+  {
+   "comment": "Consider normalizing the input locale (e.g., to a symbol) when checking/loading here to avoid double-loading if the same locale is passed as a String vs Symbol (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate raises String vs Symbol locale normalization causing double-loading."
+  }
+ ],
+ "candidates": [
+  "app/controllers/application_controller.rb:159 - Fallback locales are only loaded in controller requests.. Fallback locales are only loaded by `set_locale` in the controller. The patched `translate` still loads only `config.locale`.\n\nCode outside a controller sets a locale (for example a background job, mailer or rake task using `I18n.with_locale(:de)`) and then looks up a key missing in that locale. The Fallbacks backend tries the site locale and `:en`, but those may never have been loaded in that process. The lookup then returns \"translation missing\" instead of the fallback text.\n\nFix: call `I18n.fallbacks.ensure_loaded!`, or load every locale in `I18n.fallbacks[config.locale]`, inside `translate` / `load_locale`, not only in the controller.",
+  "config/initializers/i18n.rb:17 - Cached translations can show another site's or an old default-locale fallback.. The fallback chain now depends on `SiteSetting.default_locale`. That value differs per site in a multisite setup and an admin can change it. The translate cache (`translate_accelerator.rb`) keys entries only on key, `config.locale` and the backend's `object_id`.\n\nWhen a key is missing in the user's locale, the fallback result is cached. That result is in the first site's default locale. Two cases then go wrong:\n- On multisite, a request to site B with the same user locale gets site A's text from the cache.\n- After the default locale changes, the cache keeps serving the old fallback until the process restarts.\n\nFix: add the fallback chain (or `SiteSetting.default_locale`) to the cache key, or clear the cache when the default locale changes.",
+  "lib/freedom_patches/translate_accelerator.rb:62 - Fallback languages are only loaded during a web request, so jobs and emails can still show missing translations.. `translate` still loads only `config.locale` (line 68). The fallback chain (site default language, then `:en`) is loaded only in `ApplicationController#set_locale`, which calls `I18n.fallbacks.ensure_loaded!`. Code that sets the language outside a request skips that step. Examples are background jobs, mailers and rake tasks that use `I18n.with_locale(user.effective_locale)`.\n\nWhen a key is missing in that language, the `Fallbacks` backend tries the site default language and `:en`. If those YAML files have not been loaded in this process, the user sees \"translation missing\" instead of the fallback text. I could not check whether `:en` is loaded at boot.\n\nFix: load the whole fallback chain inside `translate`. Replace the `load_locale(config.locale)` check with something like `I18n.fallbacks[config.locale].each { |l| ensure_loaded!(l) }`, or do the same in `load_locale`."
+ ]
+}

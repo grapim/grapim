@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "E3SM-Project__E3SM__9106",
+ "url": "https://github.com/E3SM-Project/E3SM/pull/9106",
+ "head_sha": "ad28b9ea77b9312548632d370d8451717e81d77b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:30:18.888Z",
+ "seconds": 13.62,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 13903,
+  "cacheRead": 3527,
+  "output": 951,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 10,
+   "reviewedHunks": 10,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 17432,
+   "outputTokens": 951,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.08924839999999999
+}

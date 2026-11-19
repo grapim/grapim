@@ -1,0 +1,104 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "head_sha": "ffbaf8c54269df2ce510de91245760fddce09896",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:35:59.593Z",
+ "seconds": 30.28,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/models/optimized_image.rb",
+   "line": 149,
+   "end_line": 151,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Second `downsize` definition replaces the width/height version and breaks existing callers.",
+   "body": "Ruby has no method overloading, so the new `def self.downsize(from, to, dimensions, opts={})` silently replaces the `downsize(from, to, max_width, max_height, opts={})` defined just above it. Any existing call like `OptimizedImage.downsize(path, path, 1000, 1000, allow_animation: ...)` now raises ArgumentError (5 for 3..4). A 4-argument call is worse: the height integer is taken as `opts`, so `opts[:allow_animation]` either raises or returns the wrong value. Either give the new method a different name (e.g. `downsize_by`), or have one method that accepts both forms."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/lib/utilities.js",
+   "line": 182,
+   "end_line": 182,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Client size check now ignores the per-type site settings, including attachments.",
+   "body": "`maxSizeKB` was `max_<type>_size_kb` and is now a fixed 10 MB for every upload type, attachments included. The request only covers downsizing images. If an admin set `max_attachment_size_kb` above 10 MB, users can no longer upload files the site allows. If it is set below 10 MB, the client lets files through that the server will reject. Line 246 has the same problem: the 413 message always reports 10 MB. Keep the site setting for non-image types and use a separate, larger limit only for images that will be downsized."
+  },
+  {
+   "path": "app/controllers/uploads_controller.rb",
+   "line": 55,
+   "end_line": 55,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "URL downloads are capped at a hardcoded 10 MB for every type.",
+   "body": "The download cap used to be `max_image_size_kb`. Now it is a fixed 10 MB for images and attachments alike. On a site whose `max_image_size_kb` or `max_attachment_size_kb` is above 10 MB, the API can no longer fetch files the site allows: `FileHelper.download` fails, the error is rescued to nil, and the request then fails on a nil tempfile. Use `[10.megabytes, the relevant setting in kilobytes].max` instead of the constant."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/lib/utilities.js",
+   "line": 246,
+   "end_line": 246,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The 413 error message always says the limit is 10 MB.",
+   "body": "A 413 comes from the web server's own body limit, so it is unrelated to this hardcoded 10 MB. Before, the message at least showed the site setting. Now it can tell users the limit is 10 MB when the real limit is something else."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 12,
+  "cacheWrite": 22895,
+  "cacheRead": 30735,
+  "output": 9555,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 53642,
+   "outputTokens": 9555,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "app/controllers/uploads_controller.rb",
+    "line": 64,
+    "end_line": 69,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Rewriting the file in place may not be seen through the open tempfile handle.",
+    "body": "`downsize` writes to `tempfile.path` by running external `convert` and then ImageOptim. If either one replaces the file by rename instead of rewriting it, the open `tempfile` descriptor still points at the old, unlinked original. In that case `tempfile.size` never shrinks, the loop runs all 5 passes, and `Upload.create_for` stores the original, oversized content. I could not check how ImageOptim writes its output. Reopening the file by path after downsizing, e.g. `File.size(tempfile.path)` and a fresh `File.open`, avoids the problem. Separately, `downsize` returns false when it fails, and the loop ignores that and keeps retrying with no log."
+   }
+  ]
+ },
+ "cost_usd": 0.31177
+}

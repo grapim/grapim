@@ -1,0 +1,61 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same race: the count check and the insert are not atomic, so concurrent requests can exceed the limit."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate raises that anonymous authentication now fails because tagging became blocking."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    3
+   ],
+   "confidence": 0.5,
+   "reasoning": "C3 also challenges reading rowsAffected==0 as 'limit reached' in updateDevice, but for a different reason: MySQL counts only changed rows. G3's reason is that the device is missing or outside the window. Same code flaw, different cause, so this is a partial match."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate covers the inconsistent time-window calculation."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 describes the same issue: the cache key is set before CreateOrUpdateDevice, so a refused device can get past the limit on later requests."
+  }
+ ],
+ "candidates": [
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:109 - The device count and the insert are separate steps, so requests that arrive together can go over the limit.. `CountDevices` and the upsert after it are not in one transaction and take no lock. If several new devices authenticate at the same moment while the count is `limit-1`, they all see a count below the limit and all insert. The configured limit is then exceeded. Run the count and the insert in one transaction with suitable locking, or use a conditional insert, if the limit has to hold exactly.",
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:83 - `args` gets the query prepended again each time `WithDbSession` retries the closure.. `args = append([]interface{}{query}, args...)` changes the variable from the enclosing function inside the session callback. `WithDbSession` reruns the callback on retryable errors, such as SQLite `database is locked`. On a rerun, `args` already starts with the query, so the query is prepended a second time. `Exec` then gets the SQL string as a bind parameter and the wrong number of arguments, and the update fails. Build the slice in a local variable inside the closure, e.g. `execArgs := append([]interface{}{query}, args...)`.",
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:95 - On MySQL, an existing device that is already within the limit can be refused because 0 rows were changed.. By default, MySQL's `RowsAffected` counts only rows whose values actually change, not rows that match. If the limit is reached and an existing device sends a request with the same IP and user agent within the same second as its stored `updated_at` (MySQL stores seconds), the UPDATE matches the row but changes nothing. It returns 0, and the device gets `ErrDeviceLimitReached` and is locked out. Before returning the limit error, check whether the row exists, e.g. `SELECT 1 ... WHERE device_id=? AND updated_at BETWEEN ...`.",
+  "pkg/services/anonymous/anonimpl/client.go:44 - A device that was refused can get in on its next request because the local cache still holds its tag.. `TagDevice` → `tagDeviceUI` checks the local cache first. In the current implementation it also sets the cache key *before* it calls `CreateOrUpdateDevice`. When a new device hits the limit, the first request gets `ErrDeviceLimitReached` and is refused. The cache entry stays, though, so every request from the same device in the next ~29 minutes returns nil from `tagDeviceUI` and logs in anonymously. The limit only stops one request per device per cache period. I could not see `tagDeviceUI` itself. Fix: set the cache key only after `CreateOrUpdateDevice` succeeds, or delete it when the store returns an error."
+ ]
+}

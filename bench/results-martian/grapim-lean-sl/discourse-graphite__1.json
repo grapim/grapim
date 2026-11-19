@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "head_sha": "ffbaf8c54269df2ce510de91245760fddce09896",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:39:22.695Z",
+ "seconds": 39.825,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/models/optimized_image.rb",
+   "line": 149,
+   "end_line": 151,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Second `downsize` definition silently replaces the 5-argument one.",
+   "body": "Ruby does not overload methods by arity. The new `def self.downsize(from, to, dimensions, opts={})` replaces the `downsize(from, to, max_width, max_height, opts={})` defined just above it, so the first one never runs. Any existing caller that passes width and height separately, such as `downsize(from, to, w, h, opts)`, will now get an `ArgumentError`, or its `h` will be taken as `opts`. Give the dimension-string version a different name (for example `downsize_to`), or have one method accept both forms, and update the callers to match."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/lib/utilities.js",
+   "line": 182,
+   "end_line": 182,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Client size check is now a fixed 10 MB for every upload type.",
+   "body": "`max_attachment_size_kb` and `max_image_size_kb` are no longer used on the client. Sites that allow attachments larger than 10 MB will now have them rejected in the browser. Attachments over the configured limit but under 10 MB will now go to the server and only fail there, because only images get downsized. Keep `max_attachment_size_kb` for attachments and use the raised cap only for images."
+  },
+  {
+   "path": "app/controllers/uploads_controller.rb",
+   "line": 55,
+   "end_line": 55,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Hardcoded 10 MB cap ignores the configured size settings.",
+   "body": "The download limit was `SiteSetting.max_image_size_kb` and is now a fixed 10 MB. If an admin sets a limit above 10 MB, API URL uploads that the settings allow are now rejected. Use the larger of the setting and the downsizing allowance, or make the cap a site setting."
+  },
+  {
+   "path": "app/controllers/uploads_controller.rb",
+   "line": 64,
+   "end_line": 69,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The downsize loop ignores failures and may leave `tempfile` reading stale content.",
+   "body": "The return value of `OptimizedImage.downsize` is ignored. If `convert` fails, for example on a corrupt or unsupported image, the loop runs the failing shell command five times and then uploads the original file anyway. The file is also rewritten in place at `tempfile.path`, and `ImageOptim#optimize_image!` usually swaps the file in by renaming a new one over it. If it does, the open `tempfile` handle still points to the old inode, so `tempfile.size` and the data `Upload.create_for` reads would be the original, oversized image. Write the output to a new path, stop when `downsize` returns false, and reopen the file before creating the upload. I could not check how image_optim replaces the file here."
+  },
+  {
+   "path": "app/controllers/uploads_controller.rb",
+   "line": 67,
+   "end_line": 67,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Animated GIFs are never detected because the tempfile path has no .gif extension.",
+   "body": "`optimize` picks the animated instructions only when `from =~ /\\.GIF$/i`. Here `from` is `tempfile.path`, a Rack multipart or download temp name that normally has no extension. Animated GIFs therefore go through the plain `convert` path, which can flatten them or keep only the first frame, even when `allow_animated_thumbnails` is on. If the animated path is chosen, `\"80%\"` is also passed to gifsicle's `--resize-fit`, which expects WxH. Decide whether the file is animated from `filename`, and pass dimensions that gifsicle accepts."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 4595,
+  "cacheRead": 3262,
+  "output": 3056,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 7859,
+   "outputTokens": 3056,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0847554
+}

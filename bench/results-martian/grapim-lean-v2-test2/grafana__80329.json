@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "head_sha": "04cfa3bfd469c035ff8b35f9a66867c4e8d5dcf4",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:29:54.211Z",
+ "seconds": 26.599,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/services/annotations/annotationsimpl/xorm_store.go",
+   "line": 534,
+   "end_line": 537,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "other",
+   "title": "Debug logging left in at Error level, including every ID in each batch.",
+   "body": "Each batch of every cleanup cycle logs two `r.log.Error` lines, and one of them includes the full `ids` slice. That slice can hold up to `AnnotationCleanupJobBatchSize` entries; the new test uses 32767. With the ticker now at one minute, healthy installations will see a steady stream of false error logs, possibly with tens of thousands of IDs per line. That fills logs and can trigger error-based alerting. The same pattern appears at lines 554/557 and 576/579. Remove these lines, or move them to Debug and log only the count. The `err` value logged after `fetchIDs` is always nil at that point anyway."
+  },
+  {
+   "path": "pkg/services/cleanup/cleanup.go",
+   "line": 77,
+   "end_line": 77,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "All cleanup jobs now run every minute instead of every 10 minutes.",
+   "body": "This change is about the MySQL deadlock in annotation cleanup. Changing the shared `CleanUpService` ticker from 10 minutes to 1 minute also makes every other cleanup job run 10 times as often: temp files, snapshots, dashboard versions, expired user invites, short URLs, and so on. That means more database load on every installation, and the request does not cover it. Revert to `time.Minute * 10`. If annotations really need a shorter interval, give them their own interval or setting."
+  },
+  {
+   "path": "pkg/services/annotations/annotationsimpl/xorm_store.go",
+   "line": 614,
+   "end_line": 617,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "One placeholder per ID can exceed the bind-parameter limit on Postgres and MySQL.",
+   "body": "Before this change, the DELETE statements had no bind parameters, so any batch size worked. Now every database except SQLite gets one `?` per ID. Postgres and MySQL both cap a single statement at 65535 parameters. If `annotation_cleanup_job_batch_size` is set above 65535 on those databases, every cleanup DELETE fails and annotations stop being cleaned. Use the inlined integer list for any batch size above a safe limit on every database, since the IDs are int64 values read from the database and safe to inline. Alternatively, split `ids` into chunks of the parameter limit."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 13175,
+  "cacheRead": 3262,
+  "output": 2324,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 6,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16439,
+   "outputTokens": 2324,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.11301539999999999
+}

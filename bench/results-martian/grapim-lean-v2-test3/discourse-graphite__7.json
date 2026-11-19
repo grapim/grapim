@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__7",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/7",
+ "head_sha": "d38c4d5f7443223c81529c22470293771baf9f38",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:34:00.985Z",
+ "seconds": 17.961,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/assets/stylesheets/desktop/topic-post.scss",
+   "line": 291,
+   "end_line": 291,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Light and dark lightness values are swapped, so the light theme changes from 30% to 70%.",
+   "body": "The old rule was `scale-color($primary, $lightness: 30%)`. The new light branch uses 70%, so poster names in `.topic-meta-data h5 a` become much paler on light themes. Every other replacement in this PR keeps the original light value and uses 100−X for the dark branch. The fix is `dark-light-choose(scale-color($primary, $lightness: 30%), scale-color($secondary, $lightness: 70%))`."
+  },
+  {
+   "path": "app/assets/stylesheets/desktop/user.scss",
+   "line": 522,
+   "end_line": 522,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The light-theme color for `.group-member-info .name` changes from 30% to 50%.",
+   "body": "The old rule was `scale-color($primary, $lightness: 30%)`, but the new light branch uses 50%. That changes the light theme, which this PR is not meant to touch. Use `dark-light-choose(scale-color($primary, $lightness: 30%), scale-color($secondary, $lightness: 70%))`."
+  },
+  {
+   "path": "app/assets/stylesheets/mobile/modal.scss",
+   "line": 102,
+   "end_line": 102,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The values for `.custom-message-length` are inverted, so the hint becomes much darker on light themes.",
+   "body": "The old rule was `scale-color($primary, $lightness: 70%)`, a pale hint. The new light branch uses 30% and the dark branch uses 70%, which inverts the intent on both themes. The desktop version of this rule correctly uses (70%, 30%). Use `dark-light-choose(scale-color($primary, $lightness: 70%), scale-color($secondary, $lightness: 30%))`."
+  },
+  {
+   "path": "app/assets/stylesheets/mobile/topic-post.scss",
+   "line": 182,
+   "end_line": 182,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The light-theme color for the topic map `h3` on mobile changes from 20% to 50%.",
+   "body": "The old rule was `scale-color($primary, $lightness: 20%)`, but the new light branch uses 50%, so the heading gets lighter on light themes. The desktop version of this rule uses (20%, 80%). Use `dark-light-choose(scale-color($primary, $lightness: 20%), scale-color($secondary, $lightness: 80%))`."
+  },
+  {
+   "path": "app/assets/stylesheets/mobile/user.scss",
+   "line": 497,
+   "end_line": 497,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The light-theme color for `.group-member-info .name` on mobile changes from 30% to 50%.",
+   "body": "This is the same mistake as in the desktop file. The original light-theme lightness was 30%, and the new light branch uses 50%, so the light theme renders differently. Use `dark-light-choose(scale-color($primary, $lightness: 30%), scale-color($secondary, $lightness: 70%))`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 37899,
+  "cacheRead": 3262,
+  "output": 1740,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 32,
+   "hunks": 75,
+   "reviewedHunks": 75,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 41163,
+   "outputTokens": 1740,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 32,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2249554
+}

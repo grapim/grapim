@@ -1,0 +1,65 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "discourse-graphite__7",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/7",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In .topic-meta-data h5 a, the original code had color: scale-color($primary, $lightness: 30%) but was changed to dark-light-choose(scale-color($primary, $lightness: 70%), scale-color($secondary, $lightness: 30%)). The lightness for the light theme changed from 30% to 70%, which is a dramatic inversion",
+   "severity": "Low",
+   "category": "style",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 flags the same .topic-meta-data h5 a change, where light-theme lightness went from 30% to 70%."
+  },
+  {
+   "comment": "This change for desktop/user.css changes $primary from 30% to 50% for the light theme; most other changes preserve the original $primary value and move the complement to $secondary for dark. Consider reviewing this (also applies to a similar .name change in the mobile variant).",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    2,
+    5
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 flags the desktop user.scss change of $primary from 30% to 50%. C5 flags the same change in the mobile variant, which the golden comment also mentions."
+  },
+  {
+   "comment": "In topic-post.css the original code used $lightness: 70% but the replacement uses $lightness: 30% for the light theme. This makes the text significantly darker than intended.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "No candidate flags a 70%-to-30% change in topic-post. C3 has that pattern but in modal.scss, and C4 is a 20%-to-50% change, so neither is the same issue."
+  },
+  {
+   "comment": "The light theme color for `.topic-meta-data h5 a` was changed from `scale-color($primary, $lightness: 30%)` to `scale-color($primary, $lightness: 70%)`, which may unintentionally reduce contrast and affect readability. This change should be reviewed to ensure it aligns with design intentions.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "This is the same issue as G1, and C1 matches it."
+  },
+  {
+   "comment": "In mobile/user.scss line 497, the lightness value for dark themes should be inverted to 70% instead of being changed to 50%. This change may lead to unintended visual regressions in light themes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.85,
+   "reasoning": "C5 flags the same 30%-to-50% change on line 497 of mobile/user.scss."
+  }
+ ],
+ "candidates": [
+  "app/assets/stylesheets/desktop/topic-post.scss:291 - Light-theme value changed from 30% to 70%, and the dark-theme value is inverted too.. The original was `scale-color($primary, $lightness: 30%)`. This line now uses 70% for light themes, so poster names in topic meta data turn much paler on the default light theme. The dark branch also uses 30% where every other mapping uses 100 − X, which here would be 70%. The values look swapped. Use `(…$primary 30%, …$secondary 70%)`.",
+  "app/assets/stylesheets/desktop/user.scss:522 - Light-theme color for group member names changed from 30% to 50%.. The original was `scale-color($primary, $lightness: 30%)`. The light branch now uses 50%, so light themes look different even though the change is only meant to affect dark themes. Keep 30% for light and use the matching 70% for `$secondary`.",
+  "app/assets/stylesheets/mobile/modal.scss:102 - Lightness values are swapped: the light theme gets 30% where it had 70%.. The original was `scale-color($primary, $lightness: 70%)`, and the desktop counterpart in `desktop/modal.scss` correctly uses (70%, 30%). Here the values are reversed. On light themes the de-emphasised hint text becomes much darker, and on dark themes it becomes overly bright. Use (70%, 30%).",
+  "app/assets/stylesheets/mobile/topic-post.scss:182 - Light-theme h3 color changed from 20% to 50% lightness.. The original was `scale-color($primary, $lightness: 20%)`, and the desktop counterpart keeps (20%, 80%). The light branch now uses 50%, so mobile topic-map headings get lighter on light themes, which this change was not meant to do. Use (20%, 80%).",
+  "app/assets/stylesheets/mobile/user.scss:497 - Light-theme color for group member names changed from 30% to 50% (mobile).. This is the same mistake as on desktop. The original 30% lightness is replaced by 50% in the light branch, which changes how light themes look. Use (30%, 70%)."
+ ]
+}

@@ -1,0 +1,60 @@
+{
+ "tool": "published-augment",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same Italian text in the Lithuanian file."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out the same Traditional Chinese terms in the zh_CN file."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G3 is about consuming English matcher groups without checking them, which goes wrong when the translation has more anchors. C4 is about overlapping trim indices and C5 is about a missing key in the error message, so neither is the same issue."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the misspelled method name."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the HTML_TAGS modifiers."
+  }
+ ],
+ "candidates": [
+  "Lithuanian bundle has totpStep1 set to Italian text ('Installa una delle seguenti…') which is a copy/paste mismatch - same issue appears in the login bundle",
+  "messages_zh_CN.properties entry uses Traditional Chinese characters (手機, 應用程式) which is inconsistent with the zh_CN (Simplified) locale",
+  "In verifySafeHtml(), IO failures are rethrown as RuntimeException, while verify() otherwise reports IO problems as MojoExecutionException - exception types should be consistent for easier plugin failure interpretation",
+  "The prefix/suffix trimming (start/end) can yield overlapping indices which would throw StringIndexOutOfBoundsException and abort verification - needs an overlap/bounds guard",
+  "The error message 'Didn't find anchor tag ...' doesn't include the message key or file, making it hard to locate the failing translation in large bundles"
+ ]
+}

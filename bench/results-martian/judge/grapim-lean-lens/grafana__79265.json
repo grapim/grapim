@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same non-atomic count/insert race allowing limit to be exceeded."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.55,
+   "reasoning": "C2 identifies tagging changing from async non-blocking to synchronous in the auth path, the same change, though it emphasizes latency over auth failure."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    4
+   ],
+   "confidence": 0.7,
+   "reasoning": "C4 points out that RowsAffected==0 doesn't necessarily mean limit reached, misinterpreting zero rows as limit error."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate discusses time window calculation inconsistency."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate discusses cache populated before the create call."
+  }
+ ],
+ "candidates": [
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:108 - The limit check and the insert are not atomic, so concurrent new devices can exceed the limit.. `CountDevices` runs in its own session, and the upsert runs later in a separate one. When the count is at limit-1, several new devices arriving at once (or across HA instances) all see the count below the limit and all insert. The limit is then exceeded by up to the number of concurrent requests. Do the count and the insert in one transaction with suitable locking, or use a conditional insert.",
+  "pkg/services/anonymous/anonimpl/client.go:44 - Device tagging now runs synchronously on every anonymous authentication.. Device tagging used to run in a background goroutine with its own 2-minute timeout and a panic recover. Now `TagDevice` runs inline on the request's context. On a cache miss, an anonymous request now waits on a DB write, plus a COUNT query when a limit is set. Even with the default limit of 0, unlimited installs get the extra latency and DB load on the auth path. A panic inside tagging now reaches the request instead of being recovered. If the client cancels mid-request, the cancellation is logged as a tagging failure. Keep the async path when `deviceLimit == 0`, and only check synchronously when a limit is set, ideally as a cheap check before the write.",
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:83 - The query is prepended to the captured `args` inside the session closure, so a retry corrupts the arguments.. `args = append([]interface{}{query}, args...)` changes a variable from outside the closure. If `WithDbSession` runs the callback again (Grafana's sqlstore retries on SQLite \"database is locked\"), the second run prepends the query again. Exec then gets `[query, query, ip, ...]` and fails or binds the wrong values. Build the slice into a local variable inside the closure instead.",
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:95 - A zero RowsAffected can come from an existing device, not just a new one, so known devices get locked out.. By default, MySQL reports rows *changed*, not rows *matched*. Suppose the limit is reached and an already-registered device sends a second request in the same second with the same IP and user agent. MySQL stores `updated_at` with second precision, so nothing changes and RowsAffected is 0. That existing device then gets `ErrDeviceLimitReached` and fails authentication. Decide whether the device exists with a SELECT, or treat 0 rows as \"not found\" only after confirming the device is absent.",
+  "pkg/services/anonymous/anonimpl/impl.go:147 - TagDevice now returns every tagging error, and the error is ignored or fatal depending on the caller.. Before this change, `TagDevice` logged a failure in `tagDeviceUI` and returned nil. Now every failure is returned, including DB errors and context cancellation. The anonymous client only special-cases `ErrDeviceLimitReached`. Any other caller of `anonymous.Service.TagDevice` that treats an error as fatal will now fail requests on a transient DB error. If `ErrDeviceLimitReached` is the only error that should change behaviour, return just that one and keep logging the rest.",
+  "packages/grafana-runtime/src/config.ts:97 - Field type is inferred as `undefined` instead of `number | undefined`.. `anonymousDeviceLimit = undefined;` has no type annotation, so with strict null checks TypeScript infers the type `undefined`. That does not match the `number | undefined` declared in `GrafanaConfig` or the int64 the backend always sends. Code reading `config.anonymousDeviceLimit` cannot treat it as a number without a cast. The fix is to annotate the field explicitly."
+ ]
+}

@@ -1,0 +1,124 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "head_sha": "5fd11f9faa79c4aefd39975d1b0e963e5034f793",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:42:53.815Z",
+ "seconds": 52.428,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "scripts/test-gcal-webhooks.sh",
+   "line": 68,
+   "end_line": 68,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`sed -i ''` only works with BSD/macOS sed and fails on Linux.",
+   "body": "GNU sed reads `-i ''` as in-place editing with the empty string as the script. It then treats the `s|...|` expression as a file name and exits with an error, so on Linux `GOOGLE_WEBHOOK_URL` is never updated when the key already exists. The script still prints \"✅ Updated\" because the sed exit status is never checked. Fix: write to a temp file and move it into place, or detect the platform and choose `sed -i` or `sed -i ''`."
+  },
+  {
+   "path": "scripts/test-gcal-webhooks.sh",
+   "line": 5,
+   "end_line": 5,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "ENV_FILE is resolved against the current directory, not the script's location.",
+   "body": "`ENV_FILE=\"../.env\"` depends on where the script is run from. Run from the repo root (`./scripts/test-gcal-webhooks.sh`), it creates or edits a `.env` in the folder above the repository, and the app never sees the webhook URL. Resolve it from the script's directory instead, for example `ENV_FILE=\"$(cd \"$(dirname \"$0\")/..\" && pwd)/.env\"`."
+  },
+  {
+   "path": "packages/features/apps/components/CredentialActionsDropdown.tsx",
+   "line": 89,
+   "end_line": 92,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The cache timestamp is always formatted with the \"en-US\" locale.",
+   "body": "The date ignores the user's locale and time format, so non-US users see dates like MM/DD/YY next to otherwise localised text. Use the locale from `useLocale()` (`i18n.language`) when building the formatter."
+  },
+  {
+   "path": "scripts/test-gcal-webhooks.sh",
+   "line": 17,
+   "end_line": 17,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Failures exit with status 0.",
+   "body": "`cleanup` always runs `exit 0`, including the rate-limit path and the \"Failed to extract Tunnelmole URL\" path. Callers and CI see these failures as success. Pass an exit code to `cleanup` and use a non-zero code on the error paths."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/calendars/deleteCache.handler.ts",
+   "line": 24,
+   "end_line": 26,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Access denial throws a plain Error, which tRPC reports as a 500.",
+   "body": "Passing a credential the user does not own throws a generic `Error`. tRPC turns this into INTERNAL_SERVER_ERROR instead of NOT_FOUND or FORBIDDEN, so it is logged as a server fault. Throw `new TRPCError({ code: \"NOT_FOUND\" })` instead."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 24068,
+  "cacheRead": 6524,
+  "output": 4698,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 17,
+   "hunks": 23,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 30596,
+   "outputTokens": 4698,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 17,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+    "line": 1023,
+    "end_line": 1024,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "updateMany with empty data may not bump updatedAt, and it adds a write on every cache refresh.",
+    "body": "`updateManyByCredentialId(this.credential.id, {})` relies on Prisma adding `@updatedAt` when `data` is empty. Some Prisma versions skip an update with empty data, which would make this a no-op. It also touches every SelectedCalendar for the credential, including ones that were not part of this fetch, and adds a DB write to every webhook-triggered refresh. If it throws, the webhook fails even though the cache was already written. The UI's `cacheUpdatedAt` comes from `CalendarCache.updatedAt`, not from SelectedCalendar, so this write does not feed the new feature. Either remove it, or pass an explicit `{ updatedAt: new Date() }` and limit it to the calendars that were fetched."
+   },
+   {
+    "path": "packages/prisma/migrations/20250715160635_add_calendar_cache_updated_at/migration.sql",
+    "line": 9,
+    "end_line": 9,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The database default may not match the Prisma schema, which would cause migration drift.",
+    "body": "The migration gives the column a database default of `NOW()`. If `schema.prisma` declares the field only as `DateTime @updatedAt` without `@default(now())`, the database will not match the schema. The next `prisma migrate dev` would then generate a migration to drop the default, or report drift. I could not see the schema change. If the field lacks `@default(now())`, add it so the schema and this migration agree."
+   }
+  ]
+ },
+ "cost_usd": 0.2156208
+}

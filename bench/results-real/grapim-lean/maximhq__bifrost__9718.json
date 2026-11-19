@@ -1,0 +1,64 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "maximhq__bifrost__9718",
+ "url": "https://github.com/maximhq/bifrost/pull/9718",
+ "head_sha": "9a8525417cb6d3f660a98e5080864a1eb8320fac",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-16T22:37:50.161Z",
+ "seconds": 40.812,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "cli/internal/command/root_test.go",
+   "line": 636,
+   "end_line": 636,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Test reads the port and makes the login call in one return statement, but Go does not fix their order.",
+   "body": "`return gotPort, runner.authLogin(...)` puts two things in one return statement. One is a plain read of `gotPort`. The other is the call that sets it, because `OpenBrowser` runs inside `authLogin`. The Go spec guarantees left-to-right order only among function calls. It does not say whether a plain variable is read before or after a call in the same statement.\n\nToday's compiler happens to run the call first, so the test passes. A compiler that reads `gotPort` first would return 0, and the success cases would fail with `callback port = 0`.\n\nFix: run the login on its own line first, then return the port.",
+   "suggestion": "\t\t\t\terr = runner.authLogin(context.Background(), env, c.args)\n\t\t\t\treturn gotPort, err"
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 28576,
+  "cacheRead": 3527,
+  "output": 3732,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 19,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 32105,
+   "outputTokens": 3732,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2182334
+}

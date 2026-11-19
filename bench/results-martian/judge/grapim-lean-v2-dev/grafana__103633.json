@@ -1,0 +1,41 @@
+{
+ "tool": "grapim-lean-v2-dev",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The Check operation exhibits asymmetric cache trust logic: cached permission grants are trusted and returned immediately, but cached denials from the same permission cache are ignored, leading to a fresh database lookup. This allows stale cached grants to provide access to revoked resources, posing a security risk. ",
+   "severity": "High",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate raises the asymmetric trust of cached grants versus cached denials."
+  },
+  {
+   "comment": "The test comment says the cached permissions 'allow access', but the map stores false for dashboards:uid:dash1, so checkPermission will still treat this scope as not allowed.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.92,
+   "reasoning": "C1 points out that the comment claims the test grants access, while the map stores false."
+  },
+  {
+   "comment": "The cache key construction in `userPermDenialCacheKey` uses simple string concatenation with underscores, which can lead to ambiguous keys and collision risks when any component contains underscores or is empty. This could result in incorrect denial cache hits, affecting user permissions.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [
+    2
+   ],
+   "confidence": 0.93,
+   "reasoning": "C2 identifies the ambiguous underscore-joined cache key and the collision risk it creates."
+  }
+ ],
+ "candidates": [
+  "pkg/services/authz/rbac/service_test.go:981 - The denial-cache test passes even without the denial cache.. The comment says the test grants access \"to prove this is not checked\", but the code sets `\"dashboards:uid:dash1\": false`. The cached permissions therefore deny, the fallback goes to the empty `fakeStore`, and that denies too. `resp.Allowed` comes out false whether or not the denial-cache short-circuit exists, so the test checks nothing about it. Set the cached permission to `true` (and/or put the permission in the store) so the test only passes if the denial cache is consulted first.",
+  "pkg/services/authz/rbac/cache.go:30 - An ambiguous denial cache key lets one resource's denial apply to another.. `name` and `parent` are joined with `_`, and both can contain underscores. So different pairs give the same key: for example, name `a_` with parent `b`, and name `a` with parent `_b`, both produce `..._a__b`. A denial cached for one resource then wrongly denies the other until the TTL expires. Use a separator that UIDs can't contain, or escape/length-prefix the parts."
+ ]
+}

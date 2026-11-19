@@ -1,0 +1,104 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "datachain-ai__datachain__2234",
+ "url": "https://github.com/datachain-ai/datachain/pull/2234",
+ "head_sha": "56e43481860ad807307b9c4672e942b79723693c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:39:26.169Z",
+ "seconds": 215.311,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pyproject.toml",
+   "line": 23,
+   "end_line": 23,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Adds a required native dependency and a subprocess SQLite writer that the column-projection request doesn't cover.",
+   "body": "The PR says it makes `read_parquet` read only the columns a chain uses. This diff also does three other things:\n- adds `adbc-driver-sqlite` as a mandatory runtime dependency for every install;\n- adds a new subprocess-based ADBC writer (`sqlite_arrow.py`, `SQLiteWarehouse.arrow_writer`) that writes to the live warehouse file from a second SQLite library;\n- changes how all Arrow UDF output is encoded and stored.\n\nThese change how every tabular load writes data and add a native binary dependency. None of that is needed to project columns. If this work belongs to the stacked base PR (#2225), it should be reviewed and merged there, not hidden in this diff. Otherwise, split it out or explain it in the description."
+  },
+  {
+   "path": "src/datachain/query/dataset.py",
+   "line": 3250,
+   "end_line": 3263,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "`save()` now renames the UDF output table straight into the dataset, which goes beyond column projection.",
+   "body": "When the last step is a generator, `save()` now renames the UDF's output table into the dataset table instead of copying it, and marks the UDF checkpoint DELETED. With checkpoints disabled, this applies to any generator, not just Arrow readers (see the `table = ...` condition in hunk 7). This changes how all generator chains are saved and how checkpoints behave. The request only covers reading fewer columns. If the change comes from the stacked base PR, move it there; otherwise justify it and test it for non-Arrow generators."
+  },
+  {
+   "path": "src/datachain/query/dataset.py",
+   "line": 2467,
+   "end_line": 2470,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "performance",
+   "title": "Every `apply_steps` now imports pyarrow, even for chains with no Arrow reader.",
+   "body": "`_project_reads` runs on every `apply_steps` and starts with `from datachain.lib.arrow import ArrowGenerator`. That module imports pyarrow, numpy and fsspec at module level. Elsewhere the code deliberately keeps pyarrow lazy (the `sys.modules.get(\"pyarrow\")` checks rely on it not being loaded unless an Arrow reader ran). The import now adds startup cost to every query. It also makes those per-row `isinstance(row, pa.RecordBatch)` checks run on every row of every UDF. Fix: only import when a `RowGenerator` step whose inner class is named `ArrowGenerator` is present, or check the class name without importing."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 67237,
+  "cacheRead": 55245,
+  "output": 20381,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 15,
+   "hunks": 44,
+   "reviewedHunks": 44,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 122486,
+   "outputTokens": 20381,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 15,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/datachain/data_storage/sqlite.py",
+    "line": 1011,
+    "end_line": 1018,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The Arrow fast path picks an arbitrary type from `kept`, which can disagree with the row path.",
+    "body": "`next(iter(codec.kept))` takes whichever element a frozenset yields first, and the iteration order of type objects is not guaranteed across runs. If a codec keeps more than one scalar type (for example a float codec that also keeps `int`), integer Arrow columns may be cast to float64. The row path would store those ints unchanged. The result is a different SQLite storage class (REAL instead of INTEGER) and lost precision above 2**53, and which one you get depends on set ordering. I couldn't see the actual `kept` sets from here. Fix: only use the fast path when `len(codec.kept) == 1`, or check each Arrow type against every kept type and use the matching target."
+   },
+   {
+    "path": "src/datachain/data_storage/sqlite_arrow.py",
+    "line": 23,
+    "end_line": 28,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The child's stderr is piped but only read after the child dies, so a chatty child can deadlock the load.",
+    "body": "The writer process is started with `stderr=subprocess.PIPE`, but the parent reads stderr only after a broken pipe, at EOF, or in `close()`. During a long load the parent blocks on `stdout.readline()` waiting for each acknowledgement. Suppose the child writes more than the pipe buffer (about 64 KB) to stderr, for example a warning per batch from ADBC/pyarrow or repeated SQLite busy messages. The child then blocks in `write`, never prints its acknowledgement, and both processes hang forever. Fix: send stderr to a temporary file, or drain it on a background thread, and read it back when reporting errors."
+   }
+  ]
+ },
+ "cost_usd": 0.75487
+}

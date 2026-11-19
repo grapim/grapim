@@ -1,0 +1,37 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In _set_sample_rate_from_error_sampling(), the check `if client_sample_rate:` treats 0.0 as falsy, so a sample_rate of 0.0 is silently skipped and never set on normalized_data.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the falsy 0.0 sample_rate check."
+  },
+  {
+   "comment": "Using Python’s built-in hash() to build cache keys is non-deterministic across processes (hash randomization), so keys won’t match across workers and invalidate_upsampling_cache may fail to delete them. Use a deterministic serialization of project_ids for the cache key.",
+   "severity": "Low",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions hash()-based cache keys."
+  },
+  {
+   "comment": "The upsampling eligibility check passes the outer dataset instead of the actual dataset used by scoped_dataset. In paths where the query ultimately runs against discover (e.g., dashboard split) while the original dataset is metrics, upsampling may be skipped even when all projects are allowlisted.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C1 is about the event.type query parsing. It does not cover passing the wrong dataset to the eligibility check."
+  }
+ ],
+ "candidates": [
+  "src/sentry/api/helpers/error_upsampling.py:135 - Substring match treats negated or OR'd queries as error-only.. `_is_error_focused_query` checks whether `\"event.type:error\"` appears anywhere in the query string. A discover query like `!event.type:error` or `event.type:error OR event.type:transaction` passes this check. `count()` is then rewritten to `upsampled_count()` (`sum(sample_weight)`) for a query that also covers non-error events. Those events have no error sample weight, so the counts come out wrong or the query fails. Parse the query with the event search parser and accept it only when there is one positive, non-negated `event.type:error` filter at top level, joined only by AND.",
+  "sentry-repo:1 - Stray gitlink for a `sentry-repo` submodule is committed.. The PR adds a gitlink at `sentry-repo` (commit a5d2909…). Nothing in the request needs it, and it looks like a leftover from a local checkout. There is probably no matching `.gitmodules` entry, though I could not check that. Without one, `git submodule update` and CI checkouts that fetch submodules fail with \"No url found for submodule path\", and anyone running the recursive commands gets a broken nested repo. Remove the gitlink from the PR."
+ ]
+}

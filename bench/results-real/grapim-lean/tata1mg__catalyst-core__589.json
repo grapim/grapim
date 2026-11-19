@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "tata1mg__catalyst-core__589",
+ "url": "https://github.com/tata1mg/catalyst-core/pull/589",
+ "head_sha": "33066b2ba53ef2211b21735158b56a297f18e680",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:36:43.363Z",
+ "seconds": 41.298,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 13803,
+  "cacheRead": 3527,
+  "output": 3747,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 17332,
+   "outputTokens": 3747,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1446684
+}

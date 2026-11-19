@@ -1,0 +1,73 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The addGuests.handler.ts blacklist check uses blacklistedGuestEmails.includes(guest) after lowercasing the blacklist but not the input guest emails, allowing attackers to bypass BLACKLISTED_GUEST_EMAILS restrictions by submitting emails with uppercase characters.",
+   "severity": "High",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 describes the same bypass: the blacklist is lowercased but the guest email is not."
+  },
+  {
+   "comment": "The logic for checking team admin/owner permissions is incorrect. This condition uses AND (&&) which requires both isTeamAdmin AND isTeamOwner to be true, but it should use OR (||) since a user needs to be either an admin OR an owner to have permission.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 identifies the same problem: the check uses && where || is needed."
+  },
+  {
+   "comment": "The sendAddGuestsEmails function in email-manager.ts passes the full calendarEvent.attendees array when determining which attendees receive AttendeeScheduledEmail vs AttendeeAddGuestsEmail, but checks if newGuests.includes(attendee.email) where newGuests is the input guests array.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.65,
+   "reasoning": "Both point out that the email logic uses the raw input guests array instead of the filtered unique guests, so the wrong attendees get the scheduled vs. add-guests emails."
+  },
+  {
+   "comment": "uniqueGuests filters out existing attendees and blacklisted emails but does not deduplicate duplicates within the input; createMany can insert duplicate attendee rows if the client submits repeated emails.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.97,
+   "reasoning": "C4 is the same issue: duplicate emails in the input are never removed, so duplicate attendee rows can be created."
+  },
+  {
+   "comment": "Starting with an array containing an empty string may cause validation issues. Consider starting with an empty array [] and handling the empty state in the MultiEmail component instead.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the initial empty-string array state."
+  },
+  {
+   "comment": "The `sendAddGuestsEmails` function does not check the `disableStandardEmails` flags in the `EventType` metadata, which may result in sending emails to hosts/attendees even when standard emails are disabled for the event type.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the disableStandardEmails flags."
+  }
+ ],
+ "candidates": [
+  "The blacklist comparison lowercases the blacklisted emails but not the incoming `guest` email. A user can bypass the blacklist by submitting an email with different casing (e.g., `Blocked@example.com`).",
+  "The permission check uses `&&` (AND) instead of `||` (OR). This requires the user to be both a team admin and a team owner simultaneously, which is almost never true. A team admin or team owner should each independently have permission to add guests.",
+  "`sendAddGuestsEmails` is called with the raw `guests` input instead of `uniqueGuests`. This means notification emails may be sent for guests who were already attendees or were filtered out by the blacklist.",
+  "`uniqueGuests` only filters against existing booking attendees and the blacklist, but does not deduplicate the input `guests` array itself. Submitting the same email twice in the request will create duplicate attendee records.",
+  "Seat bookings need seat-level scoping, but this new action updates by `bookingId` only. On seats events it can add guests to the shared booking instead of the current seat.",
+  "Spread `props` before the fixed template props, otherwise callers can override this email's subject, title, and header."
+ ]
+}

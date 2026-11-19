@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "head_sha": "79d11c4890cc4792e3dc3535af59e4e5f7a2739d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:26:18.387Z",
+ "seconds": 47.604,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "authz/client/src/test/java/org/keycloak/authorization/client/test/ECDSAAlgorithmTest.java",
+   "line": 42,
+   "end_line": 42,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "ES384 and ES512 tests sign with a P-256 key, so they never test their own curves.",
+   "body": "The constructor creates one key pair with `KeyPairGenerator.getInstance(\"EC\")` and the default size, which is P-256 on current JDKs. All three tests use that key. `testES384` and `testES512` therefore produce 32-byte r/s values that are zero-padded to 48 or 66 bytes. The P-384 and P-521 signatures the test names promise are never created. In particular the ES512 case never builds a DER sequence longer than 127 bytes. That is the only case that uses the long-form length code in `ASN1Encoder.writeLength` and `ASN1Decoder.readLength`, so that code goes untested. Fix: generate a key pair per algorithm with the matching curve, for example `kpg.initialize(new ECGenParameterSpec(\"secp384r1\"))` for ES384 and `secp521r1` for ES512."
+  },
+  {
+   "path": "common/src/main/java/org/keycloak/common/crypto/CryptoIntegration.java",
+   "line": 57,
+   "end_line": 70,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "Startup no longer fails when several server crypto providers are on the classpath; a tie is now picked silently.",
+   "body": "The old code threw `IllegalStateException` when more than one `CryptoProvider` was found. That stopped a FIPS deployment from starting if a non-FIPS provider had been bundled by mistake. Now `DefaultCryptoProvider`, `FIPS1402Provider` and `WildFlyElytronProvider` all return `order() == 200`. If two of them are on the classpath, the sort is stable, so whichever one `ServiceLoader` returns first wins. The only trace is a debug log line. For example, with `keycloak-crypto-default` and `keycloak-crypto-fips1402` both on the classpath, a server meant to run in FIPS mode can quietly use the non-FIPS BouncyCastle provider. The fix: keep the ordering, but still throw when the top two providers have the same `order()`, and log the ignored lower-priority providers at info or warn level."
+  },
+  {
+   "path": "common/src/main/java/org/keycloak/common/crypto/CryptoProvider.java",
+   "line": 44,
+   "end_line": 44,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "New abstract `order()` method breaks every existing `CryptoProvider` implementation outside this PR.",
+   "body": "`CryptoProvider` is a public SPI loaded through `ServiceLoader`. Adding `order()` as an abstract method means any implementation not updated in this PR stops compiling: custom or third-party providers, the separately released keycloak-client copy, and any test providers. An old binary that is still loaded throws `AbstractMethodError` when `detectProvider` sorts the list. I can't see from here whether other implementations exist in the repository. A default method keeps compatibility and lets providers override it."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 12,
+  "cacheWrite": 88860,
+  "cacheRead": 63138,
+  "output": 8475,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 152010,
+   "outputTokens": 8475,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.6264756
+}

@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "bitemyapp__sekka__328",
+ "url": "https://github.com/bitemyapp/sekka/pull/328",
+ "head_sha": "b360ab9fd75765c7eac39d1be378a833ca8544ff",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:43:09.420Z",
+ "seconds": 70.299,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "desktop/aizome/crates/aizome-sys/src/bin/aizome-panel-refresh.rs",
+   "line": 28,
+   "end_line": 33,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "performance",
+   "title": "Boot `apply` waits the full 10 s on every Intel machine whose panel can't self-refresh.",
+   "body": "The loop only stops early if `helper::find` returns a PSR-capable panel or no Intel display is bound. On an Intel desktop with no eDP, or on a laptop whose panel supports neither PSR nor Panel Replay, `intel_display()` is true and `find()` is always `None`. The loop then sleeps 100 × 100 ms on every boot. The unit is a `Type=oneshot` wanted by `multi-user.target`, which by default is ordered after the units it wants, so reaching multi-user.target is delayed by 10 s on all of these machines. Fix: stop waiting once the driver's debugfs directory exists, even if no `i915_edp_psr_debug` or no sink support is found. Only wait while the driver is bound and its debugfs entries have not appeared yet."
+  },
+  {
+   "path": "desktop/aizome/crates/aizome-shell/src/systray/glue.rs",
+   "line": 404,
+   "end_line": 412,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Quick on/off toggles start pkexec helpers that run concurrently, so the kernel can end in the opposite state to the switch.",
+   "body": "Each flip spawns its own `pkexec aizome-panel-refresh on|off` and nothing serializes them. If the user flips on and then off quickly, the two root helpers race. Both write `panel-refresh.new` and rename it into the choice file, and both write the debugfs file, so the last one to finish wins. If `on` finishes last, PSR is on and is kept on across reboots, while `self.panel_refresh` is `Some(false)`. Both results are `Ok`, so the menu keeps showing it as off. Fix: serialize the calls. Keep one in-flight task and queue the latest wanted value, then rerun once the task finishes if that value differs. A file lock in the helper would also work."
+  },
+  {
+   "path": "desktop/aizome/nix/module.nix",
+   "line": 808,
+   "end_line": 817,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The boot service is not ordered after the GPU driver binds, so PSR can stay at the driver default (on).",
+   "body": "The unit is ordered only after `sys-kernel-debug.mount`. If it starts before udev has probed xe/i915, `intel_display()` returns false and the wait loop exits at once. `find()` then finds nothing, an unavailable status is written, and nothing goes to debugfs. The panel then runs with the driver's default (PSR/Panel Replay on) and the menu shows no switch. That contradicts \"off until turned on\" and can bring back the flashing and lag this PR is meant to avoid. I couldn't check how early xe loads in your initrd setup, so whether this happens depends on the machine. Fix: trigger the apply from a udev rule on the drm card's `add` event, or order the unit after the backlight or drm device unit (or `systemd-udev-settle`). Alternatively, make the helper wait while a display-class PCI device exists that has no bound driver yet."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 24925,
+  "cacheRead": 3561,
+  "output": 5597,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 11,
+   "hunks": 21,
+   "reviewedHunks": 21,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 28488,
+   "outputTokens": 5597,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2372852
+}

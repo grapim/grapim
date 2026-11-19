@@ -1,0 +1,46 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Null reference if github_authenticated_user state is missing",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 points out that fetch_state for github_authenticated_user can return None when the state is missing."
+  },
+  {
+   "comment": "OAuth state uses pipeline.signature (static) instead of a per-request random value",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 raises the same issue: pipeline.signature is static instead of a per-request random value."
+  },
+  {
+   "comment": "The code attempts to access integration.metadata[sender][login] without checking for the existence of the sender key. This causes a KeyError for integrations where the sender metadata was not set during creation",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 flags the same KeyError when integration.metadata has no sender key."
+  }
+ ],
+ "candidates": [
+  "`pipeline.fetch_state(\"github_authenticated_user\")` can return `None` if the OAuth step was skipped or state was lost. Add an explicit `None` check before the comparison so the code fails clearly rather than relying on `None != <string>` semantics.",
+  "The OAuth `state` parameter is set to `pipeline.signature`, which is a deterministic MD5 hash of pipeline identifiers — not a per-request random value. OAuth 2.0 requires `state` to be an unpredictable, per-request nonce to prevent CSRF. Consider generating a cryptographically random token and storing it in the pipeline state for verification on callback.",
+  "`integration.metadata[\"sender\"]` raises `KeyError` when the integration was built without a `sender` in state (the key is set conditionally in `build_integration`). Use `.get()` with a safe default, e.g., `integration.metadata.get(\"sender\", {}).get(\"login\")`.",
+  "Test uses an invalid OAuth state, so the test never reaches the installation 404 path it is meant to cover.",
+  "The `redirect_uri` should be URL-encoded before being included in the query string. Use `urllib.parse.quote()` to properly encode the URL."
+ ]
+}

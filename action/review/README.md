@@ -159,8 +159,9 @@ Pin a release tag or a commit sha instead of `main` once you depend on it.
 | `fail-on` | the config's `failOn` (`blocker`) | `blocker` fails the job when a blocker is found, after posting. `never` only comments. |
 | `config-path` | `.grapim/review.json` | The config file, relative to the repository root. |
 | `use-pr-request` | `true` | `true` compares the change with what the pull request asked for (below). `false` leaves the title, description and linked issues out of the review. |
+| `test-command` | empty | A shell command that runs your tests, like `npm test` or `pytest -q`, run on this runner before the review. Its result is the merge decision card's Tests line. See [Security](#security). |
 
-Outputs: `blockers`, `warnings`, `nits` and `reviewed-hunks`.
+Outputs: `verdict` (`safe`, `check` or `block`, the merge decision card's verdict), `tests` (`passed` or `failed` when `test-command` ran), `blockers`, `warnings`, `nits` and `reviewed-hunks`.
 
 ## What it compares with
 
@@ -199,7 +200,7 @@ The reviewer reports only a concrete mismatch (asked for X, the change does Y; o
 ## What it posts
 
 1. One pull request review (`COMMENT`, never "request changes") on the head commit, with an inline comment per finding: `**Blocker · title**`, the explanation, and for agent-written lines the run that wrote them and its prompt. A re-run on the same commit does not post a second review.
-2. One summary comment, found by its `<!-- grapim:review -->` marker and updated in place on every push: counts by severity, which agent runs were reviewed and how deeply, what was skipped and why, the model and provider. A finding GitHub will not attach to the diff goes here instead.
+2. One summary comment, found by its `<!-- grapim:review -->` marker and updated in place on every push. It opens with the merge decision card: the verdict (Safe to merge, Check these first, Do not merge) as its first line, what was asked (the agent run's prompt, else the pull request's title, and it says which), what the change did beyond that (deleted or skipped tests, checks turned off, migrations, CI changes), and the tests; every item links to its inline comment, its line in the diff or its check run. Then: counts by severity, which agent runs were reviewed and how deeply, what was skipped and why, the model and provider. A finding GitHub will not attach to the diff goes here instead.
 
 Everything taken from the diff, a note or the model's answer is shown as plain text: no links, no @mentions, no HTML.
 
@@ -212,7 +213,8 @@ A `pull_request` from a fork gets a read-only token and no secrets, so there are
 - Use `on: pull_request`, not `pull_request_target`. The Action never runs code from the pull request, but `pull_request_target` gives a fork's pull request your secrets.
 - `.grapim/review.json` (or your `config-path`) is always read from the pull request's **base** commit, so a pull request cannot loosen its own review (for example `ignore: ["**"]` or `failOn: never`). A config change takes effect once it is merged.
 - The workflow file itself still comes from the pull request's branch on `pull_request` events. If you make the job a required check, protect `.github/workflows/` with CODEOWNERS.
-- The Action never runs code from the repository: git diffs and blame run with `--no-ext-diff` and `--no-textconv`.
+- The Action never runs code from the repository unless you set `test-command`: git diffs and blame run with `--no-ext-diff` and `--no-textconv`.
+- `test-command` runs the pull request's code. The Action removes the model credentials (`ANTHROPIC_API_KEY`, the AWS, Google and Foundry variables), the GitHub token, every `INPUT_*` variable, the Actions runtime and OIDC tokens and any variable ending in `_API_KEY`, `_SECRET`, `_TOKEN` or `_PASSWORD` from its environment, and prints its output (the last 200 lines, redacted) to the job log only. `actions/checkout` still leaves the workflow token in `.git/config`, so keep the job's `permissions:` minimal. With credentials from OIDC (Bedrock, Vertex), the files those steps write can be read by the tests: run the tests in an earlier step or a separate job if that matters to you.
 
 ## Locally
 

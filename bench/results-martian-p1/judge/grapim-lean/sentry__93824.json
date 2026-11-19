@@ -1,0 +1,61 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__93824",
+ "url": "https://github.com/getsentry/sentry/pull/93824",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In the SpanFlusher flush loop, metric tags inconsistently use 'shard' (e.g., in spans.buffer.flusher.produce and spans.buffer.segment_size_bytes) and 'shards' (in spans.buffer.flusher.wait_produce) for the same shard identifier value. This prevents correct metric aggregation across flush stages — dashboards and alerts filtering by tag 'shard' will miss data tagged as 'shards' and vice versa.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 points out the same inconsistency between the 'shard' and 'shards' tag keys."
+  },
+  {
+   "comment": "The test_basic function in test_consumer.py uses a monkeypatched time.sleep that returns immediately, but then calls time.sleep(0.1) expecting it to actually wait.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the monkeypatched sleep in the test."
+  },
+  {
+   "comment": "Because flusher processes are created via multiprocessing.get_context('spawn').Process, they are instances of multiprocessing.context.SpawnProcess, which on POSIX is not a subclass of multiprocessing.Process, so this isinstance check will always be false and hung processes won't be killed here.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1,
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 says the isinstance check is always false for SpawnProcess, so hung processes are never killed. C2 raises the same isinstance problem for terminate."
+  },
+  {
+   "comment": "Sleep in test_consumer.py won’t actually wait because time.sleep was monkeypatched above; consider restoring sleep or using a different sync to ensure the flusher has time to process.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the test sleep."
+  },
+  {
+   "comment": "Breaking out of the loop when the deadline has elapsed can skip terminating remaining flusher processes, potentially leaving them running after shutdown; consider ensuring termination is attempted even if the deadline is exceeded.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 says the break skips terminating the remaining processes."
+  }
+ ],
+ "candidates": [
+  "src/sentry/spans/consumers/process/flusher.py:253 - Unhealthy flusher processes are no longer killed before being replaced.. The old code always called `self.process.kill()` before it restarted the flusher. The new code only kills when `isinstance(process, multiprocessing.Process)` is true. The processes come from `mp_context.Process` with the `spawn` context, so they are `SpawnProcess` objects. `SpawnProcess` subclasses `BaseProcess`, not `multiprocessing.Process`, so this check is always false in production.\n\nWhen a flusher hangs (the `hang` cause), it keeps running and a second process is started for the same shards. Both then flush and produce the same segments at the same time, which can produce duplicates or break each other's flush bookkeeping. Each later restart adds another leaked process.\n\nFix: check against `multiprocessing.process.BaseProcess`, or test for a `kill` attribute instead.",
+  "src/sentry/spans/consumers/process/flusher.py:338 - join() stops before terminating the remaining processes once the deadline passes, and its terminate check never matches spawned processes.. When the deadline expires, `break` leaves the loop, so no process after that point gets `terminate()`. The old code always reached the terminate step after its wait.\n\nSeparately, `isinstance(process, multiprocessing.Process)` is false for `SpawnProcess`, so `terminate()` is skipped for every process anyway.\n\nResult: on a rebalance or shutdown with a timeout, flusher processes for the old partition assignment can keep running and flushing shards that now belong to another consumer.\n\nFix: wait until the deadline, then terminate every process that is still alive, using `multiprocessing.process.BaseProcess` in the type check.",
+  "src/sentry/spans/consumers/process/flusher.py:199 - The metric tag key here is \"shards\", but the sibling metrics use \"shard\".. `spans.buffer.flusher.wait_produce` is tagged with `shards`, while `flusher.produce` and `segment_size_bytes` are tagged with `shard`. Dashboards that filter or group by `shard` will miss this metric. Use the same key everywhere."
+ ]
+}

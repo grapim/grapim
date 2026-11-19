@@ -1,0 +1,56 @@
+{
+ "tool": "grapim-lean-v2-dev",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same race between the count check and the insert, which can push the device count past the limit."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate says that anonymous authentication now fails when the device limit is reached."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate flags that zero affected rows gets misreported as ErrDeviceLimitReached."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate covers the inconsistent time window calculation."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions the cache entry being populated before the limit check."
+  }
+ ],
+ "candidates": [
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:108 - Separate count and insert steps let concurrent new devices exceed the limit.. `CountDevices` and the following INSERT/upsert do not run in the same transaction or under a lock. When the count is at `limit-1`, several new devices authenticating at the same moment all see `count < limit` and all get inserted, so the configured limit is exceeded.\n\nFix: do the check and the insert atomically, either with a conditional insert (`INSERT ... SELECT ... WHERE (SELECT COUNT(*) ...) < ?`) or inside one transaction that holds a suitable lock.",
+  "pkg/services/anonymous/anonimpl/anonstore/database.go:83 - The callback rewrites the captured `args` slice, so a retried session sends a corrupted argument list.. `args = append([]interface{}{query}, args...)` reassigns the outer `args` variable inside the `WithDbSession` callback. If the session runs the callback again (for example, when it retries after SQLite reports 'database is locked'), the query string is prepended a second time. `Exec` then gets the wrong number and order of parameters, and the update fails or misbinds.\n\nFix: build the argument list once, outside the closure, or use a local variable inside it:\n\n```go\nexecArgs := append([]interface{}{query}, args...)\n```",
+  "pkg/services/anonymous/anonimpl/impl.go:37 - The store's constructor now needs a raw `int64` limit, which the wire dependency setup cannot supply if it still uses `ProvideAnonDBStore`.. `ProvideAnonDBStore` now takes `(db.DB, int64)`. `ProvideAnonymousDeviceService` builds the store itself and no longer receives `anonstore.AnonStore`. If `pkg/server/wire.go` still lists `anonstore.ProvideAnonDBStore` or binds `AnonStore` (I could not check this from these hunks), wire generation fails because nothing provides an `int64`. Any other consumer that is injected `AnonStore` would also get a different instance, one with no limit applied.\n\nFix: remove those providers and bindings from wire, or pass `*setting.Cfg` into `ProvideAnonDBStore`."
+ ]
+}

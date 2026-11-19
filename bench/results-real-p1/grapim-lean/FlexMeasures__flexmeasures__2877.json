@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "FlexMeasures__flexmeasures__2877",
+ "url": "https://github.com/FlexMeasures/flexmeasures/pull/2877",
+ "head_sha": "3c71fe893496207bb5dccc8ebf015c5f7ba0ae1f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:27:55.349Z",
+ "seconds": 25,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "flexmeasures/data/models/annotations.py",
+   "line": 213,
+   "end_line": 213,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Lookup can match several rows when belief_time is NULL, so `scalar_one_or_none` raises.",
+   "body": "The unique constraint on (content, start, belief_time, source, type) does not cover rows where `belief_time` is NULL, because PostgreSQL treats NULLs as distinct. Under the old lookup, which matched on `end`, posting the same label again with a different end and no belief time inserted a new row. Existing databases can therefore hold several rows that differ only in `end`.\n\nThe new filter turns `belief_time == None` into `IS NULL` and drops `end`, so it now matches all of those rows. `scalar_one_or_none()` then raises `MultipleResultsFound`, and the request fails with the same HTTP 500 this PR is meant to fix. This is a common case, since many annotations (for example holidays and API posts without a belief time) have no belief time.\n\nFix: when several rows match, pick one deterministically, e.g. `.order_by(Annotation.id).limit(1)` with `.scalars().first()`. Or handle the NULL case separately and keep `end` in the filter there. I could not confirm whether `belief_time` is nullable or gets a default value in this model."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 4064,
+  "cacheRead": 3561,
+  "output": 1753,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 7627,
+   "outputTokens": 1753,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.056100199999999996
+}

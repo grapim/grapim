@@ -1,0 +1,43 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Asynchronous functions deleteScheduledEmailReminder and deleteScheduledSMSReminder are called without await inside forEach loops. This occurs during booking rescheduling/cancellation, and workflow/workflow step deletion/updates. Consequently, scheduled workflow reminders may not be reliably cancelled, potentially leaving them active.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 points out the same missing await inside forEach loops for the delete reminder functions."
+  },
+  {
+   "comment": "When immediateDelete is true, the deleteScheduledEmailReminder function cancels the SendGrid email but fails to delete the corresponding WorkflowReminder record from the database. This creates orphaned database entries and is inconsistent with the immediateDelete: false path, which marks the record as cancelled. The SendGrid DELETE API call is also omitted in this path.",
+   "severity": "High",
+   "category": "data",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 describes the same problem: when immediateDelete is true, the DB record is not deleted or marked as cancelled."
+  },
+  {
+   "comment": "The 'cancelled' field is nullable, which can lead to existing records having null values instead of a default of false. This can cause incorrect behavior in the application when checking the cancellation status of reminders.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention that the cancelled field is nullable."
+  }
+ ],
+ "candidates": [
+  "deleteScheduledEmailReminder and deleteScheduledSMSReminder are async functions called inside .forEach() without await in handleCancelBooking.ts - promises are fire-and-forget, cancellations may not complete before booking data is deleted, and failures surface as unhandled rejections",
+  "When immediateDelete is true in deleteScheduledEmailReminder, the function cancels the SendGrid scheduled send but returns without deleting or marking the workflowReminder DB record as cancelled, leaving stale reminder rows in the database",
+  "Passing `true` to deleteScheduledEmailReminder bypasses the new deferred email-cancellation flow and reintroduces the SendGrid cancellation-cap bug for reschedules",
+  "The cancellation pass in scheduleEmailReminders.ts should restrict to reminders that are already scheduled email sends - otherwise an unscheduled or non-email reminder can produce an invalid SendGrid batch_id and prevent other cancellations from running"
+ ]
+}

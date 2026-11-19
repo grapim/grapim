@@ -1,0 +1,23 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The include_website_name method is missing the required ? suffix. Rails serializers expect include_ methods to end with ? for conditional attribute inclusion, a convention followed by other methods in this serializer. Without it, the website_name attribute may not be conditionally included as intended. Additionally, the '.' << website_host string concatenation should be replaced with '.' + website_host or '.#{website_host}' to avoid mutating string literals, which can lead to issues.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.93,
+   "reasoning": "C2 points out the same missing `?` suffix on include_website_name. C1 is about a different problem: the domain comparison logic."
+  }
+ ],
+ "candidates": [
+  "app/serializers/user_serializer.rb:144 - The sibling-subdomain check treats unrelated domains under a multi-part public suffix as the same site.. This branch drops the first label of each host and compares the rest. Suppose the instance is `forum.co.uk` and a user's website is `http://evil.co.uk/some/path`. Both hosts have 3 labels, and both reduce to `co.uk`, so the profile shows `evil.co.uk/some/path` as if it were on the instance's own domain. The same happens with other multi-part suffixes such as `com.au` or `github.io`. To fix this, compare registrable domains using a public-suffix-aware check. Alternatively, only treat hosts as related when one is the other or a subdomain of it.",
+  "app/serializers/user_serializer.rb:153 - `include_website_name` is missing the `?`, so the serializer never calls it.. ActiveModel::Serializers only calls conditional-inclusion hooks named `include_<attr>?`. Because this method is named `include_website_name` without the `?`, it is dead code. As a result, `website_name` is always serialized, as `null` for users with no website. Rename it to `include_website_name?`, as the sibling `include_card_image_badge_id?` does."
+ ]
+}

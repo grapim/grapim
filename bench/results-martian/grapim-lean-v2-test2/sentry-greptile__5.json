@@ -1,0 +1,130 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "head_sha": "ea188e2d736fd6ed27c1dba8aae63b7268e2a7a9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:22:41.608Z",
+ "seconds": 58.079,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx",
+   "line": 65,
+   "end_line": 68,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Hidden attributes are only filtered out when a search query is present.",
+   "body": "`HIDDEN_ATTRIBUTES` is only checked inside the `sorted.filter(...)` call. That call runs only when `searchQuery.trim()` is non-empty. In the default state with an empty search box, the early `return sorted;` returns every attribute. So `is_segment`, `project_id` and `received` still show in the normal view, and the hiding only works while the user is searching. Fix: filter hidden attributes before the early return, e.g. `const sorted = sortAttributes(attributes).filter(a => !HIDDEN_ATTRIBUTES.includes(a.name));`, then apply the search filter."
+  },
+  {
+   "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+   "line": 107,
+   "end_line": 120,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Zipping `error_ids` with `events.values()` assumes nodestore returns every id, in request order.",
+   "body": "`nodestore.backend.get_multi` returns a dict keyed by node id. Some backends and cache paths leave out ids that were not found, and the dict order is not guaranteed to match the request. If even one error is missing (expired or deleted), `zip(error_ids, events.values())` pairs ids with the wrong payloads, so errors are labelled with other errors' ids and the last ones are dropped. Fix: iterate the ids directly, e.g. `for eid, nid in zip(error_ids, node_ids): data = events.get(nid)`."
+  },
+  {
+   "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+   "line": 153,
+   "end_line": 155,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Error timestamps (seconds) are compared with breadcrumb timestamps (milliseconds), so errors end up in the wrong place.",
+   "body": "The `timestamp` from a nodestore event is a float in epoch seconds. Replay recording events carry `timestamp` in epoch milliseconds. Because `error_ts < event.get(\"timestamp\", 0)` holds for every real event, all errors are emitted before the first breadcrumb, and the summary request loses the chronological order this merge sets out to build. The log line also prints the raw seconds value, while the breadcrumb messages use a different scale. Fix: convert the error timestamp to milliseconds (`* 1000`) when you build `ErrorEvent`, or normalise both sides before comparing."
+  },
+  {
+   "path": "static/app/views/performance/newTraceDetails/traceTabsAndVitals.tsx",
+   "line": 27,
+   "end_line": 27,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Second placeholder group lost its gap and vertical alignment.",
+   "body": "Before this change, both placeholder groups used `FlexBox`, which set `align-items: center` and `gap: space(1)`. The second group is now a bare `<Flex>`, so its three loading placeholders sit flush against each other. The first group got `align`/`gap`; this one did not. Use `<Flex align=\"center\" gap={space(1)}>` here as well."
+  },
+  {
+   "path": "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx",
+   "line": 50,
+   "end_line": 50,
+   "severity": "nit",
+   "confidence": "low",
+   "category": "correctness",
+   "title": "Attribute-keys query no longer turns off retries or window-focus refetch",
+   "body": "The old `useApiQuery` call set `retry: false`, `staleTime: 0` and `refetchOnWindowFocus: false`. The new `useQuery` call sets none of them, so it falls back to the query client defaults. If the endpoint fails (for example, an unsupported item type or a timeout), the request may now be retried several times before `error` appears. It may also refetch whenever the window regains focus. Because `isLoading` now follows `isFetching`, each of those refetches puts the attribute list back into its loading state. I could not see the query client defaults, so this depends on them. If the old behaviour was intended, pass the three options again."
+  }
+ ],
+ "usage": {
+  "requests": 5,
+  "input": 10,
+  "cacheWrite": 197217,
+  "cacheRead": 16310,
+  "output": 10041,
+  "models": {
+   "claude-opus-5-5": 5
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 106,
+   "hunks": 228,
+   "reviewedHunks": 191,
+   "aiHunks": 0,
+   "skippedHunks": 37,
+   "inputTokens": 213537,
+   "outputTokens": 10041,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 100,
+   "reviewedAiHunks": 0,
+   "requests": 5,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "src/sentry/options/defaults.py",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "tests/sentry/migrations/test_0917_convert_org_saved_searches_to_views.py",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/endpoints/test_organization_detector_details.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/endpoints/test_organization_detector_index.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/processors/test_delayed_workflow.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/snuba/api/endpoints/test_organization_events_stats.py",
+    "reason": "over the maxFiles limit (100)"
+   }
+  ],
+  "deletedTests": [
+   "tests/sentry/migrations/test_0917_convert_org_saved_searches_to_views.py"
+  ],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 1.190207
+}

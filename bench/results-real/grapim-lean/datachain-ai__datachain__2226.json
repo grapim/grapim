@@ -1,0 +1,79 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "datachain-ai__datachain__2226",
+ "url": "https://github.com/datachain-ai/datachain/pull/2226",
+ "head_sha": "6bc9e60c407b209d3ef8ea5dfa60ae40bbafd7df",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-16T22:31:09.883Z",
+ "seconds": 88.858,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/datachain/query/batch.py",
+   "line": 92,
+   "end_line": 102,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Agg no longer gets the rows of each partition in the user's order.",
+   "body": "The old `Partition` ordered by `partition_col, *query._order_by_clauses`, so each partition's rows reached the UDF in the order the chain asked for. Now the pager orders by `(partition_id, sys__id)` and ignores the query's ORDER BY. Example: `chain.order_by(\"ts\").agg(f, partition_by=\"user\")`, where `f` computes running differences or takes the first or last element. `f` now gets rows in `sys__id` order and returns wrong results. That contradicts \"Users see no change besides speed.\" Fix: keep the query's ORDER BY clauses as secondary keys when sorting within a partition, or document and test the change on purpose."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 28236,
+  "cacheRead": 27115,
+  "output": 9228,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 21,
+   "reviewedHunks": 20,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 55355,
+   "outputTokens": 9228,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "src/datachain/data_storage/db_engine.py",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/datachain/query/batch.py",
+    "line": 92,
+    "end_line": 100,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`Partition` no longer sorts its query by partition, so it now relies on whatever `execute` does.",
+    "body": "The old code added `ORDER BY partition_id` to the query itself. Now `groupby` relies on `execute` sorting the rows, which only `dataset_select_paginated` does. If an `execute` sends the query to the database as written, for example a warehouse subclass that overrides the pager or a Studio distributor path, the rows come back unsorted. `groupby` then splits one partition into several groups, the aggregator runs more than once per partition, and the output is wrong. I could not check the ClickHouse/Studio overrides from here. Fix: keep `query = query.order_by(None).order_by(partition_col)` on the query. The keyset pager replaces it anyway, so this costs nothing."
+   }
+  ]
+ },
+ "cost_usd": 0.331179
+}

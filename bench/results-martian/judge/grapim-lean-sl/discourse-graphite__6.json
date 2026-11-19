@@ -1,0 +1,22 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The include_website_name method is missing the required ? suffix. Rails serializers expect include_ methods to end with ? for conditional attribute inclusion, a convention followed by other methods in this serializer. Without it, the website_name attribute may not be conditionally included as intended. Additionally, the '.' << website_host string concatenation should be replaced with '.' + website_host or '.#{website_host}' to avoid mutating string literals, which can lead to issues.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out the same main problem: include_website_name has no ? suffix, so the conditional inclusion never runs. It does not mention the string mutation from <<, but the central issue is the same."
+  }
+ ],
+ "candidates": [
+  "app/serializers/user_serializer.rb:153 - `include_website_name` is missing the `?`, so ActiveModel::Serializer never calls it.. ActiveModel::Serializer only looks for `include_<attr>?` methods, and the rest of this file uses that form (for example `include_card_image_badge_id?`). Because this method has no `?`, it is never called. `website_name` is then serialized for every user, as `null` when no website is set, and the filter has no effect. Rename it to `include_website_name?`."
+ ]
+}

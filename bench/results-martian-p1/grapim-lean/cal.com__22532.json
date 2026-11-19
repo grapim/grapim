@@ -1,0 +1,94 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "head_sha": "5fd11f9faa79c4aefd39975d1b0e963e5034f793",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:44:28.971Z",
+ "seconds": 37.794,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "scripts/test-gcal-webhooks.sh",
+   "line": 68,
+   "end_line": 68,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`sed -i ''` only works with BSD/macOS sed and fails on Linux.",
+   "body": "GNU sed does not accept the separate empty-string backup argument. It reads `''` as the script and the real expression as a file name, so on Linux the command fails and `GOOGLE_WEBHOOK_URL` is never replaced. The script then still prints \"✅ Updated GOOGLE_WEBHOOK_URL\". Fix: use a portable form, such as `sed -i.bak -E ... && rm \"$ENV_FILE.bak\"`, or write to a temp file and move it into place."
+  },
+  {
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "line": 1024,
+   "end_line": 1024,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`updateMany` with empty data probably never bumps `SelectedCalendar.updatedAt`.",
+   "body": "The comment says this updates `SelectedCalendar.updatedAt` for every calendar under the credential, but the call passes `{}` as the data. When Prisma gets no fields to set, it skips the write, and `@updatedAt` only fills in when a real update happens. So after a webhook refresh the timestamp most likely stays the same, and anything that reads `updatedAt` to show freshness gets a stale value. I could not check the exact Prisma version's behaviour from here. Fix: set the field explicitly."
+  },
+  {
+   "path": "packages/features/apps/components/CredentialActionsDropdown.tsx",
+   "line": 89,
+   "end_line": 92,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Cache timestamp is always formatted in `en-US`, whatever the user's locale.",
+   "body": "The \"Last updated\" string is translated, but the date inside it is always formatted with `\"en-US\"`. Users with another locale see US month/day ordering and a 12-hour clock, which is confusing in places like the EU, where 07/08 means August 7th. Fix: take the locale from `useLocale()` (`i18n.language`) and pass it to `Intl.DateTimeFormat`."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 6,
+  "cacheWrite": 25125,
+  "cacheRead": 14585,
+  "output": 3902,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 17,
+   "hunks": 23,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 39716,
+   "outputTokens": 3902,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 17,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/prisma/migrations/20250715160635_add_calendar_cache_updated_at/migration.sql",
+    "line": 9,
+    "end_line": 9,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The hand-edited DEFAULT NOW() may not match schema.prisma and cause migration drift.",
+    "body": "The generated migration was edited by hand to add `DEFAULT NOW()`. If the `CalendarCache.updatedAt` field in `schema.prisma` is declared as `DateTime @updatedAt` without `@default(now())`, the database and the schema no longer agree. The next `prisma migrate dev` will report drift and generate an unrelated `ALTER COLUMN \"updatedAt\" DROP DEFAULT` migration, or ask to reset the dev database. I could not see the schema.prisma hunk to confirm this. Fix: declare the field as `updatedAt DateTime @default(now()) @updatedAt` so the schema matches this SQL. Separately, every existing cache row will report the migration time as its `cacheUpdatedAt` until it is next written, so the new UI will show stale caches as freshly updated."
+   }
+  ]
+ },
+ "cost_usd": 0.206606
+}
