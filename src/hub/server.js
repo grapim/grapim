@@ -37,6 +37,7 @@ import { createWorkspaceStorage, defaultStorageUrl, loadStorage } from './worksp
 import { createTeamStorage } from './team-storage.js';
 import { Workspaces } from './workspaces.js';
 import { demoReadOnlyPage, errorPage } from './pages/layout.js';
+import { notFoundPage } from './pages/site.js';
 import { createDemo } from './demo.js';
 import { apiRoutes } from './routes-api.js';
 import { createAgent } from './agent/index.js';
@@ -179,6 +180,7 @@ export async function createHub(options = {}) {
     if (status === 405 && err.extra?.allow) headers.Allow = err.extra.allow;
     if (ctx.json) sendJson(res, status, { error: { code, message, ...(ctx.requestId ? { request_id: ctx.requestId } : {}) }, ...(err.extra?.body ?? {}) }, headers);
     else if (code === 'demo_read_only') sendHtml(res, status, demoReadOnlyPage({ user: ctx.session?.user, csrf: ctx.session?.csrf, teamId: hub.demo.teamId }), headers);
+    else if (status === 404 && !HUB_PATH.test(ctx.url?.pathname ?? '/hub')) sendHtml(res, status, notFoundPage({ origin: config.siteOrigin ?? config.origin, path: ctx.url.pathname, signedIn: !!ctx.session }), headers);
     else sendHtml(res, status, errorPage({ status, message, user: ctx.session?.user, csrf: ctx.session?.csrf }), headers);
   }
 

@@ -20,8 +20,78 @@ const ICON = {
   moon: raw(`<svg class="i" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M13.2 9.6A5.5 5.5 0 0 1 6.4 2.8a5.5 5.5 0 1 0 6.8 6.8Z" ${S}/></svg>`),
   system: raw(`<svg class="i" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><rect x="2" y="3" width="12" height="8" rx="1" ${S}/><path d="M6 13.5h4M8 11v2.5" ${S}/></svg>`),
   menu: raw(`<svg class="i" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" ${S}/></svg>`),
+  chevron: raw(`<svg class="i i-chev" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><path d="m4.5 6.25 3.5 3.5 3.5-3.5" ${S}/></svg>`),
 };
 export { ICON };
+
+// The menu icons: one 16 px grid, one 1.5 px stroke, drawn for these items.
+const glyph = (inner) => raw(`<svg class="i" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><g ${S}>${inner}</g></svg>`);
+const NAV_ICON = {
+  pr: glyph('<circle cx="4" cy="3.5" r="1.5"/><circle cx="4" cy="12.5" r="1.5"/><circle cx="12" cy="12.5" r="1.5"/><path d="M4 5v6M12 11V6.5a2 2 0 0 0-2-2H7.5M9 3 7.5 4.5 9 6"/>'),
+  card: glyph('<rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="m5 6.25 1.25 1.25L8.75 5M5 10.5h6"/>'),
+  merge: glyph('<circle cx="4.5" cy="3.5" r="1.5"/><circle cx="4.5" cy="12.5" r="1.5"/><circle cx="11.5" cy="8" r="1.5"/><path d="M4.5 5v6M4.5 5c0 2.2 2 3 5.5 3"/>'),
+  runner: glyph('<rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="m5 6.5 2 1.5-2 1.5M8.5 10H11"/>'),
+  shield: glyph('<path d="M8 1.75 13 3.5v4c0 3-2.1 5.4-5 6.75C5.1 12.9 3 10.5 3 7.5v-4L8 1.75Z"/><path d="m5.75 8 1.5 1.5 3-3"/>'),
+  book: glyph('<path d="M2.5 3.5c1.8-.6 3.8-.4 5.5.75 1.7-1.15 3.7-1.35 5.5-.75v9c-1.8-.6-3.8-.4-5.5.75-1.7-1.15-3.7-1.35-5.5-.75v-9ZM8 4.25v9"/>'),
+  log: glyph('<circle cx="8" cy="8" r="5.75"/><path d="M8 5v3l2 1.5"/>'),
+  note: glyph('<path d="M9.5 1.75H4.25a1 1 0 0 0-1 1v10.5a1 1 0 0 0 1 1h7.5a1 1 0 0 0 1-1V4.75l-3-3Z"/><path d="M9.5 1.75v3h3M5.5 8.5h5M5.5 11h3.5"/>'),
+  help: glyph('<circle cx="8" cy="8" r="5.75"/><path d="M6.25 6.4a1.8 1.8 0 0 1 3.5.6c0 1.2-1.75 1.5-1.75 2.6"/><path d="M8 11.4h.01" stroke-width="2"/>'),
+};
+
+// The top bar's menus. Every href is a page or a heading that exists
+// (test/site.test.js follows each one); `on` is the siteBar `current` value
+// that marks the item as the page you are on.
+export const NAV_MENUS = [
+  {
+    id: 'product',
+    label: 'Product',
+    href: '/#how', // without script the trigger is this link
+    items: [
+      { href: '/#how', icon: 'pr', title: 'How it works', text: 'Each change checked against what the agent was asked.' },
+      { href: '/docs/review#the-merge-decision', icon: 'card', title: 'Merge decision', text: 'One verdict on top of every review, with the evidence.' },
+      { href: '/docs/review#merge-gate', icon: 'merge', title: 'Tests and merge gate', text: 'CI results on the card. Low-risk PRs approved, risky ones held.', badge: 'New' },
+      { href: '/docs/review#run-it-in-your-own-ci', icon: 'runner', title: 'Run in your own CI', text: 'Your runner, your model account. Grapim receives nothing.' },
+      { href: '/docs/security', icon: 'shield', title: 'Security', text: 'Where your code goes, what is kept, and for how long.', on: 'security' },
+    ],
+  },
+  {
+    id: 'resources',
+    label: 'Resources',
+    href: '/docs',
+    items: [
+      { href: '/docs', icon: 'book', title: 'Docs', text: 'Set up the App or the Action in a few minutes.', on: 'docs' },
+      { href: '/changelog', icon: 'log', title: 'Changelog', text: 'What shipped, newest first.', on: 'changelog' },
+      { href: '/notes/claude-code-prs', icon: 'note', title: 'What we found in 69 Claude Code PRs', text: 'Our reviewer on public pull requests, and where it was wrong.', on: 'claude-code-prs' },
+      { href: '/docs/faq', icon: 'help', title: 'FAQ', text: 'Data, pricing, seats and open source.', on: 'faq' },
+    ],
+  },
+];
+export const NAV_LINKS = [
+  { href: '/pricing', label: 'Pricing', on: 'pricing' },
+  { href: '/docs/support', label: 'Contact', on: 'support' },
+];
+
+// The Product menu's picture: the top of a real summary comment, the merge
+// decision card as renderCard (src/airev/decision.js) writes it, for the
+// landing's one demo pull request.
+function navPreview() {
+  return html`<a class="nav-feature" href="/docs/review#the-merge-decision">
+    <span class="nf-card" aria-hidden="true">
+      <span class="gh-who"><span class="gh-av">${LOGO}</span><b>grapim</b><span class="gh-bot">bot</span><span class="muted">commented</span></span>
+      <span class="nf-verdict">Do not merge · 1 blocker</span>
+      <span class="nf-line">Reviewed 2 of 2 changed hunks: 1 blocker.</span>
+      <span class="nf-line">1. <b class="nf-blocker">Blocker:</b> Drops users.email, which the request did not ask for · <span class="nf-path">migrations/20261114_users_cleanup.sql:2</span></span>
+      <span class="nf-line"><b>Asked</b> (run prompt) Claude Code: “${RUN_PROMPT}”</span>
+      <span class="nf-line"><b>Tests</b> · passed, 3 checks.</span>
+    </span>
+    <span class="nf-cap">How the verdict is decided ${ICON.arrow}</span>
+  </a>`;
+}
+
+// aria-current: "page" on the page itself, "true" for the section you are in
+// (the Docs item on every docs page).
+const currentAttr = (it, current, at) => (it.on && it.on === current ? html`aria-current="${it.href === at ? 'page' : 'true'}"` : '');
+const navRow = (it, current, at) => html`<li><a class="nav-row" href="${it.href}" ${currentAttr(it, current, at)}><span class="nav-ico">${NAV_ICON[it.icon]}</span><span class="nav-txt"><span class="nav-title">${it.title}${it.badge ? html`<span class="nav-badge">${it.badge}</span>` : ''}</span><span class="nav-desc">${it.text}</span></span></a></li>`;
 
 // Structured data for the home page, so search results name the site
 // "Grapim" and show its logo.
@@ -40,7 +110,7 @@ function siteSchema(origin) {
 }
 
 // <head> for a public page: title, description, canonical and Open Graph.
-export function siteHead({ title, description, path, origin, scripts = true }) {
+export function siteHead({ title, description, path, origin, scripts = true, noindex = false }) {
   const url = `${origin}${path}`;
   const full = path === '/' ? title : `${title} · Grapim`;
   return html`<!doctype html>
@@ -51,7 +121,7 @@ export function siteHead({ title, description, path, origin, scripts = true }) {
 <meta name="color-scheme" content="light dark">
 <title>${full}</title>
 <meta name="description" content="${description}">
-<link rel="canonical" href="${url}">
+${noindex ? html`<meta name="robots" content="noindex">` : html`<link rel="canonical" href="${url}">`}
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Grapim">
 <meta property="og:title" content="${full}">
@@ -64,6 +134,9 @@ export function siteHead({ title, description, path, origin, scripts = true }) {
 ${path === '/' ? raw(`<script type="application/ld+json">${JSON.stringify(siteSchema(origin)).replace(/</g, '\\u003c')}</script>`) : ''}
 <script src="/hub/static/theme.js"></script>
 <link rel="icon" href="/hub/static/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/hub/static/site/logo.png">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <link rel="preload" href="/hub/static/fonts/public-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/hub/static/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/hub/static/tokens.css">
@@ -72,22 +145,55 @@ ${scripts ? html`<script src="/hub/static/site.js" defer></script>` : ''}
 </head>`;
 }
 
-// The top bar. current: 'home' | 'docs' | 'pricing' | 'changelog'.
-export function siteBar({ current = 'home', signedIn = false } = {}) {
-  const a = (href, label, id) => html`<a class="bar-link" href="${href}" ${current === id ? html`aria-current="page"` : ''}>${label}</a>`;
-  const home = current === 'home' ? '' : '/';
-  const links = html`${a(`${home}#how`, 'Product', 'how')}${a('/docs/security', 'Security', 'security')}${a('/pricing', 'Pricing', 'pricing')}${a('/changelog', 'Changelog', 'changelog')}${a('/docs', 'Docs', 'docs')}`;
+// The top bar, as the dev-tool sites lay theirs out: Product and Resources
+// open a menu (hover with a short intent delay, click, or the keyboard;
+// site-client.js), Pricing and Contact are plain links, and Sign in and
+// Start free sit on the right. Without script each trigger is a link to the
+// menu's first page, and CSS opens the menu on hover and focus. Under 768 px
+// it all folds into one sheet (a <details>, so it opens without script too).
+// current: the page's id ('home', 'pricing', 'changelog', 'docs', 'security',
+// 'faq', 'support', a legal or notes slug); at: its path, for aria-current.
+export function siteBar({ current = 'home', at = '', signedIn = false } = {}) {
+  const inMenu = (m) => m.items.some((it) => it.on && it.on === current);
+  const plain = (l, cls) => html`<a class="${cls}" href="${l.href}" ${l.on === current ? html`aria-current="page"` : ''}>${l.label}</a>`;
+  const menu = (m) => html`<li class="nav-item" data-menu>
+      <a class="bar-link nav-trigger${inMenu(m) ? ' is-current' : ''}" href="${m.href}" data-panel="nav-${m.id}">${m.label}${ICON.chevron}</a>
+      <div class="nav-panel nav-panel-${m.id}" id="nav-${m.id}">
+        <div class="nav-card">
+          <ul class="nav-rows" aria-label="${m.label}">${m.items.map((it) => navRow(it, current, at))}</ul>
+          ${m.id === 'product' ? navPreview() : ''}
+        </div>
+      </div>
+    </li>`;
+  const sheetGroup = (m) => html`<details class="sheet-group"${inMenu(m) ? html` open` : ''}>
+        <summary>${m.label}${ICON.chevron}</summary>
+        <ul class="nav-rows">${m.items.map((it) => navRow(it, current, at))}</ul>
+      </details>`;
+  const end = signedIn
+    ? html`<a class="btn btn-primary btn-sm" href="/hub">Open the hub</a>`
+    : html`<a class="bar-signin" href="${SIGN_IN}" rel="nofollow">Sign in</a><a class="btn btn-primary btn-sm" href="${SIGN_IN}" rel="nofollow">Start free</a>`;
   return html`<header class="bar">
   <div class="bar-in">
     <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
-    <nav class="bar-nav" aria-label="Site">${links}</nav>
-    <details class="bar-menu">
-      <summary aria-label="Menu">${ICON.menu}</summary>
-      <nav class="bar-menu-list" aria-label="Site, small screens">${links}${signedIn ? '' : html`<a class="bar-link" href="${SIGN_IN}" rel="nofollow">Sign in</a>`}</nav>
+    <nav class="bar-nav" aria-label="Main">
+      <ul class="nav-list">
+        ${NAV_MENUS.map(menu)}
+        ${NAV_LINKS.map((l) => html`<li class="nav-item">${plain(l, 'bar-link')}</li>`)}
+      </ul>
+    </nav>
+    <div class="bar-end">${end}</div>
+    <details class="bar-menu" data-sheet>
+      <summary aria-label="Menu"><span class="sheet-open-ico">${ICON.menu}</span><span class="sheet-close-ico">${ICON.x}</span></summary>
+      <nav class="bar-sheet" aria-label="Main, small screens">
+        <div class="sheet-scroll">
+          ${NAV_MENUS.map(sheetGroup)}
+          ${NAV_LINKS.map((l) => plain(l, 'sheet-link'))}
+        </div>
+        <div class="sheet-cta">${signedIn
+          ? html`<a class="btn btn-primary btn-lg" href="/hub">Open the hub</a>`
+          : html`<a class="btn btn-lg" href="${SIGN_IN}" rel="nofollow">Sign in</a><a class="btn btn-primary btn-lg" href="${SIGN_IN}" rel="nofollow">Start free</a>`}</div>
+      </nav>
     </details>
-    ${signedIn
-      ? html`<a class="btn btn-primary btn-sm" href="/hub">Open the hub</a>`
-      : html`<a class="bar-signin" href="${SIGN_IN}" rel="nofollow">Sign in</a><a class="btn btn-primary btn-sm" href="${SIGN_IN}" rel="nofollow">Start free</a>`}
   </div>
 </header>`;
 }
@@ -99,14 +205,13 @@ export function siteFooter() {
     <div class="foot-brand">
       <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
       <p>Code review for the pull requests your agents write.</p>
-      <p class="foot-social"><a href="https://www.linkedin.com/company/grapim" rel="noopener">LinkedIn</a><a href="https://github.com/grapim" rel="noopener">GitHub</a></p>
       <p class="foot-legal">© 2026 Grapim<a href="/terms">Terms</a><a href="/privacy">Privacy</a></p>
       <div class="theme-seg" role="group" aria-label="Theme">${theme('system', 'System', 'system')}${theme('light', 'Light', 'sun')}${theme('dark', 'Dark', 'moon')}</div>
     </div>
     <nav class="foot-cols" aria-label="Footer">
-      <div><h2>Product</h2><a href="/#how">How it works</a><a href="/docs/security">Security</a><a href="/pricing">Pricing</a><a href="/changelog">Changelog</a><a href="/notes/claude-code-prs">69 Claude Code PRs</a></div>
-      <div><h2>Docs</h2><a href="/docs/review">Grapim Review</a><a href="/docs">Quickstart</a><a href="/docs/security">Security and privacy</a><a href="/docs/faq">FAQ</a></div>
-      <div><h2>Help</h2><a href="/docs/support">Support</a><a href="/docs/cli">CLI reference</a><a href="mailto:support@grapim.com">support@grapim.com</a></div>
+      <div><h2>Product</h2><a href="/#how">How it works</a><a href="/docs/review#the-merge-decision">Merge decision</a><a href="/docs/review#run-it-in-your-own-ci">Run in your own CI</a><a href="/docs/security">Security</a><a href="/pricing">Pricing</a></div>
+      <div><h2>Resources</h2><a href="/docs">Docs</a><a href="/changelog">Changelog</a><a href="/notes/claude-code-prs">What we found in 69 Claude Code PRs</a><a href="/docs/faq">FAQ</a><a href="/docs/cli">CLI reference</a></div>
+      <div><h2>Contact</h2><a href="/docs/support">Support</a><a href="mailto:support@grapim.com">support@grapim.com</a><a href="https://github.com/grapim" rel="noopener">GitHub</a><a href="https://www.linkedin.com/company/grapim" rel="noopener">LinkedIn</a></div>
     </nav>
   </div>
 </footer>`;
@@ -356,14 +461,14 @@ export function landingPage({ origin }) {
   return html`${siteHead({ title: 'Grapim: code review that knows what your agents were asked', description, path: '/', origin })}
 <body class="site">
 <a class="skip" href="#main">Skip to content</a>
-${siteBar({ current: 'home' })}
+${siteBar({ current: 'home', at: '/' })}
 <main id="main">
 
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-text">
-    <a class="eyebrow" href="${REVIEW_DOCS}"><b>Grapim Review</b><span>Early access</span>${ICON.arrow}</a>
+    <a class="eyebrow" href="/changelog#d-2026-11-19"><b>New</b><span>The merge decision and merge gate</span>${ICON.arrow}</a>
     <h1 id="hero-title">Code review that knows what <span class="hl">your agents</span> were asked.</h1>
-    <p class="hero-sub">Install the GitHub App and every pull request is reviewed in a minute or two. Grapim checks the change against what was asked, in the pull request, its issue or the agent’s own prompt, and flags what nobody asked for.</p>
+    <p class="hero-sub">Install the GitHub App and every pull request is reviewed in a minute or two. Grapim checks the change against what was asked, in the pull request, its issue or the agent’s own prompt, and flags what nobody asked for. Few comments, each one checked again before it is posted.</p>
     <div class="cta">
       <a class="btn btn-primary btn-lg" href="${SIGN_IN}">Start free</a>
       <a class="btn btn-lg" href="${REVIEW_DOCS}#run-it-in-your-own-ci">Run it in your own CI</a>
@@ -435,7 +540,7 @@ export function pricingPage({ origin, signedIn = false }) {
   return html`${siteHead({ title: 'Pricing', description: 'Grapim plans: Free, Team at $20 and Governance at $40 per author a month ($16 and $32 billed yearly), and Enterprise. Nothing is charged during early access.', path: '/pricing', origin })}
 <body class="site">
 <a class="skip" href="#main">Skip to content</a>
-${siteBar({ current: 'pricing', signedIn })}
+${siteBar({ current: 'pricing', at: '/pricing', signedIn })}
 <main id="main">
 
 <section class="pricing pricing-page" id="pricing" aria-labelledby="pricing-title">
@@ -456,7 +561,7 @@ ${siteBar({ current: 'pricing', signedIn })}
           : html`<p class="plan-price"><span class="num">${p.price}</span>${p.per ? html`<span class="plan-per">${p.per}</span>` : ''}</p>
         <p class="plan-bill">${p.bill}</p>`}
         <p class="plan-lede">${p.lede}</p>
-        ${p.name === 'Enterprise' || p.name === 'Governance' ? html`<a class="btn plan-cta" href="/docs/support">${p.name === 'Governance' ? 'Ask for a pilot' : 'Talk to us'}</a>` : html`<a class="btn${p.mark ? ' btn-primary' : ''} plan-cta" href="${SIGN_IN}" rel="nofollow">Start with GitHub</a>`}
+        ${p.name === 'Enterprise' || p.name === 'Governance' ? html`<a class="btn plan-cta" href="/docs/support">${p.name === 'Governance' ? 'Ask for a pilot' : 'Talk to us'}</a>` : html`<a class="btn${p.mark ? ' btn-primary' : ''} plan-cta" href="${SIGN_IN}" rel="nofollow">Start free</a>`}
         <ul>${p.items.map((i) => html`<li>${ICON.check}<span>${i}</span></li>`)}</ul>
       </section>`)}
     </div>
@@ -551,7 +656,7 @@ export function changelogPage({ origin, signedIn = false }) {
   return html`${siteHead({ title: 'Changelog', description: 'What shipped in Grapim, newest first: shell-command undo for Cursor, automatic path rules, no code storage, the agents page and more.', path: '/changelog', origin })}
 <body class="site">
 <a class="skip" href="#main">Skip to content</a>
-${siteBar({ current: 'changelog', signedIn })}
+${siteBar({ current: 'changelog', at: '/changelog', signedIn })}
 <main id="main">
 <section class="log" aria-labelledby="log-title">
   <div class="wrap">
@@ -570,6 +675,27 @@ ${siteBar({ current: 'changelog', signedIn })}
     </section>`)}
   </div>
 </section>
+</main>
+${siteFooter()}
+</body>
+</html>`.toString();
+}
+
+// A page on the site that does not exist (/docs/<unknown>, /notes/<unknown>,
+// any address the hub does not know): the site's own bar and footer, and the
+// pages people usually look for.
+export function notFoundPage({ origin, path: at = '/', signedIn = false }) {
+  const go = [['/', 'Home'], ['/docs', 'Docs'], ['/pricing', 'Pricing'], ['/changelog', 'Changelog']];
+  return html`${siteHead({ title: 'Page not found', description: 'There is no page at this address on grapim.com.', path: at, origin, noindex: true })}
+<body class="site">
+<a class="skip" href="#main">Skip to content</a>
+${siteBar({ current: '', at, signedIn })}
+<main id="main" class="lost">
+  <div class="wrap">
+    <h1 class="sec-title">There is no page at this address.</h1>
+    <p class="sec-lede">The link may be old or mistyped. These are the pages people usually look for.</p>
+    <ul class="lost-links">${go.map(([href, label]) => html`<li><a class="link" href="${href}">${label} ${ICON.arrow}</a></li>`)}</ul>
+  </div>
 </main>
 ${siteFooter()}
 </body>

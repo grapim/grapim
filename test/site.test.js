@@ -12,6 +12,7 @@ import path from 'node:path';
 import { createHub } from '../src/hub/server.js';
 import { cliHelp, docPath, LEGAL, loadDocs, NOTES, ORDER, parseHelp, renderMarkdown } from '../src/hub/pages/docs.js';
 import { REVIEW_PROVIDERS } from '../src/hub/pages/review-setup.js';
+import { NAV_LINKS, NAV_MENUS } from '../src/hub/pages/site.js';
 
 const ORIGIN = 'http://localhost:7998';
 let h;
@@ -77,7 +78,8 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   assert.equal((body.match(/<span class="cl[ "]/g) ?? []).length, 6, 'six lines of the workflow');
   assert.ok(!/review\.json|actions\/checkout/.test(body), 'no config file and no full workflow on the landing');
   assert.match(body, /<dd class="fd-hi">depth high<\/dd>/, 'the depth fragment uses the summary’s words');
-  const words = body.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
+  // The top bar's menus are the same on every page, so they are not counted.
+  const words = body.replace(/<header class="bar">[^]*?<\/header>/, '').replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
   assert.ok(words < 500, `the landing page stays short (${words} words)`);
 
   // Pricing has its own page. Honest pricing: no checkout while billing is not live.
@@ -340,4 +342,83 @@ test('AI review: /docs/review and action/review/README.md show the same workflow
     assert.ok(readme.includes(p.yaml), `action/review/README.md has the ${p.key} workflow`);
     assert.match(body, new RegExp(`id="${p.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}"`), `a heading for ${p.label}`);
   }
+});
+
+test('the top bar: Product and Resources menus, plain Pricing and Contact, and the phone sheet, on every page', async () => {
+  const client = fs.readFileSync(new URL('../src/hub/pages/site-client.js', import.meta.url), 'utf8');
+  for (const p of PAGES) {
+    const body = await (await get(p)).text();
+    const bar = body.match(/<header class="bar">[^]*?<\/header>/)?.[0];
+    assert.ok(bar, `${p}: the bar`);
+    assert.equal((bar.match(/<nav class="bar-nav" aria-label="Main">/g) ?? []).length, 1, `${p}: one main nav`);
+    for (const m of NAV_MENUS) {
+      // Without script the trigger is a link to a real page, and it names the panel it opens.
+      assert.match(bar, new RegExp(`<a class="bar-link nav-trigger[^"]*" href="${reEsc(m.href)}" data-panel="nav-${m.id}">${m.label}<svg`), `${p}: ${m.label} trigger`);
+      assert.match(bar, new RegExp(`<div class="nav-panel nav-panel-${m.id}" id="nav-${m.id}">`), `${p}: ${m.label} panel`);
+      // Every item, in the menu and in the phone sheet: an icon, a title and a one-line description.
+      for (const it of m.items) {
+        const row = new RegExp(`<a class="nav-row" href="${reEsc(it.href)}"[^>]*><span class="nav-ico"><svg[^]*?</svg></span><span class="nav-txt"><span class="nav-title">${reEsc(it.title)}(<span class="nav-badge">[^<]+</span>)?</span><span class="nav-desc">[^<]{10,}</span>`, 'g');
+        assert.equal((bar.match(row) ?? []).length, 2, `${p}: ${m.label} > ${it.title}`);
+      }
+    }
+    for (const l of NAV_LINKS) assert.ok(bar.includes(`href="${l.href}"`), `${p}: ${l.label}`);
+    assert.match(bar, /<a class="bar-signin" href="\/hub\/auth\/github" rel="nofollow">Sign in<\/a><a class="btn btn-primary btn-sm" href="\/hub\/auth\/github" rel="nofollow">Start free<\/a>/, `${p}: Sign in and Start free`);
+    assert.match(bar, /<details class="bar-menu" data-sheet>\s*<summary aria-label="Menu">/, `${p}: the phone sheet opens without script`);
+    assert.equal((bar.match(/<details class="sheet-group"/g) ?? []).length, NAV_MENUS.length, `${p}: one accordion per menu`);
+  }
+  // The script turns each trigger into a button that says what it controls.
+  for (const s of ["setAttribute('aria-expanded'", "setAttribute('aria-controls'", "'ArrowDown'", "'Escape'", "'pointerenter'", "'pointerleave'", "'sheet-open'"]) assert.ok(client.includes(s), `site.js handles ${s}`);
+  assert.match(client, /const OPEN_DELAY = (\d+);/);
+  const delay = Number(client.match(/const OPEN_DELAY = (\d+);/)[1]);
+  assert.ok(delay >= 80 && delay <= 200, `hover intent delay ${delay} ms`);
+});
+
+function reEsc(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+test('the top bar: every menu link is a page or a heading that exists', async () => {
+  for (const it of [...NAV_MENUS.flatMap((m) => [{ href: m.href }, ...m.items]), ...NAV_LINKS]) {
+    const [pathname, hash] = it.href.split('#');
+    const res = await get(pathname);
+    assert.equal(res.status, 200, it.href);
+    if (hash) assert.ok((await res.text()).includes(`id="${hash}"`), `${it.href}: the heading exists`);
+  }
+});
+
+test('the top bar marks where you are', async () => {
+  const pricing = await (await get('/pricing')).text();
+  assert.match(pricing, /<a class="bar-link" href="\/pricing" aria-current="page">Pricing<\/a>/);
+  const review = await (await get('/docs/review')).text();
+  assert.match(review, /<a class="bar-link nav-trigger is-current" href="\/docs" data-panel="nav-resources">/, 'Resources is the section');
+  assert.match(review, /<a class="nav-row" href="\/docs" aria-current="true">/, 'Docs is the section, not the page');
+  const quick = await (await get('/docs')).text();
+  assert.match(quick, /<a class="nav-row" href="\/docs" aria-current="page">/);
+  assert.ok(!/<a href="\/docs">Docs<\/a><span aria-hidden="true">\/<\/span>/.test(quick), 'the Docs crumb does not link to the page it is on');
+  const log = await (await get('/changelog')).text();
+  assert.match(log, /<a class="nav-row" href="\/changelog" aria-current="page">/);
+  const security = await (await get('/docs/security')).text();
+  assert.match(security, /<a class="bar-link nav-trigger is-current" href="\/#how" data-panel="nav-product">/, 'Security sits under Product');
+  const home = await (await get('/')).text();
+  assert.ok(!/aria-current/.test(home.match(/<header class="bar">[^]*?<\/header>/)[0]), 'nothing is current on the home page');
+  // Signed in, the bar offers the hub instead of Sign in and Start free.
+  const signed = await (await get('/pricing', { Cookie: signedInCookie() })).text();
+  assert.match(signed, /<div class="bar-end"><a class="btn btn-primary btn-sm" href="\/hub">Open the hub<\/a><\/div>/);
+  assert.ok(!signed.includes('class="bar-signin"'));
+});
+
+test('a page that does not exist gets the site 404, with the site bar and noindex', async () => {
+  for (const p of ['/docs/no-such-page', '/notes/no-such-note', '/no-such-page']) {
+    const res = await get(p);
+    assert.equal(res.status, 404, p);
+    const body = await res.text();
+    assertCspClean(body, p);
+    assert.match(body, /<meta name="robots" content="noindex">/, `${p}: noindex`);
+    assert.ok(!body.includes('rel="canonical"'), `${p}: no canonical`);
+    assert.match(body, /<header class="bar">/, `${p}: the site bar`);
+    assert.match(body, /<h1 class="sec-title">There is no page at this address\.<\/h1>/, p);
+  }
+  const hub = await get('/hub/no-such-page');
+  assert.equal(hub.status, 404);
+  assert.ok(!(await hub.text()).includes('<header class="bar">'), 'the hub keeps its own error page');
 });

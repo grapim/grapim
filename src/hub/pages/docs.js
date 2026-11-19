@@ -322,7 +322,7 @@ export function docsPage({ pages, slug, origin, signedIn = false }) {
   return html`${siteHead({ title: page.title, description: page.description, path: docPath(slug), origin })}
 <body class="site docs">
 <a class="skip" href="#main">Skip to content</a>
-${siteBar({ current: 'docs', signedIn })}
+${siteBar({ current: ['security', 'faq', 'support'].includes(slug) ? slug : 'docs', at: docPath(slug), signedIn })}
 <div class="docs-layout">
   <aside class="docs-side">
     <details class="docs-menu" data-docs-menu>
@@ -333,7 +333,7 @@ ${siteBar({ current: 'docs', signedIn })}
   </aside>
   <main id="main" class="docs-main">
     <article class="prose">
-      <p class="docs-crumb"><a href="/docs">Docs</a><span aria-hidden="true">/</span><span>${group}</span></p>
+      <p class="docs-crumb">${slug === ORDER[0] ? html`<span>Docs</span>` : html`<a href="/docs">Docs</a>`}<span aria-hidden="true">/</span><span>${group}</span></p>
       <h1>${page.title}</h1>
       ${page.description ? html`<p class="docs-lede">${page.description}</p>` : ''}
       ${raw(body)}
@@ -359,7 +359,7 @@ export function legalPage({ pages, slug, origin, signedIn = false, path: at = `/
   return html`${siteHead({ title: page.title, description: page.description, path: at, origin })}
 <body class="site">
 <a class="skip" href="#main">Skip to content</a>
-${siteBar({ current: slug, signedIn })}
+${siteBar({ current: slug, at, signedIn })}
 <main id="main" class="legal">
   <div class="wrap">
     <article class="prose">
