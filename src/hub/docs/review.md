@@ -88,7 +88,7 @@ Public repositories are reviewed free. [Install the GitHub App](https://github.c
 - Pull requests opened by bots, such as dependency updates, are skipped.
 - A repository with fewer than 10 stars is reviewed when someone asks: comment `@grapim review` on the pull request. From 10 stars, every push is reviewed.
 - Each pull request author gets up to 5 free reviews an hour in a repository. Past that, the check says when the next one is available.
-- Each repository can use about 50 free reviews a month, out of a shared monthly pool. When either runs out, the check says so and reviews start again next month.
+- Each repository can use about 80 free reviews a month, out of a shared monthly pool. When either runs out, the check says so and reviews start again next month.
 - Grapim only comments on repositories where someone installed it. Uninstall the App and it stops.
 - The summary comment ends with one line saying the review is free for public repositories.
 

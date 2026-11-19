@@ -19,7 +19,7 @@ Setup for both: [app.grapim.com/docs/review](https://app.grapim.com/docs/review)
 
 ## Free for open source
 
-Install the [GitHub App](https://github.com/apps/grapim) on a public repository and every pull request is reviewed free, with no account to create. Each repository gets about 50 free reviews a month, and pull requests opened by bots are skipped. Private repositories need a team with cloud review on. Details: [Free for open source](https://grapim.com/docs/review#free-for-open-source).
+Install the [GitHub App](https://github.com/apps/grapim) on a public repository and every pull request is reviewed free, with no account to create. Each repository gets about 80 free reviews a month, and pull requests opened by bots are skipped. Private repositories need a team with cloud review on. Details: [Free for open source](https://grapim.com/docs/review#free-for-open-source).
 
 If a review caught something for you, a star on this repository helps other maintainers find it.
 

@@ -631,11 +631,11 @@ function billingSection({ team, role, csrf, limits, seatsUsed, billing, use = nu
       ${billing.governanceIntervals?.length
         ? html`<label class="sr-only" for="plan">Plan</label>
       <select id="plan" name="plan">
-        ${billing.intervals.length ? html`<option value="team" ${team.plan === 'governance' ? '' : 'selected'}>Team · $20 per seat</option>` : ''}
-        <option value="governance" ${team.plan === 'governance' || !billing.intervals.length ? 'selected' : ''}>Governance · $40 per seat, reports and required approval</option>
+        ${billing.intervals.length ? html`<option value="team" ${team.plan === 'governance' ? '' : 'selected'}>Team · $20 per author</option>` : ''}
+        <option value="governance" ${team.plan === 'governance' || !billing.intervals.length ? 'selected' : ''}>Governance · $40 per author, reports and required approval</option>
       </select>`
         : ''}
-      <label for="seats">Seats</label>
+      <label for="seats" title="People who open pull requests Grapim reviews">Authors</label>
       <input id="seats" name="seats" type="number" min="1" max="1000" value="${Math.max(seatsUsed, team.seats || 0, 1)}" inputmode="numeric" class="input-narrow">
       <label class="sr-only" for="interval">Billing period</label>
       <select id="interval" name="interval">

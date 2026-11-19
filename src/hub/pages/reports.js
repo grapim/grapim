@@ -372,7 +372,7 @@ function teaserBody({ team, role, csrf, teaser, billing, seatsUsed }) {
   <p class="muted">Run <code>grapim init</code> in each repo so every commit records which lines agents wrote, then <code>grapim sync</code>. Next week this shows how much of your new code came from agents.</p>`}
 </section>
 <section class="card upgrade" aria-labelledby="up-title">
-  <div class="card-head"><h2 id="up-title" class="card-title">Governance</h2><span class="price"><b>$40</b> per seat a month, or $384 a year</span></div>
+  <div class="card-head"><h2 id="up-title" class="card-title">Governance</h2><span class="price"><b>$40</b> per author a month, or $384 a year</span></div>
   <p class="card-sub">The record a manager needs before rolling AI agents out wider.</p>
   <ul class="checks">
     <li><b>Require approval</b>: the Grapim GitHub check fails a pull request until a teammate, not the run’s author, approves each agent run, and until every commit is recorded</li>
@@ -386,7 +386,7 @@ function teaserBody({ team, role, csrf, teaser, billing, seatsUsed }) {
     ${csrfField(csrf)}
     <input type="hidden" name="team" value="${team.id}">
     <input type="hidden" name="plan" value="governance">
-    <label for="g-seats">Seats</label>
+    <label for="g-seats" title="People who open pull requests Grapim reviews">Authors</label>
     <input id="g-seats" name="seats" type="number" min="1" max="1000" value="${Math.max(seatsUsed, team.seats || 0, 1)}" inputmode="numeric" class="input-narrow">
     <label class="sr-only" for="g-interval">Billing period</label>
     <select id="g-interval" name="interval">${billing.intervals.map((i) => html`<option value="${i}">${i === 'month' ? 'Monthly' : 'Yearly'}</option>`)}</select>

@@ -91,7 +91,7 @@ export const REVIEW_COST_ESTIMATE = 0.12;
 export const EXTRA_REVIEW_PRICE = 0.25;
 // About how many pull requests a credit in dollars covers, rounded down to ten.
 export const aboutReviews = (dollars) => Math.max(10, Math.floor(dollars / REVIEW_COST_ESTIMATE / 10 + 1e-9) * 10);
-// Public repositories: about 1,000 reviews a month in all, about 50 per repository.
+// Public repositories: about 1,600 reviews a month in all, about 80 per repository (at REVIEW_COST_ESTIMATE).
 // minStars: a public repository with fewer stars is reviewed on request
 // (@grapim review), not on every push, unless its owner is in `allow`.
 // hourly: free reviews per pull request author per repository in an hour.
