@@ -1,0 +1,49 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The downsize method is defined twice. The second definition, which expects a single dimensions string parameter, overrides the first, which expected separate max_width and max_height parameters. This makes the original method unreachable and breaks existing code that calls it with separate width and height arguments.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the second downsize definition overrides the first."
+  },
+  {
+   "comment": "Hardcoding maxSizeKB = 10 * 1024 ignores Discourse.SiteSettings['max_' + type + '_size_kb'], so the client-side limit can diverge from server-side and per-type settings (also applies to the 413 handler below).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.92,
+   "reasoning": "C2 points out the same problem: the hardcoded 10MB limit ignores the per-type site settings."
+  },
+  {
+   "comment": "Passing 80% as the dimensions can fail for animated GIFs when allow_animated_thumbnails is true, since the animated path uses gifsicle --resize-fit which expects WxH geometry, not a percentage; downsizing would then silently fail.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the percentage geometry with gifsicle for animated GIFs."
+  },
+  {
+   "comment": "The loop checking `tempfile.size` may never terminate correctly due to stale cached size, leading to potential infinite loops or incorrect file handling after modifications.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the stale tempfile.size value in the loop."
+  }
+ ],
+ "candidates": [
+  "app/models/optimized_image.rb:149 - Second `downsize` definition overwrites the first, breaking existing callers. Ruby has no overloading. `def self.downsize(from, to, dimensions, opts={})` replaces the earlier `downsize(from, to, max_width, max_height, opts={})`. Any existing caller that passes width and height separately, such as thumbnail creation, now gets an ArgumentError (5 arguments for 3..4). With 4 arguments, the height is taken as `opts` and `dimensions` is just the width. Keep one method that handles both forms, for example `def self.downsize(from, to, *args)`. Alternatively give the new form a different name and update the caller in the controller.",
+  "app/assets/javascripts/discourse/lib/utilities.js:182 - Client size check ignores per-type site settings. The limit is now a hardcoded 10 MB for every type. Before, it came from `max_<type>_size_kb`. Non-image uploads, such as attachments with a lower `max_attachment_size_kb`, now pass the client check and are rejected only after the full upload. The error message shows the wrong limit too. Only images are downsized automatically. Keep the setting for non-image types, or use the larger of the setting and 10 MB only for images."
+ ]
+}

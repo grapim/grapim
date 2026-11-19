@@ -1,0 +1,46 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "sentry__77754",
+ "url": "https://github.com/getsentry/sentry/pull/77754",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The AssignmentSource dataclass uses queued: datetime = timezone.now() as a default field value, which evaluates timezone.now() once at class definition time and shares that single datetime instance across all objects.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the timezone.now() default is evaluated only once."
+  },
+  {
+   "comment": "The method name has a typo: test_from_dict_inalid_data should be test_from_dict_invalid_data.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the typo."
+  },
+  {
+   "comment": "Method name says 'empty_array' but tests empty dict - consider renaming to 'test_from_dict_empty_dict' for clarity.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the test name."
+  },
+  {
+   "comment": "to_dict() returns a datetime for queued; if this dict is passed in task kwargs (e.g., via apply_async), JSON serialization may fail depending on the serializer, which can cause enqueue errors.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 mentions serialization into kwargs, but its issue is the wrong timestamp value. It doesn't raise the JSON serializability of datetime."
+  }
+ ],
+ "candidates": [
+  "src/sentry/integrations/services/assignment_source.py:18 - `queued` default is evaluated once at import time. `timezone.now()` is called when the class body runs. Every `AssignmentSource` created without an explicit `queued` gets the same timestamp, which is the process start or import time. The `queued` value serialized into the task kwargs is therefore wrong, and any later use of it would be too. Use `field(default_factory=timezone.now)`, and import `field` from dataclasses."
+ ]
+}

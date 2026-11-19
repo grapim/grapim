@@ -1,0 +1,49 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "keycloak__37634",
+ "url": "https://github.com/keycloak/keycloak/pull/37634",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In AccessTokenContext constructor, the fourth Objects.requireNonNull validates grantType twice instead of validating rawTokenId, allowing null rawTokenId values to pass validation.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out the same problem: the duplicated grantType requireNonNull means rawTokenId is never checked for null."
+  },
+  {
+   "comment": "In isAccessTokenId, the substring for the grant shortcut and the equality check look inverted: the grant shortcut occupies indices 4–5 (substring(4,6)), and a match should return true (combined with UUID check), not false.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies the same two bugs in isAccessTokenId: the substring offsets are wrong and the equality check is inverted."
+  },
+  {
+   "comment": "Javadoc mentions \"usually like 3-letters shortcut\" but some implementations use 2-letter shortcuts (\"ac\", \"cc\", \"rt\", \"te\", \"pc\", \"ci\", \"ro\"). Consider updating documentation to reflect actual usage pattern.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the Javadoc saying '3-letters' when the shortcuts are actually 2 letters."
+  },
+  {
+   "comment": " Catching generic RuntimeException is too broad. The implementation throws IllegalArgumentException specifically - catch that instead for more precise testing.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate raises the overly broad RuntimeException catch."
+  }
+ ],
+ "candidates": [
+  "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/AssertEvents.java:483 - Grant shortcut check in isAccessTokenId is inverted and uses the wrong offsets. The grant shortcut sits at chars 4-5 of the 6-char prefix, so `substring(4, 6)` is the right slice. This code takes `substring(3, 5)`, which spans the token-type and grant characters. It also returns false when the slice equals the expected shortcut. The inversion and the wrong offset hide each other, so the matcher accepts a token whose grant shortcut is wrong. It would reject the correct one only in the unlikely case that the shifted slice equals the shortcut. The tests therefore don't check the grant type they claim to check. Fix: compare `substring(4, 6)` and return false when it is not equal to the expected shortcut.",
+  "services/src/main/java/org/keycloak/protocol/oidc/encode/AccessTokenContext.java:73 - Null check for rawTokenId actually checks grantType. The `requireNonNull` call on line 73 passes `grantType` but its message says rawTokenId. A null rawTokenId is accepted, and `encodeTokenId` would then produce an ID ending in 'null'. Check `rawTokenId` instead."
+ ]
+}

@@ -1,0 +1,79 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "head_sha": "ffbaf8c54269df2ce510de91245760fddce09896",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:21:37.598Z",
+ "seconds": 19.886,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/models/optimized_image.rb",
+   "line": 149,
+   "end_line": 151,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Second `downsize` definition overwrites the first, breaking existing callers",
+   "body": "Ruby has no overloading. `def self.downsize(from, to, dimensions, opts={})` replaces the earlier `downsize(from, to, max_width, max_height, opts={})`. Any existing caller that passes width and height separately, such as thumbnail creation, now gets an ArgumentError (5 arguments for 3..4). With 4 arguments, the height is taken as `opts` and `dimensions` is just the width. Keep one method that handles both forms, for example `def self.downsize(from, to, *args)`. Alternatively give the new form a different name and update the caller in the controller."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/lib/utilities.js",
+   "line": 182,
+   "end_line": 182,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Client size check ignores per-type site settings",
+   "body": "The limit is now a hardcoded 10 MB for every type. Before, it came from `max_<type>_size_kb`. Non-image uploads, such as attachments with a lower `max_attachment_size_kb`, now pass the client check and are rejected only after the full upload. The error message shows the wrong limit too. Only images are downsized automatically. Keep the setting for non-image types, or use the larger of the setting and 10 MB only for images."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 4583,
+  "cacheRead": 3426,
+  "output": 1350,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 8011,
+   "outputTokens": 1350,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 8011,
+     "output": 1350
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0506082
+}

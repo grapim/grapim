@@ -8,6 +8,7 @@ import { date, html, time } from './html.js';
 import { icon } from './icons.js';
 import { agent, code, delta, emptyState, phoneMeta, plural, reviewBadge, runHref } from './parts.js';
 import { REVIEW_PROVIDERS, WORKFLOW_PATH } from './review-setup.js';
+import { aboutReviews } from '../github/cloud-review.js';
 
 const TITLES = { overview: 'Overview', 'pull-requests': 'Reviews', reviews: 'Approvals', repos: 'Repos', workspaces: 'Workspaces', reports: 'Reports', settings: 'Settings', platform: 'Platform' };
 
@@ -202,7 +203,7 @@ function cloudSetup({ team, csrf, role, cloud }) {
     'Turn on cloud review',
     on
       ? html`On. This month: ${plural(u.reviews, 'review')}, $${u.spent.toFixed(2)} of $${u.budget.toFixed(2)} credit.`
-      : html`Grapim reviews each pull request with ${cloud.modelName} on its own model account. Your ${team.plan} plan includes $${u.budget.toFixed(2)} of review a month, about ${Math.max(10, Math.floor(u.budget / 0.18 / 10) * 10).toLocaleString('en-US')} pull requests.`,
+      : html`Grapim reviews each pull request with ${cloud.modelName} on its own model account. Your ${team.plan} plan includes $${(u.included ?? u.budget).toFixed(2)} of review a month, about ${aboutReviews(u.included ?? u.budget).toLocaleString('en-US')} pull requests.`,
     on ? null : owner ? html`<form method="post" action="/hub/teams/${team.id}/github/cloud-review">${csrfField(csrf)}<input type="hidden" name="enabled" value="1"><input type="hidden" name="from" value="overview"><button class="btn ${linked ? 'btn-primary' : ''}" type="submit" ${linked ? '' : html`disabled aria-disabled="true"`}>Turn on</button></form>` : html`<p class="muted small">An owner of ${team.name} turns it on.</p>`,
   )}
   ${step(
@@ -670,7 +671,7 @@ function reviewCreditSection({ team, review: r }) {
   <div class="ask-meter">
     <p class="ask-meter-num"><strong>${usd(r.spent)}</strong> <span class="muted">of ${usd(r.budget)} used this month</span></p>
     <progress class="ask-meter-bar${pct >= 0.9 ? ' is-high' : ''}" max="1" value="${pct.toFixed(3)}" aria-label="Cloud review credit used this month">${Math.round(pct * 100)}%</progress>
-    <p class="muted small">${r.reviews} ${r.reviews === 1 ? 'review' : 'reviews'} this month on private repositories. Public repositories are reviewed free and do not count. When the credit runs out, reviews pause until it renews.</p>
+    <p class="muted small">${r.reviews} ${r.reviews === 1 ? 'review' : 'reviews'} this month on private repositories. Public repositories are reviewed free and do not count. ${r.extraReviews ? `The credit includes ${r.extraReviews.toLocaleString('en-US')} extra ${r.extraReviews === 1 ? 'review' : 'reviews'} (${(r.extraUsed ?? 0).toLocaleString('en-US')} used); after that, reviews pause until it renews.` : 'When the credit runs out, reviews pause until it renews. An owner can allow extra reviews in Settings, Review.'}</p>
   </div>
 </section>`;
 }

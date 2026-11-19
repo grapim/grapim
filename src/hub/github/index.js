@@ -752,7 +752,7 @@ export function createGitHubApp(hub, options = {}) {
         } catch (err) {
           if (!(err instanceof TeamConfigError)) throw err;
           if (!hub.renderSettings) throw new HttpError(400, 'bad_request', err.message);
-          const draft = { failOn: ctx.form.failOn === 'blocker' ? 'blocker' : 'never', maxComments: String(ctx.form.maxComments ?? '').slice(0, 10), ignore: String(ctx.form.ignore ?? '').slice(0, 20_000).split(/\r\n?|\n/), instructions: String(ctx.form.instructions ?? '').slice(0, 4000) };
+          const draft = { failOn: ctx.form.failOn === 'blocker' ? 'blocker' : 'never', maxComments: String(ctx.form.maxComments ?? '').slice(0, 10), ignore: String(ctx.form.ignore ?? '').slice(0, 20_000).split(/\r\n?|\n/), instructions: String(ctx.form.instructions ?? '').slice(0, 4000), extraReviews: String(ctx.form.extraReviews ?? '').slice(0, 10) };
           return hub.renderSettings(ctx, { section: 'review', error: err.message, review: reviewSettingsSection(team, ctx.session.csrf, 'owner', draft) }, 400);
         }
         cloud.setTeamConfig(team.id, value, ctx.session.user.id);
@@ -1004,7 +1004,7 @@ ${cfg.configured ? cloud.card(team, csrf) : ''}`;
       team,
       csrf,
       owner: role === 'owner',
-      cloud: { available: cfg.configured && cloud.config.configured, linked: installs.forTeam(team.id).length > 0, enabled: cloud.enabled(team.id) },
+      cloud: { available: cfg.configured && cloud.config.configured, linked: installs.forTeam(team.id).length > 0, enabled: cloud.enabled(team.id), usage: cloud.usage(team) },
       values: draft ?? teamFormValues(cloud.teamConfig(team.id)),
       checkName: CLOUD_CHECK,
     })}

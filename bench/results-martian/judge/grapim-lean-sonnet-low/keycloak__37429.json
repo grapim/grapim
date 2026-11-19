@@ -1,0 +1,59 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    1,
+    3
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 and C3 both point out Italian text in the Lithuanian messages_lt.properties files."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out Traditional Chinese text in the zh_CN totpStep1 value."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates discusses the anchor sanitization logic."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the misspelled method name."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates covers how the HTML_TAGS field is declared."
+  }
+ ],
+ "candidates": [
+  "themes/src/main/resources-community/theme/base/account/messages/messages_lt.properties:101 - Lithuanian totpStep1 replaced with Italian text. The Lithuanian translation of `totpStep1` is now an Italian sentence (\"Installa una delle seguenti applicazioni sul tuo cellulare:\"). Lithuanian users will see Italian in the TOTP setup step. Replace it with a Lithuanian translation, or remove the key so it falls back to English.",
+  "themes/src/main/resources-community/theme/base/account/messages/messages_zh_CN.properties:112 - zh_CN totpStep1 uses Traditional Chinese text. The Simplified Chinese bundle now has a Traditional Chinese string (\"在您的手機上安裝以下應用程式之一：\"). Its other strings are Simplified. Use the Simplified form (在您的手机上安装以下应用程序之一：), or copy the zh_TW text only into the zh_TW bundle.",
+  "themes/src/main/resources-community/theme/base/login/messages/messages_lt.properties:71 - Lithuanian loginTotpStep1 replaced with Italian text. `loginTotpStep1` in the Lithuanian login bundle is now Italian (\"Installa una delle seguenti applicazioni sul tuo cellulare:\"). Lithuanian users will see Italian text on the OTP setup page. Use a Lithuanian translation, or drop the key so it falls back to English."
+ ]
+}

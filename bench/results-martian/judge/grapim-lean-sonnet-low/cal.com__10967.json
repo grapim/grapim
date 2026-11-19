@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A null reference occurs in GoogleCalendarService.createEvent() and updateEvent() when mainHostDestinationCalendar is destructured from evt.destinationCalendar but evt.destinationCalendar is null or an empty array, causing mainHostDestinationCalendar to be undefined.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "G1 is about a null dereference in GoogleCalendarService createEvent/updateEvent. C2 describes the same kind of null dereference, but in EventManager, a different file. No candidate flags the destructuring in GoogleCalendarService."
+  },
+  {
+   "comment": "The optional chaining on mainHostDestinationCalendar?.integration is redundant since you already check mainHostDestinationCalendar in the ternary condition.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G2 says the optional chaining is redundant. C2 makes the opposite point: it says the `?.` is missing and causes a crash. So C2 does not raise the redundancy issue."
+  },
+  {
+   "comment": "Logic error: when externalCalendarId is provided, you're searching for a calendar where externalId === externalCalendarId, but this will always fail since you're looking for a calendar that matches itself. Should likely find by credentialId or use different logic.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1,
+    4
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 and C4 both point out that the `find` compares externalId against externalCalendarId itself, so the lookup never works."
+  },
+  {
+   "comment": "Logic inversion in organization creation: The slug property is now conditionally set when IS_TEAM_BILLING_ENABLED is true, instead of when it's false as originally intended. This change, combined with requestedSlug still being set when IS_TEAM_BILLING_ENABLED is true, results in both properties being set when billing is enabled, and neither when disabled",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 identifies the inverted slug/requestedSlug condition tied to IS_TEAM_BILLING_ENABLED."
+  },
+  {
+   "comment": "The Calendar interface now requires createEvent(event, credentialId), but some implementations (e.g., Lark/Office365) still declare createEvent(event) only—this breaks the interface contract (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions the Calendar interface signature mismatch in implementations such as Lark or Office365."
+  },
+  {
+   "comment": "The `credential` may be undefined when passed to `updateEvent` if `reference.credentialId` is set but the credential is not found. This can lead to a runtime error when `updateEvent` is called with an undefined credential, which should be handled to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions an undefined credential being passed to updateEvent."
+  }
+ ],
+ "candidates": [
+  "packages/app-store/googlecalendar/lib/CalendarService.ts:256 - Fallback calendar lookup is always empty or tautological. This branch only runs when `externalCalendarId` is falsy. The `find` then compares `cal.externalId === externalCalendarId`, which never matches a real id. `selectedCalendar` ends up undefined, and the old fallback to the destination calendar is lost. Use the main host's destination calendar externalId instead. The same bug is in `deleteEvent`.",
+  "packages/core/EventManager.ts:119 - Null deref when destinationCalendar is empty. `mainHostDestinationCalendar` is undefined when `destinationCalendar` is null or empty. Accessing `.integration` without `?.` then throws a TypeError. Bookings with no destination calendar are common. The old code used `?.`. Use `mainHostDestinationCalendar?.integration`.",
+  "packages/trpc/server/routers/viewer/organizations/create.handler.ts:151 - Slug logic inverted. The old code set `slug` when billing was NOT enabled and `requestedSlug` when it was enabled. The new code reverses this. The change is unrelated to the PR and breaks organization creation. Revert it.",
+  "packages/app-store/googlecalendar/lib/CalendarService.ts:315 - deleteEvent fallback never finds a calendar. The fallback only runs when `externalCalendarId` is falsy, and then it searches for a calendar whose externalId equals that falsy value. It always yields undefined, so the delete goes to \"primary\" and ignores the destination calendar. Use the first destination calendar's externalId.",
+  "packages/features/bookings/lib/handleNewBooking.ts:1077 - Team destination calendars dropped when host has none. `evt.destinationCalendar` can be null when neither the event type nor the organizer has a destination calendar. In that case `?.push` does nothing and the collective hosts' calendars are silently dropped. Initialize `evt.destinationCalendar` to an array and then push.",
+  "packages/app-store/googlecalendar/lib/CalendarService.ts:147 - Destination calendar chosen by credentialId only. `createEvent` is now called with `credential.id`. If a destination calendar has no credentialId, or the fallback path calls `createEvent` for a credential without a matching destination calendar, the code falls to \"primary\". The old code used the destination calendar's externalId. Legacy destination calendars without a credentialId lose their target calendar.",
+  "packages/core/EventManager.ts:170 - credentialId for non-calendar results dropped. The old code returned `result.credentialId` for non-calendar types. The new code returns undefined, so video and other references lose their credentialId. Later updates and deletes depend on it.",
+  "packages/core/EventManager.ts:380 - Fallback createEvent calls omit externalId. When a destination has no credentialId, `createEvent(c, event)` is called without an externalId. The booking reference then gets an undefined externalCalendarId, even though the destination calendar had one. The same applies to the no-destination fallback.",
+  "packages/features/bookings/lib/handleNewBooking.ts:724 - Unrelated loadUsers rewrite changes behavior. The rewrite is unrelated to the request. It drops the `organization: { select: { slug } }` from the dynamic user query. It also wraps errors and turns any unexpected error into a 500. It throws for an empty dynamicUserList, where the old code would return no users and fail later."
+ ]
+}

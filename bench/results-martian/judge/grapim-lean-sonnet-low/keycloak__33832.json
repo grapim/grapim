@@ -1,0 +1,46 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returns wrong provider (default keystore instead of BouncyCastle)",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions that the method returns the default keystore provider instead of BouncyCastle."
+  },
+  {
+   "comment": "Dead code exists where ASN1Encoder instances are created and written to, but their results are immediately discarded. The actual encoding is performed by new ASN1Encoder instances created in the subsequent return statement, rendering the earlier operations useless.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same problem: ASN1Encoder calls whose results are discarded, while the values are encoded again in the later return statement."
+  },
+  {
+   "comment": "When length starts at -1 from indefinite-length encoding, the arithmetic 'length = length - bytes.length' will behave unexpectedly, potentially leading to incorrect processing of encoded data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the length arithmetic going wrong when length starts at -1 for indefinite-length encoding."
+  },
+  {
+   "comment": "Abstract order() method on CryptoProvider may break backward compatibility with existing implementations",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the abstract order() method or backward compatibility."
+  }
+ ],
+ "candidates": [
+  "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java:114 - Leftover encoder calls whose results are discarded. These two `ASN1Encoder.create().write(...)` calls build encoders and throw them away. They look like debugging leftovers, and the same values are encoded again a few lines below. Remove them."
+ ]
+}

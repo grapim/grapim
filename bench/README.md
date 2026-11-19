@@ -262,6 +262,17 @@ Martian (core profile, our judge). Dev half, used for tuning; held-out half, thr
 
 On Martian the V2 second look buys about 4 points of precision for 8 of recall: it drops small real defects the golden comments include (a dead encoder, a wrong logger, an ERB `end if` it misreads as harmless) and some findings the golden list confirms but the repository makes look intended. With lens passes (61% recall on dev) V2 does worse (F1 50.6 on dev): it keeps 43 of 73 unmatched findings. Rank 1 on Martian is not reached; the gap is about 13 F1 to Cubic v2 on the held-out half, and it is the verifier's discrimination between real and plausible findings, not recall.
 
+## Cost work of 2026-11-19: a cheaper model for low-risk lines
+
+`grapim-lean-sonnet-low` is `grapim-lean` with depth-"low" batches (human-written, off the sensitive paths, which on Martian is nearly all of them) sent to Sonnet 5.5 (`lowModel`). First pass only, core profile, our judge, all 50 PRs. Cost is the engine's own token counts at API list prices (Opus $4/$20, Sonnet $2/$10 per MTok), not the CLI's.
+
+| Setting | Precision | Recall | F1 | F2 | Model cost / PR |
+|---|---|---|---|---|---|
+| grapim-lean, Opus (3 runs: lean, r2, r3) | 48.4 / 50.6 / 45.9 | 57.6 / 53.8 / 56.3 | 52.6 / 52.1 / 50.6 | 55.5 / 53.1 / 53.9 | $0.171 / $0.170 / $0.170 |
+| grapim-lean-sonnet-low | 55.7 | 46.2 | 50.5 | 47.8 | $0.081 (91% Sonnet) |
+
+Half the cost, F1 inside the run-to-run spread, but recall drops about 10 points and F2 (which Martian's board ranks by) about 7. Not the default: `lowModel` stays an opt-in setting. The cuts that do not touch the score are the default ignore list (lockfiles, minified and generated code) and, in the cloud, re-reviews that send only the files changed since the last review.
+
 ## Martian's online tracker, measured here (online.mjs)
 
 Martian's online board (the default view of codereview.withmartian.com) does not use an answer key. For merged public pull requests a bot reviewed, it asks what the developer fixed after the bot's first review, and matches the bot's suggestions to those fixes. `online.mjs` runs the same three steps with Martian's prompts (MIT licence) on any bot's pull requests, so Grapim can be measured the same way before it is listed:

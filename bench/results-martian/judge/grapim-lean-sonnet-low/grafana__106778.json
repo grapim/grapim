@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same missing key prop on GrafanaRuleListItem."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the silence drawer failing to render."
+  }
+ ],
+ "candidates": [
+  "public/app/features/alerting/unified/rule-list/FilterView.tsx:157 - Missing key on GrafanaRuleListItem in a mapped list. The previous `GrafanaRuleLoader` received `key={key}`. The new `GrafanaRuleListItem` in the `rules.map` has no key. React warns about the missing key and can reuse the wrong item state when the filtered list changes order or paginates. Add `key={key}`."
+ ]
+}

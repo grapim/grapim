@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "keycloak__40940",
+ "url": "https://github.com/keycloak/keycloak/pull/40940",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returning null from getSubGroupsCount() violates the GroupModel contract (Javadoc says it never returns null) and may lead to NPEs in callers that expect a non-null count.",
+   "severity": "Critical",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention getSubGroupsCount returning null."
+  },
+  {
+   "comment": "The reader thread isn’t waited for; flipping deletedAll to true and asserting immediately can race and miss exceptions added just after the flag change, making this test flaky.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 says the test asserts without joining the reader thread, so an in-flight failure after the assertion is missed. That is the same race the golden comment describes."
+  }
+ ],
+ "candidates": [
+  "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java:155 - Reader thread is never stopped or joined if deletion fails. If a `remove()` call throws, `deletedAll.set(true)` is skipped. The non-daemon reader thread then loops forever and can hang the test JVM. On the success path the test also asserts without joining the thread. A request still in flight can fail after the assertion, and that failure is missed. Wrap the deletes in try/finally that sets the flag. Keep a reference to the thread, join it before asserting, and consider making it a daemon."
+ ]
+}

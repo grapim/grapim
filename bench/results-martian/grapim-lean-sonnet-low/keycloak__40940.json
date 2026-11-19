@@ -1,0 +1,74 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "keycloak__40940",
+ "url": "https://github.com/keycloak/keycloak/pull/40940",
+ "head_sha": "4def149a50c4b9b2c24fbb753ac60fe4f4df0cac",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:09:20.577Z",
+ "seconds": 19.949,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "tests/base/src/test/java/org/keycloak/tests/admin/group/GroupTest.java",
+   "line": 155,
+   "end_line": 155,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Reader thread is never stopped or joined if deletion fails",
+   "body": "If a `remove()` call throws, `deletedAll.set(true)` is skipped. The non-daemon reader thread then loops forever and can hang the test JVM. On the success path the test also asserts without joining the thread. A request still in flight can fail after the assertion, and that failure is missed. Wrap the deletes in try/finally that sets the flag. Keep a reference to the thread, join it before asserting, and consider making it a daemon."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 5932,
+  "cacheRead": 3426,
+  "output": 713,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 5,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 9360,
+   "outputTokens": 713,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 9360,
+     "output": 713
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "services/src/main/java/org/keycloak/utils/GroupUtils.java",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0446132
+}

@@ -1,0 +1,69 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "head_sha": "5f8a130277dbddc95d133cd2832be639baf89213",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:20:02.719Z",
+ "seconds": 19.478,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 9096,
+  "cacheRead": 3426,
+  "output": 1114,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 13,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 12524,
+   "outputTokens": 1114,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 12524,
+     "output": 1114
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "app/models/blocked_email.rb",
+    "line": 12,
+    "end_line": 12,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Blocked-email lookup is case-sensitive, so it can be bypassed",
+    "body": "`where(email: email)` is an exact match. If the blocklist holds `bad@spam.com` and someone registers as `Bad@Spam.com`, the lookup misses and the block is skipped. This happens unless the email is normalized to lowercase before validation, which isn't visible here. Lowercase the email when storing and when looking it up, for example `where('lower(email) = ?', email.to_s.downcase)`."
+   }
+  ]
+ },
+ "cost_usd": 0.06845319999999999
+}

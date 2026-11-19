@@ -1,0 +1,109 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "head_sha": "6ad6fe3899f630ccf922ce7ac681147dc7987435",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:13:54.311Z",
+ "seconds": 22.471,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/api/helpers/error_upsampling.py",
+   "line": 38,
+   "end_line": 38,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Allowlist cache is never invalidated, so changes lag by 60s",
+   "body": "The result is cached for 60s, and invalidate_upsampling_cache is never called when the option changes. Removing a project from the allowlist keeps upsampling on for up to a minute. The options lookup is already cheap, so drop this cache."
+  },
+  {
+   "path": "sentry-repo",
+   "line": 1,
+   "end_line": 1,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Unrelated submodule pointer committed",
+   "body": "A `sentry-repo` subproject commit entry has nothing to do with this feature. Remove it from the PR."
+  },
+  {
+   "path": "src/sentry/api/endpoints/organization_events_stats.py",
+   "line": 220,
+   "end_line": 222,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Discover eligibility check is a loose substring match",
+   "body": "For the discover dataset, eligibility only checks for the literal substring `event.type:error` in the query. A query like `!event.type:error`, or one that ORs in transactions, is treated as errors-only. Upsampling is then applied to rows that are not errors. Parse the query properly instead."
+  },
+  {
+   "path": "src/sentry/api/helpers/error_upsampling.py",
+   "line": 27,
+   "end_line": 27,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Cache key uses hash() of project ids, which can collide",
+   "body": "The key uses hash(tuple(...)). Two different project sets can collide and share a cached eligibility result. That could apply upsampling to non-allowlisted projects, or skip it for allowlisted ones. Build the key from the sorted ids joined as a string, or hash it with sha1. Apply the same change in invalidate_upsampling_cache."
+  },
+  {
+   "path": "src/sentry/search/events/datasets/discover.py",
+   "line": 1041,
+   "end_line": 1052,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "upsampled_count sums sample_weight without a null fallback",
+   "body": "It sums sample_weight with no fallback. Events stored without that value count as 0 or NULL. The function is also public, so users can call it in any discover query. Use a coalesce-to-1 fallback and mark the function private."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 18000,
+  "cacheRead": 23407,
+  "output": 2189,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 41411,
+   "outputTokens": 2189,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 41411,
+     "output": 2189
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1384774
+}

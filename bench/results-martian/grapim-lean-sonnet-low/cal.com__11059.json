@@ -1,0 +1,159 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "cal.com__11059",
+ "url": "https://github.com/calcom/cal.com/pull/11059",
+ "head_sha": "9fde0e906897cc0f4f71793f647dd629faba3317",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:24:21.763Z",
+ "seconds": 22.266,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "apps/web/pages/api/webhook/app-credential.ts",
+   "line": 25,
+   "end_line": 28,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "Webhook secret compared with plain !== and no method check",
+   "body": "The secret comparison is not constant-time, so timing can leak it. If the header is absent and the env var is unset, `undefined !== undefined` is false and the check passes. The constant guards this, but the check should be explicit. Use `crypto.timingSafeEqual` on equal-length buffers, and reject when the header is missing or not a string. Also restrict the handler to POST."
+  },
+  {
+   "path": "packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts",
+   "line": 5,
+   "end_line": 11,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Computed keys from z.string().toString() make a nonsense schema",
+   "body": "`z.string().toString()` returns \"[object Object]\" (or similar), so the schema just requires a property of that literal name. With sync enabled, every response fails validation and throws \"Invalid refreshed tokens\". Use `z.object({access_token: z.string()}).passthrough()`, or `.catchall(z.unknown())`."
+  },
+  {
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "line": 97,
+   "end_line": 97,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "parseRefreshTokenResponse returns a safeParse result, not the key",
+   "body": "`key` becomes `{success, data}` and is saved to the credential. That corrupts the Google credential. Use `.data` after checking success. The earlier `googleCredentialSchema.parse` also validated the credentials and threw on failure."
+  },
+  {
+   "path": "packages/app-store/salesforce/lib/CalendarService.ts",
+   "line": 75,
+   "end_line": 99,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Unconditional token refresh on every client creation",
+   "body": "`getClient` now refreshes the token on every call, ignoring expiry and the sync option. It does not use refreshOAuthTokens. `prisma` is not imported in this file. `statusText !== \"OK\"` is fragile, for example on HTTP/2. It also makes an extra network call per instantiation. Use refreshOAuthTokens, and only refresh when needed."
+  },
+  {
+   "path": "apps/web/pages/api/webhook/app-credential.ts",
+   "line": 31,
+   "end_line": 31,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Unhandled zod parse and JSON.parse/decrypt errors",
+   "body": "`parse` throws on a bad body, and `JSON.parse` and `symmetricDecrypt` throw on bad payloads or a wrong key. These become unhandled 500s instead of 400s. Use `safeParse` and wrap decrypt and parse in try/catch to return 400."
+  },
+  {
+   "path": "packages/app-store/_utils/oauth/parseRefreshTokenResponse.ts",
+   "line": 25,
+   "end_line": 27,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Placeholder refresh_token injected for every provider",
+   "body": "If a response has no refresh_token, the literal \"refresh_token\" is written in. This applies to the non-sync path too. Zoom and Office365 schemas then store a bogus refresh token that breaks later refreshes. Only do this in sync mode, or keep the existing token."
+  },
+  {
+   "path": "packages/app-store/_utils/oauth/refreshOAuthTokens.ts",
+   "line": 8,
+   "end_line": 15,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Sync endpoint returns a raw fetch Response with no auth or error handling",
+   "body": "Callers expect provider-specific shapes. Google reads `res.data` and Hubspot reads `.expiresIn` on the result, but this returns a fetch Response. That breaks those callers, and Zoho and Bigin read `.data.error`. The request also has no auth or secret header and does not check `response.ok`. Normalize the result per caller and authenticate the request."
+  },
+  {
+   "path": "packages/app-store/zoho-bigin/lib/CalendarService.ts",
+   "line": 93,
+   "end_line": 93,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "credentialId passed where userId is expected",
+   "body": "`refreshOAuthTokens` takes a userId, but the credential id is passed. With sync enabled, the sync endpoint would be asked for the wrong user's credentials. Pass the credential's userId."
+  },
+  {
+   "path": "packages/app-store/zoho-bigin/api/add.ts",
+   "line": 17,
+   "end_line": 17,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Unrelated change of redirectUri to hardcoded slug",
+   "body": "The change replaces `appConfig.slug` with a literal and is unrelated to the credential sync request. Revert it."
+  },
+  {
+   "path": "packages/lib/constants.ts",
+   "line": 103,
+   "end_line": 104,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Flag is a string, not a boolean",
+   "body": "`APP_CREDENTIAL_SHARING_ENABLED` evaluates to a string or undefined, not a boolean. Wrap it in `Boolean(...)`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 37257,
+  "cacheRead": 3426,
+  "output": 2217,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 40,
+   "hunks": 50,
+   "reviewedHunks": 50,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 40685,
+   "outputTokens": 2217,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 40685,
+     "output": 2217
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 40,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2313182
+}

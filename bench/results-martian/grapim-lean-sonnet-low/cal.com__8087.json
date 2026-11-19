@@ -1,0 +1,99 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "head_sha": "820d7fa87e0c824c5dee8082a33efadb1a2566f7",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:26:28.652Z",
+ "seconds": 19.552,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/app-store/vital/lib/reschedule.ts",
+   "line": 125,
+   "end_line": 128,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "async forEach callback escapes the surrounding try/catch",
+   "body": "The callback is now async, but `forEach` neither awaits it nor propagates its rejection. If `getCalendar` or `deleteEvent` rejects, the error is an unhandled rejection and the `try/catch` never sees it. The deletions are also not awaited, so the handler can return before the calendar events are removed. Use `await Promise.all(bookingRefsFiltered.map(async ...))` inside the try."
+  },
+  {
+   "path": "packages/app-store/wipemycalother/lib/reschedule.ts",
+   "line": 125,
+   "end_line": 128,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "async forEach callback escapes the surrounding try/catch",
+   "body": "The callback is now async, but `forEach` neither awaits it nor propagates its rejection. If `getCalendar` or `deleteEvent` rejects, the error is an unhandled rejection and the `try/catch` never sees it. The deletions are also not awaited, so the handler can return before the calendar events are removed. Use `await Promise.all(bookingRefsFiltered.map(async ...))` inside the try."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings.tsx",
+   "line": 553,
+   "end_line": 556,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Unawaited async forEach drops calendar deletions and their errors",
+   "body": "The callback is now async, but `forEach` does not await it. The mutation can finish before the calendar and video deletions run. Any rejection from `getCalendar`, `deleteEvent` or `deleteMeeting` becomes an unhandled rejection. Use `await Promise.all(bookingRefsFiltered.map(async ...))`."
+  },
+  {
+   "path": "packages/app-store/index.ts",
+   "line": 3,
+   "end_line": 30,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "import() calls run eagerly at module load, not lazily",
+   "body": "Each property calls `import(...)` when the object literal is built. Importing `appStore` therefore starts loading every app at once, so nothing is deferred, which defeats the stated goal. If any one app's import rejects, no consumer awaits that promise unless it asks for that app, so you get an unhandled rejection. Make each entry a lazy loader, for example `() => import(...)`, and call it at the use sites. Alternatively, accept the eager load and say so."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 19661,
+  "cacheRead": 24782,
+  "output": 2574,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 23,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 44447,
+   "outputTokens": 2574,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 44447,
+     "output": 2574
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1547574
+}

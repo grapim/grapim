@@ -1,0 +1,88 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "head_sha": "f3317b329b4eb8fd96f99dd86525bc4a22d20248",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:15:17.449Z",
+ "seconds": 10.856,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/expr/reader.go",
+   "line": 194,
+   "end_line": 200,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "enableSqlExpressions always returns false; confusing dead logic",
+   "body": "Both branches return false, so SQL expressions are disabled even if the feature flag is on. That does disable the feature, which is the goal. But the inverted `enabled` variable and the unreachable branch hide the intent and suggest unfinished work. Return false directly, or drop the helper and return the error in the QueryTypeSQL case."
+  },
+  {
+   "path": "pkg/expr/reader.go",
+   "line": 131,
+   "end_line": 131,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Error message is unclear for a disabled feature",
+   "body": "The error \"sqlExpressions is not implemented\" is returned for every SQL expression query. Users who enabled the flag will not learn that the feature was deliberately disabled for security reasons. Use a clearer message such as \"SQL expressions are disabled\"."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 16785,
+  "cacheRead": 3426,
+  "output": 483,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 24,
+   "reviewedHunks": 9,
+   "aiHunks": 0,
+   "skippedHunks": 15,
+   "inputTokens": 20213,
+   "outputTokens": 483,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 20213,
+     "output": 483
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "go.mod",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "go.sum",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.09427819999999999
+}

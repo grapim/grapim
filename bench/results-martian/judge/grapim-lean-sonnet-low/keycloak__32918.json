@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "keycloak__32918",
+ "url": "https://github.com/keycloak/keycloak/pull/32918",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "InfinispanIdentityProviderStorageProvider.getForLogin() recursively calls session.identityProviders().getById() instead of idpDelegate.getById(), causing the cache lookup to re-enter the same caching layer.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the recursive getById call in getForLogin."
+  },
+  {
+   "comment": "Cleanup reference uses incorrect alias - should be 'idp-alias-' + i instead of 'alias'.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the cleanup uses the literal alias 'alias' when it should use 'idp-alias-' + i."
+  }
+ ],
+ "candidates": [
+  "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/organization/cache/OrganizationCacheTest.java:381 - Cleanup removes IDP with literal alias \"alias\" instead of the created IDP. The cleanup callback is registered as `identityProviders().get(\"alias\")::remove`, but the IDPs created here are named `idp-alias-N`. At teardown the cleanup targets an IDP that doesn't exist, so it either fails or does nothing. The 20 IDPs, plus `idp-alias-20` created later, are left in the realm and can leak into other tests. Use the real alias, for example `final String alias = \"idp-alias-\" + i;` and `get(alias)::remove`. Apply the same fix to the `idp-alias-20` cleanup at line 425."
+ ]
+}

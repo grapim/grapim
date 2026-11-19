@@ -1,0 +1,69 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "head_sha": "79d11c4890cc4792e3dc3535af59e4e5f7a2739d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:08:56.890Z",
+ "seconds": 24.243,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java",
+   "line": 114,
+   "end_line": 115,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Leftover encoder calls whose results are discarded",
+   "body": "These two `ASN1Encoder.create().write(...)` calls build encoders and throw them away. They look like debugging leftovers, and the same values are encoded again a few lines below. Remove them."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20887,
+  "cacheRead": 3426,
+  "output": 1270,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 24315,
+   "outputTokens": 1270,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 24315,
+     "output": 1270
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1305282
+}

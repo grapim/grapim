@@ -1,0 +1,120 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "head_sha": "92f44dcea7ff19e9123a30c63c167a2938df5a55",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:25:09.645Z",
+ "seconds": 15.552,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 48,
+   "end_line": 48,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "Team admin check uses AND with owner, and attendees can add guests",
+   "body": "`isTeamAdmin && isTeamOwner` requires both, so the check is wrong. Admins who are not owners are denied. Owners are usually also admins, so it mostly reduces to owner-only. Also, with teamId 0 fallback, queries run for non-team bookings. Use `||` for admin or owner, and skip the check when there is no teamId. Separately, any attendee (matched by email) can add guests, which may exceed the intended permissions."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 76,
+   "end_line": 77,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Guest dedupe and blacklist comparisons are case-sensitive",
+   "body": "The blacklist is lowercased but the guest email is not, so `Blocked@x.com` bypasses the blacklist. The comparison with existing attendees is also case-sensitive, so duplicates differing in case are added. Normalize guests with `.toLowerCase()` before comparing and storing. The client also does not check for duplicates against existing attendees."
+  },
+  {
+   "path": "packages/emails/email-manager.ts",
+   "line": 529,
+   "end_line": 537,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Organizer email is sent twice when team members exist",
+   "body": "The organizer gets an email without `teamMember`. Then each team member gets one too. If the organizer is also in `team.members`, they get duplicates. The existing location-change email handles this the same way, so check that code before copying it."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 165,
+   "end_line": 171,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Calendar update is unguarded and emails use unfiltered guests",
+   "body": "`updateCalendarAttendees` is not in a try/catch. If it throws, the attendees are already saved, the user sees an error, and no emails are sent. A retry then fails with 'emails_must_be_unique_valid'. Also `sendAddGuestsEmails(evt, guests)` passes the raw input rather than `uniqueGuests`, so blacklisted guests get a scheduled email. The catch only logs a fixed string and drops the error."
+  },
+  {
+   "path": "apps/web/components/dialog/AddGuestsDialog.tsx",
+   "line": 43,
+   "end_line": 44,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Error toast message never falls back",
+   "body": "The message is a template string, so it is always truthy. `unable_to_add_guests` is never shown, and the toast shows 'undefined: ...' when `err.data` is missing. Build the message conditionally."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 21090,
+  "cacheRead": 3426,
+  "output": 1313,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 15,
+   "hunks": 22,
+   "reviewedHunks": 22,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 24518,
+   "outputTokens": 1313,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 24518,
+     "output": 1313
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 15,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+    "line": 58,
+    "end_line": 68,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Organizer lookup falls back to user id 0",
+    "body": "If `booking.userId` is null, `findFirstOrThrow` with id 0 throws an unhelpful NotFound error after the permission check passes. Return a clear TRPC error instead."
+   }
+  ]
+ },
+ "cost_usd": 0.1324032
+}

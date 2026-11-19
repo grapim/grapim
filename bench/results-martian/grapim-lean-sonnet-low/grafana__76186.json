@@ -1,0 +1,58 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "grafana__76186",
+ "url": "https://github.com/grafana/grafana/pull/76186",
+ "head_sha": "303cdc2caf256aa5df660611120c2e3f7392365d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:18:14.339Z",
+ "seconds": 18.078,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17156,
+  "cacheRead": 3426,
+  "output": 1255,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 20584,
+   "outputTokens": 1255,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 20584,
+     "output": 1255
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1115732
+}

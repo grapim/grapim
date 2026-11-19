@@ -1,3 +1,4 @@
+<!-- The pull request counts below come from src/hub/github/cloud-review.js: the plan credit (DEFAULT_CREDIT.free, DEFAULT_SEAT_CREDIT per author) divided by REVIEW_COST_ESTIMATE, rounded down to ten (aboutReviews): Free 80, Team 100, Governance 200. Extra pull requests: EXTRA_REVIEW_PRICE. Change them together. -->
 ---
 title: AI review
 nav: AI review
@@ -73,9 +74,11 @@ The Tests line also says when source files changed but no test was added or chan
 
 Each review fetches the pull request's base branch, its head and the Grapim notes into a temporary folder on Grapim's server, sends the changes to Anthropic (Claude Opus 5.5) for the review, and deletes the folder when it ends. The App's token is used only for that pull request. Your `.grapim/review.json` on the base branch applies, as in CI.
 
-Owners set the team's defaults in **Settings**, **Review**: whether a blocker fails the check, how many comments a pull request gets, paths to skip, and notes for the reviewer. A repository's `.grapim/review.json` overrides them, key by key.
+Owners set the team's defaults in **Settings**, **Review**: whether a blocker fails the check, how many comments a pull request gets, paths to skip, notes for the reviewer, and extra reviews a month. A repository's `.grapim/review.json` overrides the review settings, key by key.
 
-Each plan includes a monthly review credit: Free about 50 pull requests, Team about 55 per seat, Governance about 110 per seat. Settings, GitHub shows how much is used. When it runs out, the check says so and nothing is sent to the model until the next month.
+Each plan includes a monthly review credit: Free about 80 pull requests, Team about 100 per author, Governance about 200 per author. An author is a person who opens pull requests Grapim reviews that month; agents and bots are not authors. If more people open pull requests than the team has seats, the credit grows with them. New commits on a pull request are re-reviewed by looking only at the files changed since the last review, so they use less.
+
+Past the included credit, an owner can allow extra pull requests in **Settings**, **Review**, up to a monthly limit they set. Extra pull requests will be $0.25 each; nothing is charged during early access. Settings, GitHub shows how much is used. At the limit, the check says so and nothing is sent to the model until the next month.
 
 ### Free for open source
 
@@ -279,7 +282,7 @@ If no review appears, open the job's log in the **Actions** tab. Each problem is
   "model": "claude-opus-5-5",
   "review": "all",
   "sensitive": ["**/migrations/**", "**/auth/**", "**/infra/**", "**/*.sql", ".github/workflows/**"],
-  "ignore": ["**/*.lock", "**/dist/**", "**/*.snap"],
+  "ignore": ["**/*.lock", "**/dist/**", "**/*.snap", "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "go.sum", "**/*.min.js", "**/*.min.css", "**/*.map", "**/vendor/**", "**/node_modules/**", "**/__generated__/**", "**/*.pb.go", "**/*_pb2.py", "**/*.generated.*"],
   "instructions": "Our services must never log account numbers.",
   "maxComments": 15,
   "maxFiles": 100,
@@ -299,6 +302,7 @@ If no review appears, open the job's log in the **Actions** tab. Each problem is
 | `maxFiles` | `100` | Riskiest files first; the rest are listed as not reviewed. |
 | `failOn` | `blocker` | `blocker` fails the job when the review finds a blocker. `never` only comments. |
 | `gate` | none | The merge gate for this repository, see [Merge gate](#merge-gate). It can only make the team's gate stricter. |
+| `lowModel` | none | A cheaper model id (for example `claude-sonnet-5-5`) for human-written lines off the `sensitive` paths. Agent-written and sensitive lines still go to `model`. |
 | `passes` | `1` | How many times each change is reviewed, 1 to 3. With 2 or more, a high-confidence finding is posted from any pass and a medium-confidence one only when two passes raised it; the rest are listed under "Worth a look". About a third more cost and twice the time. |
 
 The review always reads this file from the pull request's **base** branch, never from the pull request itself. A pull request cannot loosen its own review, for example with `"ignore": ["**"]` or `"failOn": "never"`. A change to the file takes effect once it is merged.
@@ -307,7 +311,7 @@ The workflow can also set `provider`, `model`, `fail-on` and `config-path` as in
 
 ## What the comments look like
 
-One review per push, with a comment on each line that needs attention. On an agent-written line the comment ends with the run that wrote it and what that run was asked. For example:
+One review per push, with a comment on each line that needs attention. In the cloud, a push to a pull request Grapim already reviewed sends only the files changed since that review; earlier findings on the other files still count for the check. Comment `@grapim review` for a full review. On an agent-written line the comment ends with the run that wrote it and what that run was asked. For example:
 
 ```text Comment on src/orders/create.ts
 Blocker · Idempotency key read from untrusted header without length limit

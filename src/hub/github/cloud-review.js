@@ -28,7 +28,7 @@
 //   GRAPIM_REVIEW_ANTHROPIC_KEY   the key cloud reviews use (else ANTHROPIC_API_KEY)
 //   GRAPIM_REVIEW_MODEL           default claude-opus-5-5
 //   GRAPIM_REVIEW_MONTHLY_CREDIT  JSON { plan: dollars }, e.g. {"free":10,"enterprise":1000}
-//   GRAPIM_REVIEW_SEAT_CREDIT     JSON { plan: dollars per seat }, default {"team":10,"governance":20}
+//   GRAPIM_REVIEW_SEAT_CREDIT     JSON { plan: dollars per seat }, default {"team":12,"governance":25}
 //   GRAPIM_REVIEW_OSS_MONTHLY     dollars a month for all public repositories, default 200; 0 turns it off
 //   GRAPIM_REVIEW_OSS_REPO_MONTHLY  dollars a month per public repository, default 10
 //   GRAPIM_REVIEW_OSS_MIN_STARS   below this, a public repository is reviewed on request only, default 10
@@ -74,13 +74,23 @@ export const PRICES = Object.freeze({
   'claude-opus-5-5': Object.freeze({ input: 4, output: 20 }),
   'claude-sonnet-5-5': Object.freeze({ input: 2, output: 10 }),
 });
-// Dollars of review per month, by plan. An Opus 5.5 review of a typical pull
-// request costs about $0.18, so the free plan's $10 is about 50 reviews.
-// Team and Governance get SEAT_CREDIT per seat instead (seats bought, or
-// members if more), never less than the free plan: a team's credit grows with
-// the team, so the plan price always covers the reviews it includes.
-export const DEFAULT_CREDIT = Object.freeze({ free: 10, team: 10, governance: 20, enterprise: 1000 });
-export const DEFAULT_SEAT_CREDIT = Object.freeze({ team: 10, governance: 20 });
+// Dollars of review per month, by plan. Team and Governance get SEAT_CREDIT
+// per seat instead, never less than the free plan. A seat is a person who
+// opens pull requests Grapim reviews: the seats bought (or hub members, if
+// more), or this month's distinct pull request authors, if more. Bots are not
+// seats. So a team's credit grows with the people it reviews for.
+export const DEFAULT_CREDIT = Object.freeze({ free: 10, team: 12, governance: 25, enterprise: 1000 });
+export const DEFAULT_SEAT_CREDIT = Object.freeze({ team: 12, governance: 25 });
+// Dollars a typical pull request review costs, for every "about N pull
+// requests" in the hub, the site and the docs. Re-reviews look only at the
+// files changed since the last review, so the average is below a first
+// review's $0.18 on the bench. Also what one extra review adds to the budget.
+export const REVIEW_COST_ESTIMATE = 0.12;
+// What an extra pull request past the included credit will be billed at
+// (cloud_reviews.extra = 1). Nothing is charged during early access.
+export const EXTRA_REVIEW_PRICE = 0.25;
+// About how many pull requests a credit in dollars covers, rounded down to ten.
+export const aboutReviews = (dollars) => Math.max(10, Math.floor(dollars / REVIEW_COST_ESTIMATE / 10 + 1e-9) * 10);
 // Public repositories: about 1,000 reviews a month in all, about 50 per repository.
 // minStars: a public repository with fewer stars is reviewed on request
 // (@grapim review), not on every push, unless its owner is in `allow`.
@@ -280,6 +290,22 @@ export function cloudConfig(env = process.env) {
 }
 
 export const costMicros = (price, input, output) => Math.round(input * price.input + output * price.output);
+// A review's cost: tokens the engine sent to each model (stats.byModel, when
+// "lowModel" sent some to a cheaper one) at that model's price; the rest (the
+// second look) at the cloud model's price.
+export function reviewCost(price, st = {}) {
+  let input = st.inputTokens ?? 0;
+  let output = st.outputTokens ?? 0;
+  let micros = 0;
+  for (const [model, u] of Object.entries(st.byModel ?? {})) {
+    const p = PRICES[model];
+    if (!p || !u) continue;
+    micros += costMicros(p, u.input ?? 0, u.output ?? 0);
+    input -= u.input ?? 0;
+    output -= u.output ?? 0;
+  }
+  return micros + costMicros(price, Math.max(0, input), Math.max(0, output));
+}
 
 // Runs git without a shell. The token reaches git only as an http header
 // through GIT_CONFIG_* in its env: never in argv, a URL or a file.
@@ -361,6 +387,9 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
   if (!cols.includes('author')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN author TEXT');
   // The pull request's title, for the Reviews list.
   if (!cols.includes('title')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN title TEXT');
+  // 1: a review that started after the included credit was used up, paid from
+  // the team's extra reviews (Settings, Review), for billing.
+  if (!cols.includes('extra')) db.exec('ALTER TABLE cloud_reviews ADD COLUMN extra INTEGER NOT NULL DEFAULT 0');
   db.exec('CREATE INDEX IF NOT EXISTS cloud_reviews_oss ON cloud_reviews (oss, started_at)');
   // The runs (and prompts) the hub's synced notes name, for the merge decision card.
   if (!db.prepare('PRAGMA table_info(cloud_provenance)').all().some((c) => c.name === 'runs')) db.exec('ALTER TABLE cloud_provenance ADD COLUMN runs TEXT');
@@ -394,11 +423,32 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       .prepare('INSERT INTO cloud_review_config (team_id, json, updated_by, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(team_id) DO UPDATE SET json = excluded.json, updated_by = excluded.updated_by, updated_at = excluded.updated_at')
       .run(teamId, JSON.stringify(cleanTeamConfig(value)), userId == null ? null : String(userId), now());
 
-  function budgetOf(team) {
+  // The month's included credit, in micros. author: the pull request about to
+  // be reviewed, counted as an active author before its first review.
+  function includedOf(team, author = null) {
     const floor = cfg.credit.free ?? DEFAULT_CREDIT.free;
     const perSeat = cfg.seatCredit[team?.plan];
-    if (team && perSeat !== undefined) return Math.round(Math.max(floor, perSeat * seatsOf(team)) * MICROS);
+    if (team && perSeat !== undefined) return Math.round(Math.max(floor, perSeat * Math.max(seatsOf(team), authorsOf(team.id, author))) * MICROS);
     return Math.round((cfg.credit[team?.plan] ?? floor) * MICROS);
+  }
+  // Extra reviews a month past the included credit (Settings, Review).
+  // Paid plans only: on Free nothing would ever pay for them.
+  const PAID = new Set(['team', 'governance', 'enterprise']);
+  const extraOf = (team) => (team && PAID.has(team.plan) ? teamConfig(team.id)?.extraReviews ?? 0 : 0);
+  // Included credit plus the extra reviews, each at REVIEW_COST_ESTIMATE.
+  function budgetOf(team, author = null) {
+    return includedOf(team, author) + Math.round(extraOf(team) * REVIEW_COST_ESTIMATE * MICROS);
+  }
+  // Distinct people whose pull requests the team's cloud reviews covered this
+  // month (bots are not authors), plus `author` when not yet among them.
+  const isBot = (login) => /\[bot\]$/i.test(login);
+  function authorsOf(teamId, author = null) {
+    const rows = db
+      .prepare("SELECT DISTINCT lower(author) AS a FROM cloud_reviews WHERE team_id = ? AND started_at >= ? AND status NOT IN ('no_credit', 'chat') AND oss = 0 AND author IS NOT NULL AND author != ''")
+      .all(teamId, monthStart(now()));
+    const set = new Set(rows.map((r) => r.a).filter((a) => !isBot(a)));
+    if (typeof author === 'string' && author && !isBot(author)) set.add(author.toLowerCase());
+    return set.size;
   }
   // Seats the team pays for: the seats it bought, or its members if more.
   // A team object without `seats` (a session's copy) is read again from the
@@ -421,9 +471,12 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
     return { all, repo };
   }
   const ossOn = () => cfg.oss.monthly > 0 && cfg.oss.repoMonthly > 0;
+  // budget: included + extra reviews. authors: this month's active authors;
+  // extraReviews: the team's setting; extraUsed: reviews past the included credit.
   function usage(team) {
     const m = month(team.id);
-    return { reviews: m.reviews, spent: m.spent / MICROS, budget: budgetOf(team) / MICROS, resets_at: nextMonth(now()), model: cfg.model };
+    const extraUsed = db.prepare("SELECT COUNT(*) AS n FROM cloud_reviews WHERE team_id = ? AND started_at >= ? AND status NOT IN ('no_credit', 'chat') AND oss = 0 AND extra = 1").get(team.id, monthStart(now())).n;
+    return { reviews: m.reviews, spent: m.spent / MICROS, budget: budgetOf(team) / MICROS, included: includedOf(team) / MICROS, authors: authorsOf(team.id), extraReviews: extraOf(team), extraUsed, resets_at: nextMonth(now()), model: cfg.model };
   }
 
   async function check(client, repo, id, body) {
@@ -465,7 +518,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       const comments = await list(client, `/repos/${repo}/pulls/${number}/comments`);
       return comments
         .filter((c) => c?.user?.type === 'Bot' && (!slug || c.user.login === botLogin()) && !c.in_reply_to_id)
-        .map((c) => ({ path: c.path, line: c.line ?? c.original_line ?? null, ...(parseComment(c.body) ?? {}) }))
+        .map((c) => ({ path: c.path, line: c.line ?? c.original_line ?? null, current: c.line != null, ...(parseComment(c.body) ?? {}) }))
         .filter((f) => f.title);
     } catch {
       return [];
@@ -614,17 +667,20 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       }
     }
     let noCredit = null;
+    let extra = 0;
     if (oss) {
       const o = ossMonth(job.owner, job.name);
       if (o.all >= Math.round(cfg.oss.monthly * MICROS)) noCredit = { title: 'Free reviews are used up this month', summary: `Grapim's free reviews for public repositories are used up for this month. They start again on ${day(nextMonth(started))}.` };
       else if (o.repo >= Math.round(cfg.oss.repoMonthly * MICROS)) noCredit = { title: 'Free reviews are used up for this repository', summary: `This repository has used this month's ${dollars(Math.round(cfg.oss.repoMonthly * MICROS))} of free review for public repositories. It starts again on ${day(nextMonth(started))}.` };
     } else {
-      const budget = budgetOf(team);
-      if (month(team.id).spent >= budget) noCredit = { title: 'No review credit left this month', summary: `Your team has used this month's ${dollars(budget)} of cloud review on the ${team.plan} plan. It renews on ${day(nextMonth(started))}. An owner can upgrade the plan in Settings.` };
+      const budget = budgetOf(team, author);
+      const spent = month(team.id).spent;
+      if (spent >= budget) noCredit = { title: 'No review credit left this month', summary: `Your team has used this month's ${dollars(budget)} of cloud review on the ${team.plan} plan. It renews on ${day(nextMonth(started))}. ${PAID.has(team.plan) ? 'An owner can allow extra reviews in Settings, Review.' : 'An owner can move to the Team plan in Settings.'}` };
+      else if (spent >= includedOf(team, author)) extra = 1;
     }
     const rowId = db
-      .prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, oss, author) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(team?.id ?? '', job.owner, job.name, job.number, job.headSha, noCredit ? 'no_credit' : 'running', started, oss ? 1 : 0, author).lastInsertRowid;
+      .prepare('INSERT INTO cloud_reviews (team_id, owner, name, number, head_sha, status, started_at, oss, author, extra) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(team?.id ?? '', job.owner, job.name, job.number, job.headSha, noCredit ? 'no_credit' : 'running', started, oss ? 1 : 0, author, extra).lastInsertRowid;
     const finish = (fields) => {
       const keys = Object.keys(fields);
       db.prepare(`UPDATE cloud_reviews SET ${[...keys.map((k) => `${k} = ?`), 'finished_at = ?'].join(', ')} WHERE id = ?`).run(...keys.map((k) => fields[k]), now(), rowId);
@@ -675,11 +731,28 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       const base = (await runGit(['merge-base', 'refs/remotes/origin/base', 'refs/remotes/origin/pr'], { cwd: dir, signal })).out.trim();
       if (!SHA.test(head) || !SHA.test(base)) throw new Error('The pull request has no common history with its base branch.');
 
+      // New commits on a pull request Grapim already reviewed: only the files
+      // they touched go to the model; the rest stand as the last review left
+      // them. A force push (the old head is gone from the history) or an
+      // "@grapim review" gets a full review.
+      let only = null;
+      let since = null;
+      if (!job.manual) {
+        const prev = db.prepare("SELECT head_sha FROM cloud_reviews WHERE lower(owner) = lower(?) AND lower(name) = lower(?) AND number = ? AND status = 'done' AND head_sha != ? ORDER BY id DESC LIMIT 1").get(job.owner, job.name, job.number, head);
+        if (prev && SHA.test(prev.head_sha) && (await runGit(['merge-base', '--is-ancestor', prev.head_sha, head], { cwd: dir, signal })).code === 0) {
+          const d = await runGit(['diff', '--name-only', '--no-renames', '-z', prev.head_sha, head], { cwd: dir, signal });
+          if (d.code === 0) {
+            only = d.out.split('\0').filter(Boolean);
+            since = prev.head_sha;
+          }
+        }
+      }
+
       const request = await statedRequest({ pr, repo, request: (method, url) => client.request(method, url), lib: { closingIssues }, log: () => {} });
       const feedback = await repoFeedback(client, repo);
       const discussion = await prDiscussion(client, repo, job.number, pr?.user?.login ?? null);
       const teamSettings = team ? teamConfig(team.id) : null;
-      const out = await runWorker({ dir, base, head, model: cfg.model, request, limits: REVIEW_LIMITS, discussion, ...(teamSettings ? { teamConfig: teamSettings } : {}), ...(feedback.text ? { feedback: feedback.text } : {}) }, { key: cfg.key, baseUrl: cfg.baseUrl, signal, timeoutMs: cfg.jobMs, log });
+      const out = await runWorker({ dir, base, head, model: cfg.model, request, limits: REVIEW_LIMITS, discussion, ...(teamSettings ? { teamConfig: teamSettings } : {}), ...(only ? { only } : {}), ...(feedback.text ? { feedback: feedback.text } : {}) }, { key: cfg.key, baseUrl: cfg.baseUrl, signal, timeoutMs: cfg.jobMs, log });
       if (!out?.ok) {
         const msg = String(out?.error ?? 'The review failed.').split(cfg.key).join('***');
         finish({ status: 'failed', error: msg.slice(0, 500) });
@@ -688,12 +761,18 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       }
       const result = out.result;
       const st = result.stats ?? {};
-      const cost = costMicros(cfg.price, st.inputTokens ?? 0, st.outputTokens ?? 0);
+      const cost = reviewCost(cfg.price, st);
       const findings = (result.findings ?? []).filter((f) => f && typeof f.path === 'string' && Number.isSafeInteger(f.line) && f.line >= 1);
+      const prior = await priorFindings(client, repo, job.number);
+      // After new commits: findings an earlier review posted on files this one
+      // did not look at again still count for the check and the card.
+      const onlySet = only ? new Set(only) : null;
+      const carried = onlySet ? prior.filter((f) => f.current && !onlySet.has(f.path) && f.severity in SEVERITY) : [];
       const n = counts(findings);
+      const nAll = counts([...findings, ...carried]);
       finish({ status: 'done', findings: findings.length, blockers: n.blocker, input_tokens: st.inputTokens ?? 0, output_tokens: st.outputTokens ?? 0, cost_micros: cost });
 
-      const posted = await post(client, repo, job.number, head, findings, await priorFindings(client, repo, job.number));
+      const posted = await post(client, repo, job.number, head, findings, prior);
       // One outcome row per inline comment, filled in later (outcomes.js).
       if (posted.inline && posted.links?.length) {
         try {
@@ -712,13 +791,14 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       }
       const prov = provenanceSection(provMd);
       const notes = [
+        since ? `New commits since ${since.slice(0, 7)}: this review looked again only at the ${plural(st.reviewedFiles ?? 0, 'file')} they changed${carried.length ? `; ${plural(carried.length, 'earlier finding')} on other files still stand${carried.length === 1 ? 's' : ''}` : ''}. Comment \`@${slug ?? 'grapim'} review\` for a full review.` : '',
         posted.repeated ? `${plural(posted.repeated, 'finding')} from an earlier review of this pull request ${posted.repeated === 1 ? 'is' : 'are'} still there and ${posted.repeated === 1 ? 'was' : 'were'} not posted again.` : '',
         feedback.signals ? `This review took the team's reactions and replies on ${plural(feedback.signals, 'earlier Grapim comment')} into account.` : '',
       ].filter(Boolean);
       if (notes.length) result.summary = `${String(result.summary ?? '').trimEnd()}\n\n${notes.map((l) => `_${l}_`).join('\n')}`;
       // The merge decision card on top (merge-card.js): verdict, what was
       // asked, what went beyond it, CI, and the merge gate.
-      const decision = await cards.prepare({ client, job, team, pr, findings, posted, result, request, hubRuns: provenanceRunsFor(job) }).catch((err) => {
+      const decision = await cards.prepare({ client, job, team, pr, findings: [...findings, ...carried], posted, result, request, hubRuns: provenanceRunsFor(job) }).catch((err) => {
         log(`merge card failed: ${String(err?.message ?? err).slice(0, 200)}`);
         return null;
       });
@@ -731,11 +811,13 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       await summary(client, repo, job.number, text);
       const failOn = result.failOn === 'never' ? 'never' : 'blocker';
       // A review that looked at nothing must not pass as "No findings".
-      const nothing = !(st.reviewedHunks > 0);
+      // After new commits that touched nothing reviewable, the last review's
+      // findings still decide the check.
+      const nothing = !(st.reviewedHunks > 0) && !since;
       const baseCheck = {
-        conclusion: nothing ? 'neutral' : failOn === 'blocker' && n.blocker ? 'failure' : 'success',
-        title: nothing ? 'Nothing reviewed' : `${countText(n)[0].toUpperCase()}${countText(n).slice(1)}`,
-        summary: nothing ? 'No changed lines were reviewed. The summary comment on the pull request says why.' : `Reviewed ${plural(st.reviewedFiles ?? 0, 'file')} at ${head.slice(0, 7)}: ${countText(n)}. The comments and the summary are on the pull request.`,
+        conclusion: nothing ? 'neutral' : failOn === 'blocker' && nAll.blocker ? 'failure' : 'success',
+        title: nothing ? 'Nothing reviewed' : `${countText(nAll)[0].toUpperCase()}${countText(nAll).slice(1)}`,
+        summary: nothing ? 'No changed lines were reviewed. The summary comment on the pull request says why.' : since ? `Reviewed ${plural(st.reviewedFiles ?? 0, 'file')} changed since ${since.slice(0, 7)}, at ${head.slice(0, 7)}: ${countText(nAll)} on the pull request in all. The comments and the summary are on the pull request.` : `Reviewed ${plural(st.reviewedFiles ?? 0, 'file')} at ${head.slice(0, 7)}: ${countText(n)}. The comments and the summary are on the pull request.`,
       };
       // With a card: its verdict is the title, and the merge gate (auto-approve)
       // fails the check on a high-risk pull request (merge-card.js cardCheck).
@@ -747,7 +829,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
         output: { title: final.title, summary: final.summary },
       });
       decision?.save(checkId, baseCheck, CLOUD_MARKER);
-      return { done: true, counts: n, cost };
+      return { done: true, counts: nAll, cost, ...(since ? { since, files: only.length } : {}) };
     } catch (err) {
       const msg = String(err?.message ?? err).split(token).join('***');
       finish({ status: 'failed', error: msg.slice(0, 500) });
@@ -928,7 +1010,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       ? 'Connect the GitHub App first. Then Grapim can review every pull request without any setup in CI.'
       : html`Grapim reviews every pull request with ${cfg.modelName} on Grapim's model account, with nothing to set up in CI. A review usually takes a minute or two and posts its findings as comments and a <code>${CLOUD_CHECK}</code> check.`}</p>
   ${cfg.configured && linked
-    ? html`<p class="fine">This month: ${plural(u.reviews, 'review')}, $${u.spent.toFixed(2)} of $${u.budget.toFixed(2)} credit on the ${team.plan} plan. Renews ${day(u.resets_at)}.${ossOn() ? ' Public repositories are reviewed free and use none of it.' : ''}</p>
+    ? html`<p class="fine">This month: ${plural(u.reviews, 'review')}${u.authors ? ` for ${plural(u.authors, 'author')}` : ''}, $${u.spent.toFixed(2)} of $${u.budget.toFixed(2)} credit on the ${team.plan} plan${u.extraReviews ? `, including ${plural(u.extraReviews, 'extra review')}` : ''}. Renews ${day(u.resets_at)}.${ossOn() ? ' Public repositories are reviewed free and use none of it.' : ''}</p>
   <p class="fine">The code of each pull request is fetched into a temporary folder on Grapim's server, sent to Anthropic for the review, and deleted when the review ends. To keep code off Grapim's servers, run <a class="link" href="/docs/review">Grapim Review in your own CI</a> instead.</p>`
     : ''}
 </section>`;

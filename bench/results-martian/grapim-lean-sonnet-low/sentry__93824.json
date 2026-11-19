@@ -1,0 +1,79 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "sentry__93824",
+ "url": "https://github.com/getsentry/sentry/pull/93824",
+ "head_sha": "3162ad68a5c87666788b27a44eb31235025091a9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:10:13.352Z",
+ "seconds": 23.616,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/spans/consumers/process/flusher.py",
+   "line": 254,
+   "end_line": 255,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Hung flusher process is never killed before respawn",
+   "body": "The process is created with `mp_context.Process`, a `SpawnProcess`. That class derives from `BaseProcess`, not from `multiprocessing.Process`, so `isinstance(process, multiprocessing.Process)` is false. The old code called `self.process.kill()` unconditionally. Now a process flagged as \"hang\" is never killed, and a new process for the same shards is started next to it. Two flushers then work the same shards, and every hang leaks a process. The same wrong check in `join()` means `terminate()` never runs. Check against `multiprocessing.process.BaseProcess` instead, or skip only `threading.Thread`."
+  },
+  {
+   "path": "tests/sentry/spans/consumers/process/test_consumer.py",
+   "line": 62,
+   "end_line": 62,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "other",
+   "title": "Sleep in test is a no-op because time.sleep is monkeypatched",
+   "body": "The test patches `time.sleep` to a no-op at the top, so `time.sleep(0.1)` here does nothing. The flusher is not actually given time to process after the drift change. `step.join()` sets `stopped` right away, so the flusher thread may stop before it flushes, which makes the test flaky. Wait with a real sleep or poll until `messages` is non-empty, for example with a saved reference to the original `time.sleep`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 13599,
+  "cacheRead": 3426,
+  "output": 2084,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 10,
+   "reviewedHunks": 10,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 17027,
+   "outputTokens": 2084,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 17027,
+     "output": 2084
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 6,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1103682
+}

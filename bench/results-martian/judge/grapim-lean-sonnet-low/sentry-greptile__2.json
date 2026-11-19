@@ -1,0 +1,55 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "OptimizedCursorPaginator's negative-offset branch in get_result() passes cursor.offset directly as start_offset to queryset slicing when enable_advanced_features is True and cursor.offset < 0.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same problem: in the optimized paginator, a negative cursor offset goes straight into queryset slicing."
+  },
+  {
+   "comment": "In BasePaginator.get_result(), when cursor.is_prev is True, it sets start_offset = offset without clamping, allowing negative offset values to be passed to queryset slicing.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same missing clamp on prev cursors in BasePaginator.get_result."
+  },
+  {
+   "comment": "OptimizedCursorPaginator.get_item_key uses floor/ceil on a datetime key (order_by='-datetime'), causing TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mentions floor/ceil being applied to a datetime key."
+  },
+  {
+   "comment": "Accessing .has_global_access on organization_context.member can raise an AttributeError when organization_context is None, particularly for non-superuser non-member users.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.85,
+   "reasoning": "C3 makes the same point: when member is None, accessing .has_global_access raises AttributeError. The context it gives differs a little, but it is the same bug."
+  }
+ ],
+ "candidates": [
+  "src/sentry/api/paginator.py:882 - Negative offset slicing on queryset crashes or exposes data. The cursor offset comes from the client-supplied cursor string. When `optimized_pagination=true` and the user is a superuser or has global access, `queryset[negative:stop]` is passed to Django. Django raises `AssertionError` (\"Negative indexing is not supported\"), so a cursor like `0:-5:1` returns a 500. The comment claims the ORM handles negative slicing and that permissions are checked at the queryset level. Neither holds. Clamp the offset to 0 and drop this branch.",
+  "src/sentry/api/paginator.py:182 - Existing paginator now allows negative offsets for prev cursors. In the shared `BasePaginator.get_result`, `start_offset` is not clamped when `cursor.is_prev`. A client-supplied negative offset on a prev cursor reaches `queryset[negative:...]`, which raises an AssertionError. That makes it a 500 for every endpoint using this paginator, where before the failure was different. The later check `len(results) == offset + limit + extra` also still uses the unclamped `offset`. Always clamp with `max(0, offset)`.",
+  "src/sentry/api/endpoints/organization_auditlogs.py:71 - Authorization check may fail or be too loose. `organization_context.member` can be None, for example for a superuser who is not a member of the organization. Evaluating `.has_global_access` then raises AttributeError. The expression also evaluates `request.user.is_superuser` first and grants the feature broadly. The change also adds an unrequested paginator feature to the audit-log endpoint, which has nothing to do with the spans buffer request.",
+  "src/sentry/scripts/spans/add-buffer.lua:62 - Eviction uses stale or partial span_count. `span_count` is the result of the last zunionstore. If only the span_key merge ran and the parent merge was skipped, that count is still correct. But if neither ran, `zcard` is used. The ZADD in Python happens before the script, so adds to a set_key that already exists are not reflected in the count when a merge ran earlier. In practice the count is the size after the last union, which is correct. The redirect loop limit was also lowered from 10000 to 1000 without being asked for. That means deep trees are no longer joined correctly beyond depth 1000.",
+  "src/sentry/spans/buffer.py:439 - Segment size check no longer bounded by span count. The span count limit `max_segment_spans` was removed from flushing. Segments are now bounded only by bytes and by the 1000-span eviction in Lua. `zpopmin` removes the lowest end_timestamp, which silently drops the earliest spans.",
+  "src/sentry/spans/consumers/process/factory.py:141 - Missing end_timestamp_precise raises KeyError. `val[\"end_timestamp_precise\"]` is indexed directly. A span payload without this field raises KeyError and crashes the whole batch, where previously such spans were accepted. Use a default or validate the field."
+ ]
+}

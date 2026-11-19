@@ -79,7 +79,7 @@ export function claudeCliProvider({ model, env = process.env, command = process.
         fs.writeFileSync(cfg, JSON.stringify({ mcpServers: { repo: { type: 'stdio', command: process.execPath, args: [server], env: { REPO_GIT_DIR: opts.repo.dir, REPO_HEAD: opts.repo.head } } } }));
         extra.push('--mcp-config', cfg, '--allowedTools', body.tools.map((t) => `mcp__repo__${t.name}`).join(','), '--max-turns', '40', '--verbose');
       }
-      const args = ['-p', '--model', model ?? body.model, '--effort', body.output_config?.effort ?? 'medium', '--system-prompt-file', sys, '--json-schema', JSON.stringify(body.output_config.format.schema), '--output-format', body.tools?.length && opts.repo?.dir ? 'stream-json' : 'json', '--tools', '', '--no-session-persistence', '--strict-mcp-config', ...extra];
+      const args = ['-p', '--model', body.model ?? model, '--effort', body.output_config?.effort ?? 'medium', '--system-prompt-file', sys, '--json-schema', JSON.stringify(body.output_config.format.schema), '--output-format', body.tools?.length && opts.repo?.dir ? 'stream-json' : 'json', '--tools', '', '--no-session-persistence', '--strict-mcp-config', ...extra];
       // An empty folder: no project instructions or memory reach the request.
       const r = await run(command, args, { cwd: dir, env, input: user });
       if (r.code !== 0 && !r.stdout.trim()) throw new Error(`claude -p exited ${r.code}: ${r.stderr.slice(-400)}`);
@@ -95,7 +95,7 @@ ${r.stderr}`);
         stdout = JSON.stringify(events);
       }
       const { text, usage } = parseCliResult(stdout);
-      onUsage(usage);
+      onUsage(usage, body.model ?? model);
       // tool_rounds: repository tool calls the CLI made (the second look counts them).
       return { content: [{ type: 'text', text }], usage, stop_reason: 'end_turn', ...(body.tools?.length ? { tool_rounds: calls } : {}) };
     },

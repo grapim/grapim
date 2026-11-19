@@ -1,0 +1,99 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "head_sha": "6669a2d94d76eea3b99b8c476d12b1eb66726b07",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:22:09.119Z",
+ "seconds": 28.299,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/controllers/topics_controller.rb",
+   "line": 99,
+   "end_line": 103,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "unsubscribe has no guard for anonymous users or topic access",
+   "body": "`current_user` is nil for a logged-out user (the action is added to the `ensure_logged_in` list, but see the list context). If it isn't in that list, `current_user.id` raises. The action also changes state on a GET, so it is open to CSRF and link prefetchers. A link scanner or image prefetch can unsubscribe or mute the user. Also, `TopicView.new` runs the access check, but `@topic_view.topic` is used before any redirect or guardian check. Consider requiring a confirmation POST."
+  },
+  {
+   "path": "app/controllers/topics_controller.rb",
+   "line": 105,
+   "end_line": 113,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "unsubscribe crashes when no TopicUser row exists",
+   "body": "`TopicUser.find_by` returns nil if the user never visited or tracked the topic. `tu.notification_level` then raises NoMethodError and the user gets a 500. This is likely for emailed topics, for example a watched category or a mention. Use `TopicUser.change(current_user.id, topic_id, notification_level: ...)`, which creates the row. Also, a user who is already at `regular` gets muted by a repeat visit to the link, because the else branch runs. Make the action idempotent."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/routes/app-route-map.js.es6",
+   "line": 13,
+   "end_line": 13,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Route defined with a dynamic path that conflicts with topic route",
+   "body": "The `topicUnsubscribe` route path `/t/:slug/:id/unsubscribe` sits after `topic` at `/t/:slug/:id` with a nearPost segment `/:nearPost`. This may be matched as `nearPost = 'unsubscribe'` by the topic route, which is defined first. Define it before the topic resource."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/templates/topic/unsubscribe.hbs",
+   "line": 3,
+   "end_line": 3,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Unescaped topic title rendered via triple-stash",
+   "body": "`stopNotificiationsText` interpolates `fancyTitle` into an I18n string, and the template renders it with `{{{ }}}`. `fancyTitle` is escaped, but I18n interpolation may not re-escape, and the string includes raw HTML. If fancyTitle is not fully sanitized, this is an XSS vector. Verify the escaping, or escape the title before interpolation."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18425,
+  "cacheRead": 3426,
+  "output": 1208,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 18,
+   "hunks": 26,
+   "reviewedHunks": 25,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 21853,
+   "outputTokens": 1208,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 21853,
+     "output": 1208
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 18,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.11697819999999999
+}

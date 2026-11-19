@@ -1,0 +1,58 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "head_sha": "ce2dcc537b4b1f98a335e88cfe8e0b804483252a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:07:18.644Z",
+ "seconds": 22.535,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 24344,
+  "cacheRead": 3426,
+  "output": 1860,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 22,
+   "reviewedHunks": 21,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 27772,
+   "outputTokens": 1860,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 27772,
+     "output": 1860
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1596132
+}

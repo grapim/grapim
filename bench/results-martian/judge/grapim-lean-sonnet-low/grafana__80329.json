@@ -1,0 +1,38 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1,
+    2,
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1, C2 and C3 each point out debug information being logged at Error level, which is the issue G1 describes."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    5
+   ],
+   "confidence": 0.95,
+   "reasoning": "C5 points out the cleanup ticker change from 10 minutes to 1 minute and the extra database load it causes."
+  }
+ ],
+ "candidates": [
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:534 - Debug logging at Error level with full ID lists on every batch. Each batch logs at Error level, including the full ID list (up to batch-size entries) and the SQL condition. This floods error logs and fires alerts on every normal run, and the cleanup now runs every minute. It also logs `err` when it is always nil. It looks like leftover debugging. Remove these calls, or use Debug level without the ID list.",
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:554 - Error-level debug logs in the max-count cleanup. The same Error-level logging of full ID lists is repeated here for every batch. Remove it or lower it to Debug without the IDs.",
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:576 - Error-level debug logs in the orphaned-tag cleanup. The same Error-level logging of full ID lists is repeated here for every batch. Remove it or lower it to Debug without the IDs.",
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:608 - Parameter limit check ignores the other databases and the real limit. Only SQLite is handled. On Postgres the bind-parameter limit is 65535 and on MySQL the prepared statement limit is similar. A batch size above those limits makes the delete fail on every run. The SQLite check also compares the configured batch size, not len(ids), so inlining is used even for small result sets. The inlined IDs are int64, so there is no injection risk. Consider chunking the IDs by a safe size for all dialects.",
+  "pkg/services/cleanup/cleanup.go:77 - Cleanup interval changed from 10 minutes to 1 minute for all cleanup jobs. This ticker drives every cleanup job: temp files, expired dashboard versions, and others. The request is about annotation deadlocks, so the change is unrelated to that fix. Running all jobs ten times as often raises DB load and gives the deadlock more chances to occur. Revert it, or limit it to annotations if a faster cadence is wanted."
+ ]
+}

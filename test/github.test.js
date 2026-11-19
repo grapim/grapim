@@ -10,6 +10,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { createHub } from '../src/hub/server.js';
+import { DEFAULT_CONFIG } from '../src/airev/config.js';
 import { appJwt, AppAuth, TOKEN_MARGIN_MS } from '../src/hub/github/auth.js';
 import { GitHubClient } from '../src/hub/github/client.js';
 import { githubConfig } from '../src/hub/github/config.js';
@@ -1024,7 +1025,7 @@ test('cloud review: an owner turns it on in Settings, GitHub; pull request event
   assert.match(ov.text, /Connect GitHub <span class="badge badge-ok">Done<\/span>/);
   assert.match(ov.text, /Connected to <span class="strong">acme<\/span>/);
   assert.match(ov.text, /<input type="hidden" name="from" value="overview"><button class="btn btn-primary" type="submit" >Turn on<\/button>/);
-  assert.match(ov.text, /about 50 pull requests/);
+  assert.match(ov.text, /about 80 pull requests/);
   assert.match(ov.text, /Or run it in your own CI/);
   const fromOverview = await owner.post(`/hub/teams/${T}/github/cloud-review`, { enabled: '1', from: 'overview' });
   assert.equal(fromOverview.location, `/hub/teams/${T}`);
@@ -1211,9 +1212,11 @@ test('Settings, Review: owners save the review settings, members read them; inpu
   assert.match(page.text, new RegExp(`href="${url}" aria-current="page"`), 'in the sub-nav');
   assert.match(page.text, /name="failOn" value="blocker" checked/);
   assert.match(page.text, /name="maxComments" min="1" max="50" step="1" inputmode="numeric" value="15"/);
-  assert.match(page.text, /name="ignore" rows="4" spellcheck="false" autocapitalize="off">\*\*\/\*\.lock\n\*\*\/dist\/\*\*\n\*\*\/\*\.snap<\/textarea>/, 'the default paths are shown');
+  assert.ok(page.text.includes(`name="ignore" rows="4" spellcheck="false" autocapitalize="off">${DEFAULT_CONFIG.ignore.join('\n')}</textarea>`), 'the default paths are shown');
   assert.match(page.text, /placeholder="We use Postgres; flag missing indexes on new queries\."><\/textarea>/);
   assert.match(page.text, /A repository's <code>\.grapim\/review\.json<\/code> overrides these\./);
+  assert.match(page.text, /name="extraReviews" min="0" max="100000" step="1" inputmode="numeric" value="0"/, 'no extra reviews by default');
+  assert.match(page.text, /When the plan's included reviews \(about 80 this month\) are used up, Grapim keeps reviewing up to this many more pull requests, \$0\.25 each\. Nothing is charged during early access\./);
   assert.match(page.text, /Connect the GitHub App first/);
   assert.match(page.text, /<button class="btn btn-sm" type="submit" disabled aria-disabled="true">Turn on<\/button>/);
   assert.equal(cloud.teamConfig(T), null);
@@ -1223,16 +1226,26 @@ test('Settings, Review: owners save the review settings, members read them; inpu
   assert.equal(saved.status, 303, saved.text);
   assert.equal(saved.location, `${url}?done=review_saved`);
   assert.match((await owner.req(saved.location)).text, /Review settings saved/);
-  assert.deepEqual(cloud.teamConfig(T), { failOn: 'blocker', maxComments: 7, ignore: ['docs/**', '*.min.js'], instructions: 'We use Postgres; flag missing indexes on new queries.' });
+  assert.deepEqual(cloud.teamConfig(T), { failOn: 'blocker', maxComments: 7, ignore: ['docs/**', '*.min.js'], instructions: 'We use Postgres; flag missing indexes on new queries.', extraReviews: 0 });
   const row = h.hub.db.prepare('SELECT json, updated_by, updated_at FROM cloud_review_config WHERE team_id = ?').get(T);
   assert.equal(row.updated_by, String(owner.user.id));
   assert.ok(row.updated_at > 0);
   // An unticked box: the check never fails on a blocker.
   assert.equal((await owner.post(url, { maxComments: '7', ignore: '', instructions: '' })).status, 303);
-  assert.deepEqual(cloud.teamConfig(T), { failOn: 'never', maxComments: 7, ignore: [], instructions: '' });
+  assert.deepEqual(cloud.teamConfig(T), { failOn: 'never', maxComments: 7, ignore: [], instructions: '', extraReviews: 0 });
   page = await owner.req(url);
   assert.match(page.text, /name="failOn" value="blocker" >/);
   assert.match(page.text, /value="7"/);
+  // Extra reviews a month: saved with the rest, and they raise the month's budget.
+  assert.equal((await owner.post(url, { maxComments: '7', ignore: '', instructions: '', extraReviews: '500' })).status, 303);
+  assert.equal(cloud.teamConfig(T).extraReviews, 500);
+  assert.match((await owner.req(url)).text, /name="extraReviews" min="0" max="100000" step="1" inputmode="numeric" value="500"/);
+  assert.equal(cloud.usage(h.hub.teams.get(T)).budget, 10, 'saved, but on the Free plan extra reviews add nothing');
+  assert.equal(cloud.usage({ ...h.hub.teams.get(T), plan: 'team' }).budget, 12 + 60, 'on Team: the per-author $12 plus 500 x $0.12');
+  // Without the CSRF token: refused, nothing stored.
+  const noCsrf = await owner.req(url, { method: 'POST', form: { maxComments: '7', extraReviews: '9' } });
+  assert.equal(noCsrf.status, 403);
+  assert.equal(cloud.teamConfig(T).extraReviews, 500);
 
   // Refused, on the page, with what was typed: nothing is stored.
   const before = cloud.teamConfig(T);
@@ -1252,6 +1265,8 @@ test('Settings, Review: owners save the review settings, members read them; inpu
   await bad({ ignore: `src/${'a'.repeat(200)}` }, /204 characters long; keep each under 200/);
   await bad({ ignore: '../secrets/**' }, /is not a path pattern Grapim understands/);
   await bad({ instructions: 'x'.repeat(2001) }, /2,001 characters long; keep them under 2,000/);
+  await bad({ extraReviews: '100001' }, /Extra reviews a month must be a whole number from 0 to 100,000/);
+  await bad({ extraReviews: '-5' }, /from 0 to 100,000/);
   // What was typed comes back escaped, never as markup.
   const evil = await bad({ maxComments: '99', ignore: 'docs/**', instructions: '</textarea><script>alert(1)</script>' }, /from 1 to 50/);
   assert.doesNotMatch(evil.text, /<script>alert/);

@@ -22,7 +22,9 @@ export const DEFAULT_CONFIG = Object.freeze({
   review: 'all',
   // Anywhere in the tree: monorepos keep these under packages/ or services/.
   sensitive: Object.freeze(['**/migrations/**', '**/auth/**', '**/infra/**', '**/*.sql', '.github/workflows/**']),
-  ignore: Object.freeze(['**/*.lock', '**/dist/**', '**/*.snap']),
+  // Lockfiles, build output, minified and generated code: nobody reviews them
+  // line by line, and they can be most of a pull request's tokens.
+  ignore: Object.freeze(['**/*.lock', '**/dist/**', '**/*.snap', 'package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'go.sum', '**/*.min.js', '**/*.min.css', '**/*.map', '**/vendor/**', '**/node_modules/**', '**/__generated__/**', '**/*.pb.go', '**/*_pb2.py', '**/*.generated.*']),
   instructions: '',
   maxComments: 15,
   maxFiles: 100,
@@ -31,6 +33,9 @@ export const DEFAULT_CONFIG = Object.freeze({
   // first missed (the same prompt does not always notice the same things);
   // the findings are merged, and a problem raised twice is posted once.
   passes: 1,
+  // A cheaper model for batches of depth "low" (human-written code off the
+  // sensitive paths); null reviews every batch with "model".
+  lowModel: null,
   // The merge gate (gate-config.js): null leaves the team's setting as it is.
   gate: null,
 });
@@ -117,6 +122,10 @@ export function validateConfig(raw) {
   if ('model' in raw) {
     if (typeof raw.model !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:@\-]{0,99}$/.test(raw.model)) throw new ConfigError(`${CONFIG_FILE}: "model" must be a model id such as "${DEFAULT_MODEL}" (got ${quote(raw.model)}).`);
     c.model = raw.model;
+  }
+  if ('lowModel' in raw) {
+    if (raw.lowModel !== null && (typeof raw.lowModel !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:@\-]{0,99}$/.test(raw.lowModel))) throw new ConfigError(`${CONFIG_FILE}: "lowModel" must be a model id such as "claude-sonnet-5-5", or null (got ${quote(raw.lowModel)}).`);
+    c.lowModel = raw.lowModel;
   }
   if ('review' in raw) c.review = oneOf('review', raw.review, REVIEW_MODES);
   if ('sensitive' in raw) c.sensitive = patterns('sensitive', raw.sensitive);
