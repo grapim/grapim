@@ -1,7 +1,9 @@
 // A team's review settings for cloud review (Settings, Review): a few of the
 // engine's own options (src/airev/config.js), chosen in the hub instead of in
 // each repository's .grapim/review.json. Nothing here is an option the engine
-// does not have.
+// does not have, except extraReviews: how many reviews a month the team
+// allows past its plan's included credit (cloud-review.js budgetOf). That one
+// is billing, not the engine's, so mergeReviewConfig leaves it out.
 //
 // Precedence, per field: the engine's defaults, then the team's settings, then
 // the repository's .grapim/review.json (read from the pull request's base
@@ -12,8 +14,8 @@
 
 import { compileGlob, DEFAULT_CONFIG, FAIL_ON, validateConfig } from '../../airev/config.js';
 
-export const TEAM_REVIEW_KEYS = Object.freeze(['failOn', 'maxComments', 'ignore', 'instructions']);
-export const TEAM_LIMITS = Object.freeze({ minComments: 1, maxComments: 50, globs: 50, globChars: 200, instructions: 2000 });
+export const TEAM_REVIEW_KEYS = Object.freeze(['failOn', 'maxComments', 'ignore', 'instructions', 'extraReviews']);
+export const TEAM_LIMITS = Object.freeze({ minComments: 1, maxComments: 50, globs: 50, globChars: 200, instructions: 2000, extraReviews: 100_000 });
 
 export class TeamConfigError extends Error {
   constructor(message) {
@@ -43,7 +45,12 @@ export function parseTeamForm(form = {}) {
   }
   const instructions = cleanText(String(form.instructions ?? '').slice(0, 64 * 1024));
   if (instructions.length > TEAM_LIMITS.instructions) throw new TeamConfigError(`Review notes are ${instructions.length.toLocaleString('en-US')} characters long; keep them under ${TEAM_LIMITS.instructions.toLocaleString('en-US')}.`);
-  return { failOn, maxComments, ignore, instructions };
+  const rawExtra = String(form.extraReviews ?? '').trim().replace(/,/g, '');
+  const extraReviews = rawExtra === '' ? 0 : /^\d{1,6}$/.test(rawExtra) ? Number(rawExtra) : NaN;
+  if (!(extraReviews >= 0 && extraReviews <= TEAM_LIMITS.extraReviews)) {
+    throw new TeamConfigError(`Extra reviews a month must be a whole number from 0 to ${TEAM_LIMITS.extraReviews.toLocaleString('en-US')}.`);
+  }
+  return { failOn, maxComments, ignore, instructions, extraReviews };
 }
 
 // A stored (or handed over) team config -> only the known fields that are
@@ -55,6 +62,7 @@ export function cleanTeamConfig(v) {
   if (Number.isSafeInteger(v.maxComments) && v.maxComments >= TEAM_LIMITS.minComments && v.maxComments <= TEAM_LIMITS.maxComments) out.maxComments = v.maxComments;
   if (Array.isArray(v.ignore) && v.ignore.length <= TEAM_LIMITS.globs && v.ignore.every((p) => typeof p === 'string' && p.length <= TEAM_LIMITS.globChars && compileGlob(p))) out.ignore = [...v.ignore];
   if (typeof v.instructions === 'string' && v.instructions.length <= TEAM_LIMITS.instructions) out.instructions = cleanText(v.instructions);
+  if (Number.isSafeInteger(v.extraReviews) && v.extraReviews >= 0 && v.extraReviews <= TEAM_LIMITS.extraReviews) out.extraReviews = v.extraReviews;
   return out;
 }
 
@@ -66,6 +74,7 @@ export function teamFormValues(stored) {
     maxComments: t.maxComments ?? DEFAULT_CONFIG.maxComments,
     ignore: t.ignore ?? [...DEFAULT_CONFIG.ignore],
     instructions: t.instructions ?? DEFAULT_CONFIG.instructions,
+    extraReviews: t.extraReviews ?? 0,
   };
 }
 
@@ -77,5 +86,6 @@ export function teamFormValues(stored) {
 // (cloud-review-worker.js says why).
 export function mergeReviewConfig({ team = null, repo = null, model = null } = {}) {
   const r = repo && typeof repo === 'object' && !Array.isArray(repo) ? repo : {};
-  return validateConfig({ review: 'all', ...cleanTeamConfig(team), ...r, ...(model ? { model } : {}) });
+  const { extraReviews: _billing, ...t } = cleanTeamConfig(team);
+  return validateConfig({ review: 'all', ...t, ...r, ...(model ? { model } : {}) });
 }

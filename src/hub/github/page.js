@@ -4,6 +4,7 @@
 import { csrfField, layout } from '../pages/layout.js';
 import { date, html } from '../pages/html.js';
 import { head } from '../pages/team.js';
+import { aboutReviews, EXTRA_REVIEW_PRICE } from './cloud-review.js';
 
 const ENV = ['GITHUB_APP_ID', 'GITHUB_APP_PRIVATE_KEY', 'GITHUB_APP_WEBHOOK_SECRET', 'GITHUB_APP_SLUG'];
 
@@ -198,6 +199,10 @@ export function reviewSettingsCard({ team, csrf, owner, cloud, values, checkName
       <div class="policy-row setting-row-wide">
         <div class="setting-text"><label class="strong" for="rs-notes">Review notes for Grapim</label><p class="fine">What the reviewer should know about your code, added to every review. Up to 2,000 characters.</p></div>
         <textarea id="rs-notes" name="instructions" rows="4" maxlength="2000" placeholder="We use Postgres; flag missing indexes on new queries.">${values.instructions}</textarea>
+      </div>
+      <div class="policy-row">
+        <div class="setting-text"><label class="strong" for="rs-extra">Extra reviews a month</label><p class="fine">When the plan's included reviews${cloud.usage?.included ? ` (about ${aboutReviews(cloud.usage.included).toLocaleString('en-US')} this month)` : ''} are used up, Grapim keeps reviewing up to this many more pull requests, $${EXTRA_REVIEW_PRICE.toFixed(2)} each. Nothing is charged during early access. 0 pauses reviews until the month renews.</p></div>
+        <input id="rs-extra" class="input-narrow" type="number" name="extraReviews" min="0" max="100000" step="1" inputmode="numeric" value="${values.extraReviews ?? 0}" required>
       </div>
     </fieldset>
     ${owner ? html`<div class="setting-foot"><button class="btn btn-primary" type="submit">Save</button></div>` : ''}

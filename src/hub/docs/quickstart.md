@@ -1,3 +1,4 @@
+<!-- The pull request counts below come from src/hub/github/cloud-review.js: the plan credit (DEFAULT_CREDIT.free, DEFAULT_SEAT_CREDIT per author) divided by REVIEW_COST_ESTIMATE, rounded down to ten (aboutReviews): Free 80, Team 100, Governance 200. Extra pull requests: EXTRA_REVIEW_PRICE. Change them together. -->
 ---
 title: Quickstart
 nav: Quickstart
@@ -10,7 +11,7 @@ description: Get Grapim reviewing your pull requests in about two minutes with t
 3. **Turn on cloud review** on the same page.
 4. **Open a pull request**, or push to an open one. A **Grapim Review (cloud)** check appears at once, and the comments follow, usually within a minute or two.
 
-Each plan includes a monthly review credit (Free: about 50 pull requests). To keep your code off Grapim's servers, run the same review [in your own CI](/docs/review#run-it-in-your-own-ci) with your own model account instead.
+Each plan includes a monthly review credit (Free: about 80 pull requests; Team: about 100 per person who opens pull requests). To keep your code off Grapim's servers, run the same review [in your own CI](/docs/review#run-it-in-your-own-ci) with your own model account instead.
 
 ## Also record every agent run (CLI)
 

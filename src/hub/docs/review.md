@@ -1,3 +1,4 @@
+<!-- The pull request counts below come from src/hub/github/cloud-review.js: the plan credit (DEFAULT_CREDIT.free, DEFAULT_SEAT_CREDIT per author) divided by REVIEW_COST_ESTIMATE, rounded down to ten (aboutReviews): Free 80, Team 100, Governance 200. Extra pull requests: EXTRA_REVIEW_PRICE. Change them together. -->
 ---
 title: AI review
 nav: AI review
@@ -73,9 +74,11 @@ The Tests line also says when source files changed but no test was added or chan
 
 Each review fetches the pull request's base branch, its head and the Grapim notes into a temporary folder on Grapim's server, sends the changes to Anthropic (Claude Opus 5.5) for the review, and deletes the folder when it ends. The App's token is used only for that pull request. Your `.grapim/review.json` on the base branch applies, as in CI.
 
-Owners set the team's defaults in **Settings**, **Review**: whether a blocker fails the check, how many comments a pull request gets, paths to skip, and notes for the reviewer. A repository's `.grapim/review.json` overrides them, key by key.
+Owners set the team's defaults in **Settings**, **Review**: whether a blocker fails the check, how many comments a pull request gets, paths to skip, notes for the reviewer, and extra reviews a month. A repository's `.grapim/review.json` overrides the review settings, key by key.
 
-Each plan includes a monthly review credit: Free about 50 pull requests, Team about 55 per seat, Governance about 110 per seat. Settings, GitHub shows how much is used. When it runs out, the check says so and nothing is sent to the model until the next month.
+Each plan includes a monthly review credit: Free about 80 pull requests, Team about 100 per author, Governance about 200 per author. An author is a person who opens pull requests Grapim reviews that month; agents and bots are not authors. If more people open pull requests than the team has seats, the credit grows with them. New commits on a pull request are re-reviewed by looking only at the files changed since the last review, so they use less.
+
+Past the included credit, an owner can allow extra pull requests in **Settings**, **Review**, up to a monthly limit they set. Extra pull requests will be $0.25 each; nothing is charged during early access. Settings, GitHub shows how much is used. At the limit, the check says so and nothing is sent to the model until the next month.
 
 ### Free for open source
 
