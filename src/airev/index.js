@@ -61,6 +61,10 @@ export async function reviewChanges({
   // true when the review runs on Grapim's server (cloud review): the summary
   // then says where the code went instead of "Grapim received nothing".
   hosted = false,
+  // Paths to review; the other changed files are left as an earlier review
+  // left them (cloud review after new commits: only the files those commits
+  // touched). null reviews every changed file.
+  only = null,
 } = {}) {
   if (!cwd) throw new ConfigError('reviewChanges needs cwd, the path of a git checkout.');
   const cfg = config ? validateConfig(config) : loadConfig(cwd);
@@ -73,7 +77,10 @@ export async function reviewChanges({
   const req = normalizeRequest(request);
 
   const changes = collectChanges({ cwd, base, head, config: cfg, limits: lim });
-  const plan = planReview(changes, cfg, { limits: lim, fileText: headFileReader(cwd, changes.head) });
+  const onlySet = Array.isArray(only) ? new Set(only) : null;
+  const unchangedFiles = onlySet ? changes.files.filter((f) => !onlySet.has(f.path)).length : 0;
+  const planned = onlySet ? { ...changes, files: changes.files.filter((f) => onlySet.has(f.path)) } : changes;
+  const plan = planReview(planned, cfg, { limits: lim, fileText: headFileReader(cwd, changes.head) });
   log(`Grapim Review: ${changes.files.length} files changed, ${plan.stats.hunks} hunks (${plan.stats.aiHunks} by agent runs); ${plan.batches.length} requests to ${describeProvider(prov)}.`);
   if (req && plan.batches.length) log(`Compared with: ${req.sources.join(', ')}.`);
 
@@ -94,7 +101,7 @@ export async function reviewChanges({
       skipped.push({ path, reason });
     }
   };
-  const usage = { input: 0, output: 0, requests: 0 };
+  const usage = { input: 0, output: 0, requests: 0, byModel: {} };
   const found = [];
   let dropped = 0;
   let reviewedHunks = 0;
@@ -143,7 +150,8 @@ export async function reviewChanges({
   // that fails after an earlier one answered ends the batch quietly: it was
   // reviewed once. Only a first pass that fails marks its files as skipped.
   async function runBatch(batch) {
-    const { body } = buildRequest(batch, { model: cfg.model, instructions: cfg.instructions, request: req, overview, cache: cfg.passes > 1 });
+    const model = batch.effort === 'low' && cfg.lowModel ? cfg.lowModel : cfg.model;
+    const { body } = buildRequest(batch, { model, instructions: cfg.instructions, request: req, overview, cache: cfg.passes > 1 });
     const files = batch.units.length;
     log(`Request ${batch.id}: ${files} file${files === 1 ? '' : 's'}, effort ${batch.effort}, about ${batch.tokens.toLocaleString('en-US')} tokens${cfg.passes > 1 ? `, ${cfg.passes} passes` : ''}.`);
     const allowed = new Map();
@@ -164,6 +172,9 @@ export async function reviewChanges({
       const u = msg.usage ?? {};
       usage.input += (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
       usage.output += u.output_tokens ?? 0;
+      const m = (usage.byModel[model] ??= { input: 0, output: 0 });
+      m.input += (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
+      m.output += u.output_tokens ?? 0;
 
       if (msg.stop_reason === 'refusal') {
         const c = category(msg.stop_details?.category);
@@ -223,6 +234,8 @@ export async function reviewChanges({
     inputTokens: usage.input,
     outputTokens: usage.output,
     model: cfg.model,
+    // Tokens per model, when "lowModel" sent some batches to a cheaper one.
+    byModel: usage.byModel,
     provider: prov.name,
     reviewedFiles: reviewedFiles.size,
     reviewedAiHunks,
@@ -233,6 +246,8 @@ export async function reviewChanges({
     noNotes: plan.stats.noNotes === true,
     heldFindings: held.length,
     passes: cfg.passes,
+    // Changed files not looked at again because "only" left them out.
+    unchangedFiles,
   };
   const runList = [...runs.values()].sort((a, b) => b.hunks - a.hunks || a.label.localeCompare(b.label));
   const deletedTests = changes.files.filter((f) => f.status === 'deleted' && isTestFile(f.path)).map((f) => f.path);

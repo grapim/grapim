@@ -269,7 +269,7 @@ If no review appears, open the job's log in the **Actions** tab. Each problem is
   "model": "claude-opus-5-5",
   "review": "all",
   "sensitive": ["**/migrations/**", "**/auth/**", "**/infra/**", "**/*.sql", ".github/workflows/**"],
-  "ignore": ["**/*.lock", "**/dist/**", "**/*.snap"],
+  "ignore": ["**/*.lock", "**/dist/**", "**/*.snap", "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "go.sum", "**/*.min.js", "**/*.min.css", "**/*.map", "**/vendor/**", "**/node_modules/**", "**/__generated__/**", "**/*.pb.go", "**/*_pb2.py", "**/*.generated.*"],
   "instructions": "Our services must never log account numbers.",
   "maxComments": 15,
   "maxFiles": 100,
@@ -289,6 +289,7 @@ If no review appears, open the job's log in the **Actions** tab. Each problem is
 | `maxFiles` | `100` | Riskiest files first; the rest are listed as not reviewed. |
 | `failOn` | `blocker` | `blocker` fails the job when the review finds a blocker. `never` only comments. |
 | `gate` | none | The merge gate for this repository, see [Merge gate](#merge-gate). It can only make the team's gate stricter. |
+| `lowModel` | none | A cheaper model id (for example `claude-sonnet-5-5`) for human-written lines off the `sensitive` paths. Agent-written and sensitive lines still go to `model`. |
 | `passes` | `1` | How many times each change is reviewed, 1 to 3. With 2 or more, a high-confidence finding is posted from any pass and a medium-confidence one only when two passes raised it; the rest are listed under "Worth a look". About a third more cost and twice the time. |
 
 The review always reads this file from the pull request's **base** branch, never from the pull request itself. A pull request cannot loosen its own review, for example with `"ignore": ["**"]` or `"failOn": "never"`. A change to the file takes effect once it is merged.
@@ -297,7 +298,7 @@ The workflow can also set `provider`, `model`, `fail-on` and `config-path` as in
 
 ## What the comments look like
 
-One review per push, with a comment on each line that needs attention. On an agent-written line the comment ends with the run that wrote it and what that run was asked. For example:
+One review per push, with a comment on each line that needs attention. In the cloud, a push to a pull request Grapim already reviewed sends only the files changed since that review; earlier findings on the other files still count for the check. Comment `@grapim review` for a full review. On an agent-written line the comment ends with the run that wrote it and what that run was asked. For example:
 
 ```text Comment on src/orders/create.ts
 Blocker · Idempotency key read from untrusted header without length limit

@@ -1,7 +1,7 @@
 // Grapim Review in the cloud, one pull request: run by cloud-review.js as a
 // child process, so the engine's git calls (synchronous) and its memory never
 // block or bloat the hub. Reads one JSON job on stdin:
-//   { dir, base, head, model, request, limits, feedback, discussion, verify, teamConfig }
+//   { dir, base, head, model, request, limits, feedback, discussion, verify, teamConfig, only }
 // takes the model key from ANTHROPIC_API_KEY in its own environment, and
 // writes one JSON line on stdout: { ok: true, result } or { ok: false, error, config }.
 // Progress goes to stderr. It never runs code from the repository.
@@ -61,6 +61,7 @@ async function main() {
     provider,
     ...(job.request ? { request: job.request } : {}),
     ...(job.limits ? { limits: job.limits } : {}),
+    ...(Array.isArray(job.only) ? { only: job.only } : {}),
     env: {},
     // The summary says the code was on Grapim's server (it was, in job.dir).
     hosted: true,

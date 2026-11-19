@@ -55,7 +55,7 @@ Provenance notes give the prompt of each agent run, but most repos have no notes
   "model": "claude-opus-5-5",
   "review": "all",                       // "all" (default) | "ai-and-sensitive" | "ai-only"
   "sensitive": ["**/migrations/**", "**/auth/**", "**/infra/**", "**/*.sql", ".github/workflows/**"],
-  "ignore": ["**/*.lock", "**/dist/**", "**/*.snap"],
+  "ignore": ["**/*.lock", "**/dist/**", "**/*.snap", "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "go.sum", "**/*.min.js", "**/*.min.css", "**/*.map", "**/vendor/**", "**/node_modules/**", "**/__generated__/**", "**/*.pb.go", "**/*_pb2.py", "**/*.generated.*"],
   "instructions": "Our services must never log account numbers.",
   "maxComments": 15,
   "maxFiles": 100,

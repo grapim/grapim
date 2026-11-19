@@ -81,11 +81,11 @@ export const requestOf = (pr) => ({
 // effort: a tuning variant sends every request at this API effort, whatever
 // depth the plan gave the batch.
 // passes: the engine's "passes" setting (how many times each request is reviewed).
-async function grapimReview(pr, ctx, { provenance, limits = {}, effort = null, passes = 1 }) {
+async function grapimReview(pr, ctx, { provenance, limits = {}, effort = null, passes = 1, lowModel = null }) {
   const gitDir = ctx.gitDir(pr);
   let notes = 0;
   if (provenance) notes = writeNotes(gitDir, pr, { intentChars: ctx.intentChars });
-  const config = { ...DEFAULT_CONFIG, model: MODEL, review: provenance ? 'ai-and-sensitive' : 'all', passes };
+  const config = { ...DEFAULT_CONFIG, model: MODEL, review: provenance ? 'ai-and-sensitive' : 'all', passes, lowModel };
   const external = !ctx.dry && process.env.GRAPIM_REVIEW_PROVIDER && process.env.GRAPIM_REVIEW_PROVIDER !== 'anthropic';
   // --via-cli: a tuning run through the logged-in Claude Code CLI (cli-provider.mjs).
   const viaCli = !ctx.dry && ctx.viaCli;
@@ -94,7 +94,7 @@ async function grapimReview(pr, ctx, { provenance, limits = {}, effort = null, p
   // the sign-in token a terminal provides (the desktop app's does), when set.
   const token = process.env.CLAUDE_CODE_OAUTH_TOKEN;
   const cliEnv = { ...cleanEnv(), ...(token ? { CLAUDE_CODE_OAUTH_TOKEN: token } : {}) };
-  const cli = viaCli ? claudeCliProvider({ model: MODEL, env: cliEnv, onUsage: (u) => { cliUsage.requests++; addUsage(cliUsage, u, MODEL); } }) : null;
+  const cli = viaCli ? claudeCliProvider({ model: MODEL, env: cliEnv, onUsage: (u, m) => { cliUsage.requests++; addUsage(cliUsage, u, m ?? MODEL); } }) : null;
   const proxy = external || viaCli ? null : await proxyFor(ctx);
   try {
     const base = cli
@@ -337,6 +337,8 @@ export const ADAPTERS = Object.freeze({
   'grapim-noprov': (pr, ctx) => grapimReview(pr, ctx, { provenance: false }),
   // The same review on the diff alone: no whole files, 10 context lines a side.
   'grapim-lean': (pr, ctx) => grapimReview(pr, ctx, { provenance: false, limits: { fileContextChars: 0, contextLines: 10 } }),
+  // grapim-lean with depth-"low" batches (human-written, off the sensitive paths) on Sonnet 5.5.
+  'grapim-lean-sonnet-low': (pr, ctx) => grapimReview(pr, ctx, { provenance: false, limits: { fileContextChars: 0, contextLines: 10 }, lowModel: 'claude-sonnet-5-5' }),
   // grapim-lean with every request reviewed twice and the findings merged.
   'grapim-lean-x2': (pr, ctx) => grapimReview(pr, ctx, { provenance: false, limits: { fileContextChars: 0, contextLines: 10 }, passes: 2 }),
   // Tuning variants (dev half): grapim-lean with one thing changed.

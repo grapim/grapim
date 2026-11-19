@@ -278,6 +278,22 @@ export function cloudConfig(env = process.env) {
 }
 
 export const costMicros = (price, input, output) => Math.round(input * price.input + output * price.output);
+// A review's cost: tokens the engine sent to each model (stats.byModel, when
+// "lowModel" sent some to a cheaper one) at that model's price; the rest (the
+// second look) at the cloud model's price.
+export function reviewCost(price, st = {}) {
+  let input = st.inputTokens ?? 0;
+  let output = st.outputTokens ?? 0;
+  let micros = 0;
+  for (const [model, u] of Object.entries(st.byModel ?? {})) {
+    const p = PRICES[model];
+    if (!p || !u) continue;
+    micros += costMicros(p, u.input ?? 0, u.output ?? 0);
+    input -= u.input ?? 0;
+    output -= u.output ?? 0;
+  }
+  return micros + costMicros(price, Math.max(0, input), Math.max(0, output));
+}
 
 // Runs git without a shell. The token reaches git only as an http header
 // through GIT_CONFIG_* in its env: never in argv, a URL or a file.
@@ -461,7 +477,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       const comments = await list(client, `/repos/${repo}/pulls/${number}/comments`);
       return comments
         .filter((c) => c?.user?.type === 'Bot' && (!slug || c.user.login === botLogin()) && !c.in_reply_to_id)
-        .map((c) => ({ path: c.path, line: c.line ?? c.original_line ?? null, ...(parseComment(c.body) ?? {}) }))
+        .map((c) => ({ path: c.path, line: c.line ?? c.original_line ?? null, current: c.line != null, ...(parseComment(c.body) ?? {}) }))
         .filter((f) => f.title);
     } catch {
       return [];
@@ -670,11 +686,28 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       const base = (await runGit(['merge-base', 'refs/remotes/origin/base', 'refs/remotes/origin/pr'], { cwd: dir, signal })).out.trim();
       if (!SHA.test(head) || !SHA.test(base)) throw new Error('The pull request has no common history with its base branch.');
 
+      // New commits on a pull request Grapim already reviewed: only the files
+      // they touched go to the model; the rest stand as the last review left
+      // them. A force push (the old head is gone from the history) or an
+      // "@grapim review" gets a full review.
+      let only = null;
+      let since = null;
+      if (!job.manual) {
+        const prev = db.prepare("SELECT head_sha FROM cloud_reviews WHERE lower(owner) = lower(?) AND lower(name) = lower(?) AND number = ? AND status = 'done' AND head_sha != ? ORDER BY id DESC LIMIT 1").get(job.owner, job.name, job.number, head);
+        if (prev && SHA.test(prev.head_sha) && (await runGit(['merge-base', '--is-ancestor', prev.head_sha, head], { cwd: dir, signal })).code === 0) {
+          const d = await runGit(['diff', '--name-only', '--no-renames', '-z', prev.head_sha, head], { cwd: dir, signal });
+          if (d.code === 0) {
+            only = d.out.split('\0').filter(Boolean);
+            since = prev.head_sha;
+          }
+        }
+      }
+
       const request = await statedRequest({ pr, repo, request: (method, url) => client.request(method, url), lib: { closingIssues }, log: () => {} });
       const feedback = await repoFeedback(client, repo);
       const discussion = await prDiscussion(client, repo, job.number, pr?.user?.login ?? null);
       const teamSettings = team ? teamConfig(team.id) : null;
-      const out = await runWorker({ dir, base, head, model: cfg.model, request, limits: REVIEW_LIMITS, discussion, ...(teamSettings ? { teamConfig: teamSettings } : {}), ...(feedback.text ? { feedback: feedback.text } : {}) }, { key: cfg.key, baseUrl: cfg.baseUrl, signal, timeoutMs: cfg.jobMs, log });
+      const out = await runWorker({ dir, base, head, model: cfg.model, request, limits: REVIEW_LIMITS, discussion, ...(teamSettings ? { teamConfig: teamSettings } : {}), ...(only ? { only } : {}), ...(feedback.text ? { feedback: feedback.text } : {}) }, { key: cfg.key, baseUrl: cfg.baseUrl, signal, timeoutMs: cfg.jobMs, log });
       if (!out?.ok) {
         const msg = String(out?.error ?? 'The review failed.').split(cfg.key).join('***');
         finish({ status: 'failed', error: msg.slice(0, 500) });
@@ -683,12 +716,18 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       }
       const result = out.result;
       const st = result.stats ?? {};
-      const cost = costMicros(cfg.price, st.inputTokens ?? 0, st.outputTokens ?? 0);
+      const cost = reviewCost(cfg.price, st);
       const findings = (result.findings ?? []).filter((f) => f && typeof f.path === 'string' && Number.isSafeInteger(f.line) && f.line >= 1);
+      const prior = await priorFindings(client, repo, job.number);
+      // After new commits: findings an earlier review posted on files this one
+      // did not look at again still count for the check and the card.
+      const onlySet = only ? new Set(only) : null;
+      const carried = onlySet ? prior.filter((f) => f.current && !onlySet.has(f.path) && f.severity in SEVERITY) : [];
       const n = counts(findings);
+      const nAll = counts([...findings, ...carried]);
       finish({ status: 'done', findings: findings.length, blockers: n.blocker, input_tokens: st.inputTokens ?? 0, output_tokens: st.outputTokens ?? 0, cost_micros: cost });
 
-      const posted = await post(client, repo, job.number, head, findings, await priorFindings(client, repo, job.number));
+      const posted = await post(client, repo, job.number, head, findings, prior);
       // One comment per pull request: the provenance section joins the review.
       // The provenance job runs on its own queue and is nearly always done by
       // now; wait for it briefly so the one comment is complete.
@@ -699,13 +738,14 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       }
       const prov = provenanceSection(provMd);
       const notes = [
+        since ? `New commits since ${since.slice(0, 7)}: this review looked again only at the ${plural(st.reviewedFiles ?? 0, 'file')} they changed${carried.length ? `; ${plural(carried.length, 'earlier finding')} on other files still stand${carried.length === 1 ? 's' : ''}` : ''}. Comment \`@${slug ?? 'grapim'} review\` for a full review.` : '',
         posted.repeated ? `${plural(posted.repeated, 'finding')} from an earlier review of this pull request ${posted.repeated === 1 ? 'is' : 'are'} still there and ${posted.repeated === 1 ? 'was' : 'were'} not posted again.` : '',
         feedback.signals ? `This review took the team's reactions and replies on ${plural(feedback.signals, 'earlier Grapim comment')} into account.` : '',
       ].filter(Boolean);
       if (notes.length) result.summary = `${String(result.summary ?? '').trimEnd()}\n\n${notes.map((l) => `_${l}_`).join('\n')}`;
       // The merge decision card on top (merge-card.js): verdict, what was
       // asked, what went beyond it, CI, and the merge gate.
-      const decision = await cards.prepare({ client, job, team, pr, findings, posted, result, request, hubRuns: provenanceRunsFor(job) }).catch((err) => {
+      const decision = await cards.prepare({ client, job, team, pr, findings: [...findings, ...carried], posted, result, request, hubRuns: provenanceRunsFor(job) }).catch((err) => {
         log(`merge card failed: ${String(err?.message ?? err).slice(0, 200)}`);
         return null;
       });
@@ -718,11 +758,13 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
       await summary(client, repo, job.number, text);
       const failOn = result.failOn === 'never' ? 'never' : 'blocker';
       // A review that looked at nothing must not pass as "No findings".
-      const nothing = !(st.reviewedHunks > 0);
+      // After new commits that touched nothing reviewable, the last review's
+      // findings still decide the check.
+      const nothing = !(st.reviewedHunks > 0) && !since;
       const baseCheck = {
-        conclusion: nothing ? 'neutral' : failOn === 'blocker' && n.blocker ? 'failure' : 'success',
-        title: nothing ? 'Nothing reviewed' : `${countText(n)[0].toUpperCase()}${countText(n).slice(1)}`,
-        summary: nothing ? 'No changed lines were reviewed. The summary comment on the pull request says why.' : `Reviewed ${plural(st.reviewedFiles ?? 0, 'file')} at ${head.slice(0, 7)}: ${countText(n)}. The comments and the summary are on the pull request.`,
+        conclusion: nothing ? 'neutral' : failOn === 'blocker' && nAll.blocker ? 'failure' : 'success',
+        title: nothing ? 'Nothing reviewed' : `${countText(nAll)[0].toUpperCase()}${countText(nAll).slice(1)}`,
+        summary: nothing ? 'No changed lines were reviewed. The summary comment on the pull request says why.' : since ? `Reviewed ${plural(st.reviewedFiles ?? 0, 'file')} changed since ${since.slice(0, 7)}, at ${head.slice(0, 7)}: ${countText(nAll)} on the pull request in all. The comments and the summary are on the pull request.` : `Reviewed ${plural(st.reviewedFiles ?? 0, 'file')} at ${head.slice(0, 7)}: ${countText(n)}. The comments and the summary are on the pull request.`,
       };
       // With a card: its verdict is the title, and the merge gate (auto-approve)
       // fails the check on a high-risk pull request (merge-card.js cardCheck).
@@ -734,7 +776,7 @@ export function createCloudReview(hub, { auth, installs, apiBase, fetch, slug, e
         output: { title: final.title, summary: final.summary },
       });
       decision?.save(checkId, baseCheck, CLOUD_MARKER);
-      return { done: true, counts: n, cost };
+      return { done: true, counts: nAll, cost, ...(since ? { since, files: only.length } : {}) };
     } catch (err) {
       const msg = String(err?.message ?? err).split(token).join('***');
       finish({ status: 'failed', error: msg.slice(0, 500) });

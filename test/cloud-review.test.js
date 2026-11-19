@@ -10,8 +10,9 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { CLOUD_CHECK, CLOUD_MARKER, cloudConfig, costMicros, createCloudReview, DEFAULT_MODEL, findingsList, provenanceSection, withFindingsList } from '../src/hub/github/cloud-review.js';
+import { CLOUD_CHECK, CLOUD_MARKER, cloudConfig, costMicros, reviewCost, createCloudReview, DEFAULT_MODEL, findingsList, provenanceSection, withFindingsList } from '../src/hub/github/cloud-review.js';
 import { cleanTeamConfig, mergeReviewConfig, parseTeamForm, TeamConfigError } from '../src/hub/github/review-config.js';
+import { DEFAULT_CONFIG } from '../src/airev/config.js';
 
 const TOKEN = 'ghs_cloudtest_secret_token';
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
@@ -478,6 +479,44 @@ test('memory: a finding already posted on this pull request is not posted again 
   assert.equal(gh.s.checks.at(-1).conclusion, 'failure', 'a repeated blocker still fails the check');
 });
 
+test('review cost: each model at its own price, the second look at the cloud model price', () => {
+  const opus = { input: 4, output: 20 };
+  assert.equal(reviewCost(opus, { inputTokens: 1000, outputTokens: 100 }), 6000);
+  // 1,000 in / 100 out on Sonnet, 500 in / 50 out of second look on Opus.
+  assert.equal(reviewCost(opus, { inputTokens: 1500, outputTokens: 150, byModel: { 'claude-sonnet-5-5': { input: 1000, output: 100 } } }), 1000 * 2 + 100 * 10 + 500 * 4 + 50 * 20);
+});
+
+test('new commits: only the files they changed go to the model; earlier findings on other files still decide the check', async (t) => {
+  const { cloud, gh, model, db, job, src } = await setup(t);
+  cloud.setEnabled('team1', true, 'u1');
+  assert.equal((await cloud.review(job, AbortSignal.timeout(60_000))).done, true);
+  // A new commit on the pull request that touches another file only.
+  git(src.dir, 'checkout', '-q', 'feature');
+  fs.writeFileSync(path.join(src.dir, 'src/other.js'), 'export const c = 3;\n');
+  git(src.dir, 'add', '.');
+  git(src.dir, 'commit', '-q', '-m', 'another file');
+  const head2 = git(src.dir, 'rev-parse', 'HEAD');
+  git(src.dir, 'update-ref', 'refs/pull/7/head', head2);
+  git(src.dir, 'checkout', '-q', 'main');
+  const before = model.s.requests.length;
+  const r = await cloud.review({ ...job, headSha: head2 }, AbortSignal.timeout(60_000));
+  assert.equal(r.done, true, JSON.stringify(r));
+  assert.equal(r.since, src.head);
+  assert.equal(r.files, 1);
+  const sent = model.s.requests.slice(before).map((q) => q.text).join('\n');
+  assert.ok(sent.includes('export const c = 3'), 'the new file is reviewed');
+  assert.ok(!sent.includes('export const a = 10'), 'the file reviewed before is not sent again');
+  assert.equal(r.counts.blocker, 1, 'the earlier blocker on src/small.js still counts');
+  assert.equal(gh.s.checks.at(-1).conclusion, 'failure');
+  assert.match(gh.s.checks.at(-1).output.summary, /changed since [0-9a-f]{7}/);
+  assert.match(gh.s.comments[0].body, /New commits since [0-9a-f]{7}: this review looked again only at the 1 file they changed; 1 earlier finding on other files still stands/);
+  // "@grapim review" asks for everything again.
+  const full = await cloud.review({ ...job, headSha: head2, manual: true }, AbortSignal.timeout(60_000));
+  assert.equal(full.since, undefined);
+  assert.ok(model.s.requests.at(-1).text.includes('export const a = 10') || model.s.requests.some((q, i) => i > before && q.text.includes('export const a = 10')));
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM cloud_reviews WHERE status = 'done'").get().n, 3);
+});
+
 test('memory: thumbs down and replies from people with write access reach the reviewer; strangers do not', async (t) => {
   const { cloud, gh, model, job } = await setup(t);
   cloud.setEnabled('team1', true, 'u1');
@@ -524,7 +563,7 @@ test('team review settings: defaults < team (Settings, Review) < the repository\
   assert.equal(plain.review, 'all');
   assert.equal(plain.failOn, 'blocker');
   assert.equal(plain.maxComments, 15);
-  assert.deepEqual([...plain.ignore], ['**/*.lock', '**/dist/**', '**/*.snap']);
+  assert.deepEqual([...plain.ignore], [...DEFAULT_CONFIG.ignore]);
   assert.equal(plain.instructions, '');
   // The team's settings replace the defaults.
   const team = { failOn: 'never', maxComments: 5, ignore: ['docs/**'], instructions: 'We use Postgres; flag missing indexes on new queries.' };
@@ -543,7 +582,7 @@ test('team review settings: defaults < team (Settings, Review) < the repository\
   const odd = mergeReviewConfig({ team: { failOn: 'always', maxComments: 500, ignore: ['../x'], instructions: 'x'.repeat(2001), extra: 1 } });
   assert.equal(odd.failOn, 'blocker');
   assert.equal(odd.maxComments, 15);
-  assert.deepEqual([...odd.ignore], ['**/*.lock', '**/dist/**', '**/*.snap']);
+  assert.deepEqual([...odd.ignore], [...DEFAULT_CONFIG.ignore]);
   assert.equal(odd.instructions, '');
   assert.deepEqual(cleanTeamConfig('nope'), {});
 
