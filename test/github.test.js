@@ -10,6 +10,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { createHub } from '../src/hub/server.js';
+import { DEFAULT_CONFIG } from '../src/airev/config.js';
 import { appJwt, AppAuth, TOKEN_MARGIN_MS } from '../src/hub/github/auth.js';
 import { GitHubClient } from '../src/hub/github/client.js';
 import { githubConfig } from '../src/hub/github/config.js';
@@ -1211,7 +1212,7 @@ test('Settings, Review: owners save the review settings, members read them; inpu
   assert.match(page.text, new RegExp(`href="${url}" aria-current="page"`), 'in the sub-nav');
   assert.match(page.text, /name="failOn" value="blocker" checked/);
   assert.match(page.text, /name="maxComments" min="1" max="50" step="1" inputmode="numeric" value="15"/);
-  assert.match(page.text, /name="ignore" rows="4" spellcheck="false" autocapitalize="off">\*\*\/\*\.lock\n\*\*\/dist\/\*\*\n\*\*\/\*\.snap<\/textarea>/, 'the default paths are shown');
+  assert.ok(page.text.includes(`name="ignore" rows="4" spellcheck="false" autocapitalize="off">${DEFAULT_CONFIG.ignore.join('\n')}</textarea>`), 'the default paths are shown');
   assert.match(page.text, /placeholder="We use Postgres; flag missing indexes on new queries\."><\/textarea>/);
   assert.match(page.text, /A repository's <code>\.grapim\/review\.json<\/code> overrides these\./);
   assert.match(page.text, /name="extraReviews" min="0" max="100000" step="1" inputmode="numeric" value="0"/, 'no extra reviews by default');
@@ -1239,7 +1240,8 @@ test('Settings, Review: owners save the review settings, members read them; inpu
   assert.equal((await owner.post(url, { maxComments: '7', ignore: '', instructions: '', extraReviews: '500' })).status, 303);
   assert.equal(cloud.teamConfig(T).extraReviews, 500);
   assert.match((await owner.req(url)).text, /name="extraReviews" min="0" max="100000" step="1" inputmode="numeric" value="500"/);
-  assert.equal(cloud.usage(h.hub.teams.get(T)).budget, 70, 'the free $10 plus 500 x $0.12');
+  assert.equal(cloud.usage(h.hub.teams.get(T)).budget, 10, 'saved, but on the Free plan extra reviews add nothing');
+  assert.equal(cloud.usage({ ...h.hub.teams.get(T), plan: 'team' }).budget, 12 + 60, 'on Team: the per-author $12 plus 500 x $0.12');
   // Without the CSRF token: refused, nothing stored.
   const noCsrf = await owner.req(url, { method: 'POST', form: { maxComments: '7', extraReviews: '9' } });
   assert.equal(noCsrf.status, 403);
