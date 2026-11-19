@@ -1,0 +1,69 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "head_sha": "bbd8c507cdf56f6b884373809e0b24abd4a2353d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:17:34.868Z",
+ "seconds": 23.786,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17148,
+  "cacheRead": 3426,
+  "output": 1466,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 11,
+   "hunks": 19,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 20576,
+   "outputTokens": 1466,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 20576,
+     "output": 1466
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+    "line": 95,
+    "end_line": 97,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "rowsAffected==0 is treated as 'limit reached', which can wrongly reject existing devices",
+    "body": "When the limit is reached, an existing device that was updated within the window can still give `RowsAffected()==0`. MySQL drivers often report changed rows instead of matched rows. If client_ip, user_agent and updated_at are all unchanged (for example two requests in the same second), the update affects 0 rows. The user then gets `ErrDeviceLimitReached` and is denied even though the device is already registered. Check whether the device exists before deciding the limit was hit, or enable matched-rows semantics for the MySQL DSN."
+   }
+  ]
+ },
+ "cost_usd": 0.1157532
+}

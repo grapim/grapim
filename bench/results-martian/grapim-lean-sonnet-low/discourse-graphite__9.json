@@ -1,0 +1,75 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "discourse-graphite__9",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+ "head_sha": "ecfa17b5a79dfdc91e7a4d50b42ae78a35d0a293",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:17:53.066Z",
+ "seconds": 15.42,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 3531,
+  "cacheRead": 3426,
+  "output": 712,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 7,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 6959,
+   "outputTokens": 712,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 6959,
+     "output": 712
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "config/cloud/cloud66/files/production.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/environments/production.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/environments/profile.rb",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "config/initializers/pluralization.rb",
+    "reason": "file deleted (no new lines to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0325882
+}

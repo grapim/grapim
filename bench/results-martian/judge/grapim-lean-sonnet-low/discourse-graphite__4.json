@@ -1,0 +1,100 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The PollFeed job calls open(SiteSetting.feed_polling_url) without validating the URL, allowing an attacker who controls the feed_polling_url site setting to make the server fetch arbitrary internal or external URLs.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    10
+   ],
+   "confidence": 0.85,
+   "reasoning": "C10 flags open() on feed_polling_url setting without validation."
+  },
+  {
+   "comment": "The current origin validation using indexOf is insufficient and can be bypassed. An attacker could use a malicious domain like evil-discourseUrl.com to pass this check.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [
+    5
+   ],
+   "confidence": 0.95,
+   "reasoning": "C5 identifies weak indexOf origin check."
+  },
+  {
+   "comment": "postMessage targetOrigin should be the origin (scheme+host+port), not the full referrer URL; using the full URL will cause the message to be dropped and prevent resizing.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "No candidate discusses postMessage targetOrigin being full URL vs origin."
+  },
+  {
+   "comment": "The code sets X-Frame-Options: ALLOWALL which completely disables clickjacking protection. The referer validation can be bypassed (referer headers are easily spoofed), and the fallback to empty string for nil referer masks validation failures.",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.65,
+   "reasoning": "No candidate addresses X-Frame-Options ALLOWALL/clickjacking; C3 is about job enqueueing."
+  },
+  {
+   "comment": "The TopicEmbed.import method is susceptible to a NoMethodError if the contents parameter is nil when attempting to append a string, and an XSS vulnerability due to unescaped url interpolation in the generated HTML.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.7,
+   "reasoning": "C1 identifies unescaped url interpolation XSS in TopicEmbed.import; C7 concerns mutation not nil."
+  },
+  {
+   "comment": "The ERB block closes with end if, which is invalid Ruby/ERB and will raise at render; it should just be end to close the if block.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2,
+    6
+   ],
+   "confidence": 0.9,
+   "reasoning": "Both C2 and C6 flag the invalid `end if` in ERB."
+  },
+  {
+   "comment": "Calling `i.content.scrub` assumes that `i.content` is always populated. However, many RSS feeds do not provide a `content` field, leading to a potential nil pointer exception when `i.content` is nil. A fallback to `description` should be implemented to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    11
+   ],
+   "confidence": 0.95,
+   "reasoning": "C11 flags nil content scrub crash with description fallback."
+  },
+  {
+   "comment": "An unescaped request header (request.referer) is interpolated into JavaScript without proper escaping, which can lead to XSS vulnerabilities if the referer contains malicious content. This issue can allow attackers to execute arbitrary scripts in the context of the application.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    8
+   ],
+   "confidence": 0.95,
+   "reasoning": "C8 identifies unescaped referer in inline JS."
+  }
+ ],
+ "candidates": [
+  "app/models/topic_embed.rb:13 - Untrusted HTML stored and served as raw (stored XSS); url interpolated unescaped. Imported feed or remote content is saved with cook_method raw_html and Post#cook returns raw unsanitized. It is rendered with `raw post.cooked`. Scripts in feed content therefore execute on the forum, and the url is interpolated into an href without escaping. Sanitize the content, for example with Sanitize, and escape the url.",
+  "app/views/embed/best.html.erb:6 - Invalid ERB `end if` breaks the template. `<%- end if %>` is a Ruby syntax error (`end` followed by a dangling `if`). The view will not compile, so embed/best fails whenever a topic exists. Use `<%- end %>`.",
+  "app/controllers/embed_controller.rb:15 - embed_url enqueued without host validation; unauthenticated callers can trigger work. Any request whose Referer matches the embeddable host (the Referer is trivially forged by non-browser clients) enqueues a retrieve job for an arbitrary embed_url. The job validates the host later, but this still lets anonymous callers enqueue jobs at will. Validate the embed_url host before enqueueing.",
+  "app/models/topic_embed.rb:48 - open(url) with user-influenced URL (SSRF / local file / command). Kernel#open with a URL string allows SSRF to internal hosts. A leading pipe would run a command, but the host check blocks that in the retriever path. The Disqus import passes t[:link] from an XML file straight in. Use a restricted HTTP client and validate the scheme.",
+  "app/assets/javascripts/embed.js:17 - Weak origin check using indexOf. `discourseUrl.indexOf(e.origin) === -1` accepts any origin that is a substring of discourseUrl, including an empty string (the origin of a sandboxed or data: frame). Compare for equality against the origin.",
+  "app/controllers/embed_controller.rb:13 - Controller can leave @topic_view nil or render incorrectly. best.html.erb calls @topic_view.topic.url in the header even when posts are empty. When the topic is found but has no posts, @topic_view is used as is. The `<%- end if %>` in best.html.erb is also a syntax error (`end if`), so the view fails to compile.",
+  "app/models/topic_embed.rb:13 - Mutating contents with << changes the sha1 and fails on frozen strings. `contents <<` mutates the caller's string, and may raise on frozen strings. The hash is computed after the suffix is appended, which is fine. But absolutize_urls output is what gets stored, and revision compares only against the hash.",
+  "app/views/layouts/embed.html.erb:11 - Unescaped referer injected into inline JS. request.referer is client-controlled and is emitted in a script string with ERB HTML escaping, not JS escaping. A crafted referer containing a quote or backslash sequence breaks out of the string. The referer must match the embeddable host by the controller check, but the path and query are unconstrained. Use j(request.referer) or a fixed origin.",
+  "lib/tasks/disqus.thor:148 - Disqus import changed and category option removed. The --category option was removed, and imports now call import_remote, which fetches each URL over HTTP. The topic is no longer created with created_at, and the call is not covered by the request. A dry run is unaffected, but real imports now need network access and depend on embeddable_host settings.",
+  "app/jobs/scheduled/poll_feed.rb:29 - open() on admin-configured URL without scheme check. Kernel#open on a setting value permits local paths or pipe commands, and any URL. Restrict to http(s) and use a proper client.",
+  "app/jobs/scheduled/poll_feed.rb:35 - Missing content crashes the poll; scrub on nil. Feed items without a content element have i.content nil, so `.scrub` raises NoMethodError and aborts the whole poll. Skip such items or fall back to description.",
+  "lib/topic_retriever.rb:27 - Non-atomic setnx + expire. If the process dies between setnx and expire, the key never expires and that URL is never retrieved again. Use set with ex and nx options."
+ ]
+}

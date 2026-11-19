@@ -1,0 +1,42 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In _set_sample_rate_from_error_sampling(), the check `if client_sample_rate:` treats 0.0 as falsy, so a sample_rate of 0.0 is silently skipped and never set on normalized_data.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the falsy check skipping a 0.0 sample rate."
+  },
+  {
+   "comment": "Using Python’s built-in hash() to build cache keys is non-deterministic across processes (hash randomization), so keys won’t match across workers and invalidate_upsampling_cache may fail to delete them. Use a deterministic serialization of project_ids for the cache key.",
+   "severity": "Low",
+   "category": "data",
+   "matches": [
+    4
+   ],
+   "confidence": 0.6,
+   "reasoning": "C4 flags hash() of project ids in the cache key (including invalidate_upsampling_cache) and suggests deterministic sorted-id serialization. Its stated reason is collisions rather than per-process hash randomization, but the code issue and fix are the same."
+  },
+  {
+   "comment": "The upsampling eligibility check passes the outer dataset instead of the actual dataset used by scoped_dataset. In paths where the query ultimately runs against discover (e.g., dashboard split) while the original dataset is metrics, upsampling may be skipped even when all projects are allowlisted.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C3 is about the substring query check, not about passing the outer dataset instead of the scoped one."
+  }
+ ],
+ "candidates": [
+  "src/sentry/api/helpers/error_upsampling.py:38 - Allowlist cache is never invalidated, so changes lag by 60s. The result is cached for 60s, and invalidate_upsampling_cache is never called when the option changes. Removing a project from the allowlist keeps upsampling on for up to a minute. The options lookup is already cheap, so drop this cache.",
+  "sentry-repo:1 - Unrelated submodule pointer committed. A `sentry-repo` subproject commit entry has nothing to do with this feature. Remove it from the PR.",
+  "src/sentry/api/endpoints/organization_events_stats.py:220 - Discover eligibility check is a loose substring match. For the discover dataset, eligibility only checks for the literal substring `event.type:error` in the query. A query like `!event.type:error`, or one that ORs in transactions, is treated as errors-only. Upsampling is then applied to rows that are not errors. Parse the query properly instead.",
+  "src/sentry/api/helpers/error_upsampling.py:27 - Cache key uses hash() of project ids, which can collide. The key uses hash(tuple(...)). Two different project sets can collide and share a cached eligibility result. That could apply upsampling to non-allowlisted projects, or skip it for allowlisted ones. Build the key from the sorted ids joined as a string, or hash it with sha1. Apply the same change in invalidate_upsampling_cache.",
+  "src/sentry/search/events/datasets/discover.py:1041 - upsampled_count sums sample_weight without a null fallback. It sums sample_weight with no fallback. Events stored without that value count as 0 or NULL. The function is also public, so users can call it in any discover query. Use a coalesce-to-1 fallback and mark the function private."
+ ]
+}

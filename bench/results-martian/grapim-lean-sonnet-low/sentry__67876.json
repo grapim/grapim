@@ -1,0 +1,79 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "head_sha": "bb75657fc8f13923c1d7983f422290908a1e7310",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:14:44.068Z",
+ "seconds": 24.95,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 503,
+   "end_line": 503,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "KeyError when integration metadata has no sender",
+   "body": "`integration.metadata[\"sender\"][\"login\"]` assumes the installation webhook already stored `sender`. An existing Integration without that key (for example one created before the webhook was processed, or older rows) makes this raise KeyError and return a 500 instead of the error page. Use `.get(\"sender\", {}).get(\"login\")` and fail closed with `error(...)` when it is missing."
+  },
+  {
+   "path": "tests/sentry/integrations/github/test_integration.py",
+   "line": 396,
+   "end_line": 396,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "Installation-not-found test no longer tests that path",
+   "body": "The test used to assert \"The GitHub installation could not be found.\". It now asserts the generic \"Invalid installation request.\", and it sends a different `state` (`ddd023...`) than the signature used elsewhere. The request likely fails at the state check, so the 404 handling in `build_integration` is never reached. Use the correct state and keep asserting the installation-not-found message."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 16197,
+  "cacheRead": 21669,
+  "output": 1832,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 37870,
+   "outputTokens": 1832,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 37870,
+     "output": 1832
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.12197480000000001
+}

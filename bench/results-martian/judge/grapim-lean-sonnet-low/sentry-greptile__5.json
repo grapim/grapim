@@ -1,0 +1,71 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The BrowserReportingCollectorEndpoint returns HttpResponse objects but the endpoint inherits from Endpoint which expects rest_framework.response.Response objects.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions HttpResponse vs Response in BrowserReportingCollectorEndpoint."
+  },
+  {
+   "comment": "In BaseDetectorTypeValidator.update(), the validator incorrectly updates instance.type using validated_data.get('detector_type') instead of validated_data.get('type').",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate addresses detector_type vs type."
+  },
+  {
+   "comment": "Using zip(error_ids, events.values()) assumes the get_multi result preserves the input order; dict value order is not guaranteed to match error_ids, so event data can be paired with the wrong ID (missing nodes also shift alignment).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.97,
+   "reasoning": "C4 describes the same zip ordering/missing-node issue."
+  },
+  {
+   "comment": "Hardcoded empty data passed to TableWidgetVisualization causes it to always render an empty table instead of displaying actual results when the feature flag is enabled.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    7
+   ],
+   "confidence": 0.95,
+   "reasoning": "C7 points out that TableWidgetVisualization receives empty data."
+  },
+  {
+   "comment": "Validation logic incorrectly uses .get('timestamp'), which treats a timestamp of 0 as absent. It should directly check 'timestamp' in self.initial_data to ensure proper field presence detection, preventing both 'age=0' and 'timestamp' from passing mutual-exclusion validation.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the timestamp-0 validation."
+  },
+  {
+   "comment": "Analytics events are recorded before the feature flag check, resulting in analytics being logged for all requests, including those that return 404 due to the feature being disabled. This can lead to misleading analytics data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers analytics being recorded before the feature flag check."
+  }
+ ],
+ "candidates": [
+  "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx:65 - Hidden attributes are only filtered when a search query is entered. The `HIDDEN_ATTRIBUTES` filter sits after the early `return sorted` for an empty search query. With no search text, which is the default, `is_segment`, `project_id` and `received` are still shown. They are hidden only once the user types something. Apply the hidden filter before the empty-query check.",
+  "src/sentry/migrations/0917_convert_org_saved_searches_to_views.py:14 - Data migration turned into a no-op, pointing to a migration this PR does not add.. This hunk replaces the org saved search → GroupSearchView conversion with a bare `return`. The comment says migration `0921_convert_org_saved_searches_to_views_rerevised.py` now does the work, but that file is not in this PR's change list. I can't see whether it already exists in the repo. If it doesn't exist or isn't merged first, a fresh install or any self-hosted instance that hasn't applied 0917 yet will never convert its organization-visible saved searches, and those users silently lose their views. The comment also claims the migration 'was never run', which only holds for SaaS. This change also has nothing to do with the PR's stated purpose (replays bulk delete). Either confirm that 0921 exists and depends on this migration, or move this change into the PR that adds 0921.",
+  "src/sentry/migrations/0920_convert_org_saved_searches_to_views_revised.py:13 - Second saved-search conversion migration also gutted, relying on an unseen 0921.. Like 0917, this hunk replaces the conversion of org saved searches (those with an owner) into GroupSearchViews with a no-op. It points to 0921, which this PR does not add. If 0921 isn't in the tree, no migration converts these searches anymore, and installs that haven't applied 0920 lose the data move. The replays bulk-delete request does not cover this change either. Make sure the replacement migration exists in the same release, or keep this change out of this PR.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:118 - Error IDs are zipped with unordered nodestore results. `nodestore.backend.get_multi` returns a dict keyed by node id. Missing nodes may be omitted, and the dict order is not guaranteed to match `error_ids`. `zip(error_ids, events.values())` can therefore attach the wrong event id to the data, or shift every id after a missing node. Build the list by iterating `error_ids` and looking up `events.get(Event.generate_node_id(project_id, id))`.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:153 - Error timestamps compared against replay event timestamps in different units. Error events from nodestore carry `timestamp` in epoch seconds (float). Replay recording events carry `timestamp` in epoch milliseconds. The merge loop compares the two directly, so every error looks earlier than the first replay event. All errors are emitted at the start of the log instead of in chronological order. Normalize the units before comparing, for example multiply the error timestamp by 1000.",
+  "static/app/components/events/groupingInfo/groupingVariant.tsx:103 - Removes the 'Type' rows and tooltips from grouping variant info. The change deletes the 'Type' row and its explanatory tooltip for every variant type (component, custom fingerprint, built-in fingerprint, salted component, performance problem). The request does not mention this, and it removes user-visible grouping information. If it is intentional, it should be a separate change. Otherwise restore the rows.",
+  "static/app/views/dashboards/widgetCard/chart.tsx:165 - New table visualization is rendered with empty columns and data. When the `use-table-widget-visualization` feature is on, `TableWidgetVisualization` gets `columns=[]` and empty `data`. `tableResults`, `fields` and `result.meta` are all ignored. Every table widget for that org renders blank. Map the query results into columns and `tableData`, or leave this branch out until the mapping exists.",
+  "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx:59 - `attributes` can now be undefined and query defaults changed. The old hook always returned a `TagCollection`, because `attributes` was built with `useMemo` and started as `{}`. The new hook returns `data`, or the `usePrevious` value, and both are `undefined` until the first fetch finishes. They also stay `undefined` if it fails. Any caller that spreads `attributes` or runs `Object.keys` on it can crash or misbehave on first render or on error. The rewrite also dropped `staleTime: 0`, `refetchOnWindowFocus: false` and `retry: false`, so the query now retries and refetches on window focus, which the old code avoided on purpose. The query key also has no organization slug. Fix: return `data ?? {}` (and `previous ?? {}`), restore the old query options, and add the org slug to the key."
+ ]
+}

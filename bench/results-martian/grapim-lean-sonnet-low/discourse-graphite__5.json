@@ -1,0 +1,69 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "discourse-graphite__5",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/5",
+ "head_sha": "5b229316ee4c661836ed1161139692a3e8527444",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:20:21.916Z",
+ "seconds": 16.449,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/assets/stylesheets/common/base/topic-post.scss",
+   "line": 264,
+   "end_line": 265,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Flex container ignores the float:right on the small-action button",
+   "body": "`.small-action` is now a flex container, so the `float: right` on its `button` (and `float: left` on `.topic-avatar`) no longer applies to its flex items. `.small-action-desc` has no `flex: 1`, so the button (for example undo or delete) now sits right after the description instead of at the right edge. Fix this by giving the button `margin-left: auto`, or by giving `.small-action-desc` `flex: 1`. The float rules can then be removed."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 5000,
+  "cacheRead": 3426,
+  "output": 858,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 8428,
+   "outputTokens": 858,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 8428,
+     "output": 858
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.042853199999999994
+}

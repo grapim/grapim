@@ -1,0 +1,31 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The enableSqlExpressions function has flawed logic that always returns false, effectively disabling SQL expressions unconditionally:",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 explicitly says enableSqlExpressions always returns false, which disables SQL expressions."
+  },
+  {
+   "comment": "The DB methods NewInMemoryDB().RunCommands, DB.QueryFramesInto, and DB.TablesList in pkg/expr/sql/db.go return hardcoded 'not implemented' errors after removing the go-duck dependency.",
+   "severity": "High",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C2 is about the reader.go error message, not the stubbed DB methods in db.go that return 'not implemented'."
+  }
+ ],
+ "candidates": [
+  "pkg/expr/reader.go:194 - enableSqlExpressions always returns false; confusing dead logic. Both branches return false, so SQL expressions are disabled even if the feature flag is on. That does disable the feature, which is the goal. But the inverted `enabled` variable and the unreachable branch hide the intent and suggest unfinished work. Return false directly, or drop the helper and return the error in the QueryTypeSQL case.",
+  "pkg/expr/reader.go:131 - Error message is unclear for a disabled feature. The error \"sqlExpressions is not implemented\" is returned for every SQL expression query. Users who enabled the flag will not learn that the feature was deliberately disabled for security reasons. Use a clearer message such as \"SQL expressions are disabled\"."
+ ]
+}

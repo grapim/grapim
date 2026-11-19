@@ -1,0 +1,192 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "head_sha": "ea188e2d736fd6ed27c1dba8aae63b7268e2a7a9",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:10:56.448Z",
+ "seconds": 40.527,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx",
+   "line": 65,
+   "end_line": 65,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Hidden attributes are only filtered when a search query is entered",
+   "body": "The `HIDDEN_ATTRIBUTES` filter sits after the early `return sorted` for an empty search query. With no search text, which is the default, `is_segment`, `project_id` and `received` are still shown. They are hidden only once the user types something. Apply the hidden filter before the empty-query check."
+  },
+  {
+   "path": "src/sentry/migrations/0917_convert_org_saved_searches_to_views.py",
+   "line": 14,
+   "end_line": 16,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "destructive_migration",
+   "title": "Data migration turned into a no-op, pointing to a migration this PR does not add.",
+   "body": "This hunk replaces the org saved search → GroupSearchView conversion with a bare `return`. The comment says migration `0921_convert_org_saved_searches_to_views_rerevised.py` now does the work, but that file is not in this PR's change list. I can't see whether it already exists in the repo. If it doesn't exist or isn't merged first, a fresh install or any self-hosted instance that hasn't applied 0917 yet will never convert its organization-visible saved searches, and those users silently lose their views. The comment also claims the migration 'was never run', which only holds for SaaS. This change also has nothing to do with the PR's stated purpose (replays bulk delete). Either confirm that 0921 exists and depends on this migration, or move this change into the PR that adds 0921."
+  },
+  {
+   "path": "src/sentry/migrations/0920_convert_org_saved_searches_to_views_revised.py",
+   "line": 13,
+   "end_line": 15,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "destructive_migration",
+   "title": "Second saved-search conversion migration also gutted, relying on an unseen 0921.",
+   "body": "Like 0917, this hunk replaces the conversion of org saved searches (those with an owner) into GroupSearchViews with a no-op. It points to 0921, which this PR does not add. If 0921 isn't in the tree, no migration converts these searches anymore, and installs that haven't applied 0920 lose the data move. The replays bulk-delete request does not cover this change either. Make sure the replacement migration exists in the same release, or keep this change out of this PR."
+  },
+  {
+   "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+   "line": 118,
+   "end_line": 119,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Error IDs are zipped with unordered nodestore results",
+   "body": "`nodestore.backend.get_multi` returns a dict keyed by node id. Missing nodes may be omitted, and the dict order is not guaranteed to match `error_ids`. `zip(error_ids, events.values())` can therefore attach the wrong event id to the data, or shift every id after a missing node. Build the list by iterating `error_ids` and looking up `events.get(Event.generate_node_id(project_id, id))`."
+  },
+  {
+   "path": "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py",
+   "line": 153,
+   "end_line": 155,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Error timestamps compared against replay event timestamps in different units",
+   "body": "Error events from nodestore carry `timestamp` in epoch seconds (float). Replay recording events carry `timestamp` in epoch milliseconds. The merge loop compares the two directly, so every error looks earlier than the first replay event. All errors are emitted at the start of the log instead of in chronological order. Normalize the units before comparing, for example multiply the error timestamp by 1000."
+  },
+  {
+   "path": "static/app/components/events/groupingInfo/groupingVariant.tsx",
+   "line": 103,
+   "end_line": 103,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Removes the 'Type' rows and tooltips from grouping variant info",
+   "body": "The change deletes the 'Type' row and its explanatory tooltip for every variant type (component, custom fingerprint, built-in fingerprint, salted component, performance problem). The request does not mention this, and it removes user-visible grouping information. If it is intentional, it should be a separate change. Otherwise restore the rows."
+  },
+  {
+   "path": "static/app/views/dashboards/widgetCard/chart.tsx",
+   "line": 165,
+   "end_line": 174,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "New table visualization is rendered with empty columns and data",
+   "body": "When the `use-table-widget-visualization` feature is on, `TableWidgetVisualization` gets `columns=[]` and empty `data`. `tableResults`, `fields` and `result.meta` are all ignored. Every table widget for that org renders blank. Map the query results into columns and `tableData`, or leave this branch out until the mapping exists."
+  },
+  {
+   "path": "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx",
+   "line": 59,
+   "end_line": 59,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`attributes` can now be undefined and query defaults changed",
+   "body": "The old hook always returned a `TagCollection`, because `attributes` was built with `useMemo` and started as `{}`. The new hook returns `data`, or the `usePrevious` value, and both are `undefined` until the first fetch finishes. They also stay `undefined` if it fails. Any caller that spreads `attributes` or runs `Object.keys` on it can crash or misbehave on first render or on error. The rewrite also dropped `staleTime: 0`, `refetchOnWindowFocus: false` and `retry: false`, so the query now retries and refetches on window focus, which the old code avoided on purpose. The query key also has no organization slug. Fix: return `data ?? {}` (and `previous ?? {}`), restore the old query options, and add the org slug to the key."
+  }
+ ],
+ "usage": {
+  "requests": 5,
+  "input": 10,
+  "cacheWrite": 200695,
+  "cacheRead": 13704,
+  "output": 6908,
+  "models": {
+   "claude-opus-5-5": 1,
+   "claude-sonnet-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 106,
+   "hunks": 228,
+   "reviewedHunks": 191,
+   "aiHunks": 0,
+   "skippedHunks": 37,
+   "inputTokens": 214409,
+   "outputTokens": 6908,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-opus-5-5": {
+     "input": 11641,
+     "output": 1192
+    },
+    "claude-sonnet-5-5": {
+     "input": 202768,
+     "output": 5716
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 100,
+   "reviewedAiHunks": 0,
+   "requests": 5,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "src/sentry/options/defaults.py",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "tests/sentry/migrations/test_0917_convert_org_saved_searches_to_views.py",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/endpoints/test_organization_detector_details.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/endpoints/test_organization_detector_index.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/sentry/workflow_engine/processors/test_delayed_workflow.py",
+    "reason": "over the maxFiles limit (100)"
+   },
+   {
+    "path": "tests/snuba/api/endpoints/test_organization_events_stats.py",
+    "reason": "over the maxFiles limit (100)"
+   }
+  ],
+  "deletedTests": [
+   "tests/sentry/migrations/test_0917_convert_org_saved_searches_to_views.py"
+  ],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/sentry/workflow_engine/endpoints/validators/base/detector.py",
+    "line": 37,
+    "end_line": 37,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "security",
+    "title": "Owner actor is not checked against the organization or project",
+    "body": "`ActorField` resolves the actor, but nothing here checks that the user or team belongs to the detector's organization. A client could set `owner` to a team or user id from another organization. I could not see whether `ActorField` enforces this on its own. Validate membership in the organization, as other owner fields do."
+   },
+   {
+    "path": "src/sentry/tasks/auth/check_auth.py",
+    "line": 76,
+    "end_line": 78,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "scope",
+    "title": "Task deadline change has nothing to do with the replays bulk-delete request.",
+    "body": "This hunk changes the taskworker `processing_deadline_duration` for `check_auth_identities` to 60s. That changes how long an auth-control task may run before it is killed. Neither the PR title nor its description mentions it. If it is intentional, split it into its own PR so the auth task change gets its own review."
+   }
+  ]
+ },
+ "cost_usd": 1.1444158
+}

@@ -1,0 +1,22 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "discourse-graphite__9",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The @loaded_locales instance variable in translate_accelerator.rb is lazily initialized and accessed by multiple concurrent threads without synchronization.",
+   "severity": "Low",
+   "category": "concurrency",
+   "matches": []
+  },
+  {
+   "comment": "Consider normalizing the input locale (e.g., to a symbol) when checking/loading here to avoid double-loading if the same locale is passed as a String vs Symbol (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "perf",
+   "matches": []
+  }
+ ],
+ "candidates": []
+}

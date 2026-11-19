@@ -1,0 +1,33 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "logic: Potential nil pointer exception - if no TopicUser record exists, tu will be nil and calling methods on it will crash",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out that TopicUser.find_by can return nil, so calling tu.notification_level would then crash."
+  },
+  {
+   "comment": "Typo in property name: 'stopNotificiationsText' should be 'stopNotificationsText' (missing 'n' in 'Notifications')",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C4 uses the misspelled name stopNotificiationsText, but its concern is XSS, not the typo."
+  }
+ ],
+ "candidates": [
+  "app/controllers/topics_controller.rb:99 - unsubscribe has no guard for anonymous users or topic access. `current_user` is nil for a logged-out user (the action is added to the `ensure_logged_in` list, but see the list context). If it isn't in that list, `current_user.id` raises. The action also changes state on a GET, so it is open to CSRF and link prefetchers. A link scanner or image prefetch can unsubscribe or mute the user. Also, `TopicView.new` runs the access check, but `@topic_view.topic` is used before any redirect or guardian check. Consider requiring a confirmation POST.",
+  "app/controllers/topics_controller.rb:105 - unsubscribe crashes when no TopicUser row exists. `TopicUser.find_by` returns nil if the user never visited or tracked the topic. `tu.notification_level` then raises NoMethodError and the user gets a 500. This is likely for emailed topics, for example a watched category or a mention. Use `TopicUser.change(current_user.id, topic_id, notification_level: ...)`, which creates the row. Also, a user who is already at `regular` gets muted by a repeat visit to the link, because the else branch runs. Make the action idempotent.",
+  "app/assets/javascripts/discourse/routes/app-route-map.js.es6:13 - Route defined with a dynamic path that conflicts with topic route. The `topicUnsubscribe` route path `/t/:slug/:id/unsubscribe` sits after `topic` at `/t/:slug/:id` with a nearPost segment `/:nearPost`. This may be matched as `nearPost = 'unsubscribe'` by the topic route, which is defined first. Define it before the topic resource.",
+  "app/assets/javascripts/discourse/templates/topic/unsubscribe.hbs:3 - Unescaped topic title rendered via triple-stash. `stopNotificiationsText` interpolates `fancyTitle` into an I18n string, and the template renders it with `{{{ }}}`. `fancyTitle` is escaped, but I18n interpolation may not re-escape, and the string includes raw HTML. If fancyTitle is not fully sanitized, this is an XSS vector. Verify the escaping, or escape the title before interpolation."
+ ]
+}

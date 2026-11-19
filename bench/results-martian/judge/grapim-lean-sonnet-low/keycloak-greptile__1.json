@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.7,
+   "reasoning": "G1 is about a compile error: a call with the required UserModel argument missing in UsernameForm. C1 says both call sites pass context.getUser(), so it does not flag a missing parameter."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 explains that the user != null requirement stops fillContextForm from running on the initial login page, which breaks conditional passkeys. This is the same issue as G2."
+  }
+ ],
+ "candidates": [
+  "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java:161 - Passkeys are enabled only when a user is already set, which is the reverse of the intended condition. `isConditionalPasskeysEnabled(user)` ends with `&& user != null`. The old code filled the WebAuthn form when `context.getUser() == null`, which is a normal first login. Both new call sites now pass `context.getUser()`. On a fresh login the user is null, so `fillContextForm` is never called and the conditional-UI passkey form is missing. The same happens in `challenge(...)` after a bad password when the user was cleared. Only the re-authentication case, where the user is already set, gets passkeys. The tests in this PR expect `//form[@id='webauth']` on the initial login page, so they would fail. Allow a null user: `webauthnAuth != null && webauthnAuth.isPasskeysEnabled()`. If re-authentication needs extra conditions, apply them only when the user is non-null."
+ ]
+}

@@ -1,0 +1,33 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "cal.com__8330",
+ "url": "https://github.com/calcom/cal.com/pull/8330",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect end time calculation using slotStartTime instead of slotEndTime",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out that end is computed from slotStartTime and should come from slotEndTime."
+  },
+  {
+   "comment": "Using === for dayjs object comparison will always return false as it compares object references, not values. Use .isSame() method instead: dayjs(date.start).add(utcOffset, 'minutes').isSame(dayjs(date.end).add(utcOffset, minutes))",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 says dayjs === always returns false and suggests using isSame."
+  }
+ ],
+ "candidates": [
+  "packages/trpc/server/routers/viewer/slots.ts:142 - Working-hours check uses start time for `end` and rejects slots when a day has several ranges. `end` is computed from `slotStartTime`, so it is the same as `start`. The slot's end time is never checked against `endTime`. Also, `find` returns true as soon as any one working-hour entry fails the check. If a day has two entries (for example 9-12 and 14-17), a slot in one range is outside the other, so it is marked unavailable. Every slot is rejected on those days. Compute `end` from `slotEndTime`. Mark the slot unavailable only when no entry on that day contains it, for example with `some` to find a containing entry and a separate check that entries exist for that day.",
+  "packages/trpc/server/routers/viewer/slots.ts:106 - Date override check rejects slots when a day has several overrides, and the equality check is dead code. The `find` returns true (slot unavailable) as soon as any override on that day excludes the slot. With two override ranges on one day (for example 9-11 and 14-16), a slot inside the first range is outside the second, so it is rejected. A slot must be rejected only if it fits none of that day's overrides. Also, `dayjs(a) === dayjs(b)` compares object identity and is always false. Use `.isSame()`, or drop the check. The zero-length override (day off) case is then not handled by this branch either, though the slot-before-start and slot-after-end checks may cover it."
+ ]
+}

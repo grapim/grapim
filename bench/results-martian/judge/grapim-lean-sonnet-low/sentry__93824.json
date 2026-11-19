@@ -1,0 +1,59 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "sentry__93824",
+ "url": "https://github.com/getsentry/sentry/pull/93824",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In the SpanFlusher flush loop, metric tags inconsistently use 'shard' (e.g., in spans.buffer.flusher.produce and spans.buffer.segment_size_bytes) and 'shards' (in spans.buffer.flusher.wait_produce) for the same shard identifier value. This prevents correct metric aggregation across flush stages — dashboards and alerts filtering by tag 'shard' will miss data tagged as 'shards' and vice versa.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the inconsistent 'shard' vs 'shards' metric tags."
+  },
+  {
+   "comment": "The test_basic function in test_consumer.py uses a monkeypatched time.sleep that returns immediately, but then calls time.sleep(0.1) expecting it to actually wait.",
+   "severity": "Low",
+   "category": "test_gap",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out the same problem: time.sleep is monkeypatched to a no-op, so the time.sleep(0.1) call doesn't wait."
+  },
+  {
+   "comment": "Because flusher processes are created via multiprocessing.get_context('spawn').Process, they are instances of multiprocessing.context.SpawnProcess, which on POSIX is not a subclass of multiprocessing.Process, so this isinstance check will always be false and hung processes won't be killed here.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 flags the same problem: SpawnProcess isn't a subclass of multiprocessing.Process, so the isinstance check is always false and hung processes are never killed."
+  },
+  {
+   "comment": "Sleep in test_consumer.py won’t actually wait because time.sleep was monkeypatched above; consider restoring sleep or using a different sync to ensure the flusher has time to process.",
+   "severity": "Medium",
+   "category": "test_gap",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "Same issue as G2: the sleep is a no-op because time.sleep was monkeypatched. C2 covers it."
+  },
+  {
+   "comment": "Breaking out of the loop when the deadline has elapsed can skip terminating remaining flusher processes, potentially leaving them running after shutdown; consider ensuring termination is attempted even if the deadline is exceeded.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "C1 says terminate() never runs in join(), but it blames the wrong isinstance check. It doesn't mention that breaking out of the loop once the deadline passes skips the remaining processes."
+  }
+ ],
+ "candidates": [
+  "src/sentry/spans/consumers/process/flusher.py:254 - Hung flusher process is never killed before respawn. The process is created with `mp_context.Process`, a `SpawnProcess`. That class derives from `BaseProcess`, not from `multiprocessing.Process`, so `isinstance(process, multiprocessing.Process)` is false. The old code called `self.process.kill()` unconditionally. Now a process flagged as \"hang\" is never killed, and a new process for the same shards is started next to it. Two flushers then work the same shards, and every hang leaks a process. The same wrong check in `join()` means `terminate()` never runs. Check against `multiprocessing.process.BaseProcess` instead, or skip only `threading.Thread`.",
+  "tests/sentry/spans/consumers/process/test_consumer.py:62 - Sleep in test is a no-op because time.sleep is monkeypatched. The test patches `time.sleep` to a no-op at the top, so `time.sleep(0.1)` here does nothing. The flusher is not actually given time to process after the drift change. `step.join()` sets `stopped` right away, so the flusher thread may stop before it flushes, which makes the test flaky. Wait with a real sleep or poll until `messages` is non-empty, for example with a saved reference to the original `time.sleep`."
+ ]
+}

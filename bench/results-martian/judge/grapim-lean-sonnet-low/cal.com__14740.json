@@ -1,0 +1,70 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The addGuests.handler.ts blacklist check uses blacklistedGuestEmails.includes(guest) after lowercasing the blacklist but not the input guest emails, allowing attackers to bypass BLACKLISTED_GUEST_EMAILS restrictions by submitting emails with uppercase characters.",
+   "severity": "High",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 explicitly identifies blacklist lowercased but guest not, allowing bypass."
+  },
+  {
+   "comment": "The logic for checking team admin/owner permissions is incorrect. This condition uses AND (&&) which requires both isTeamAdmin AND isTeamOwner to be true, but it should use OR (||) since a user needs to be either an admin OR an owner to have permission.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies isTeamAdmin && isTeamOwner should be ||."
+  },
+  {
+   "comment": "The sendAddGuestsEmails function in email-manager.ts passes the full calendarEvent.attendees array when determining which attendees receive AttendeeScheduledEmail vs AttendeeAddGuestsEmail, but checks if newGuests.includes(attendee.email) where newGuests is the input guests array.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.55,
+   "reasoning": "C4 notes sendAddGuestsEmails receives raw input guests rather than filtered uniqueGuests, matching the concern about newGuests being the input array."
+  },
+  {
+   "comment": "uniqueGuests filters out existing attendees and blacklisted emails but does not deduplicate duplicates within the input; createMany can insert duplicate attendee rows if the client submits repeated emails.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "C2 discusses case-sensitive dedupe against existing attendees, not duplicates within the input itself."
+  },
+  {
+   "comment": "Starting with an array containing an empty string may cause validation issues. Consider starting with an empty array [] and handling the empty state in the MultiEmail component instead.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate discusses initial empty-string array state."
+  },
+  {
+   "comment": "The `sendAddGuestsEmails` function does not check the `disableStandardEmails` flags in the `EventType` metadata, which may result in sending emails to hosts/attendees even when standard emails are disabled for the event type.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions disableStandardEmails metadata."
+  }
+ ],
+ "candidates": [
+  "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts:48 - Team admin check uses AND with owner, and attendees can add guests. `isTeamAdmin && isTeamOwner` requires both, so the check is wrong. Admins who are not owners are denied. Owners are usually also admins, so it mostly reduces to owner-only. Also, with teamId 0 fallback, queries run for non-team bookings. Use `||` for admin or owner, and skip the check when there is no teamId. Separately, any attendee (matched by email) can add guests, which may exceed the intended permissions.",
+  "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts:76 - Guest dedupe and blacklist comparisons are case-sensitive. The blacklist is lowercased but the guest email is not, so `Blocked@x.com` bypasses the blacklist. The comparison with existing attendees is also case-sensitive, so duplicates differing in case are added. Normalize guests with `.toLowerCase()` before comparing and storing. The client also does not check for duplicates against existing attendees.",
+  "packages/emails/email-manager.ts:529 - Organizer email is sent twice when team members exist. The organizer gets an email without `teamMember`. Then each team member gets one too. If the organizer is also in `team.members`, they get duplicates. The existing location-change email handles this the same way, so check that code before copying it.",
+  "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts:165 - Calendar update is unguarded and emails use unfiltered guests. `updateCalendarAttendees` is not in a try/catch. If it throws, the attendees are already saved, the user sees an error, and no emails are sent. A retry then fails with 'emails_must_be_unique_valid'. Also `sendAddGuestsEmails(evt, guests)` passes the raw input rather than `uniqueGuests`, so blacklisted guests get a scheduled email. The catch only logs a fixed string and drops the error.",
+  "apps/web/components/dialog/AddGuestsDialog.tsx:43 - Error toast message never falls back. The message is a template string, so it is always truthy. `unable_to_add_guests` is never shown, and the toast shows 'undefined: ...' when `err.data` is missing. Build the message conditionally."
+ ]
+}

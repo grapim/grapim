@@ -1,0 +1,69 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "head_sha": "3214b188de808fdb0fff335556b686f1b0a63218",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:09:45.848Z",
+ "seconds": 22.474,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java",
+   "line": 161,
+   "end_line": 161,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Passkeys are enabled only when a user is already set, which is the reverse of the intended condition",
+   "body": "`isConditionalPasskeysEnabled(user)` ends with `&& user != null`. The old code filled the WebAuthn form when `context.getUser() == null`, which is a normal first login. Both new call sites now pass `context.getUser()`. On a fresh login the user is null, so `fillContextForm` is never called and the conditional-UI passkey form is missing. The same happens in `challenge(...)` after a bad password when the user was cleared. Only the re-authentication case, where the user is already set, gets passkeys. The tests in this PR expect `//form[@id='webauth']` on the initial login page, so they would fail. Allow a null user: `webauthnAuth != null && webauthnAuth.isPasskeysEnabled()`. If re-authentication needs extra conditions, apply them only when the user is non-null."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 22981,
+  "cacheRead": 3426,
+  "output": 1469,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 26409,
+   "outputTokens": 1469,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 26409,
+     "output": 1469
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1449782
+}

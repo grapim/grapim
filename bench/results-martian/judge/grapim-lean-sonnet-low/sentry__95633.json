@@ -1,0 +1,33 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The magic number 50 for max_wait is used repeatedly throughout the tests. Consider extracting this as a named constant to improve maintainability.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the repeated magic number 50 for max_wait."
+  },
+  {
+   "comment": "The test test_thread_queue_parallel_error_handling has a docstring that doesn't match the test implementation.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C4 points out that the docstring of the error-handling test says errors do not block commits, while the assertions check that no commit happens. That is the same docstring/implementation mismatch."
+  }
+ ],
+ "candidates": [
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:338 - Closing the strategy shuts down the pool shared across rebalances. The factory builds one `FixedQueuePool` and one `OffsetTracker` in `__init__`. Each `create_with_partitions` call (every rebalance) wraps that same pool in a new strategy. When arroyo closes the old strategy on a rebalance, `close()` calls `queue_pool.shutdown()`. That stops all the workers and shuts down the queues. The next strategy then submits to dead queues. `queue.put` raises `ShutDown`, and `submit` catches it, marks the offset complete and carries on. Messages are dropped and their offsets get committed. The tracker's stale per-partition state also survives the rebalance. Fix: make the strategy own its pool, or create the pool in `create_with_partitions`. Have `close()` stop only the strategy's own resources, and leave pool shutdown to `factory.shutdown()`. Reset tracker state for revoked partitions.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:212 - Unbounded queues give no backpressure. The class docstring promises natural backpressure, but `queue.Queue()` has no maxsize and `submit` never blocks or pauses the consumer. If workers are slower than the topic, memory grows without limit. Offsets also stay uncommitted behind a slow item. Bound the queues, and have `submit` raise `MessageRejected` when one is full.",
+  "src/sentry/remote_subscriptions/consumers/queue_consumer.py:287 - Arroyo commit callback is called from a background thread. `commit_function` wraps arroyo's `Commit`, which is meant to be called from the consumer's main thread. `_commit_loop` calls it from a separate thread, while the main thread polls the same consumer. This is a race on the consumer's internal offset state. `close()` also stops the commit thread without a final commit, so work finished since the last tick is not committed. Stage the committable offsets and call `commit` from `poll()` and `close()` on the main thread.",
+  "tests/sentry/uptime/consumers/test_results_consumer.py:1922 - Error-handling test asserts no commit, which contradicts the implementation. The docstring says errors do not block offset commits. In the implementation, a failed item has its offset completed in `finally`, so offsets 100 and 101 become committable and are committed after the 1s commit tick. The assertion `len(committed_offsets) == 0 or partition not in committed_offsets` only passes because the test finishes before the first commit loop. That makes it timing-dependent. It does not check the real behaviour: failed messages are skipped and committed. Wait for a commit and assert the intended behaviour explicitly."
+ ]
+}

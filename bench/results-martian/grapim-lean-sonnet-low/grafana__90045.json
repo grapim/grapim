@@ -1,0 +1,144 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "grafana__90045",
+ "url": "https://github.com/grafana/grafana/pull/90045",
+ "head_sha": "e369f24665ec70e1e3700f457d25ef83301d931a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:16:10.897Z",
+ "seconds": 26.369,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 51,
+   "end_line": 51,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Async legacy writes inherit the request context, which is cancelled when the handler returns",
+   "body": "The goroutines in Create, Delete, Update and DeleteCollection derive their timeout context from the request `ctx`. The handler returns right after starting the goroutine, so the request context is usually cancelled soon after. The legacy write then fails with `context canceled`, and the error is dropped. Legacy storage silently stops receiving writes, which defeats the 'safe measure' that mode 3 is meant to provide. Detach the context first, for example `context.WithTimeoutCause(context.WithoutCancel(ctx), ...)`. Apply the same change in the Delete (line 110), Update (line 135) and DeleteCollection (line 163) goroutines."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 45,
+   "end_line": 45,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Storage failure is recorded as a legacy duration",
+   "body": "When Storage.Create fails, the code calls `recordLegacyDuration`. The Update error path (line 129) does the same. These are storage operations, so the failure metrics land in the wrong series. Use `recordStorageDuration`."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 106,
+   "end_line": 106,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Delete metric uses the object name where the kind belongs",
+   "body": "`recordStorageDuration` receives `name` in the kind position. Every deleted object therefore creates its own metric label value, which is a cardinality explosion, and the delete metrics cannot be matched to the others. Use `options.Kind`."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 129,
+   "end_line": 129,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Storage update failure recorded as a legacy duration",
+   "body": "The error path of Storage.Update calls `recordLegacyDuration`, so storage failures are counted as legacy ones. Use `recordStorageDuration`."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 166,
+   "end_line": 166,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Legacy DeleteCollection duration recorded as storage duration",
+   "body": "The goroutine measures the legacy DeleteCollection but calls `recordStorageDuration`. This mixes legacy timings and errors into the storage metrics. Use `recordLegacyDuration`."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 56,
+   "end_line": 56,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Legacy write errors are no longer logged",
+   "body": "The old code logged failures of the legacy write. The new goroutines only record a metric and discard the error. A failed legacy create, update, delete or delete-collection leaves nothing in the logs to explain the divergence. Log the error in each goroutine."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 139,
+   "end_line": 139,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Legacy update recomputes the object from objInfo instead of using the object storage wrote",
+   "body": "The old code wrapped the object returned by Storage in `updateWrapper` before calling Legacy. Now the original `objInfo` is passed to Legacy, so `UpdatedObject` runs a second time against legacy's own old object. Two problems follow. If the object is missing in legacy, or differs from the one in unified storage, the result can differ, so the two stores diverge. Also, `objInfo` is now used from a goroutine after the request has finished. Pass `&updateWrapper{upstream: objInfo, updated: res}` to the legacy call."
+  },
+  {
+   "path": "pkg/apiserver/rest/dualwriter_mode3.go",
+   "line": 97,
+   "end_line": 97,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Delete stores d.Log in the context instead of the enriched logger",
+   "body": "`klog.NewContext(ctx, d.Log)` drops the name, kind and method values that were built into `log`. Downstream logs from Delete therefore lack them. Use `log`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 26493,
+  "cacheRead": 3426,
+  "output": 2729,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 9,
+   "reviewedHunks": 8,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 29921,
+   "outputTokens": 2729,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 29921,
+     "output": 2729
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "pkg/apiserver/rest/dualwriter_mode1_test.go",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.18773820000000002
+}

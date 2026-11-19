@@ -1,0 +1,35 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Consider adding try-catch around the await to handle import failures gracefully",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "G1 asks for try-catch error handling around the awaited dynamic import at the use site. C4 is mainly about the imports running eagerly instead of lazily. It mentions unhandled rejections only in passing and does not suggest handling import failures at the await."
+  },
+  {
+   "comment": "The code uses forEach with async callbacks, which causes asynchronous operations (e.g., calendar/video event deletions, payment refunds) to run concurrently without being awaited. This 'fire-and-forget' behavior leads to unhandled promise rejections, race conditions, and incomplete cleanup, as surrounding try-catch blocks cannot properly handle errors from these unawaited promises. Replace forEach with for...of loops or Promise.all() with map() to ensure proper sequential execution and error handling.",
+   "severity": "Critical",
+   "category": "concurrency",
+   "matches": [
+    1,
+    2,
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1, C2 and C3 each point out that the async forEach callbacks are never awaited. As a result, errors escape the try/catch as unhandled rejections and the cleanup may not finish. Each one suggests Promise.all with map, which is the same issue and fix as G2."
+  }
+ ],
+ "candidates": [
+  "packages/app-store/vital/lib/reschedule.ts:125 - async forEach callback escapes the surrounding try/catch. The callback is now async, but `forEach` neither awaits it nor propagates its rejection. If `getCalendar` or `deleteEvent` rejects, the error is an unhandled rejection and the `try/catch` never sees it. The deletions are also not awaited, so the handler can return before the calendar events are removed. Use `await Promise.all(bookingRefsFiltered.map(async ...))` inside the try.",
+  "packages/app-store/wipemycalother/lib/reschedule.ts:125 - async forEach callback escapes the surrounding try/catch. The callback is now async, but `forEach` neither awaits it nor propagates its rejection. If `getCalendar` or `deleteEvent` rejects, the error is an unhandled rejection and the `try/catch` never sees it. The deletions are also not awaited, so the handler can return before the calendar events are removed. Use `await Promise.all(bookingRefsFiltered.map(async ...))` inside the try.",
+  "packages/trpc/server/routers/viewer/bookings.tsx:553 - Unawaited async forEach drops calendar deletions and their errors. The callback is now async, but `forEach` does not await it. The mutation can finish before the calendar and video deletions run. Any rejection from `getCalendar`, `deleteEvent` or `deleteMeeting` becomes an unhandled rejection. Use `await Promise.all(bookingRefsFiltered.map(async ...))`.",
+  "packages/app-store/index.ts:3 - import() calls run eagerly at module load, not lazily. Each property calls `import(...)` when the object literal is built. Importing `appStore` therefore starts loading every app at once, so nothing is deferred, which defeats the stated goal. If any one app's import rejects, no consumer awaits that promise unless it asks for that app, so you get an unhandled rejection. Make each entry a lazy loader, for example `() => import(...)`, and call it at the use sites. Alternatively, accept the eager load and say so."
+ ]
+}

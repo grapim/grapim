@@ -1,0 +1,184 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "discourse-graphite__4",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/4",
+ "head_sha": "4f8aed295a29954023b2849c060ef4fb299d1b5d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:21:14.552Z",
+ "seconds": 30.056,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 13,
+   "end_line": 13,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "Untrusted HTML stored and served as raw (stored XSS); url interpolated unescaped",
+   "body": "Imported feed or remote content is saved with cook_method raw_html and Post#cook returns raw unsanitized. It is rendered with `raw post.cooked`. Scripts in feed content therefore execute on the forum, and the url is interpolated into an href without escaping. Sanitize the content, for example with Sanitize, and escape the url."
+  },
+  {
+   "path": "app/views/embed/best.html.erb",
+   "line": 6,
+   "end_line": 6,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Invalid ERB `end if` breaks the template",
+   "body": "`<%- end if %>` is a Ruby syntax error (`end` followed by a dangling `if`). The view will not compile, so embed/best fails whenever a topic exists. Use `<%- end %>`."
+  },
+  {
+   "path": "app/controllers/embed_controller.rb",
+   "line": 15,
+   "end_line": 15,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "security",
+   "title": "embed_url enqueued without host validation; unauthenticated callers can trigger work",
+   "body": "Any request whose Referer matches the embeddable host (the Referer is trivially forged by non-browser clients) enqueues a retrieve job for an arbitrary embed_url. The job validates the host later, but this still lets anonymous callers enqueue jobs at will. Validate the embed_url host before enqueueing."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 48,
+   "end_line": 48,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "security",
+   "title": "open(url) with user-influenced URL (SSRF / local file / command)",
+   "body": "Kernel#open with a URL string allows SSRF to internal hosts. A leading pipe would run a command, but the host check blocks that in the retriever path. The Disqus import passes t[:link] from an XML file straight in. Use a restricted HTTP client and validate the scheme."
+  },
+  {
+   "path": "app/assets/javascripts/embed.js",
+   "line": 17,
+   "end_line": 17,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Weak origin check using indexOf",
+   "body": "`discourseUrl.indexOf(e.origin) === -1` accepts any origin that is a substring of discourseUrl, including an empty string (the origin of a sandboxed or data: frame). Compare for equality against the origin."
+  },
+  {
+   "path": "app/controllers/embed_controller.rb",
+   "line": 13,
+   "end_line": 13,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Controller can leave @topic_view nil or render incorrectly",
+   "body": "best.html.erb calls @topic_view.topic.url in the header even when posts are empty. When the topic is found but has no posts, @topic_view is used as is. The `<%- end if %>` in best.html.erb is also a syntax error (`end if`), so the view fails to compile."
+  },
+  {
+   "path": "app/models/topic_embed.rb",
+   "line": 13,
+   "end_line": 13,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Mutating contents with << changes the sha1 and fails on frozen strings",
+   "body": "`contents <<` mutates the caller's string, and may raise on frozen strings. The hash is computed after the suffix is appended, which is fine. But absolutize_urls output is what gets stored, and revision compares only against the hash."
+  },
+  {
+   "path": "app/views/layouts/embed.html.erb",
+   "line": 11,
+   "end_line": 11,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Unescaped referer injected into inline JS",
+   "body": "request.referer is client-controlled and is emitted in a script string with ERB HTML escaping, not JS escaping. A crafted referer containing a quote or backslash sequence breaks out of the string. The referer must match the embeddable host by the controller check, but the path and query are unconstrained. Use j(request.referer) or a fixed origin."
+  },
+  {
+   "path": "lib/tasks/disqus.thor",
+   "line": 148,
+   "end_line": 148,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Disqus import changed and category option removed",
+   "body": "The --category option was removed, and imports now call import_remote, which fetches each URL over HTTP. The topic is no longer created with created_at, and the call is not covered by the request. A dry run is unaffected, but real imports now need network access and depend on embeddable_host settings."
+  },
+  {
+   "path": "app/jobs/scheduled/poll_feed.rb",
+   "line": 29,
+   "end_line": 29,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "open() on admin-configured URL without scheme check",
+   "body": "Kernel#open on a setting value permits local paths or pipe commands, and any URL. Restrict to http(s) and use a proper client."
+  },
+  {
+   "path": "app/jobs/scheduled/poll_feed.rb",
+   "line": 35,
+   "end_line": 35,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Missing content crashes the poll; scrub on nil",
+   "body": "Feed items without a content element have i.content nil, so `.scrub` raises NoMethodError and aborts the whole poll. Skip such items or fall back to description."
+  },
+  {
+   "path": "lib/topic_retriever.rb",
+   "line": 27,
+   "end_line": 28,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Non-atomic setnx + expire",
+   "body": "If the process dies between setnx and expire, the key never expires and that URL is never retrieved again. Use set with ex and nx options."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 22814,
+  "cacheRead": 3426,
+  "output": 2035,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 28,
+   "hunks": 36,
+   "reviewedHunks": 30,
+   "aiHunks": 0,
+   "skippedHunks": 6,
+   "inputTokens": 26242,
+   "outputTokens": 2035,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 26242,
+     "output": 2035
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 27,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "Gemfile_rails4.lock",
+    "reason": "ignored by .grapim/review.json"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.15546320000000002
+}

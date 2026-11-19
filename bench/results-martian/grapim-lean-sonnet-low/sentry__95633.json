@@ -1,0 +1,108 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "head_sha": "9966ec5a13e331659c3ea00981f9b11b0faf821f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:13:07.865Z",
+ "seconds": 39.579,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 338,
+   "end_line": 338,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Closing the strategy shuts down the pool shared across rebalances",
+   "body": "The factory builds one `FixedQueuePool` and one `OffsetTracker` in `__init__`. Each `create_with_partitions` call (every rebalance) wraps that same pool in a new strategy. When arroyo closes the old strategy on a rebalance, `close()` calls `queue_pool.shutdown()`. That stops all the workers and shuts down the queues. The next strategy then submits to dead queues. `queue.put` raises `ShutDown`, and `submit` catches it, marks the offset complete and carries on. Messages are dropped and their offsets get committed. The tracker's stale per-partition state also survives the rebalance. Fix: make the strategy own its pool, or create the pool in `create_with_partitions`. Have `close()` stop only the strategy's own resources, and leave pool shutdown to `factory.shutdown()`. Reset tracker state for revoked partitions."
+  },
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 212,
+   "end_line": 212,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "performance",
+   "title": "Unbounded queues give no backpressure",
+   "body": "The class docstring promises natural backpressure, but `queue.Queue()` has no maxsize and `submit` never blocks or pauses the consumer. If workers are slower than the topic, memory grows without limit. Offsets also stay uncommitted behind a slow item. Bound the queues, and have `submit` raise `MessageRejected` when one is full."
+  },
+  {
+   "path": "src/sentry/remote_subscriptions/consumers/queue_consumer.py",
+   "line": 287,
+   "end_line": 289,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Arroyo commit callback is called from a background thread",
+   "body": "`commit_function` wraps arroyo's `Commit`, which is meant to be called from the consumer's main thread. `_commit_loop` calls it from a separate thread, while the main thread polls the same consumer. This is a race on the consumer's internal offset state. `close()` also stops the commit thread without a final commit, so work finished since the last tick is not committed. Stage the committable offsets and call `commit` from `poll()` and `close()` on the main thread."
+  },
+  {
+   "path": "tests/sentry/uptime/consumers/test_results_consumer.py",
+   "line": 1922,
+   "end_line": 1922,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "weakened_check",
+   "title": "Error-handling test asserts no commit, which contradicts the implementation",
+   "body": "The docstring says errors do not block offset commits. In the implementation, a failed item has its offset completed in `finally`, so offsets 100 and 101 become committable and are committed after the 1s commit tick. The assertion `len(committed_offsets) == 0 or partition not in committed_offsets` only passes because the test finishes before the first commit loop. That makes it timing-dependent. It does not check the real behaviour: failed messages are skipped and committed. Wait for a commit and assert the intended behaviour explicitly."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 32773,
+  "cacheRead": 36888,
+  "output": 3811,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 69665,
+   "outputTokens": 3811,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 69665,
+     "output": 3811
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "tests/sentry/remote_subscriptions/__init__.py",
+    "reason": "no content change"
+   },
+   {
+    "path": "tests/sentry/remote_subscriptions/consumers/__init__.py",
+    "reason": "no content change"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2474786
+}

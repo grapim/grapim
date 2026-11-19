@@ -1,0 +1,69 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "cal.com__22345",
+ "url": "https://github.com/calcom/cal.com/pull/22345",
+ "head_sha": "da09bc0808e7c6df1bc10e00d5acf764d94c7cc7",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:23:55.946Z",
+ "seconds": 16.914,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/lib/server/service/__tests__/insightsBooking.integration-test.ts",
+   "line": 429,
+   "end_line": 431,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "Caching tests deleted though caching still exists",
+   "body": "The `Caching` describe block, with its tests for `cachedAuthConditions` and `cachedFilterConditions`, was removed. The service still has that caching in `getAuthorizationConditions` and `getFilterConditions`. A regression there would no longer be caught. The request only asks for the expectations to be converted to Prisma.sql. Restore the two tests and compare the results with `Prisma.sql` values. For example, assert that the second call returns the same object as the first, or that the conditions are equal."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 14189,
+  "cacheRead": 3426,
+  "output": 1089,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 17617,
+   "outputTokens": 1089,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 17617,
+     "output": 1089
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.09341819999999999
+}

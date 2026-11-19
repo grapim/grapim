@@ -1,0 +1,29 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "grafana__97529",
+ "url": "https://github.com/grafana/grafana/pull/97529",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A race condition in BuildIndex allows multiple goroutines to concurrently build the same expensive index for the same key. This is caused by moving the b.cacheMu lock from protecting the entire function to only protecting the final cache assignment. ",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "Neither candidate mentions the BuildIndex race or the narrowed cacheMu lock scope."
+  },
+  {
+   "comment": "Calling s.search.TotalDocs() here may race with concurrent index creation: TotalDocs iterates b.cache without synchronization, and the event watcher goroutine started just above could trigger BuildIndex writes concurrently, potentially causing a concurrent map read/write panic.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "Neither candidate mentions TotalDocs iterating the cache without synchronization while the watcher writes to it concurrently."
+  }
+ ],
+ "candidates": [
+  "pkg/storage/unified/resource/server.go:258 - Removing per-request Init calls drops the \"service is stopping\" rejection. `Stop` sets `s.initErr = \"service is stopping\"`. Every handler used to call `s.Init(ctx)`, which returned that error, so requests made after shutdown began were refused. Init now runs only in the constructor, and the per-request calls are gone from Create, Update, Delete, Read, List, Watch and the other handlers. After `Stop`, these handlers keep serving and writing against a backend and search index that are shutting down. Keep a cheap check in the handlers, for example returning `s.initErr` if it is set. Alternatively, add a separate stopping flag and check that.",
+  "pkg/server/module_server_test.go:36 - Integration test skipped entirely for postgres. The test is now skipped for postgres, so this change loses its only integration coverage on that database. The PR summary calls this \"enhanced PostgreSQL test compatibility\", which hides the skip. Fix the underlying failure, or track the skip in an issue, instead of disabling the test."
+ ]
+}

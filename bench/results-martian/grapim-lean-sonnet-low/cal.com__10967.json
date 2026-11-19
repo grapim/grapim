@@ -1,0 +1,149 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "head_sha": "de628295646d0848226618108a52f2f1e5d04ac0",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:26:08.353Z",
+ "seconds": 20.867,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "line": 256,
+   "end_line": 256,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Fallback calendar lookup is always empty or tautological",
+   "body": "This branch only runs when `externalCalendarId` is falsy. The `find` then compares `cal.externalId === externalCalendarId`, which never matches a real id. `selectedCalendar` ends up undefined, and the old fallback to the destination calendar is lost. Use the main host's destination calendar externalId instead. The same bug is in `deleteEvent`."
+  },
+  {
+   "path": "packages/core/EventManager.ts",
+   "line": 119,
+   "end_line": 119,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Null deref when destinationCalendar is empty",
+   "body": "`mainHostDestinationCalendar` is undefined when `destinationCalendar` is null or empty. Accessing `.integration` without `?.` then throws a TypeError. Bookings with no destination calendar are common. The old code used `?.`. Use `mainHostDestinationCalendar?.integration`."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/organizations/create.handler.ts",
+   "line": 151,
+   "end_line": 153,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Slug logic inverted",
+   "body": "The old code set `slug` when billing was NOT enabled and `requestedSlug` when it was enabled. The new code reverses this. The change is unrelated to the PR and breaks organization creation. Revert it."
+  },
+  {
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "line": 315,
+   "end_line": 317,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "deleteEvent fallback never finds a calendar",
+   "body": "The fallback only runs when `externalCalendarId` is falsy, and then it searches for a calendar whose externalId equals that falsy value. It always yields undefined, so the delete goes to \"primary\" and ignores the destination calendar. Use the first destination calendar's externalId."
+  },
+  {
+   "path": "packages/features/bookings/lib/handleNewBooking.ts",
+   "line": 1077,
+   "end_line": 1079,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Team destination calendars dropped when host has none",
+   "body": "`evt.destinationCalendar` can be null when neither the event type nor the organizer has a destination calendar. In that case `?.push` does nothing and the collective hosts' calendars are silently dropped. Initialize `evt.destinationCalendar` to an array and then push."
+  },
+  {
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "line": 147,
+   "end_line": 149,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Destination calendar chosen by credentialId only",
+   "body": "`createEvent` is now called with `credential.id`. If a destination calendar has no credentialId, or the fallback path calls `createEvent` for a credential without a matching destination calendar, the code falls to \"primary\". The old code used the destination calendar's externalId. Legacy destination calendars without a credentialId lose their target calendar."
+  },
+  {
+   "path": "packages/core/EventManager.ts",
+   "line": 170,
+   "end_line": 170,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "credentialId for non-calendar results dropped",
+   "body": "The old code returned `result.credentialId` for non-calendar types. The new code returns undefined, so video and other references lose their credentialId. Later updates and deletes depend on it."
+  },
+  {
+   "path": "packages/core/EventManager.ts",
+   "line": 380,
+   "end_line": 380,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Fallback createEvent calls omit externalId",
+   "body": "When a destination has no credentialId, `createEvent(c, event)` is called without an externalId. The booking reference then gets an undefined externalCalendarId, even though the destination calendar had one. The same applies to the no-destination fallback."
+  },
+  {
+   "path": "packages/features/bookings/lib/handleNewBooking.ts",
+   "line": 724,
+   "end_line": 763,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Unrelated loadUsers rewrite changes behavior",
+   "body": "The rewrite is unrelated to the request. It drops the `organization: { select: { slug } }` from the dynamic user query. It also wraps errors and turns any unexpected error into a 500. It throws for an empty dynamicUserList, where the old code would return no users and fail later."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 38621,
+  "cacheRead": 3426,
+  "output": 2069,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 22,
+   "hunks": 49,
+   "reviewedHunks": 49,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 42049,
+   "outputTokens": 2069,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 42049,
+     "output": 2069
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 22,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2351782
+}

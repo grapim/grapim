@@ -1,0 +1,82 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "head_sha": "8df850371034b73dc4dd9908cc30fa09f12a1f97",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:16:39.748Z",
+ "seconds": 26.396,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "public/app/features/alerting/unified/rule-list/FilterView.tsx",
+   "line": 157,
+   "end_line": 157,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Missing key on GrafanaRuleListItem in a mapped list",
+   "body": "The previous `GrafanaRuleLoader` received `key={key}`. The new `GrafanaRuleListItem` in the `rules.map` has no key. React warns about the missing key and can reuse the wrong item state when the filtered list changes order or paginates. Add `key={key}`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 38446,
+  "cacheRead": 3426,
+  "output": 2270,
+  "models": {
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 26,
+   "reviewedHunks": 22,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 41874,
+   "outputTokens": 2270,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-sonnet-5-5": {
+     "input": 41874,
+     "output": 2270
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "public/app/features/alerting/unified/rule-list/GrafanaRuleLoader.tsx",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "public/app/features/alerting/unified/rule-list/hooks/prometheusGroupsGenerator.ts",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "public/locales/en-US/grafana.json",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2383232
+}

@@ -1,0 +1,135 @@
+{
+ "tool": "grapim-lean-sonnet-low",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "head_sha": "5fd11f9faa79c4aefd39975d1b0e963e5034f793",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-19T15:22:45.996Z",
+ "seconds": 32.122,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "scripts/test-gcal-webhooks.sh",
+   "line": 68,
+   "end_line": 68,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`sed -i ''` only works on macOS/BSD sed",
+   "body": "On GNU sed (Linux, CI, WSL) `-i ''` treats the empty string as the input file name. The command fails with an error and `GOOGLE_WEBHOOK_URL` is never updated when it already exists in the env file. The script still prints the success message afterwards. Use a portable form, for example `sed -i.bak -E ... && rm -f \"$ENV_FILE.bak\"`."
+  },
+  {
+   "path": "packages/features/apps/components/CredentialActionsDropdown.tsx",
+   "line": 43,
+   "end_line": 46,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Cache deletion does not refresh the status",
+   "body": "The delete-cache mutation never invalidates `connectedCalendars`, unlike the disconnect mutation, which has an `onSettled` that does. The \"Last updated\" entry and the delete option therefore stay on screen after a successful delete. They disappear only if the optional `onSuccess` callback happens to refetch. Add `await utils.viewer.calendars.connectedCalendars.invalidate()` to the success or settled handler. Move `const utils` above the mutation."
+  },
+  {
+   "path": "scripts/test-gcal-webhooks.sh",
+   "line": 1,
+   "end_line": 1,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Unrelated tunnel/webhook dev script added",
+   "body": "The request covers calendar cache status and delete actions. This new script starts a tunnelmole tunnel and rewrites `../.env`. That is local dev tooling the request does not mention. The same applies to the `dev:cron` change from `ts-node` to `npx tsx` in `apps/web/package.json`. Drop both or move them to a separate PR."
+  },
+  {
+   "path": "apps/web/package.json",
+   "line": 11,
+   "end_line": 11,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Unrelated dev:cron runner change",
+   "body": "Switching `dev:cron` from `ts-node` to `npx tsx` has nothing to do with the calendar cache feature. `npx` can also download `tsx` at run time if it is not a dependency. Revert it or move it to its own PR."
+  },
+  {
+   "path": "packages/features/apps/components/CredentialActionsDropdown.tsx",
+   "line": 89,
+   "end_line": 92,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Timestamp formatted with hardcoded en-US locale",
+   "body": "`Intl.DateTimeFormat(\"en-US\", ...)` ignores the user's locale. The surrounding string is translated, but the date is always shown in US format. Use the user's locale, for example `i18n.language`, from `useLocale`."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/calendars/deleteCache.handler.ts",
+   "line": 25,
+   "end_line": 25,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Plain Error used instead of TRPCError",
+   "body": "A missing or foreign credential throws a generic `Error`. tRPC turns that into a 500 INTERNAL_SERVER_ERROR instead of NOT_FOUND or FORBIDDEN, so the client cannot tell an access problem from a server fault. Throw `new TRPCError({ code: \"NOT_FOUND\" })` or `FORBIDDEN`."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 24033,
+  "cacheRead": 6852,
+  "output": 3498,
+  "models": {
+   "claude-opus-5-5": 1,
+   "claude-sonnet-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 17,
+   "hunks": 23,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 30889,
+   "outputTokens": 3498,
+   "model": "claude-opus-5-5",
+   "byModel": {
+    "claude-opus-5-5": {
+     "input": 7257,
+     "output": 940
+    },
+    "claude-sonnet-5-5": {
+     "input": 23632,
+     "output": 2558
+    }
+   },
+   "provider": "anthropic",
+   "reviewedFiles": 17,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/prisma/migrations/20250715160635_add_calendar_cache_updated_at/migration.sql",
+    "line": 9,
+    "end_line": 9,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The hand-edited DEFAULT NOW() probably doesn't match the Prisma schema, and it stamps old cache rows as just refreshed.",
+    "body": "The generated warning in this file says Prisma created this column with no default. Someone then added `DEFAULT NOW()` by hand. This causes two problems:\n\n1. **Schema drift:** If `schema.prisma` declares `updatedAt DateTime @updatedAt` without `@default(now())`, the database no longer matches the schema. The next `prisma migrate dev` will detect the drift and generate a migration that drops the default again. I couldn't see the `schema.prisma` change to confirm this.\n2. **Wrong cache status:** Every existing `CalendarCache` row gets the deploy time as `updatedAt`. The new `cacheUpdatedAt` status in the UI will then show stale caches as updated just now until each one is actually rewritten.\n\nFix: add `@default(now())` next to `@updatedAt` in `schema.prisma` so the schema and the migration agree. Better still, backfill existing rows with a value that reflects their real age, or leave the column nullable so the UI can show \"unknown\" for old rows."
+   }
+  ]
+ },
+ "cost_usd": 0.1915114
+}
