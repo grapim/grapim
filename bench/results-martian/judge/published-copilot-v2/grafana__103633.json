@@ -1,0 +1,39 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The Check operation exhibits asymmetric cache trust logic: cached permission grants are trusted and returned immediately, but cached denials from the same permission cache are ignored, leading to a fresh database lookup. This allows stale cached grants to provide access to revoked resources, posing a security risk. ",
+   "severity": "High",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "Neither candidate points out the asymmetric trust between cached grants and cached denials, or the stale-grant security risk that follows from it."
+  },
+  {
+   "comment": "The test comment says the cached permissions 'allow access', but the map stores false for dashboards:uid:dash1, so checkPermission will still treat this scope as not allowed.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 notes that the test fills permCache with false for the dashboard scope, so checkPermission denies access anyway. That is the same problem G2 describes."
+  },
+  {
+   "comment": "The cache key construction in `userPermDenialCacheKey` uses simple string concatenation with underscores, which can lead to ambiguous keys and collision risks when any component contains underscores or is empty. This could result in incorrect denial cache hits, affecting user permissions.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "G3 says joining key parts with underscores makes keys ambiguous when a part contains an underscore or is empty. C2 is about the denial cache reusing the positive cache's prefix. Both concern key collisions, but the causes are different."
+  }
+ ],
+ "candidates": [
+  "The test that intends to verify denial-cache entry overrides a cached allow decision is flawed - the permCache is populated with `false` for the dashboard scope, and since `checkPermission` only treats `true` values as grants, the test would deny even without checking the denial cache, so it doesn't validate the intended behavior.",
+  "The denial-cache key uses the same `.perm_` prefix as the positive permission cache key, which makes it harder to reason about key spaces and increases risk of future collisions/type confusion. Should use a dedicated prefix like `.perm_deny_` for denial entries."
+ ]
+}

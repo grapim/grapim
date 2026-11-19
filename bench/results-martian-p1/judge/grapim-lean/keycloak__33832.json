@@ -1,0 +1,47 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Returns wrong provider (default keystore instead of BouncyCastle)",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate talks about the wrong provider being returned (the default keystore instead of BouncyCastle)."
+  },
+  {
+   "comment": "Dead code exists where ASN1Encoder instances are created and written to, but their results are immediately discarded. The actual encoding is performed by new ASN1Encoder instances created in the subsequent return statement, rendering the earlier operations useless.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the ASN1Encoder dead code."
+  },
+  {
+   "comment": "When length starts at -1 from indefinite-length encoding, the arithmetic 'length = length - bytes.length' will behave unexpectedly, potentially leading to incorrect processing of encoded data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the indefinite-length -1 arithmetic."
+  },
+  {
+   "comment": "Abstract order() method on CryptoProvider may break backward compatibility with existing implementations",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 raises the same concern: the abstract order() method breaks backward compatibility for existing implementations."
+  }
+ ],
+ "candidates": [
+  "common/src/main/java/org/keycloak/common/crypto/CryptoIntegration.java:57 - Multiple crypto providers with equal priority are now chosen silently instead of failing.. The check that threw `Multiple crypto providers loaded` is gone. `DefaultCryptoProvider`, `WildFlyElytronProvider` and `FIPS1402Provider` all return `order() == 200`. If two of them end up on the same classpath, the stable sort keeps `ServiceLoader` order, so whichever jar is listed first wins. The only trace is a debug-level log line.\n\nBefore this change, a FIPS deployment that also had the default (non-FIPS) BouncyCastle provider on the classpath refused to start. Now it can start quietly with the non-FIPS provider, which defeats the point of FIPS mode.\n\nFix: drop only the lower-priority providers. If more than one provider ties for the highest `order()`, keep throwing the old `IllegalStateException`.",
+  "common/src/main/java/org/keycloak/common/crypto/CryptoProvider.java:44 - New abstract `order()` on a public SPI breaks existing CryptoProvider implementations.. `CryptoProvider` is loaded through `ServiceLoader` and can be implemented outside Keycloak. `order()` is added without a default body. Any existing implementation not changed in this PR (custom or third-party providers, test providers in other modules) will stop compiling. If it was compiled against the old interface, it will throw `AbstractMethodError` when `detectProvider` sorts by `CryptoProvider::order`.\n\nI could not check whether other implementations exist in the repository outside the files shown.\n\nFix: give the method a default, e.g. `default int order() { return 0; }`, or check that every implementation is updated."
+ ]
+}

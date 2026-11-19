@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "rerun-io__rerun__13015",
+ "url": "https://github.com/rerun-io/rerun/pull/13015",
+ "head_sha": "2effbabbe3f229419378684ac394ca0f77d9daae",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:30:18.813Z",
+ "seconds": 39.151,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "crates/views/re_view_state_timeline/src/view_class.rs",
+   "line": 498,
+   "end_line": 513,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Right-clicking a state while the menu is open moves the cursor instead of opening that state's menu",
+   "body": "While a menu target is stored, `menu_is_open` sets `interact_pos` to `None`, so the lane widgets never set `hovered_phase`. If the user right-clicks another state (or the same one again) while the menu is open, `secondary_clicked_time` is `Some` but `hovered_phase` is `None`. The code then removes the target, and `clicked_time` jumps the time cursor. The user gets a cursor move with no menu, which is the opposite of what the PR says a right-click on a state does. Normal egui context menus reopen at the new spot instead. One fix is to suppress only the tooltip while the menu is open and keep computing `hovered_phase`, so that a new right-click on a state replaces the target. I could not check how egui handles the popup's own open state in this case."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 11204,
+  "cacheRead": 3561,
+  "output": 1928,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 14767,
+   "outputTokens": 1928,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0953002
+}

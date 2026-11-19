@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "datachain-ai__datachain__2234",
+ "url": "https://github.com/datachain-ai/datachain/pull/2234",
+ "head_sha": "56e43481860ad807307b9c4672e942b79723693c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:38:44.763Z",
+ "seconds": 227.133,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 48401,
+  "cacheRead": 3561,
+  "output": 20620,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 15,
+   "hunks": 44,
+   "reviewedHunks": 44,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 51964,
+   "outputTokens": 20620,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 15,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.6551252
+}

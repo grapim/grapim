@@ -1,0 +1,165 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "head_sha": "8ab88145113dd23a930e23b9cbbcf8b30e4c0b17",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:24:58.025Z",
+ "seconds": 52.374,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/api/endpoints/organization_auditlogs.py",
+   "line": 76,
+   "end_line": 83,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "OptimizedCursorPaginator expects a numeric key, but the audit log sorts by a datetime.",
+   "body": "The endpoint passes `order_by=\"-datetime\"` to `OptimizedCursorPaginator`. That paginator's `get_item_key` calls `math.floor`/`math.ceil` on the key, and `value_from_cursor` returns the raw cursor value without turning it into a datetime. `DateTimePaginator` does both conversions; this one doesn't. As a result, every non-empty page on the `optimized_pagination=true` path raises `TypeError` in `get_item_key` when cursors are built, and a cursor value from a later request is compared to `datetime` as a bare int. Fix: subclass `DateTimePaginator` (or reuse its key and cursor conversion), or don't use this paginator for datetime-sorted querysets."
+  },
+  {
+   "path": "src/sentry/api/paginator.py",
+   "line": 838,
+   "end_line": 843,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "OptimizedCursorPaginator is applied to a datetime key it can't handle.",
+   "body": "The audit log endpoint uses this paginator with `order_by=\"-datetime\"`. `get_item_key` then calls `math.floor`/`math.ceil` on a `datetime`, which raises TypeError once results come back. `value_from_cursor` also returns the raw numeric cursor value, which `build_queryset` then compares against a DateTimeField. So `optimized_pagination=true` returns a 500 on any non-empty result. Either convert datetimes the way `DateTimePaginator` does, or don't use this paginator for datetime keys."
+  },
+  {
+   "path": "src/sentry/api/paginator.py",
+   "line": 877,
+   "end_line": 882,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "Negative-offset path either breaks the request or tries to read past normal pagination bounds.",
+   "body": "A client sends a cursor with a negative offset (e.g. `cursor=0:-50:0`) and `optimized_pagination=true`. That offset goes straight into `queryset[start_offset:stop]`. Django querysets don't allow negative indexing, so the request fails with a 500. The comments say the intent is to reach \"data beyond normal pagination bounds\". That is not a valid feature, and the claim that \"permissions are checked at the queryset level\" is unfounded. Remove this branch and clamp the offset to `max(0, offset)` in every case."
+  },
+  {
+   "path": "src/sentry/api/endpoints/organization_auditlogs.py",
+   "line": 68,
+   "end_line": 91,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Audit log pagination change is unrelated to the span buffer work.",
+   "body": "The PR is titled as a spans buffer insertion optimization. This hunk adds a new, client-controlled pagination mode to the audit log endpoint, along with a new paginator and support for negative offsets. Nothing in the request covers this, and it widens the API surface of a security-sensitive endpoint. Drop it from this PR."
+  },
+  {
+   "path": "src/sentry/api/endpoints/organization_auditlogs.py",
+   "line": 71,
+   "end_line": 71,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`enable_advanced` is computed on every request and fails when member is None.",
+   "body": "The expression runs even when `optimized_pagination` isn't requested. For a requester who is not a superuser and has no org membership (e.g. staff access through `OrganizationAuditPermission`), `organization_context.member` is None. That raises AttributeError and turns a normal audit log request into a 500. Only evaluate it when `use_optimized` is true, and guard against `member is None`.",
+   "suggestion": "        enable_advanced = request.user.is_superuser or (\n            organization_context.member is not None\n            and organization_context.member.has_global_access\n        )"
+  },
+  {
+   "path": "src/sentry/api/paginator.py",
+   "line": 179,
+   "end_line": 184,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Shared BasePaginator slicing changed with no stated reason, and the new offset isn't used consistently.",
+   "body": "This changes slicing for every endpoint that uses BasePaginator, which the request doesn't cover. The later `len(results) == offset + limit + extra` check still uses the raw `offset` rather than `start_offset`. When the offset is clamped, the extra row is no longer trimmed correctly. Prev cursors with negative offsets still reach `queryset[negative:]` and fail. Revert this hunk."
+  },
+  {
+   "path": "src/sentry/scripts/spans/add-buffer.lua",
+   "line": 30,
+   "end_line": 30,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Redirect depth limit cut from 10000 to 1000 without explanation.",
+   "body": "Segment trees deeper than 1000 levels will no longer be joined correctly. The comment documenting this limit was also removed. Nothing in the request asks for this change, so restore the previous limit.",
+   "suggestion": "for i = 0, 10000 do  -- theoretically this limit means that segment trees of depth 10k may not be joined together correctly."
+  },
+  {
+   "path": "src/sentry/scripts/spans/add-buffer.lua",
+   "line": 46,
+   "end_line": 64,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Changing the Redis key type from set to sorted set fails on keys left over from before the deploy.",
+   "body": "During rollout, segment keys written by the old code are still Redis sets until their TTL expires. On those keys, `zcard`/`zunionstore` in the script, `zadd` in `process_spans` and `zscan` in `flush_segments` all fail with a WRONGTYPE error. The consumer and flusher can crash or loop until the old keys expire. Use a new key prefix or handle old set keys during migration. The eviction also silently drops the earliest-ending spans with no metric, where the old code emitted one. Add a metric for evicted spans."
+  },
+  {
+   "path": "src/sentry/scripts/spans/add-buffer.lua",
+   "line": 62,
+   "end_line": 64,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "A hard-coded 1000-span cap silently drops spans, contradicting the stated removal of span count limits.",
+   "body": "The description says span count limits were removed and segments are now bounded only by size. This script now evicts every span after the 1000 latest by `end_timestamp_precise`, without a metric or log. It also hard-codes 1000 instead of using the existing `max_segment_spans` setting, which the change removed from `flush_segments` in buffer.py and which now appears to be unused. Fix: pass the limit in from `max_segment_spans` as an ARGV value, and record a metric when spans are evicted."
+  },
+  {
+   "path": "src/sentry/spans/consumers/process/factory.py",
+   "line": 141,
+   "end_line": 141,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A missing `end_timestamp_precise` raises KeyError and fails the whole batch.",
+   "body": "`val[\"end_timestamp_precise\"]` assumes every message on the topic has the field. Messages produced before the producer started sending it, or any message without it, raise KeyError inside `process_batch`. Nothing catches that error, so the whole batch fails and the consumer is likely to crash-loop on the same offset. I could not check whether the schema guarantees the field on every message. Fix: use `val.get(\"end_timestamp_precise\")` with a fallback score, or skip and log bad messages."
+  },
+  {
+   "path": "src/sentry/utils/cursors.py",
+   "line": 26,
+   "end_line": 27,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "The comment says negative offsets were enabled, but the code didn't change.",
+   "body": "The new comment says this line allows negative offsets for advanced pagination. The line is the same plain `int(offset)` as before, and the paginators that consume it can't slice with a negative offset. Remove the comment."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 12,
+  "cacheWrite": 72909,
+  "cacheRead": 54493,
+  "output": 14370,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 20,
+   "reviewedHunks": 20,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 127414,
+   "outputTokens": 14370,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.6628916
+}

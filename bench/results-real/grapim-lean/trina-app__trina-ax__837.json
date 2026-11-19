@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "trina-app__trina-ax__837",
+ "url": "https://github.com/trina-app/trina-ax/pull/837",
+ "head_sha": "18ad6556083f891ad8194c87c3fa631ae78a1fce",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:36:01.388Z",
+ "seconds": 30.929,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 46899,
+  "cacheRead": 3527,
+  "output": 2543,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 24,
+   "hunks": 38,
+   "reviewedHunks": 38,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 50428,
+   "outputTokens": 2543,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 24,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2860684
+}

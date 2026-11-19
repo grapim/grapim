@@ -1,0 +1,41 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "BlockedEmail.should_block_email? method has side effects during a read operation - it updates statistics even when just checking if an email should be blocked. This could cause race conditions in concurrent environments and makes the method name misleading.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 points out the same write side effect, where the stats get updated inside the should_block check."
+  },
+  {
+   "comment": "The regex pattern @(#{domains}) in email_in_restriction_setting? method only matches domain suffixes, not full domains with proper boundary anchoring. An attacker can register evil.example.com to bypass a whitelist entry for example.com.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the regex domain anchoring problem."
+  },
+  {
+   "comment": "The case-sensitive email lookup in `BlockedEmail.should_block?` creates a bypass risk, allowing 'User@Example.com' to bypass a block on 'user@example.com'. This can lead to unauthorized access to blocked users.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same case-sensitive lookup bypass."
+  }
+ ],
+ "candidates": [
+  "BlockedEmail.should_block? has a write side-effect (incrementing match_count and saving) that executes every time validations run, causing match_count to be incremented by 2 per registration attempt instead of 1 because user.valid? is called explicitly and then user.save triggers validations again",
+  "BlockedEmail.should_block? performs a case-sensitive SQL query on PostgreSQL, allowing users to bypass blocked email checks by varying case (e.g., Bad@SpamClub.COM when bad@spamclub.com is blocked)"
+ ]
+}

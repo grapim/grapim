@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__36880",
+ "url": "https://github.com/keycloak/keycloak/pull/36880",
+ "head_sha": "1950a511026d520a7329c7b6b9ee60a4af8f8b55",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:29:42.585Z",
+ "seconds": 51.191,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java",
+   "line": 147,
+   "end_line": 150,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "canExchangeTo and other reachable methods now throw UnsupportedOperationException under V2.",
+   "body": "Before this change, `MgmtPermissionsV2.clients()` returned the V1 `ClientPermissions`, which handled `canExchangeTo`, `isPermissionsEnabled`, `getPermissions`, `setPermissionsEnabled` and `resource`. These now throw `UnsupportedOperationException`. Legacy token exchange calls `management(session, realm).clients().canExchangeTo(...)`, so with FGAP v2 enabled a token-exchange request would fail with a 500 instead of being allowed or denied. The client `management/permissions` admin endpoints would also return a 500 instead of a clean 4xx. The unused `getEvaluationContext` helper suggests the exchange path was started and not finished. Return a deny result (`false`) or a proper client error instead of throwing on these paths."
+  },
+  {
+   "path": "services/src/main/java/org/keycloak/services/resources/admin/permissions/ClientPermissionsV2.java",
+   "line": 214,
+   "end_line": 224,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Missing \"Clients\" type resource causes an NPE instead of a denial.",
+   "body": "If no per-client resource exists, `hasPermission(client, scope)` falls back to `getResourceTypeResource(..., CLIENTS_RESOURCE_TYPE)` and never checks the result for null. The type resources are created when a realm's admin-permissions client is set up. A realm that enabled FGAP v2 before this change has only the \"Users\" type resource, so this call returns null. Then `findByResource(server, null)` or `resource.getScopes()` fails, and an admin without manage-clients gets a 500 on every client view or update instead of a 403. I could not check `getResourceTypeResource`, so it may create the resource on demand. If it does not, return `false` when `resource == null`, as the scope-less `hasPermission(String)` already does."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 45612,
+  "cacheRead": 3262,
+  "output": 4195,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 18,
+   "reviewedHunks": 17,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 48876,
+   "outputTokens": 4195,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.3126204
+}

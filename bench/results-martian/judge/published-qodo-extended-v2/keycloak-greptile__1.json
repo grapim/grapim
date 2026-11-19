@@ -1,0 +1,34 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the call has no arguments even though the method requires a UserModel."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 describes the same issue: because the user is null on the initial login page, the conditional passkey UI is never set up."
+  }
+ ],
+ "candidates": [
+  "In UsernameForm.java line 47, isConditionalPasskeysEnabled() is called with zero arguments, but the only definition in parent class UsernamePasswordForm requires one UserModel parameter, causing a compilation error",
+  "UsernamePasswordForm now only enables conditional passkeys UI when context.getUser() is non-null, which prevents enableWebAuthnConditionalUI from being set during normal unauthenticated login, effectively disabling discoverable-passkey login",
+  "PasskeysUsernamePasswordFormTest catches Exception when asserting the webauthn form is absent, so unrelated WebDriver failures (timeouts, driver errors) are treated as expected and can produce false-positive test passes - should catch NoSuchElementException specifically"
+ ]
+}

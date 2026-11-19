@@ -1,0 +1,74 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "cal.com__22345",
+ "url": "https://github.com/calcom/cal.com/pull/22345",
+ "head_sha": "da09bc0808e7c6df1bc10e00d5acf764d94c7cc7",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:31:31.651Z",
+ "seconds": 27.073,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/lib/server/service/__tests__/insightsBooking.integration-test.ts",
+   "line": 429,
+   "end_line": 431,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The caching tests were deleted, so the caching behaviour no longer has any test.",
+   "body": "This change deletes the whole `Caching` describe block (\"should cache authorization conditions\" and \"should cache filter conditions\") instead of moving it to the new `Prisma.Sql` format. The service still caches through `cachedAuthConditions` and `cachedFilterConditions`, but nothing tests it now. If the cache broke (for example, the `undefined` check stopped matching), extra repository queries would run on every call and no test would catch it. The PR description says these tests were updated to the new format, not removed. Fix: put both tests back, expect `Prisma.sql` values, and check that the second call returns the same object."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 12,
+  "cacheWrite": 60282,
+  "cacheRead": 49718,
+  "output": 5594,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 110012,
+   "outputTokens": 5594,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/lib/server/service/insightsBooking.ts",
+    "line": 68,
+    "end_line": 68,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Public `findMany` method removed with no visible replacement for its callers.",
+    "body": "`findMany` used to run the query and enforce authorization for callers. It is replaced by `getBaseConditions()`, which only returns a SQL fragment. Any existing caller of `service.findMany(...)`, such as an insights tRPC router, will fail to compile, or will break at runtime if it is called through `any`. Each caller now has to build its own `$queryRaw` and remember to include the base conditions, or it loses the authorization filter. I could not see the other files in this PR, so I could not check whether any callers were updated. Either keep a `findMany` wrapper or update every caller in this PR."
+   }
+  ]
+ },
+ "cost_usd": 0.4232816
+}

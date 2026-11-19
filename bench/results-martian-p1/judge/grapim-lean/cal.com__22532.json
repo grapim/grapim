@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The updateManyByCredentialId call uses an empty data object, which prevents Prisma's @updatedAt decorator from updating the updatedAt timestamp. This results in inaccurate cache status tracking, as the timestamp isn't updated when the cache is refreshed. To fix this, explicitly set the updatedAt field.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out the same problem: updateMany is called with empty data, so updatedAt is never bumped."
+  },
+  {
+   "comment": "logic: macOS-specific sed syntax with empty string after -i flag will fail on Linux systems",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 covers the same issue: `sed -i ''` is macOS-only syntax and fails on Linux."
+  },
+  {
+   "comment": "Throwing a generic Error for authentication failures results in a 500 response in tRPC. Instead, it should return a structured TRPCError with an appropriate code, such as FORBIDDEN, to accurately reflect the error type.",
+   "severity": "High",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mentions throwing a generic Error instead of a TRPCError."
+  },
+  {
+   "comment": "Date is formatted with hardcoded 'en-US' locale instead of using the user's locale from useLocale, which can lead to incorrect date representation for users in different locales.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 identifies the same hardcoded en-US locale and suggests using useLocale instead."
+  }
+ ],
+ "candidates": [
+  "scripts/test-gcal-webhooks.sh:68 - `sed -i ''` only works with BSD/macOS sed and fails on Linux.. GNU sed does not accept the separate empty-string backup argument. It reads `''` as the script and the real expression as a file name, so on Linux the command fails and `GOOGLE_WEBHOOK_URL` is never replaced. The script then still prints \"✅ Updated GOOGLE_WEBHOOK_URL\". Fix: use a portable form, such as `sed -i.bak -E ... && rm \"$ENV_FILE.bak\"`, or write to a temp file and move it into place.",
+  "packages/app-store/googlecalendar/lib/CalendarService.ts:1024 - `updateMany` with empty data probably never bumps `SelectedCalendar.updatedAt`.. The comment says this updates `SelectedCalendar.updatedAt` for every calendar under the credential, but the call passes `{}` as the data. When Prisma gets no fields to set, it skips the write, and `@updatedAt` only fills in when a real update happens. So after a webhook refresh the timestamp most likely stays the same, and anything that reads `updatedAt` to show freshness gets a stale value. I could not check the exact Prisma version's behaviour from here. Fix: set the field explicitly.",
+  "packages/features/apps/components/CredentialActionsDropdown.tsx:89 - Cache timestamp is always formatted in `en-US`, whatever the user's locale.. The \"Last updated\" string is translated, but the date inside it is always formatted with `\"en-US\"`. Users with another locale see US month/day ordering and a 12-hour clock, which is confusing in places like the EU, where 07/08 means August 7th. Fix: take the locale from `useLocale()` (`i18n.language`) and pass it to `Intl.DateTimeFormat`."
+ ]
+}

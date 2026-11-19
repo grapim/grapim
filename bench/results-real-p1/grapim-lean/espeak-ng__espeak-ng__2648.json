@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "espeak-ng__espeak-ng__2648",
+ "url": "https://github.com/espeak-ng/espeak-ng/pull/2648",
+ "head_sha": "b7b435eb2124bf140b33e3bddae3025a235240ba",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:38:15.454Z",
+ "seconds": 295.796,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "dictsource/nl_rules",
+   "line": 861,
+   "end_line": 862,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`model` has no `(le` rule, so `modellen` and `modelleren` are wrongly split as compounds.",
+   "body": "`snel`, `hotel` and `tabel` each get a higher-scoring `(le` rule for the inflection with a doubled consonant. `model` does not. In `modellen` (plural) and `modelleren` / `modellering`, what follows `model` is `l` plus a vowel, so `_) model (l@P5` matches. That rule emits `mo:d'E` and then translates the rest (`len`, `leren`) as a separate word. The result is roughly `mo:d'El,En` instead of `mo:d'El@n`: an extra stress and the wrong vowel in a common word, and `modelleren` loses its stress on `-le-`.\n\nFix: add `_) model (le      mo:d'El` before the `(l@P5` rule, as the sibling stems do."
+  },
+  {
+   "path": "dictsource/nl_rules",
+   "line": 602,
+   "end_line": 602,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`huis` prefix rule stresses `huishoudelijk` on its first element.",
+   "body": "`_) huis (C@P4` matches `huishoudelijk` and `huishoudelijke` (`h` plus a vowel follows), so the result is `h'Wysh,VUd@l@k`. The adjective is stressed on `-hou-` (huis**hou**delijk), like `hoofdzakelijk`, which this PR does add to `nl_list`. This is a common word.\n\nFix: add `huishoudelijk` and `huishoudelijke` to the `nl_list` exceptions."
+  },
+  {
+   "path": "dictsource/nl_rules",
+   "line": 819,
+   "end_line": 819,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`levens` prefix rule moves the stress of `levenslang` onto `le-`.",
+   "body": "`_) levens (C@P6` matches `levenslang`, giving `l'e:v@nsl,AN`. As an adjective or adverb (\"hij kreeg levenslang\"), the word is stressed on `lang`. The PR already treats `levensgevaarlijk` as a right-stressed exception, but `levenslang` is missing.\n\nFix: add `levenslang` and `levenslange` to `nl_list` with the stress on `lang`."
+  },
+  {
+   "path": "dictsource/nl_rules",
+   "line": 969,
+   "end_line": 969,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`oor` prefix rule puts the primary stress of `oorspronkelijk` on `oor`.",
+   "body": "`_) oor (C@P3` matches `oorspronkelijk`: after `oor` comes `s`, a consonant, and then a vowel. `oor` gets the primary stress and `spronkelijk` is translated as a separate word, giving `'O:rspr,ONk@l@k`. Standard stress is oor**spron**kelijk. This is the same `-lijk` pattern the PR already lists as exceptions (`hoofdzakelijk`, `klaarblijkelijk`), but this common word was left out.\n\nFix: add `oorspronkelijk` (and `oorspronkelijke`) to `nl_list` with stress on `spron`. I could not see what this word produced before the change."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 39751,
+  "cacheRead": 3561,
+  "output": 26399,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 29,
+   "reviewedHunks": 29,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 43314,
+   "outputTokens": 26399,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.7274552
+}

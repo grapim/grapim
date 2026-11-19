@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__7232",
+ "url": "https://github.com/calcom/cal.com/pull/7232",
+ "head_sha": "6048e2a86b50e81e1e3b1b467dfea5a895add3dc",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:41:59.640Z",
+ "seconds": 54.437,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/features/bookings/lib/handleNewBooking.ts",
+   "line": 964,
+   "end_line": 975,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Reschedules still cancel at SendGrid immediately, so they still count toward the 100-cancellation limit.",
+   "body": "The PR says immediate SendGrid cancels fail once 100 cancellations are pending, and that the fix is to defer them to the cron. Here the reschedule path passes `immediateDelete = true`, which posts `status: cancel` straight away. Rescheduling is a normal, frequent path, so these cancels still fill the 100-slot limit. Once it is full, reminders for the old booking are sent again.\n\nWith `immediateDelete`, the row is also neither flagged nor deleted. A failed cancel is only logged and never retried. Note that the surrounding try/catch cannot catch these errors anyway, because the async calls are not awaited.\n\nFix: use the deferred path here (drop `true`) so rescheduled bookings go through the cron like cancelled ones. The workflow-delete and step-delete callers in `workflows.tsx` also use `immediateDelete` and have the same limit problem. There, the cascade delete removes the rows, so the cron could not handle them; they need another way to keep the cancellation."
+  },
+  {
+   "path": "packages/features/ee/workflows/lib/reminders/emailReminderManager.ts",
+   "line": 225,
+   "end_line": 225,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "A cancellation made shortly before the send time is never cancelled at SendGrid.",
+   "body": "Already-scheduled emails are now only marked `cancelled: true`. The actual SendGrid cancel waits for the cron, which runs every 15 minutes.\n\nIf a booking is cancelled less than about 15 minutes before a reminder's send time, the next cron run comes after SendGrid has already sent it. Before this change, the cancel was sent immediately.\n\nFix: when `scheduledDate` falls within the cron's window (the next hour), cancel at SendGrid immediately. Mark the row for the cron only when the send time is further out."
+  },
+  {
+   "path": "packages/features/ee/workflows/api/scheduleEmailReminders.ts",
+   "line": 53,
+   "end_line": 77,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "One failed SendGrid cancel stops the whole batch and can leave the cron stuck on that reminder.",
+   "body": "All cancellations share one try block. If `client.request` throws for any reminder, the loop stops, so the reminders after it are not cancelled in this run. `Promise.all(workflowRemindersToDelete)` is also never reached. Prisma queries are lazy, so the deletes queued for reminders already cancelled at SendGrid never run.\n\nOn the next run those reminders come back. Posting `cancel` again for a batch that already has a status is likely to fail, which I could not check. If it does, the same reminder throws first on every run until its send time passes, and the cancelled emails behind it go out.\n\nFix: give each reminder its own try/catch, delete (or flag) the row right after its cancel succeeds, and treat an \"already cancelled\" response as success."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings.tsx",
+   "line": 487,
+   "end_line": 487,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Reminder database writes are now fire-and-forget instead of awaited.",
+   "body": "Before this change, the reminder `deleteMany` calls were collected and awaited with `Promise.all`. Now the update or delete happens inside `deleteScheduledEmailReminder` / `deleteScheduledSMSReminder`, and the caller does not await them. The same is true in `handleCancelBooking.ts`.\n\nOn serverless hosting, the request can return and the function can be frozen before the `cancelled: true` update commits. The cron then never sees the reminder, and the email is sent. Errors are also only logged.\n\nFix: collect the returned promises and `await Promise.all(...)` before continuing."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 23252,
+  "cacheRead": 6524,
+  "output": 5296,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 10,
+   "hunks": 21,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 29780,
+   "outputTokens": 5296,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 10,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2235008
+}

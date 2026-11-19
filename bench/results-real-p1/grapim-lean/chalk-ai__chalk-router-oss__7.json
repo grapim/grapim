@@ -1,0 +1,121 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "chalk-ai__chalk-router-oss__7",
+ "url": "https://github.com/chalk-ai/chalk-router-oss/pull/7",
+ "head_sha": "2666b3b115fb46f49408349fd4d101a2aea1856a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:33:15.811Z",
+ "seconds": 65.448,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "ui/src/components/AppShell.tsx",
+   "line": 104,
+   "end_line": 104,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "An invalid percent-encoding in a detail URL crashes the whole admin layout.",
+   "body": "`breadcrumbsFor` calls `decodeURIComponent(id)` on the second path segment without a try/catch. If the segment holds a malformed escape, it throws a `URIError` while the breadcrumbs render. Examples: someone types or follows `/keys/abc%ZZ`, or `usePathname()` returns an already-decoded path for an id with a literal `%`, such as a route id `50%off` linked as `/routes/50%25off`. That error is inside `AppShell`, which wraps every page, so the whole app fails instead of the detail page showing \"not found\". I could not check whether this Next.js version's `usePathname()` returns the path encoded or decoded. Either way, the decode needs a guard that falls back to the raw segment."
+  },
+  {
+   "path": "ui/src/app/tokens/Quickstart.tsx",
+   "line": 77,
+   "end_line": 80,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "Quickstart code still asks for the removed 'Everett Mono' font.",
+   "body": "This PR deletes the TWKEverett font files and switches the UI to JetBrains Mono. The Quickstart code blocks still set `fontFamily: \"'Everett Mono', monospace\"` in four places: lines 62, 81, 217 and 234. Unless `globals.css` (not shown here) still declares an `@font-face` named 'Everett Mono' that points at JetBrains Mono, the language label, the snippet, the Base URL and the Auth header all fall back to the browser's default monospace font instead of the new one. The fix is to use the mono token (for example `var(--font-mono)` or the `font-mono` class) in place of the hard-coded family."
+  }
+ ],
+ "usage": {
+  "requests": 6,
+  "input": 14,
+  "cacheWrite": 332512,
+  "cacheRead": 55040,
+  "output": 7903,
+  "models": {
+   "claude-opus-5-5": 6
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 53,
+   "hunks": 73,
+   "reviewedHunks": 71,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 387566,
+   "outputTokens": 7903,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 44,
+   "reviewedAiHunks": 0,
+   "requests": 6,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "ui/public/fonts/InterVariable.ttf",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/JetBrainsMonoVariable.ttf",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverett-Bold-web.woff2",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverett-Light-web.woff2",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverett-Medium-web.woff2",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverett-Regular-web.woff2",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverettMono-Medium.ttf",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverettMono-Regular.ttf",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/src/components/Sidebar.tsx",
+    "reason": "file deleted (no new lines to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "ui/src/components/router/RouterPrimitives.tsx",
+    "line": 91,
+    "end_line": 91,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "StatusBadge builds `badge-${tone}`; the `badge-yellow` class may not exist.",
+    "body": "`StatusBadge` used to set its colours inline for each tone. It now emits `badge badge-${tone}`, so a yellow badge gets the class `badge-yellow`. The pull request description says the chips map onto red, green, amber and blue status tones. If `globals.css` defines `.badge-amber` and no `.badge-yellow`, every `StatusBadge tone=\"yellow\"` shows only the plain `.badge` style and loses its warning colour. I couldn't check this because `globals.css` isn't in these hunks. The fix is to define `.badge-yellow` in `globals.css`, or to map the tone here (for example `yellow` → `amber`) to a class that exists."
+   }
+  ]
+ },
+ "cost_usd": 1.831684
+}

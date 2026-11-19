@@ -1,0 +1,90 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "datachain-ai__datachain__2222-a266934",
+ "url": "https://github.com/datachain-ai/datachain/pull/2222",
+ "head_sha": "a2669342ca17bf49ec71236f8f17750b511f9da4",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-16T22:29:40.061Z",
+ "seconds": 99.443,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": ".github/workflows/tests-studio.yml",
+   "line": 59,
+   "end_line": 59,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Unrequested change to which secret the Studio CI job uses for credentials.",
+   "body": "This PR is about the listing data path (epic #2223, step 3), but this hunk changes the CI credentials. Lines 59 and 77 now read `secrets.STUDIO_READ_ACCESS_TOKEN` first and fall back to `ITERATIVE_STUDIO_READ_ACCESS_TOKEN` only when it is missing. If a `STUDIO_READ_ACCESS_TOKEN` secret exists at the org or repo level with different scope or ownership, the job will silently use it to run `git ls-remote` and to check out the private `datachain-ai/studio` repo. Neither the description nor the listing work explains this change. I can't tell from here whether that secret exists or who controls it. Move this to its own PR with a stated reason, or revert both lines to `secrets.ITERATIVE_STUDIO_READ_ACCESS_TOKEN`.",
+   "suggestion": "          STUDIO_READ_ACCESS_TOKEN: ${{ secrets.ITERATIVE_STUDIO_READ_ACCESS_TOKEN }}"
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 56438,
+  "cacheRead": 0,
+  "output": 10409,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 42,
+   "reviewedHunks": 35,
+   "aiHunks": 0,
+   "skippedHunks": 7,
+   "inputTokens": 56442,
+   "outputTokens": 10409,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 15,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "src/datachain/lib/dc/storage.py",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/datachain/data_storage/metastore.py",
+    "line": 1512,
+    "end_line": 1512,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "update_dataset_version now writes created_at for every caller, not just touch_reservation.",
+    "body": "Before this change, `update_dataset_version` skipped `created_at` along with `id`. Now any caller that passes `created_at` in `**kwargs` overwrites the version's creation time. That includes a caller that forwards a whole version's fields, such as a copy or pull that spreads `version.to_dict()`. Age-based gc, and anything that sorts or audits by creation time, would then see a changed timestamp. Only the new `touch_reservation` needs this. I can't see the other callers, so whether one passes `created_at` is unconfirmed.\n\nFix: keep `created_at` read-only by default and let only `touch_reservation` write it, for example with a dedicated guarded UPDATE in `touch_reservation` or an explicit opt-in flag."
+   },
+   {
+    "path": "src/datachain/data_storage/warehouse.py",
+    "line": 450,
+    "end_line": 453,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "scope",
+    "title": "New writer branch in insert_stored_rows is unused by the listing writer and changes shared behaviour.",
+    "body": "`write_listing` always passes `sys__id` in `columns`, so it never takes this branch. The only effect is on other callers of `insert_stored_rows` whose columns omit `sys__id`. Before, those calls inserted directly with `insert_block` in batches. Now they go through `self.writer`, which may assign `sys__id` differently and send rows through the writer's parts and flush logic. The request doesn't explain this change, and it looks like a leftover from an earlier attempt. Either drop it or explain it in the PR."
+   }
+  ]
+ },
+ "cost_usd": 0.490386
+}

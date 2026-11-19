@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "head_sha": "bbd8c507cdf56f6b884373809e0b24abd4a2353d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:28:51.452Z",
+ "seconds": 43.447,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+   "line": 108,
+   "end_line": 118,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Separate count and insert steps let concurrent new devices exceed the limit.",
+   "body": "`CountDevices` and the following INSERT/upsert do not run in the same transaction or under a lock. When the count is at `limit-1`, several new devices authenticating at the same moment all see `count < limit` and all get inserted, so the configured limit is exceeded.\n\nFix: do the check and the insert atomically, either with a conditional insert (`INSERT ... SELECT ... WHERE (SELECT COUNT(*) ...) < ?`) or inside one transaction that holds a suitable lock."
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+   "line": 83,
+   "end_line": 85,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The callback rewrites the captured `args` slice, so a retried session sends a corrupted argument list.",
+   "body": "`args = append([]interface{}{query}, args...)` reassigns the outer `args` variable inside the `WithDbSession` callback. If the session runs the callback again (for example, when it retries after SQLite reports 'database is locked'), the query string is prepended a second time. `Exec` then gets the wrong number and order of parameters, and the update fails or misbinds.\n\nFix: build the argument list once, outside the closure, or use a local variable inside it:\n\n```go\nexecArgs := append([]interface{}{query}, args...)\n```"
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/impl.go",
+   "line": 37,
+   "end_line": 43,
+   "severity": "warning",
+   "confidence": "low",
+   "category": "correctness",
+   "title": "The store's constructor now needs a raw `int64` limit, which the wire dependency setup cannot supply if it still uses `ProvideAnonDBStore`.",
+   "body": "`ProvideAnonDBStore` now takes `(db.DB, int64)`. `ProvideAnonymousDeviceService` builds the store itself and no longer receives `anonstore.AnonStore`. If `pkg/server/wire.go` still lists `anonstore.ProvideAnonDBStore` or binds `AnonStore` (I could not check this from these hunks), wire generation fails because nothing provides an `int64`. Any other consumer that is injected `AnonStore` would also get a different instance, one with no limit applied.\n\nFix: remove those providers and bindings from wire, or pass `*setting.Cfg` into `ProvideAnonDBStore`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17269,
+  "cacheRead": 3262,
+  "output": 3290,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 11,
+   "hunks": 19,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 20533,
+   "outputTokens": 3290,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1528054
+}

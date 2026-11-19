@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "keycloak__32918",
+ "url": "https://github.com/keycloak/keycloak/pull/32918",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "InfinispanIdentityProviderStorageProvider.getForLogin() recursively calls session.identityProviders().getById() instead of idpDelegate.getById(), causing the cache lookup to re-enter the same caching layer.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the recursive getById call in getForLogin."
+  },
+  {
+   "comment": "Cleanup reference uses incorrect alias - should be 'idp-alias-' + i instead of 'alias'.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same mistake: the cleanup uses the alias 'alias' when it should use 'idp-alias-' + i."
+  }
+ ],
+ "candidates": [
+  "testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/organization/cache/OrganizationCacheTest.java:381 - Test cleanup removes a provider named \"alias\" instead of the ones it created.. The cleanup is registered as `testRealm().identityProviders().get(\"alias\")::remove`, which targets a provider with the literal alias \"alias\". None of the `idp-alias-N` providers created here are removed. They stay in the realm and can change the IDP counts and cache state that later tests in this class see. The same mistake is on line 425. Fix: capture the real alias, e.g. `String alias = \"idp-alias-\" + i; getCleanup().addCleanup(testRealm().identityProviders().get(alias)::remove);`."
+ ]
+}

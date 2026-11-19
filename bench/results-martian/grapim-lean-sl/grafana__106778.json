@@ -1,0 +1,117 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "head_sha": "8df850371034b73dc4dd9908cc30fa09f12a1f97",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:26:38.929Z",
+ "seconds": 46.47,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "public/app/features/alerting/unified/hooks/useAbilities.ts",
+   "line": 227,
+   "end_line": 228,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The deprecated `useAllAlertRuleAbilities` no longer treats federated rule groups as read-only.",
+   "body": "The old code set `isFederated = isFederatedRuleGroup(rule.group)`, which made Update, Delete and Pause unsupported for Mimir federated groups. It now hands off to `useAllRulerRuleAbilities`, which hard-codes `isFederated = false` (line 245, with a TODO). Every caller of `useAllAlertRuleAbilities` / `useAlertRuleAbility` (for example the legacy `RuleActionsButtons` and `RuleDetails`) will now show Edit and Delete for federated rules, which these flows cannot handle. Fix: keep the federated check, for example by passing `rule.group` (or a precomputed flag) into the shared hook."
+  },
+  {
+   "path": "public/app/features/alerting/unified/rule-list/FilterView.tsx",
+   "line": 157,
+   "end_line": 157,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The `key` prop was dropped from the Grafana rule items in the filtered list.",
+   "body": "`GrafanaRuleLoader` used to get `key={key}`. The new `<GrafanaRuleListItem>` inside `rules.map` has no key, but the `datasource` and default branches still have one. React will warn about the missing key and will match list items by position. When the filtered list changes (paging, polling, new filter results), each row's state, such as an open menu, silence drawer or delete modal, can stay on the wrong row. Fix: add `key={key}` back."
+  },
+  {
+   "path": "public/app/features/alerting/unified/hooks/useAbilities.ts",
+   "line": 302,
+   "end_line": 302,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The prom-based abilities now block Pause, Restore and Export for Grafana recording rules.",
+   "body": "The ruler version keys Pause, Restore, DeletePermanently and ModifyExport on `rulerRuleType.grafana.rule(rule)`, which is true for both alerting and recording rules. The new version uses `prometheusRuleType.grafana.alertingRule(rule)`, so Grafana recording rules shown in the list view (which now has only the prom rule) lose these actions. The comment above it says \"All GrafanaPromRuleDTO rules are Grafana-managed by definition\", which suggests `prometheusRuleType.grafana.rule(rule)` was intended. Fix: use that for these entries and keep `isAlertingRule` only for Silence."
+  },
+  {
+   "path": "public/app/features/alerting/unified/rule-list/GrafanaRuleListItem.tsx",
+   "line": 47,
+   "end_line": 47,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "The list view loses the Delete and Pause actions for Grafana rules.",
+   "body": "The list item now passes only `promRule` to `RuleActionsButtons`/`AlertRuleMenu`, so `rulerRule` is undefined. The menu's Delete and Pause items need a `RulerRuleDTO` (`handleDelete(rule: RulerRuleDTO, …)`). The updated test shows that even with delete and update permissions the menu has only 4 items (silence, copy link, duplicate, export). Before this change, users could pause and delete rules from the list. The PR describes adding permission checks for pause and delete, but those actions are now gone from this view. Either support them from the prom rule (fetch the ruler rule when the action is used) or state the removal explicitly."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 38442,
+  "cacheRead": 3262,
+  "output": 3950,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 26,
+   "reviewedHunks": 22,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 41706,
+   "outputTokens": 3950,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "public/app/features/alerting/unified/rule-list/GrafanaRuleLoader.tsx",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "public/app/features/alerting/unified/rule-list/hooks/prometheusGroupsGenerator.ts",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "public/locales/en-US/grafana.json",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "public/app/features/alerting/unified/hooks/useAbilities.ts",
+    "line": 296,
+    "end_line": 296,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The provisioned check relies on a `provenance` field the Prometheus API may not return.",
+    "body": "In the list view, `isProvisioned` for Grafana rules now comes from `GrafanaPromRuleDTO.provenance`. This PR only adds that field to the TS type. I could not see whether the Grafana Prometheus-compatible rules endpoint actually sends it. If it does not, provisioned rules count as mutable: Edit, Pause and Delete are offered and the provisioned badge is missing. Please confirm the backend sends `provenance` in `/api/prometheus/grafana/api/v1/rules`."
+   }
+  ]
+ },
+ "cost_usd": 0.2718704
+}

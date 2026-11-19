@@ -1,0 +1,153 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "head_sha": "de628295646d0848226618108a52f2f1e5d04ac0",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:13:18.065Z",
+ "seconds": 55.288,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/core/EventManager.ts",
+   "line": 118,
+   "end_line": 119,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Dereferencing `mainHostDestinationCalendar.integration` crashes when there is no destination calendar.",
+   "body": "`evt.destinationCalendar ?? []` gives an empty array when no destination calendar is set. Destructuring that leaves `mainHostDestinationCalendar` undefined. The code then reads `mainHostDestinationCalendar.integration` without optional chaining. So every booking with location Google Meet and no destination calendar (null or `[]`) throws a TypeError in `create()`, where the old code fell back to Cal Video. Fix: use `mainHostDestinationCalendar?.integration`."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/organizations/create.handler.ts",
+   "line": 151,
+   "end_line": 151,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Unrelated change inverts when the organization slug is set.",
+   "body": "The old code set `slug` only when team billing was **disabled**, and stored `requestedSlug` in metadata when billing was enabled. The new code sets `slug` when billing is **enabled**. With billing on, an organization now gets its live slug immediately, before payment or verification. With billing off, it gets no slug at all. This has nothing to do with the destinationCalendar fix. Revert to `...(!IS_TEAM_BILLING_ENABLED ? { slug } : {})`."
+  },
+  {
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "line": 315,
+   "end_line": 317,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The fallback lookup in `deleteEvent` never matches, so deletes go to \"primary\".",
+   "body": "As in `updateEvent`, the `find` only runs when `externalCalendarId` is falsy, so it always returns undefined, and the code uses `\"primary\"` instead of the configured destination calendar. Cancelling a booking whose reference has no `externalCalendarId`, but whose event sits in a non-primary destination calendar, now leaves the event in place. Fix: fall back to the destination calendar's externalId as before."
+  },
+  {
+   "path": "packages/core/EventManager.ts",
+   "line": 169,
+   "end_line": 170,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Video booking references no longer store `credentialId`.",
+   "body": "The old code used `result.credentialId` for non-calendar results. The new code sets `credentialId` to `undefined` whenever `isCalendarType` is false, so every video reference (Zoom, Daily, etc.) is saved without a credentialId. Cancel and update look up the specific video credential through `bookingVideoReference.credentialId`. Without it they fall back to less precise matching, or can no longer delete or update the meeting. Fix: `credentialId: result.credentialId`."
+  },
+  {
+   "path": "packages/core/EventManager.ts",
+   "line": 596,
+   "end_line": 608,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`updateAllCalendarEvents` now swallows the error without logging it.",
+   "body": "The `console.error(message)` call was removed. `message` is still built but never used, so calendar update failures leave no trace in logs. Also, if `calendarReference` is undefined (the error happened before it was assigned), an empty array is returned and the failure is invisible to callers. Fix: restore the log line."
+  },
+  {
+   "path": "packages/features/bookings/lib/handleNewBooking.ts",
+   "line": 1063,
+   "end_line": 1079,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Team members' destination calendars are dropped when the organizer has none.",
+   "body": "When neither the event type nor the organizer has a destination calendar, `evt.destinationCalendar` is `null`, and `evt.destinationCalendar?.push(...teamDestinationCalendars)` does nothing. In a collective event where only non-first hosts configured destination calendars, those hosts get no events, which is the case this PR is meant to fix. Fix: default to `[]`, or assign `evt.destinationCalendar = [...(evt.destinationCalendar ?? []), ...teamDestinationCalendars]`."
+  },
+  {
+   "path": "packages/app-store/googlecalendar/lib/CalendarService.ts",
+   "line": 147,
+   "end_line": 154,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`createEvent` ignores destination calendars that have no `credentialId` and writes to the primary calendar.",
+   "body": "The target calendar is now chosen only by `cal.credentialId === credentialId`. The no-credentialId branch of `createAllCalendarEvents`, and legacy destination calendars stored without a credentialId, then fall back to `\"primary\"`, even though the destination has an `externalId`. Before this change the event went to `destinationCalendar.externalId`. Fix: when no credential match is found, fall back to a destination with matching integration or no credentialId, e.g. the main host destination's externalId."
+  },
+  {
+   "path": "packages/app-store/office365calendar/lib/CalendarService.ts",
+   "line": 73,
+   "end_line": 76,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Office365 always targets the main host's calendar id, including for other hosts' credentials.",
+   "body": "`createAllCalendarEvents` now calls `createEvent` once per destination calendar with that host's credential. Office365 ignores the new `credentialId` argument and always posts to `/me/calendars/{destinationCalendar[0].externalId}/events`. For a collective event's second host using Office365, that id belongs to the main host and is not in their mailbox, so the call fails and the host gets no event. Lark (`calendarId` from `destinationCalendar[0]`) and CalDAV (filtering on the main host's externalId) have the same problem. Fix: accept `credentialId` and pick the destination whose `credentialId` matches, as the Google service does."
+  },
+  {
+   "path": "packages/core/EventManager.ts",
+   "line": 375,
+   "end_line": 381,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Events created for destinations without a credentialId lose their `externalCalendarId` in the references.",
+   "body": "In the no-credentialId branch, `createEvent(c, event)` gets no `externalId`, so `result.externalId` is undefined. References used to store `evt.destinationCalendar.externalId`; they now store nothing. Together with the Google update/delete fallback bug, later reschedules and cancellations go to the wrong calendar (undefined or primary). Fix: pass `destination.externalId` here too."
+  },
+  {
+   "path": "packages/lib/CalendarService.ts",
+   "line": 156,
+   "end_line": 156,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The CalDAV filter uses the main host's calendar, so no event is created for other hosts.",
+   "body": "For a second host's CalDAV/Apple credential, `calendars` holds that host's calendars. The filter keeps only `c.externalId === destinationCalendar[0].externalId`, which belongs to the main host, so nothing matches, nothing is created, and the host gets no event. Fix: select the destination by the `credentialId` passed to `createEvent`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 38570,
+  "cacheRead": 3262,
+  "output": 5644,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 22,
+   "hunks": 49,
+   "reviewedHunks": 49,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 41834,
+   "outputTokens": 5644,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 22,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.3063904
+}

@@ -1,0 +1,33 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The enableSqlExpressions function has flawed logic that always returns false, effectively disabling SQL expressions unconditionally:",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: enableSqlExpressions always returns false."
+  },
+  {
+   "comment": "The DB methods NewInMemoryDB().RunCommands, DB.QueryFramesInto, and DB.TablesList in pkg/expr/sql/db.go return hardcoded 'not implemented' errors after removing the go-duck dependency.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 is about the DB stub methods that return 'not implemented' errors, which is the same issue as the golden comment."
+  }
+ ],
+ "candidates": [
+  "The enableSqlExpressions function always returns false regardless of the feature flag state - both the if enabled branch and the fall-through return false, making the feature flag check dead code. The inverted logic (!IsEnabledGlobally) combined with the misleading variable name 'enabled' creates a trap where a future developer 'fixing' this could accidentally re-enable the RCE vulnerability",
+  "The new in-memory SQL DB stub returns generic 'not implemented' errors, which upstream code treats/logs as 'invalid sql query'; when legacy parsing paths are used, users can get misleading validation errors even though the feature is intentionally disabled"
+ ]
+}

@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "head_sha": "ce2dcc537b4b1f98a335e88cfe8e0b804483252a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:28:42.577Z",
+ "seconds": 48.132,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java",
+   "line": 232,
+   "end_line": 235,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "getCredentials dereferences myUser without a null check.",
+   "body": "`getMyUser(user)` returns null when the user is not in the provider's map, for example after the user is removed from the provider. The other methods guard against this (`isConfiguredFor`, `getDisableableCredentialTypesStream`). `getCredentials` reads `myUser.recoveryCodes` directly, so it throws a NullPointerException. That can happen when `getFederatedCredentialsStream()` is called for such a user, for example from the recovery-code authenticator or the login bean. Fix: return `Stream.empty()` when `myUser` is null."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 24336,
+  "cacheRead": 3561,
+  "output": 3872,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 22,
+   "reviewedHunks": 21,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 27899,
+   "outputTokens": 3872,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.19984020000000002
+}

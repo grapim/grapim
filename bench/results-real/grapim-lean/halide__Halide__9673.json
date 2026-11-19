@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "halide__Halide__9673",
+ "url": "https://github.com/halide/Halide/pull/9673",
+ "head_sha": "df7f8a828ebb1a2da03fc86c570ad4bbffa53798",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:21:02.135Z",
+ "seconds": 41.455,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 10095,
+  "cacheRead": 3527,
+  "output": 3480,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 6,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 13624,
+   "outputTokens": 3480,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/CodeGen_Vulkan_Dev.cpp",
+    "line": 1275,
+    "end_line": 1285,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Signed 32-bit mul_shift_right with q > 32 may still fall back to a 64-bit multiply.",
+    "body": "The new branch only matches `q == 32`. The comment says larger `q` is first lowered to `q == 32` followed by a shift. As far as I recall, though, `lower_mul_shift_right` sets the full-precision `q` to `bits - 1` = 31 for signed types. If so, `mul_shift_right(int32, int32, 33..47)` becomes `mul_shift_right(a, b, 31) >> (q - 31)`. That inner call doesn't match this branch and goes through the generic widening path, so it still needs `Int64`. In that case the new test's int32 `mul_shift_right` cases with shifts 33, 35, 40 and 47 would fail to compile without `vk_int64`. I couldn't see `lower_mul_shift_right` from here. If it does use 31 for signed types, also match constant `q > 32` in this branch: emit the high half here, then shift it right arithmetically or logically by `q - 32`."
+   }
+  ]
+ },
+ "cost_usd": 0.12078839999999999
+}

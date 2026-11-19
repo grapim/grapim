@@ -1,0 +1,42 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In _set_sample_rate_from_error_sampling(), the check `if client_sample_rate:` treats 0.0 as falsy, so a sample_rate of 0.0 is silently skipped and never set on normalized_data.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the falsy 0.0 sample_rate check."
+  },
+  {
+   "comment": "Using Python’s built-in hash() to build cache keys is non-deterministic across processes (hash randomization), so keys won’t match across workers and invalidate_upsampling_cache may fail to delete them. Use a deterministic serialization of project_ids for the cache key.",
+   "severity": "Low",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C5 is about cache staleness and invalidation never being called. It does not mention that hash() is non-deterministic across processes."
+  },
+  {
+   "comment": "The upsampling eligibility check passes the outer dataset instead of the actual dataset used by scoped_dataset. In paths where the query ultimately runs against discover (e.g., dashboard split) while the original dataset is metrics, upsampling may be skipped even when all projects are allowlisted.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 says the eligibility check uses the outer dataset instead of scoped_dataset."
+  }
+ ],
+ "candidates": [
+  "src/sentry/search/events/datasets/discover.py:1046 - upsampled_count() counts events with no sample_weight as 0.. `sum(sample_weight)` skips NULLs. In an allowlisted project, any event stored without a sample_weight adds nothing to the count. That includes events ingested before the project was allowlisted and events sent without error_sampling context. Error counts for those ranges drop, possibly to 0. The comment says the schema guarantees the column is set, but nothing shown enforces that. Default missing weights to 1: `Function(\"sum\", [Function(\"ifNull\", [Column(\"sample_weight\"), 1])])`.",
+  "sentry-repo:1 - An unrelated submodule gitlink `sentry-repo` was committed.. The PR adds a gitlink to a nested `sentry-repo` checkout at commit a5d29095. The upsampling feature does not need it, and it looks like a local clone committed by accident. It can break checkouts and CI that run submodule init without a matching .gitmodules entry. Remove it from the change.",
+  "src/sentry/api/helpers/error_upsampling.py:135 - The substring check treats negated or mixed queries as error-only.. `\"event.type:error\" in query` also matches `!event.type:error` and `event.type:error OR event.type:transaction`. For those queries on the discover dataset, `count()` is rewritten to `upsampled_count()`, which counts the non-error rows by sample_weight (NULL, so 0) and returns wrong totals. Parse the query and require a positive `event.type:error` filter with no OR or negation, or fall back to no upsampling when the query is ambiguous.",
+  "src/sentry/api/endpoints/organization_events_stats.py:220 - The eligibility check uses the outer `dataset` instead of `scoped_dataset`.. `_get_event_stats` receives `scoped_dataset`, which can differ from the request-level `dataset` (for example, a split dashboard widget run against errors or transactions). The upsampling decision ignores it. With dataset=discover and a query containing `event.type:error` while `scoped_dataset` is transactions, the transform runs against a dataset that has no sample_weight. In the reverse case, an errors-scoped query gets no upsampling. Pass `scoped_dataset` to `is_errors_query_for_error_upsampled_projects`. I could not see how the endpoint calls this function on the split paths, so this is medium confidence.",
+  "src/sentry/api/helpers/error_upsampling.py:27 - Allowlist changes can take up to 60 seconds to apply, and nothing invalidates the cache.. Eligibility is cached for 60s per org and project set. `invalidate_upsampling_cache` is never called, including when the `issues.client_error_sampling.project_allowlist` option changes. After a project is removed from the allowlist, queries keep returning upsampled counts for up to a minute, and new additions are delayed the same way. `options.get` is already cached in process, so this cache saves little and adds stale results. Drop the cache, or wire invalidation to option changes."
+ ]
+}

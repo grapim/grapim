@@ -1,0 +1,67 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The BrowserReportingCollectorEndpoint returns HttpResponse objects but the endpoint inherits from Endpoint which expects rest_framework.response.Response objects.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C4 mentions HttpResponse vs Response, but its point is inconsistent error bodies. It does not say the Endpoint base class expects DRF Response objects."
+  },
+  {
+   "comment": "In BaseDetectorTypeValidator.update(), the validator incorrectly updates instance.type using validated_data.get('detector_type') instead of validated_data.get('type').",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the detector_type vs type key mistake."
+  },
+  {
+   "comment": "Using zip(error_ids, events.values()) assumes the get_multi result preserves the input order; dict value order is not guaranteed to match error_ids, so event data can be paired with the wrong ID (missing nodes also shift alignment).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate covers the zip ordering problem."
+  },
+  {
+   "comment": "Hardcoded empty data passed to TableWidgetVisualization causes it to always render an empty table instead of displaying actual results when the feature flag is enabled.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same issue: the hardcoded empty data makes the table always render empty."
+  },
+  {
+   "comment": "Validation logic incorrectly uses .get('timestamp'), which treats a timestamp of 0 as absent. It should directly check 'timestamp' in self.initial_data to ensure proper field presence detection, preventing both 'age=0' and 'timestamp' from passing mutual-exclusion validation.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.7,
+   "reasoning": "Both describe the same flaw: the timestamp/age mutual-exclusion check uses truthy .get() calls, so age=0 lets both fields through. C2 names the age field, while the golden names timestamp. The bug is still the same."
+  },
+  {
+   "comment": "Analytics events are recorded before the feature flag check, resulting in analytics being logged for all requests, including those that return 404 due to the feature being disabled. This can lead to misleading analytics data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate covers analytics being recorded before the feature flag check."
+  }
+ ],
+ "candidates": [
+  "This feature-flagged path drops the real table results and always renders an empty table for flagged organizations",
+  "Truthiness check on `.get(\"age\")` will miss `age=0` (a valid value meaning \"just generated\"), allowing both `timestamp` and `age` to coexist. Use `\"age\" in self.initial_data` to test for key presence instead of relying on the value being truthy",
+  "`attempts` should allow `0`; the Reporting API sends first-delivery reports with `attempts: 0`, so this validation rejects valid browser reports",
+  "The error response for invalid reports now includes a JSON body (`{\"error\": ..., \"details\": ...}`) where the old code returned an empty-body `HttpResponse(status=422)`. This is a breaking change in the API contract — the non-list branch still returns a body-less `Response(status=422)`, creating inconsistent error formats within the same endpoint"
+ ]
+}

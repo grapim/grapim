@@ -1,0 +1,93 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "head_sha": "ce2dcc537b4b1f98a335e88cfe8e0b804483252a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:25:02.555Z",
+ "seconds": 44.343,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java",
+   "line": 326,
+   "end_line": 340,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "The test storage accepts any stored recovery code, never consumes it, and ignores the requested code number.",
+   "body": "`isValid` returns true when the input matches any of the 12 stored codes. The used code is never removed, so the same code works for every later login. The login form asks for code #N, but any code passes. As a result, the new test cannot catch a mismatch between the code number shown and the code checked, and it does not show that codes are single-use. The `getCredentials` model is also rebuilt from all raw codes on every call, so `getNextRecoveryAuthnCode()` always returns code 0. Fix: compare the input only with the next expected code, then drop that code from the stored list."
+  },
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/RecoveryAuthnCodesFormAuthenticator.java",
+   "line": 80,
+   "end_line": 80,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "An exhausted recovery-codes credential from user storage is removed from local storage instead.",
+   "body": "`getCredential` now returns the user-storage credential first. When `allCodesUsed()` is true, the unchanged code below still calls `removeStoredCredentialById(recoveryCodeCredentialModel.getId())`, which only deletes from the local Keycloak database. For a credential that comes from user storage, nothing is deleted and the used-up credential stays in the provider. In the test provider the id is also null, because `getCredentials` builds the model with `createFromValues` and never sets an id. Fix: check where the credential came from. For a user-storage credential, call `credentialManager().removeStoredCredentialById` only for local ones and use `disableCredentialType` or the storage's own removal path for federated ones."
+  },
+  {
+   "path": "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java",
+   "line": 244,
+   "end_line": 244,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Log message names the wrong credential type.",
+   "body": "The log message says the credential type is `recovery-codes`. The type actually handled is `RecoveryAuthnCodesCredentialModel.TYPE`, which is `recovery-authn-codes`, and the message also has a double space. Use the constant in the message so it matches the real type."
+  },
+  {
+   "path": "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java",
+   "line": 232,
+   "end_line": 235,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`getCredentials` throws an NPE when the user is not in the storage map.",
+   "body": "Every other method in this class checks whether `getMyUser(user)` returned null; this one does not. If the user is no longer in `users`, for example after removal, the call to `myUser.recoveryCodes` throws a NullPointerException while credentials are being listed. Fix: return `Stream.empty()` when `myUser` is null."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 10,
+  "cacheWrite": 100985,
+  "cacheRead": 41974,
+  "output": 10530,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 22,
+   "reviewedHunks": 21,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 142969,
+   "outputTokens": 10530,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.7239598
+}

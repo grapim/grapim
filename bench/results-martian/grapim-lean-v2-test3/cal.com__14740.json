@@ -1,0 +1,113 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "head_sha": "92f44dcea7ff19e9123a30c63c167a2938df5a55",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:42:24.327Z",
+ "seconds": 33.039,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 74,
+   "end_line": 78,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Blacklist and duplicate checks are case-sensitive, so they can be bypassed.",
+   "body": "The blacklist is lowercased but `guest` is not. Entering `Bad@Example.com` gets past a blacklist entry `bad@example.com`. The attendee check is also an exact string match, so `John@x.com` is added again next to `john@x.com`. The server schema does not reject duplicates within one request either; only the client does. A direct call with `[a, a]` inserts two identical attendees. Normalize to lowercase and dedupe on the server before filtering."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 168,
+   "end_line": 168,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Emails use the raw `guests` list instead of the filtered `uniqueGuests`.",
+   "body": "`sendAddGuestsEmails(evt, guests)` decides who counts as new from the unfiltered input. If the request includes an email that was already an attendee, that person gets a fresh 'scheduled' email instead of the 'guests added' notice. Pass `uniqueGuests`."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 44,
+   "end_line": 56,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Guests can be added to cancelled, rejected or past bookings.",
+   "body": "Nothing checks the booking status or end time. Adding guests to a cancelled booking still writes attendees, calls the calendar update and sends emails with `status: \"CONFIRMED\"` ICS files. The new guests are invited to a meeting that does not exist. Reject bookings that are not accepted/pending or that have already ended."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.handler.ts",
+   "line": 46,
+   "end_line": 48,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Team admin/owner check uses && so only owners get through.",
+   "body": "`isTeamAdmin(...) && isTeamOwner(...)` is true only when the user passes both checks. In practice that means team owners. A team ADMIN who is not the organizer or an attendee gets FORBIDDEN. This assumes `isTeamAdmin` matches ADMIN (and maybe OWNER) and `isTeamOwner` matches OWNER only; I could not see either function. Use `||`, or just `isTeamAdmin` if it already covers owners."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings/addGuests.schema.ts",
+   "line": 5,
+   "end_line": 5,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "No cap on the number of guests, and any attendee can add them, so this can be abused to send email spam.",
+   "body": "Any attendee of a booking can call this mutation (authorization includes `isAttendee`). The guest array is unbounded, and every new guest gets a platform-sent invitation with an ICS file. Someone who books a public event can send mass mail from the Cal.com domain to arbitrary addresses. Add `.max(n)` and a unique refinement to the schema, and consider rate limiting or restricting this to organizers/admins."
+  },
+  {
+   "path": "apps/web/components/dialog/AddGuestsDialog.tsx",
+   "line": 43,
+   "end_line": 44,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The fallback error message can never show, and the error banner is never cleared on success.",
+   "body": "`message` is a template string that is never empty, so `|| t(\"unable_to_add_guests\")` never applies. When `err.data` is missing the user sees `undefined: ...`. Separately, `isInvalidEmail` is only reset by Cancel. After a failed validation and then a successful add, the stale error shows the next time the dialog opens. Reset it in `onSuccess` and build the message conditionally."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 21053,
+  "cacheRead": 3262,
+  "output": 3090,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 15,
+   "hunks": 22,
+   "reviewedHunks": 22,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 24317,
+   "outputTokens": 3090,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 15,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1677254
+}

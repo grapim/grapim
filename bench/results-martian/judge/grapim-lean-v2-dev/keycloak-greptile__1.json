@@ -1,0 +1,33 @@
+{
+ "tool": "grapim-lean-v2-dev",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out that isConditionalPasskeysEnabled() is called in UsernameForm without the UserModel argument."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 explains that the user != null check stops fillContextForm from running on the initial login page, so the conditional passkey UI never gets set up."
+  }
+ ],
+ "candidates": [
+  "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java:160 - The new `user != null` check turns off passkeys on the normal login page.. `isConditionalPasskeysEnabled` returns true only when `user != null`. Before this change, `fillContextForm` ran only when no user was selected, i.e. on the ordinary first login page. Both callers (`authenticate` at line 115 and `challenge` at line 137) now skip `fillContextForm` when no user is set. So on a fresh login with no user, the conditional-UI/webauthn form is never set up, and the existing tests that assert `//form[@id='webauth']` on a fresh login would fail.\n\nAt the same time, any re-authenticating user gets passkey data, even a user with no passwordless credential. That goes against the new test `reauthenticationOfUserWithoutPasskey`.\n\nFix: `return webauthnAuth != null && webauthnAuth.isPasskeysEnabled() && (user == null || user.credentialManager().isConfiguredFor(WebAuthnCredentialModel.TYPE_PASSWORDLESS));`",
+  "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernameForm.java:47 - `isConditionalPasskeysEnabled()` is called without an argument, but the only version shown takes a `UserModel`.. `UsernamePasswordForm` defines only `isConditionalPasskeysEnabled(UserModel user)`. This call passes no argument, so it will not compile unless there is a no-argument overload I can't see.\n\nThe intent also looks wrong. When passkeys are enabled, re-authentication always shows the username form, even when the current user has no passkey. Previously that case returned `success()`.\n\nFix: pass `context.getUser()`. Then a re-authenticating user without a passkey still skips the form as before."
+ ]
+}

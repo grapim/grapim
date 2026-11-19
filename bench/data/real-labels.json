@@ -1,0 +1,702 @@
+[
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/Abilityai/trinity/pull/4624",
+  "path": "src/backend/services/github_token_provider.py",
+  "line": 84,
+  "title": "A covered repo passed in URL",
+  "label": "false",
+  "kind": "no-live-path",
+  "note": "resolve_github_token has no caller yet"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/Abilityai/trinity/pull/4624",
+  "path": "tests/unit/test_credential_sanitizer_backend.py",
+  "line": 115,
+  "title": "A wall-clock bound",
+  "label": "false",
+  "kind": "speculative",
+  "note": "flaky-test guess, nit"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/Abilityai/trinity/pull/4629",
+  "path": "docs/user-docs/automation/approvals.md",
+  "line": 189,
+  "title": "The documented `rule_refused`",
+  "label": "noise",
+  "kind": "docs",
+  "note": "true, docs wording"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/Abilityai/trinity/pull/4629",
+  "path": "docs/user-docs/faq/troubleshooting.md",
+  "line": 205,
+  "title": "The troubleshooting remedy",
+  "label": "noise",
+  "kind": "docs",
+  "note": "true, docs wording"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/Abilityai/trinity/pull/4629",
+  "path": "src/backend/services/role_addressing.py",
+  "line": 405,
+  "title": "Public `reachable_people`",
+  "label": "false",
+  "kind": "contradicted",
+  "note": "no other caller on dev; model said it could not see the repo"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/chalk-ai/chalk-router-oss/pull/7",
+  "path": "ui/src/app/tokens/Quickstart.tsx",
+  "line": 80,
+  "title": "Quickstart code still asks",
+  "label": "real",
+  "kind": null,
+  "note": "removed Everett Mono font still referenced"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/chalk-ai/chalk-router-oss/pull/7",
+  "path": "ui/src/app/providers/ProvidersClient.tsx",
+  "line": 222,
+  "title": "Three provider brand colors",
+  "label": "noise",
+  "kind": "scope",
+  "note": "description-vs-diff remark about colours"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/chalk-ai/chalk-router-oss/pull/7",
+  "path": "ui/src/components/AppShell.tsx",
+  "line": 104,
+  "title": "Unguarded decodeURIComponent",
+  "label": "false",
+  "kind": "unverifiable",
+  "note": "model could not check; malformed URL edge case"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/chalk-ai/chalk-router-oss/pull/7",
+  "path": "ui/src/components/router/RouterPrimitives.tsx",
+  "line": 91,
+  "title": "StatusBadge builds",
+  "label": "false",
+  "kind": "contradicted",
+  "note": "globals.css defines .badge-yellow"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/chalk-ai/chalk-router-oss/pull/7",
+  "path": "ui/src/app/telemetry/page.tsx",
+  "line": 290,
+  "title": "Disabled styling may be lost",
+  "label": "false",
+  "kind": "contradicted",
+  "note": "globals.css has .btn:disabled"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/chalk-ai/chalk-router-oss/pull/7",
+  "path": "ui/src/app/tokens/TokensClient.tsx",
+  "line": 221,
+  "title": "Save button loses",
+  "label": "false",
+  "kind": "contradicted",
+  "note": ".btn has a default size and :disabled"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/datachain-ai/datachain/pull/2222",
+  "path": "src/datachain/lib/listing.py",
+  "line": 632,
+  "title": "The version `sources` field",
+  "label": "false",
+  "kind": "unverifiable",
+  "note": "old listings store no sources"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/datachain-ai/datachain/pull/2233",
+  "path": "src/datachain/client/hf_file_system.py",
+  "line": 84,
+  "title": "`self.url()` can cost",
+  "label": "false",
+  "kind": "unverifiable",
+  "note": "model said it could not see the library version"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/datachain-ai/datachain/pull/2234",
+  "path": "pyproject.toml",
+  "line": 23,
+  "title": "Adds a required native dependency",
+  "label": "false",
+  "kind": "scope",
+  "note": "stacked-PR content"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/datachain-ai/datachain/pull/2234",
+  "path": "src/datachain/query/dataset.py",
+  "line": 3250,
+  "title": "`save()` now renames",
+  "label": "false",
+  "kind": "scope",
+  "note": "stacked-PR content"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/datachain-ai/datachain/pull/2234",
+  "path": "src/datachain/query/dataset.py",
+  "line": 2467,
+  "title": "Every `apply_steps` now imports pyarrow",
+  "label": "false",
+  "kind": "trivia",
+  "note": "import cost remark"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/datachain-ai/datachain/pull/2234",
+  "path": "src/datachain/data_storage/sqlite.py",
+  "line": 1011,
+  "title": "The Arrow fast path picks",
+  "label": "false",
+  "kind": "contradicted",
+  "note": "codec.py only builds one-element kept sets"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/datachain-ai/datachain/pull/2234",
+  "path": "src/datachain/data_storage/sqlite_arrow.py",
+  "line": 23,
+  "title": "The child's stderr is piped",
+  "label": "false",
+  "kind": "speculative",
+  "note": "the child writes nothing to stderr in normal runs"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/datachain-ai/datachain/pull/2237",
+  "path": "src/datachain/lib/dc/storage.py",
+  "line": 176,
+  "title": "Changing the default delta key",
+  "label": "false",
+  "kind": "unverifiable",
+  "note": "the change-delta-key error is about renames, not stored keys"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/DefectDojo/django-DefectDojo/pull/16989",
+  "path": "unittests/test_auditlog_history_indexes.py",
+  "line": 15,
+  "title": "A top-level `import psycopg`",
+  "label": "false",
+  "kind": "contradicted",
+  "note": "requirements.txt pins psycopg 3"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/endformdev/playwright-intent/pull/12",
+  "path": "playwright-intent/src/step/step-path.ts",
+  "line": 45,
+  "title": "The joined title folder name",
+  "label": "real",
+  "kind": null,
+  "note": "ENAMETOOLONG"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/endformdev/playwright-intent/pull/12",
+  "path": "playwright-intent/src/step/step-path.ts",
+  "line": 44,
+  "title": "Slugifying test file paths",
+  "label": "unsure",
+  "kind": null,
+  "note": "not checked by hand"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/endformdev/playwright-intent/pull/9",
+  "path": "cache-api/src/storage/file-system.ts",
+  "line": 22,
+  "title": "Concurrent PUTs",
+  "label": "real",
+  "kind": null,
+  "note": "same-millisecond temp name, weaker"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/FlexMeasures/flexmeasures/pull/2877",
+  "path": "flexmeasures/data/models/annotations.py",
+  "line": 213,
+  "title": "An unset belief_time",
+  "label": "false",
+  "kind": "unverifiable",
+  "note": "belief_time has no default; the real issue is the other finding"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/FlexMeasures/flexmeasures/pull/2877",
+  "path": "flexmeasures/data/models/annotations.py",
+  "line": 213,
+  "title": "`scalar_one_or_none()` can raise",
+  "label": "real",
+  "kind": null,
+  "note": "MultipleResultsFound on NULL belief_time duplicates"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/getprobo/probo/pull/2338",
+  "path": "pkg/coredata/asset_source.go",
+  "line": 94,
+  "title": "Ensure moves the source",
+  "label": "unsure",
+  "kind": null,
+  "note": "not reproduced"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/getprobo/probo/pull/2338",
+  "path": "go.mod",
+  "line": 105,
+  "title": "cloudfront is imported directly",
+  "label": "noise",
+  "kind": "trivia",
+  "note": "true, go.mod comment"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/getprobo/probo/pull/2338",
+  "path": "pkg/coredata/migrations/20261116T173127Z.sql",
+  "line": 131,
+  "title": "Backfill links and schedules",
+  "label": "unsure",
+  "kind": null,
+  "note": "not checked by hand"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/getprobo/probo/pull/2351",
+  "path": "pkg/server/api/collaboration/v1/hub.go",
+  "line": 630,
+  "title": "Room refresh failures are dropped",
+  "label": "noise",
+  "kind": "design",
+  "note": "retry at next poll is intended (comment L624)"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/maximhq/bifrost/pull/10162",
+  "path": "core/providers/anthropic/responses.go",
+  "line": 6350,
+  "title": "`droppedAsEmpty` may be left unused",
+  "label": "false",
+  "kind": "contradicted",
+  "note": "still called at L6274"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/maximhq/bifrost/pull/10172",
+  "path": "core/providers/utils/utils.go",
+  "line": 4342,
+  "title": "Reads after cleanup()",
+  "label": "unsure",
+  "kind": null,
+  "note": "not checked by hand"
+ },
+ {
+  "set": "dm-2026-11-18",
+  "url": "https://github.com/maximhq/bifrost/pull/10172",
+  "path": "core/providers/utils/utils.go",
+  "line": 4348,
+  "title": "Each zero-byte Read",
+  "label": "false",
+  "kind": "speculative",
+  "note": "needs a reader returning (0, nil) in a loop"
+ },
+ {
+  "set": "top10-2026-11-17",
+  "url": "https://github.com/datachain-ai/datachain/pull/2222",
+  "path": ".github/workflows/tests-studio.yml",
+  "line": 59,
+  "title": "Unrequested change to which secret the Studio CI job uses for credentials.",
+  "label": "false",
+  "kind": "scope",
+  "note": ""
+ },
+ {
+  "set": "top10-2026-11-17",
+  "url": "https://github.com/datachain-ai/datachain/pull/2226",
+  "path": "src/datachain/query/batch.py",
+  "line": 92,
+  "title": "Agg no longer gets the rows of each partition in the user's order.",
+  "label": "false",
+  "kind": "contradicted",
+  "note": ""
+ },
+ {
+  "set": "top10-2026-11-17",
+  "url": "https://github.com/restatedev/restate/pull/5837",
+  "path": "crates/worker/src/partition/invoker_storage_reader.rs",
+  "line": 83,
+  "title": "Partition shutdown is turned into a generic storage error.",
+  "label": "false",
+  "kind": "contradicted",
+  "note": ""
+ },
+ {
+  "set": "top10-2026-11-17",
+  "url": "https://github.com/thesysdev/openui/pull/1608",
+  "path": "packages/react-ui/src/cloud/CloudArtifact/ArtifactRenderer.tsx",
+  "line": 68,
+  "title": "Merged initialState is a new object on every render, so Renderer may apply the saved filters again over the user's choice.",
+  "label": "false",
+  "kind": "contradicted",
+  "note": ""
+ },
+ {
+  "set": "top10-2026-11-17",
+  "url": "https://github.com/logseq/logseq/pull/14020",
+  "path": "src/main/frontend/handler.cljs",
+  "line": 228,
+  "title": "Clearing the current repo before startup empties the repo list, so Desktop opens the demo graph instead of the user's other graphs.",
+  "label": "false",
+  "kind": "contradicted",
+  "note": ""
+ },
+ {
+  "set": "top10-2026-11-17",
+  "url": "https://github.com/logseq/logseq/pull/13991",
+  "path": "src/main/frontend/worker/sync/apply_txs.cljs",
+  "line": 824,
+  "title": "Rollback now reverses user txs while later :fix txs on the same entities stay applied, so the reversal can be left half done.",
+  "label": "false",
+  "kind": "contradicted",
+  "note": ""
+ },
+ {
+  "set": "top10-2026-11-17",
+  "url": "https://github.com/rerun-io/rerun/pull/13015",
+  "path": "crates/views/re_view_state_timeline/src/view_class.rs",
+  "line": 419,
+  "title": "Right-clicking a state while its menu is open moves the time cursor instead of opening the menu again.",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "top10-2026-11-17",
+  "url": "https://github.com/rerun-io/rerun/pull/13015",
+  "path": "crates/views/re_view_state_timeline/src/view_class.rs",
+  "line": 985,
+  "title": "\"Jump to start of state\" goes through `f64`, so large timestamps lose precision.",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "top10-2026-11-17",
+  "url": "https://github.com/maximhq/bifrost/pull/9718",
+  "path": "cli/internal/command/root_test.go",
+  "line": 636,
+  "title": "Test reads the port and makes the login call in one return statement, but Go does not fix their order.",
+  "label": "noise",
+  "kind": "trivia",
+  "note": "true per the Go spec, trivia in a test"
+ },
+ {
+  "set": "top10-2026-11-17",
+  "url": "https://github.com/maximhq/bifrost/pull/9962",
+  "path": "ui/app/workspace/model-routers/views/routerSheet.tsx",
+  "line": 146,
+  "title": "A retried save after a partial failure loses the fact that the router was turned on.",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "top10-2026-11-17",
+  "url": "https://github.com/datachain-ai/datachain/pull/2226",
+  "path": "src/datachain/query/batch.py",
+  "line": 92,
+  "title": "`Partition` no longer sorts",
+  "label": "false",
+  "kind": "contradicted",
+  "note": "same point as the posted batch.py:92 finding"
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/ad-si/Woxi/pull/2429",
+  "path": "src/functions/plot.rs",
+  "line": 6182,
+  "title": "Per-line grid opacity checks both axis s",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/apollographql/rover/pull/4152",
+  "path": "crates/rover-client/src/operations/subgraph/check_workflow/runner.rs",
+  "line": 158,
+  "title": "`task_statuses` skips every task after a",
+  "label": "false",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/Badsender-com/LePatron.email/pull/1513",
+  "path": "packages/server/taxonomy/services/dimension.service.js",
+  "line": 163,
+  "title": "New refusal of a dimension role change i",
+  "label": "false",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/Badsender-com/LePatron.email/pull/1513",
+  "path": "packages/server/translation/translation-job-runner.js",
+  "line": 111,
+  "title": "A failing language list now fails the jo",
+  "label": "false",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/bitemyapp/sekka/pull/328",
+  "path": "desktop/aizome/crates/aizome-shell/src/systray/glue.rs",
+  "line": 404,
+  "title": "Quick toggles start helper runs that can",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/daid/SeriousProton/pull/318",
+  "path": "src/script/environment.cpp",
+  "line": 342,
+  "title": "Coroutines created in Lua inherit the co",
+  "label": "false",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/espeak-ng/espeak-ng/pull/2648",
+  "path": "dictsource/nl_rules",
+  "line": 300,
+  "title": "The linking -en- rule also removes final",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/espeak-ng/espeak-ng/pull/2648",
+  "path": "dictsource/nl_rules",
+  "line": 862,
+  "title": "`model` has no guard for `modellen`/`mod",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/espeak-ng/espeak-ng/pull/2648",
+  "path": "dictsource/nl_rules",
+  "line": 969,
+  "title": "Common adjectives derived from compounds",
+  "label": "unsure",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/evcc-io/evcc/pull/36147",
+  "path": "core/loadpoint_api.go",
+  "line": 291,
+  "title": "Integrated devices without an energy col",
+  "label": "false",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/infinite-table/infinite-react/pull/348",
+  "path": "source/src/components/InfiniteTable/vars-shadcn-light.css.ts",
+  "line": 54,
+  "title": "AccentVars switch the focus outline, exp",
+  "label": "false",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/infinite-table/infinite-react/pull/348",
+  "path": "source/src/components/InfiniteTable/vars-shadcn-light.css.ts",
+  "line": 11,
+  "title": "Inlining default-theme values breaks use",
+  "label": "false",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/kovetskiy/mark/pull/1273",
+  "path": "page/link.go",
+  "line": 348,
+  "title": "Extensionless documents with a dot in th",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/LNPANDY/NX2Apple/pull/713",
+  "path": "patches/0073-shader-split-snowdrop-s-chained-lz4-entries-in-s.patch",
+  "line": 270,
+  "title": "The new SDF_LZ4 branch takes over the re",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/mirai-mamori/Sakurairo/pull/1438",
+  "path": "inc/classes/Captcha.php",
+  "line": 121,
+  "title": "The shared mint limit lets anyone lock a",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/mirai-mamori/Sakurairo/pull/1438",
+  "path": "inc/theme-plus.php",
+  "line": 223,
+  "title": "Errors the user can act on are now repla",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/nlmixr2/rxode2/pull/1693",
+  "path": ".github/workflows/pkgdown.yaml",
+  "line": 36,
+  "title": "`/ci` runs fork pull-request code with a",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/nlmixr2/rxode2/pull/1693",
+  "path": ".github/workflows/R-CMD-check.yaml",
+  "line": 9,
+  "title": "Unrelated CI trigger rewrite stops pull ",
+  "label": "false",
+  "kind": "scope",
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/nlmixr2/rxode2/pull/1693",
+  "path": ".github/workflows/R-CMD-check.yaml",
+  "line": 31,
+  "title": "The approval gate does not check who rev",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/nlmixr2/rxode2/pull/1693",
+  "path": ".github/workflows/R-CMD-check.yaml",
+  "line": 72,
+  "title": "The status is reported on a head SHA tha",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/nlmixr2/rxode2/pull/1693",
+  "path": ".github/workflows/R-CMD-check.yaml",
+  "line": 31,
+  "title": "`startsWith(body, '/ci')` also matches o",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/rollerderby/scoreboard/pull/1022",
+  "path": "html/components/penalty-list/index.css",
+  "line": 12,
+  "title": "Expulsion warning text colour is still h",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/shirai91/nx2android/pull/277",
+  "path": "docs/PORT_CHECKLIST.md",
+  "line": 9,
+  "title": "Ported total goes up by two though only ",
+  "label": "false",
+  "kind": "docs",
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/trueagi-io/PeTTa/pull/302",
+  "path": "src/filereader.pl",
+  "line": 30,
+  "title": "Leftover inert-statement records from a ",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/umbraco/UmbracoDocs/pull/8737",
+  "path": "19/umbraco-ui-builder/actions/the-basics.md",
+  "line": 47,
+  "title": "Action samples likely won't compile in a",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/VallierDev/uu-remote-linux/pull/204",
+  "path": "src/portal.rs",
+  "line": 445,
+  "title": "New automatic consent re-prompt for ordi",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ },
+ {
+  "set": "batch-2026-11-16",
+  "url": "https://github.com/VallierDev/uu-remote-linux/pull/204",
+  "path": "src/portal.rs",
+  "line": 472,
+  "title": "Every switched-away monitor is parked, n",
+  "label": "real",
+  "kind": null,
+  "note": ""
+ }
+]

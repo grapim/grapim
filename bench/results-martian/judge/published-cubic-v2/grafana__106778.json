@@ -1,0 +1,34 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The rendered GrafanaRuleListItem is missing the required key prop for React list items. This can cause rendering issues when the list order changes.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same missing key prop on GrafanaRuleListItem."
+  },
+  {
+   "comment": "RuleActionsButtons is invoked with only promRule, but SilenceGrafanaRuleDrawer inside RuleActionsButtons still depends on a Grafana Ruler rule being present, so for Grafana rules coming from list views the 'Silence notifications' menu entry (now driven by Grafana Prom abilities) will toggle showSilenceDrawer without ever rendering the drawer. This means clicking 'Silence notifications' for these rules has no visible effect, even when abilities indicate silencing is allowed.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.96,
+   "reasoning": "C2 describes the same problem: the silence drawer depends on the ruler rule, so clicking 'Silence notifications' has no effect."
+  }
+ ],
+ "candidates": [
+  "Missing `key` prop on `GrafanaRuleListItem`. The other two branches (`DataSourceRuleLoader`, `UnknownRuleListItem`) pass `key={key}`, and the previous `GrafanaRuleLoader` also had it. Without a key, React cannot efficiently reconcile list items and may produce incorrect UI updates.",
+  "The 'Silence notifications' menu action is non-functional for Grafana rules in this view. `GrafanaRuleListItem` passes only `promRule` to `RuleActionsButtons`, leaving the `rule` (RulerRuleDTO) prop undefined. The silence drawer is gated on `rulerRuleType.grafana.alertingRule(rule)`, which is always falsy when `rule` is undefined — so clicking 'Silence' sets state but never renders the drawer.",
+  "Guard `rules` before calling `.map()`. An empty `groups` response is valid here, and the current expression will throw instead of rendering nothing."
+ ]
+}

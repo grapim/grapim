@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "head_sha": "ffbaf8c54269df2ce510de91245760fddce09896",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:43:07.981Z",
+ "seconds": 38.225,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/models/optimized_image.rb",
+   "line": 149,
+   "end_line": 151,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Second `downsize` definition silently replaces the width/height version.",
+   "body": "Ruby has no overloading by arity. The new `def self.downsize(from, to, dimensions, opts={})` replaces the `downsize(from, to, max_width, max_height, opts={})` defined just above it. Existing callers that pass width and height then break:\n- A call like `downsize(from, to, w, h)` binds `opts = h`, an Integer. `opts[:allow_animation]` then raises a TypeError.\n- A call that also passes opts has 5 arguments and raises ArgumentError.\n\nThis breaks thumbnail and avatar generation everywhere the old signature is used. Give the percentage variant its own name (for example `downsize_to(from, to, dimensions, opts={})`), or remove the old method and update every caller."
+  },
+  {
+   "path": "app/assets/javascripts/discourse/lib/utilities.js",
+   "line": 182,
+   "end_line": 182,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "Client upload limit is hardcoded to 10 MB for every type, ignoring site settings.",
+   "body": "`max_attachment_size_kb` and `max_image_size_kb` are no longer used on the client. This affects admins in both directions:\n- If an admin set a limit above 10 MB, valid uploads are now rejected before they reach the server.\n- If the attachment limit is below 10 MB, oversized non-image files are no longer caught on the client. Only images get downsized on the server, so these files fail there instead of with the clear client message.\n\nThe same hardcoded value in the 413 handler (line 246) can also show a limit that does not match the web server's real limit. Keep the site setting for non-image types and use `Math.max(setting, 10240)` for images."
+  },
+  {
+   "path": "app/controllers/uploads_controller.rb",
+   "line": 64,
+   "end_line": 70,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Size check reads the open Tempfile handle, which may not see the in-place rewrite.",
+   "body": "`convert_with` runs `ImageOptim#optimize_image!` on the output path. ImageOptim writes its result to a new file and renames it over the original. The `tempfile` object keeps its file descriptor on the old inode, so two things go wrong:\n- `tempfile.size` (which uses fstat) never shrinks, so the loop always runs all 5 passes and degrades the image to about 33% of its size.\n- `Upload.create_for` then reads the stale, original oversized contents and size through that same handle.\n\nThe return value of `downsize` is also ignored, so a failed convert is simply retried 5 times. Use `File.size(tempfile.path)`, reopen the file after resizing, and stop the loop when `downsize` returns false."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 4668,
+  "cacheRead": 3561,
+  "output": 2670,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 4,
+   "reviewedHunks": 4,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 8231,
+   "outputTokens": 2670,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.07746019999999999
+}

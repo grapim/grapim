@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "open-mercato__open-mercato__9326",
+ "url": "https://github.com/open-mercato/open-mercato/pull/9326",
+ "head_sha": "90a98da69196c3c629026437c6a90fb838693f6b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:26:29.449Z",
+ "seconds": 14.445,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 14434,
+  "cacheRead": 3527,
+  "output": 916,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 10,
+   "reviewedHunks": 10,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 17963,
+   "outputTokens": 916,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.09120339999999999
+}

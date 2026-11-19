@@ -1,0 +1,30 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The magic number 50 for max_wait is used repeatedly throughout the tests. Consider extracting this as a named constant to improve maintainability.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the repeated magic number 50 used for max_wait."
+  },
+  {
+   "comment": "The test test_thread_queue_parallel_error_handling has a docstring that doesn't match the test implementation.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.6,
+   "reasoning": "C3 points at the same test, but it says the commit assertion contradicts the worker's actual behaviour. G2 is about the docstring not matching what the test does. Those are different issues."
+  }
+ ],
+ "candidates": [
+  "`queue.Queue.shutdown(immediate=False)` and the `queue.ShutDown` exception were added in Python 3.13. If the code runs on any earlier Python version, `shutdown()` will raise `AttributeError` and the `except queue.ShutDown` handlers in `OrderedQueueWorker.run` will fail at import/catch time. Consider adding a compatibility guard or documenting the Python 3.13+ requirement explicitly.",
+  "The `FixedQueuePool` is owned by the factory but `SimpleQueueProcessingStrategy.close()` shuts it down. After a Kafka rebalance, the next call to `create_with_partitions` will reuse the dead pool, silently dropping all messages. Either the strategy should not shut down the factory-owned pool in `close()`/`terminate()`, or the factory should recreate the pool in `create_thread_queue_parallel_worker`.",
+  "Test assertion expects no commit after a processing error, but the queue worker completes offsets in `finally` and will still commit them."
+ ]
+}

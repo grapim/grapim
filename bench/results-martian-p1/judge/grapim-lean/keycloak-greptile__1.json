@@ -1,0 +1,33 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In UsernameForm.authenticate(), isConditionalPasskeysEnabled() is called without passing the required UserModel parameter.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 points out the no-argument isConditionalPasskeysEnabled() call in UsernameForm and says to pass context.getUser(), noting it may not compile. That is the same missing-parameter issue."
+  },
+  {
+   "comment": "With isConditionalPasskeysEnabled(UserModel user) requiring user != null, authenticate(...) will not call webauthnAuth.fillContextForm(context) on the initial login page where context.getUser() is still null, so conditional passkey UI will not be set up for first-time passkey login. Consider whether this should also be enabled when no user has been selected yet so ID-less passkey authentication on the initial login form continues to work.",
+   "severity": "Medium",
+   "category": "speculative",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 says that because user != null is required, fillContextForm is skipped on the initial login where the user is null, so the conditional passkey UI breaks. This is exactly G2's issue."
+  }
+ ],
+ "candidates": [
+  "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java:160 - The passkey check has the user condition backwards: passkeys are off for anonymous login and on for every identified user.. `isConditionalPasskeysEnabled` returns true only when `user != null`. Before this change, `authenticate()` (else branch) and `challenge(context, error, field)` filled the WebAuthn form only when no user was selected. Now both call sites skip `fillContextForm` on the normal first login, where `context.getUser()` is null. So a realm with passkeys enabled no longer shows the conditional passkey UI on the login page, and passkey users cannot log in there. This also contradicts the tests' check that `//form[@id='webauth']` exists on the first login page.\n\nThe reverse is also wrong: once a user is identified (re-authentication, or a user set by an earlier step), the passkey UI is shown even if that user has no passkey credential.\n\nThe condition should allow the anonymous case and, for an identified user, require a configured passkey credential.",
+  "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernameForm.java:47 - With passkeys enabled, the username form no longer skips users who are already identified, including users without a passkey.. Before, when `context.getUser()` was set and the user had no linked brokers, `UsernameForm` called `context.success()` and the form was skipped. Now, whenever realm passkeys are enabled, every already-identified user sees the username form again. That includes users with no passkey credential, and flows where an earlier authenticator (identity-first, organization, a custom step) set the user during first login rather than during re-authentication. The form is only needed when the user actually has a passkey to re-authenticate with. Pass `context.getUser()` and use a check that verifies the user has a passkey configured.\n\nThe no-argument `isConditionalPasskeysEnabled()` is not defined in the hunks shown, so I could not confirm what it checks. If it does not exist, this line will not compile."
+ ]
+}

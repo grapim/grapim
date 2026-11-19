@@ -1,0 +1,33 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block).",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: a stale retryCount increment that should be replaced with an atomic Prisma increment."
+  },
+  {
+   "comment": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 points out the same problem: the retryCount deletion isn't limited to SMS, so EMAIL and WHATSAPP reminders also get deleted."
+  }
+ ],
+ "candidates": [
+  "The retryCount is incremented using the stale in-memory value (reminder.retryCount + 1) rather than an atomic database operation. If this cron handler runs concurrently or the same reminder is processed twice, both executions read the same retryCount and write the same incremented value, losing one update. Should use Prisma's atomic increment instead: retryCount: { increment: 1 }",
+  "The retry-count cleanup is not scoped to SMS reminders. As written, any reminder with retryCount > 1 will be deleted, including EMAIL and WHATSAPP rows"
+ ]
+}

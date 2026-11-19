@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "head_sha": "6669a2d94d76eea3b99b8c476d12b1eb66726b07",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:40:10.230Z",
+ "seconds": 36.403,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/controllers/topics_controller.rb",
+   "line": 105,
+   "end_line": 113,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Unsubscribe crashes when the user has no TopicUser row or the row has a NULL notification level.",
+   "body": "`TopicUser.find_by` returns nil when the user has never visited the topic. A user who was only mentioned or quoted in a topic gets the email but has no row, so `tu.notification_level` raises NoMethodError and the link returns a 500. `notification_level` can also be NULL (the `tracking` scope wraps it in COALESCE), and then `nil > 1` raises too. Fix: write through `TopicUser.change(current_user.id, topic_id, notification_level: ...)`, which creates the row when it is missing, and treat a nil level as regular. That call also publishes the MessageBus update that a bare `tu.save!` skips."
+  },
+  {
+   "path": "app/controllers/topics_controller.rb",
+   "line": 98,
+   "end_line": 116,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "A state-changing GET lowers the level again on every hit, so a reload or link prefetch mutes the topic.",
+   "body": "Every GET of `/t/:slug/:id/unsubscribe` drops the level one step: watching or tracking goes to regular, and regular goes to muted. Reloading the page, opening the email link twice, or a mail scanner or link prefetcher fetching the URL first all end up silently muting the topic. The page always says 'You will stop receiving notifications' whatever level the user ends on. The same lack of a token also lets another site trigger this action for a logged-in user (CSRF). Fix: make the level change idempotent (for example, always set regular, or muted, on this action), or show a confirmation page that sends a POST/PUT."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 18265,
+  "cacheRead": 3262,
+  "output": 2636,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 18,
+   "hunks": 26,
+   "reviewedHunks": 25,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 21529,
+   "outputTokens": 2636,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 18,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.14470539999999998
+}

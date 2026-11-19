@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry-greptile__3",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/3",
+ "head_sha": "6ad6fe3899f630ccf922ce7ac681147dc7987435",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:34:21.109Z",
+ "seconds": 49.091,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/api/helpers/error_upsampling.py",
+   "line": 135,
+   "end_line": 140,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Substring match treats negated or OR'd queries as error-only.",
+   "body": "`_is_error_focused_query` checks whether `\"event.type:error\"` appears anywhere in the query string. A discover query like `!event.type:error` or `event.type:error OR event.type:transaction` passes this check. `count()` is then rewritten to `upsampled_count()` (`sum(sample_weight)`) for a query that also covers non-error events. Those events have no error sample weight, so the counts come out wrong or the query fails. Parse the query with the event search parser and accept it only when there is one positive, non-negated `event.type:error` filter at top level, joined only by AND."
+  },
+  {
+   "path": "sentry-repo",
+   "line": 1,
+   "end_line": 1,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "Stray gitlink for a `sentry-repo` submodule is committed.",
+   "body": "The PR adds a gitlink at `sentry-repo` (commit a5d2909…). Nothing in the request needs it, and it looks like a leftover from a local checkout. There is probably no matching `.gitmodules` entry, though I could not check that. Without one, `git submodule update` and CI checkouts that fetch submodules fail with \"No url found for submodule path\", and anyone running the recursive commands gets a broken nested repo. Remove the gitlink from the PR."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 19544,
+  "cacheRead": 23708,
+  "output": 3704,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 8,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 43256,
+   "outputTokens": 3704,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/sentry/search/events/datasets/discover.py",
+    "line": 1046,
+    "end_line": 1050,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "upsampled_count drops events whose sample_weight is NULL.",
+    "body": "`upsampled_count` returns `toInt64(sum(sample_weight))` and relies on every event in an allowlisted project having `sample_weight`. If an event has no weight, ClickHouse's `sum` skips it, so the count is too low. This happens for events stored before the project was allowlisted, and for events sent without a client sample rate. I could not check whether Snuba fills in a default of 1 for this column. Wrap the column in `ifNull(sample_weight, 1)` so unweighted events count once."
+   }
+  ]
+ },
+ "cost_usd": 0.1765576
+}

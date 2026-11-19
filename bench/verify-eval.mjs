@@ -1,7 +1,7 @@
 // Does the second look (src/airev/verify.js) drop false findings and keep
 // real ones? Runs it on review results whose findings people checked by hand.
 //
-//   node bench/verify-eval.mjs --data <prs.json> --results <dir with grapim-lean/*.json> --labels <labels.json> [--via-cli] [--tools]
+//   node bench/verify-eval.mjs --data <prs.json> --results <dir> [--tool grapim-lean] [--labels <labels.json>] [--via-cli] [--tools] [--no-discussion] [--held] [--only id,id] [--concurrency N] [--tag t] [--out rows.json]
 //
 // --tools: the second look may search and read the whole repository at the
 // head (src/airev/repo-tools.js). The head is checked out once first so its
@@ -27,13 +27,16 @@ const opt = (k, d) => {
 };
 const viaCli = argv.includes('--via-cli');
 const withTools = argv.includes('--tools');
+// --no-discussion: no pull request discussion (Martian's PRs: the original
+// discussion holds the human review the golden comments came from).
+const noDiscussion = argv.includes('--no-discussion');
 // The git cache of the checkout that ran the reviews (a worktree has none).
 const lib = await import(pathToFileURL(opt('bench-lib', path.join(here, 'lib', 'git.mjs'))).href);
 const MODEL = process.env.BENCH_MODEL || 'claude-opus-5-5';
 
 const data = JSON.parse(fs.readFileSync(opt('data'), 'utf8'));
-const labels = JSON.parse(fs.readFileSync(opt('labels'), 'utf8'));
-const dir = path.join(opt('results'), 'grapim-lean');
+const labels = opt('labels') ? JSON.parse(fs.readFileSync(opt('labels'), 'utf8')) : [];
+const dir = path.join(opt('results'), opt('tool', 'grapim-lean'));
 const out = opt('out', path.join(opt('results'), 'verify-eval.json'));
 
 let provider;
@@ -65,23 +68,29 @@ const label = (url, f) => labels.find((l) => l.url === url && l.path === f.path 
 // Rows of an earlier, interrupted run with the same --out are kept; a PR is
 // skipped only when its rows came from the same mode and model.
 const rows = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : [];
-const sameMode = (x) => Boolean(x.tools) === Boolean(withTools) && x.model === MODEL;
+const sameMode = (x) => Boolean(x.tools) === Boolean(withTools) && x.model === MODEL && (x.tag ?? '') === opt('tag', '');
 const save = () => {
   fs.writeFileSync(`${out}.tmp`, JSON.stringify(rows, null, 1));
   fs.renameSync(`${out}.tmp`, out);
 };
-for (const file of fs.readdirSync(dir).sort()) {
+// --held: also check the low-confidence findings the engine lists in the
+// summary instead of posting (raw.held). --concurrency N: pull requests at once.
+const withHeld = argv.includes('--held');
+const tagOf = opt('tag', '');
+const concurrency = Number(opt('concurrency', 1));
+async function one(file) {
   const r = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
-  if (!(r.findings ?? []).length) continue;
-  const pr = data.prs.find((p) => p.url === r.url);
-  if (!pr) continue;
+  const findings = [...(r.findings ?? []), ...(withHeld ? r.raw?.held ?? [] : [])];
+  if (!findings.length) return;
+  const pr = data.prs.find((p) => p.id === r.pr_id) ?? data.prs.find((p) => p.url === r.url);
+  if (!pr) return;
+  if (rows.some((x) => x.url === r.url && x.head === pr.head_sha && sameMode(x))) return; // done in an earlier run of this mode
   const gitDir = lib.prRepo(pr);
   // The bench clones are partial: a grep over the whole tree waits on GitHub
   // for every file. Here name lookups search only the files the pull request
   // changed (cloud review fetches the full tree and searches all of it, so
   // this measures the second look with less context than it really has).
   const changed = (lib.git(gitDir, ['diff', '--name-only', pr.base_sha, pr.head_sha], { allowFail: true }) ?? '').split('\n').filter(Boolean);
-  if (rows.some((x) => x.url === r.url && sameMode(x))) continue; // done in an earlier run of this mode
   if (withTools) {
     // Fetches every file of the head in one go. The checkout itself can fail
     // on Windows (long or odd paths) after the files arrived; the tools read
@@ -98,14 +107,29 @@ for (const file of fs.readdirSync(dir).sort()) {
     if (args[0] !== 'grep' || withTools) return lib.git(gitDir, args, { allowFail: true });
     return changed.length ? lib.git(gitDir, [...args, '--', ...changed], { allowFail: true, noLazy: true }) : null;
   };
-  const discussion = discussionBefore(pr.repo, pr.number, r.at, pr.author);
+  const discussion = noDiscussion ? '' : discussionBefore(pr.repo, pr.number, r.at, pr.author);
   const request = { text: `${pr.title}\n\n${pr.body ?? ''}` };
-  const v = await verifyFindings({ findings: r.findings, git, base: pr.base_sha, head: pr.head_sha, provider, model: MODEL, request, discussion, tools: withTools, repoDir: gitDir, log: (l) => console.error(`${pr.repo}#${pr.number}: ${l}`) });
+  const v = await verifyFindings({ findings, git, base: pr.base_sha, head: pr.head_sha, provider, model: MODEL, request, discussion, tools: withTools, repoDir: gitDir, log: (l) => console.error(`${pr.repo}#${pr.number}: ${l}`) });
   const dropped = new Map(v.dropped.map((d) => [d.finding, d.reason]));
-  for (const f of r.findings) rows.push({ url: r.url, tools: Boolean(withTools), model: MODEL, path: f.path, line: f.line, title: f.title, label: label(r.url, f), verdict: dropped.has(f) ? 'drop' : 'keep', reason: dropped.get(f) ?? '' });
+  const notes = new Map((v.verdicts ?? []).map((x) => [x.finding, x]));
+  for (const f of findings) rows.push({ url: r.url, head: pr.head_sha, tools: Boolean(withTools), tag: tagOf, model: MODEL, path: f.path, line: f.line, title: f.title, held: f.confidence === 'low', label: label(r.url, f), verdict: dropped.has(f) ? 'drop' : 'keep', reason: dropped.get(f) ?? notes.get(f)?.reason ?? '', raw: notes.get(f)?.verdict ?? null, severity: f.severity, confidence: f.confidence, category: f.category });
   save();
   console.error(`${pr.repo}#${pr.number}: ${v.checked} checked, ${v.dropped.length} dropped, ${v.usage.input} in / ${v.usage.output} out tokens${withTools ? `, ${v.searches} tool calls` : ''}`);
 }
+// --only id,id: just these pull requests (ids as in --data).
+const only = opt('only') ? new Set(opt('only').split(',')) : null;
+const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json') && (!only || only.has(f.slice(0, -5)))).sort();
+let next = 0;
+await Promise.all(Array.from({ length: Math.max(1, concurrency) }, async () => {
+  while (next < files.length) {
+    const file = files[next++];
+    try {
+      await one(file);
+    } catch (err) {
+      console.error(`${file}: ${String(err?.message ?? err).slice(0, 300)}`);
+    }
+  }
+}));
 save();
 
 // Only this mode's rows count.

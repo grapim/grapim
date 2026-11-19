@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Badsender-com__LePatron.email__1513",
+ "url": "https://github.com/Badsender-com/LePatron.email/pull/1513",
+ "head_sha": "3e0d6cff2708c94a8440df4823469e1f53767cee",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:37:35.051Z",
+ "seconds": 51.022,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/server/taxonomy/services/dimension.service.js",
+   "line": 163,
+   "end_line": 163,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "New refusal of a dimension role change is not part of #1507.",
+   "body": "`assertCodesKeepTheirMeaning` (plus the new `DIMENSION_HAS_CODES` error code and its UI strings) makes `updateDimension` refuse a role change with 409 whenever a stored code would be written differently under the new role. The PR is about the translated copy carrying the target language value, and its description mentions none of this. It changes the taxonomy admin API for every company: role changes that worked before are now rejected. It looks like a follow-up on the stacked PR's review and belongs in that PR or its own, or the description should cover it."
+  },
+  {
+   "path": "packages/server/translation/translation-job-runner.js",
+   "line": 111,
+   "end_line": 114,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A failing language list now fails the job, and the list may not be the provider's source languages.",
+   "body": "Source detection now calls `translationService.getAvailableLanguages({ groupId })` whenever the email carries a language value. Before this change the email's language was returned with no call. If that call throws (provider unreachable, nothing configured), `runTranslationStep('detectSourceLanguage')` fails and the whole duplicate+translate job fails, where it used to go on.\n\nThere is a second risk I could not check. The UI text \"No languages configured. Configure available languages in the company settings\" suggests this list is the company's target languages, not the provider's source languages. If so, a French email in a company that offers only `en`/`nl` as targets loses its `fr` source and falls back to guessing from the markup. The same happens if `.languages` holds objects instead of code strings: `String(code)` matches nothing.\n\nFix: catch errors in the callback and treat them as \"accepted\" (return `undefined`, so `takesAsSource` returns true), and make sure the list is the provider's source-language list."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 27371,
+  "cacheRead": 30755,
+  "output": 4616,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 23,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 58130,
+   "outputTokens": 4616,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 16,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/editor/src/js/utils/governance-values.js",
+    "line": 66,
+    "end_line": 69,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "scope",
+    "title": "Unrequested change to the published `locale` template value, which may leave `lang` stale.",
+    "body": "The editor now skips publishing the computed locale when the company has a dimension named `locale`. The request does not cover this change to shared template values. It also drops the guarantee in `localeOf`'s doc comment that `values.locale` is always set (an empty string when unknown) \"so a template's `lang` is emptied rather than left on another email's\". When such a company has no value selected in its `locale` dimension, `values.locale` may now be missing instead of `''`, depending on the loop above, which this diff does not show. Move this to its own change, or set `values.locale = ''` when the legacy dimension has no selection."
+   }
+  ]
+ },
+ "cost_usd": 0.235342
+}

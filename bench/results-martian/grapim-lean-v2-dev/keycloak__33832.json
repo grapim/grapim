@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__33832",
+ "url": "https://github.com/keycloak/keycloak/pull/33832",
+ "head_sha": "79d11c4890cc4792e3dc3535af59e4e5f7a2739d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:31:36.202Z",
+ "seconds": 39.479,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "authz/client/src/main/java/org/keycloak/authorization/client/util/crypto/AuthzClientCryptoProvider.java",
+   "line": 114,
+   "end_line": 115,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "other",
+   "title": "Two ASN.1 encoders are built and thrown away.",
+   "body": "`ASN1Encoder.create().write(rBigInteger)` and `ASN1Encoder.create().write(sBigInteger)` each build an encoding and then discard it. The return statement right below builds both again. These look like leftovers; remove the two lines."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 20881,
+  "cacheRead": 3262,
+  "output": 2965,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 24145,
+   "outputTokens": 2965,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1643654
+}

@@ -1,0 +1,62 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "cal.com__22532",
+ "url": "https://github.com/calcom/cal.com/pull/22532",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The updateManyByCredentialId call uses an empty data object, which prevents Prisma's @updatedAt decorator from updating the updatedAt timestamp. This results in inaccurate cache status tracking, as the timestamp isn't updated when the cache is refreshed. To fix this, explicitly set the updatedAt field.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 covers the empty data object that leaves updatedAt unchanged."
+  },
+  {
+   "comment": "logic: macOS-specific sed syntax with empty string after -i flag will fail on Linux systems",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 covers the macOS-only sed -i '' syntax."
+  },
+  {
+   "comment": "Throwing a generic Error for authentication failures results in a 500 response in tRPC. Instead, it should return a structured TRPCError with an appropriate code, such as FORBIDDEN, to accurately reflect the error type.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    9,
+    5
+   ],
+   "confidence": 0.9,
+   "reasoning": "C9 covers the plain Error that becomes a 500, and C5 also calls for a TRPCError."
+  },
+  {
+   "comment": "Date is formatted with hardcoded 'en-US' locale instead of using the user's locale from useLocale, which can lead to incorrect date representation for users in different locales.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    7
+   ],
+   "confidence": 0.97,
+   "reasoning": "C7 covers the hardcoded en-US locale."
+  }
+ ],
+ "candidates": [
+  "scripts/test-gcal-webhooks.sh:68 - `sed -i ''` only works with macOS/BSD sed and breaks on Linux.. GNU sed (Linux) reads the `''` after `-i` as the sed script, then treats the real expression as a filename. When `GOOGLE_WEBHOOK_URL` already exists in the env file, the update fails, yet the script still prints \"Updated GOOGLE_WEBHOOK_URL\". Use a form both seds accept, e.g. `sed -i.bak ... && rm \"$ENV_FILE.bak\"`.",
+  "apps/web/package.json:11 - Unrelated change to how the dev cron script runs.. Swapping `ts-node` for `npx tsx` in `dev:cron` changes the tooling every developer uses to run the cron tester. The cache status and actions feature doesn't need it. `npx` may also download `tsx` from the network when it isn't installed locally. Move this to its own PR.",
+  "packages/app-store/googlecalendar/lib/CalendarService.ts:1023 - Calling updateMany with an empty data object probably won't bump SelectedCalendar.updatedAt.. `updateManyByCredentialId(this.credential.id, {})` passes no fields. Prisma may treat an update with empty `data` as a no-op, and it does not reliably set the `@updatedAt` column when no field changes. If so, the comment's goal of refreshing `SelectedCalendar.updatedAt` is never met, and every cache refresh still makes an extra database round trip. Also, the new UI reads `CalendarCache.updatedAt`, not `SelectedCalendar.updatedAt`, so nothing in this PR uses this write. If the timestamp is needed, set it explicitly with `{ updatedAt: new Date() }`. If it isn't, remove the call.",
+  "packages/prisma/migrations/20250715160635_add_calendar_cache_updated_at/migration.sql:9 - Existing cache rows get the migration time as `updatedAt`, so old caches look freshly updated.. Every `CalendarCache` row that exists when this runs gets `updatedAt = NOW()`. The new `connectedCalendars` handler and `CredentialActionsDropdown` show `cacheUpdatedAt` as the cache status. Right after deploy, every credential will show its cache as just updated, even if the data is stale or expired, until the cache is rewritten. Fix: backfill from a better value. For example, add the column, run `UPDATE \"CalendarCache\" SET \"updatedAt\" = \"expiresAt\" - interval '...'` (or similar), then set the default. Another option is to make the column nullable and show 'unknown' for old rows.",
+  "packages/trpc/server/routers/viewer/calendars/deleteCache.handler.ts:17 - Delete cache fails for credentials the user doesn't own directly (delegation or team credentials), even though the UI offers it.. The dropdown shows \"Delete cached data\" whenever a Google credential has a cache, including delegation credentials, where `canDisconnect` is false. The handler only accepts a `Credential` row whose `userId` equals the current user, so a delegation credential (an in-memory or synthetic id, not owned by the user) or a team credential is always rejected. In that case the user just sees \"Error deleting cache\". The handler also throws a plain `Error`, which reaches the client as INTERNAL_SERVER_ERROR instead of NOT_FOUND or FORBIDDEN. Fix one of two ways: resolve ownership the same way `connectedCalendars` does (only allow ids returned for the user), or hide the action for delegation credentials. In either case throw a `TRPCError` with the right code.",
+  "scripts/test-gcal-webhooks.sh:1 - Unrelated webhook tunnel script that writes to a .env path relative to the working directory.. Cache status and cache deletion don't need a Tunnelmole helper, so this script is outside the request. It also writes `GOOGLE_WEBHOOK_URL` to `../.env` relative to wherever it is run from, so running it from another directory creates or edits an unexpected `.env` file. Move it to a separate PR, or at least resolve the path relative to the script's own location.",
+  "packages/features/apps/components/CredentialActionsDropdown.tsx:89 - The cache timestamp is always formatted with the \"en-US\" locale.. The surrounding text is translated through `t()`, but the date uses a fixed `\"en-US\"` locale. Users in other locales will see US date order, for example 7/15/25 instead of 15/7/25. Use the locale from `useLocale()` (`i18n.language`) instead.",
+  "packages/prisma/migrations/20250715160635_add_calendar_cache_updated_at/migration.sql:1 - The generated warning comment no longer matches the SQL below it.. The comment says the required column is added \"without a default value\" and that this fails on a non-empty table. Line 9 now adds a default, so the warning is wrong and could mislead people about whether the migration is safe. Remove the stale warning block.",
+  "packages/trpc/server/routers/viewer/calendars/deleteCache.handler.ts:24 - Access-denied error is a plain Error, so the client gets a 500 instead of NOT_FOUND/FORBIDDEN.. A user who calls this with a credential they do not own, or with a team or delegation credential, gets a plain `Error`. tRPC turns that into INTERNAL_SERVER_ERROR, so the caller cannot tell the request was refused from a server failure, and the error is logged as a server failure. Throw a `TRPCError` with code `NOT_FOUND` (or `FORBIDDEN`) instead. This needs an import of `TRPCError` from `@trpc/server`.",
+  "packages/lib/getConnectedDestinationCalendars.ts:21 - Added SelectedCalendar fields (updatedAt, googleChannelId) that nothing in the PR uses.. The type here and the user select in `user.ts` now include `updatedAt` and `googleChannelId`, but the cache status shown in the UI comes from `CalendarCache`, not from these fields. They look like leftovers from an earlier approach and add data to a shared user query. Remove them unless something needs them."
+ ]
+}

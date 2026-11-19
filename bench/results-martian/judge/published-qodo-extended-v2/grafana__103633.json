@@ -1,0 +1,41 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The Check operation exhibits asymmetric cache trust logic: cached permission grants are trusted and returned immediately, but cached denials from the same permission cache are ignored, leading to a fresh database lookup. This allows stale cached grants to provide access to revoked resources, posing a security risk. ",
+   "severity": "High",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate addresses the asymmetric cache trust (grants trusted, denials ignored) or the stale-grant security risk."
+  },
+  {
+   "comment": "The test comment says the cached permissions 'allow access', but the map stores false for dashboards:uid:dash1, so checkPermission will still treat this scope as not allowed.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.55,
+   "reasoning": "C1 notes the test sets the permission cache value to false, which acts like a missing entry, so the test setup doesn't do what it seems to. That is the same flawed test setup as G2's misleading 'allow access' comment."
+  },
+  {
+   "comment": "The cache key construction in `userPermDenialCacheKey` uses simple string concatenation with underscores, which can lead to ambiguous keys and collision risks when any component contains underscores or is empty. This could result in incorrect denial cache hits, affecting user permissions.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the underscore-delimited cache key collision in userPermDenialCacheKey."
+  }
+ ],
+ "candidates": [
+  "The test case \"Should deny on explicit cache deny entry\" is non-diagnostic because it sets the permission cache value to false (equivalent to missing) and uses the default fakeStore with no permissions. The test would still deny even if permDenialCache were not checked, allowing denial-cache regressions to slip through CI.",
+  "The userPermDenialCacheKey function concatenates name and parent using _ as delimiter, but both components can contain underscores (Grafana UIDs allow a-zA-Z0-9\\-\\_). Different (name, parent) pairs like (\"some_dashboard\", \"fold1\") and (\"some\", \"dashboard_fold1\") produce identical cache keys, causing one resource's denial to falsely deny access to a different resource for up to 30 seconds."
+ ]
+}

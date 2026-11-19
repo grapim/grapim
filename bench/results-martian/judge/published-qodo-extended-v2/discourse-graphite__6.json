@@ -1,0 +1,21 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The include_website_name method is missing the required ? suffix. Rails serializers expect include_ methods to end with ? for conditional attribute inclusion, a convention followed by other methods in this serializer. Without it, the website_name attribute may not be conditionally included as intended. Additionally, the '.' << website_host string concatenation should be replaced with '.' + website_host or '.#{website_host}' to avoid mutating string literals, which can lead to issues.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "G1 says include_website_name is missing its required '?' suffix, so the serializer may not apply the conditional, and it flags string mutation with '<<'. C1 says website_name skips the Guardian restrict_user_fields check, which is a different cause (a missing privacy check, not a naming-convention bug). C2 is about the frontend template. Neither candidate mentions the '?' suffix or the '<<' mutation."
+  }
+ ],
+ "candidates": [
+  "UserSerializer emits website_name whenever website is present, but does not honor Guardian#restrict_user_fields? like the website attribute does, causing TL0 users viewed by anonymous to leak website host/path via website_name",
+  "Profile template may render a link/title using missing model.website (broken href) because the UI gates rendering on model.website_name but still uses model.website for the href/title, so when website is omitted the UI can display leaked text and/or create an empty/broken link"
+ ]
+}

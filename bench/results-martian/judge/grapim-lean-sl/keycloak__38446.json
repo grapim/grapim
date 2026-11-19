@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Unsafe raw List deserialization without type safety. Calling Optional.get() directly on the Optional returned by RecoveryAuthnCodesUtils.getCredential(user) without checking isPresent() can lead to a NoSuchElementException if the Optional is empty.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions calling Optional.get() without a check or unsafe raw List deserialization."
+  },
+  {
+   "comment": "After creating the RecoveryAuthnCodesCredentialModel, consider setting its id from the stored credential (e.g., myUser.recoveryCodes.getId()); otherwise getId() will be null and downstream removal by id (e.g., removeStoredCredentialById in the authenticator flow) may not work.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.85,
+   "reasoning": "C1 points out that the user-storage credential model is built with createFromValues, which sets no id. As a result, removeStoredCredentialById gets a null or non-local id and the removal fails. This is the same issue as G2."
+  }
+ ],
+ "candidates": [
+  "services/src/main/java/org/keycloak/authentication/authenticators/browser/RecoveryAuthnCodesFormAuthenticator.java:80 - A credential from user storage can now be passed to `removeStoredCredentialById`, which only works on the local store.. `RecoveryAuthnCodesUtils.getCredential` now returns the user-storage credential first. When that credential's codes are all used, the next lines call `removeStoredCredentialById(recoveryCodeCredentialModel.getId())`. That method only deletes from the local Keycloak DB.\n\nFor a user-storage credential the id is not a local id and can be null. The test provider's `getCredentials` builds the model with `createFromValues`, which sets no id. So once the last code is used, one of two things happens:\n- the delete silently does nothing, and the credential stays in user storage;\n- or the local store rejects a null id, and the login fails at that point.\n\nI could not see how the JPA store handles a null id.\n\n**Fix:** only call `removeStoredCredentialById` when the credential came from local storage. For user-storage credentials, ask the provider to remove or disable them instead, for example with `disableCredentialType`."
+ ]
+}

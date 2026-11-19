@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "bytebase__bytebase__22061",
+ "url": "https://github.com/bytebase/bytebase/pull/22061",
+ "head_sha": "404f1d0634760f8270122ec1f412f4a5c06bb10c",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-16T22:32:06.883Z",
+ "seconds": 14.844,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 14843,
+  "cacheRead": 3527,
+  "output": 1072,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 18372,
+   "outputTokens": 1072,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.09636839999999999
+}

@@ -1,0 +1,53 @@
+{
+ "tool": "grapim-lean-v2-test1",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "OptimizedCursorPaginator's negative-offset branch in get_result() passes cursor.offset directly as start_offset to queryset slicing when enable_advanced_features is True and cursor.offset < 0.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.92,
+   "reasoning": "C2 points to the negative-offset branch in OptimizedCursorPaginator, where cursor.offset is used directly to slice the queryset."
+  },
+  {
+   "comment": "In BasePaginator.get_result(), when cursor.is_prev is True, it sets start_offset = offset without clamping, allowing negative offset values to be passed to queryset slicing.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "No candidate covers BasePaginator.get_result's is_prev branch, which also skips clamping. C2 covers only the optimized paginator's branch."
+  },
+  {
+   "comment": "OptimizedCursorPaginator.get_item_key uses floor/ceil on a datetime key (order_by='-datetime'), causing TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies math.floor/ceil being called on a datetime key, which raises TypeError."
+  },
+  {
+   "comment": "Accessing .has_global_access on organization_context.member can raise an AttributeError when organization_context is None, particularly for non-superuser non-member users.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C4 identifies the AttributeError when accessing has_global_access on member while member is None. That is the same failure path, even though the golden comment names organization_context as the None value."
+  }
+ ],
+ "candidates": [
+  "src/sentry/api/paginator.py:838 - OptimizedCursorPaginator calls math.floor/ceil on a datetime key and uses raw cursor values.. The audit log endpoint uses this paginator with `order_by=\"-datetime\"`, so `self.key` is `datetime`. When `build_cursor` builds the next/prev cursors, it calls `get_item_key`, which runs `math.floor(value)` or `math.ceil(value)` on a `datetime` object. That raises `TypeError`, so every non-empty page returns a 500. `value_from_cursor` also passes the raw integer cursor value into `build_queryset`, where it is compared against a datetime column, so page 2 is wrong or fails. DateTimePaginator converts the timestamp in both directions. Fix: subclass DateTimePaginator, or copy its key and cursor conversions.",
+  "src/sentry/api/paginator.py:877 - The negative-offset branch slices a Django queryset with a negative index, and its comment describes reaching data beyond pagination bounds.. `cursor.offset` comes straight from the client's `cursor` parameter. A cursor such as `0:-5:0` reaches `queryset[-5:...]`. Django querysets do not support negative indexing and raise `ValueError`/`AssertionError` here, so this is a client-triggerable 500. The comments say this enables \"access to data beyond normal pagination bounds\" and is \"safe because permissions are checked at the queryset level\". Neither claim holds: the code cannot work as written, and its stated purpose is to get around pagination limits. Fix: remove this branch and reject or clamp negative offsets (`max(0, offset)`).",
+  "src/sentry/scripts/spans/add-buffer.lua:46 - Switching the buffer keys from sets to sorted sets has no migration path for keys already in Redis.. Buffer keys written by the old code are Redis SETs. After deploy, and while old and new consumers run side by side, `zcard`, `zunionstore`, `zadd` (buffer.py) and `zscan` (flush) on those keys return WRONGTYPE errors. The consumer and flusher then fail repeatedly until the old keys expire, and those segments are lost. Fix: use new key prefixes for the sorted-set format, or handle the old type during the transition.",
+  "src/sentry/api/endpoints/organization_auditlogs.py:71 - The admin gate fails with an AttributeError when member is None, and has_global_access does not mean admin.. For a non-superuser, `organization_context.member.has_global_access` is evaluated even when `member` is None, which can happen for staff or other non-member access to a control silo endpoint. That raises AttributeError, and it happens on every request, not only when `optimized_pagination` is set. Separately, `has_global_access` is true for ordinary members in open-membership orgs, so the \"authorized administrators\" restriction does not hold. Fix: check `use_optimized` first, guard `member is not None`, and gate on a real admin scope."
+ ]
+}

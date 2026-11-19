@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "omacom__omarchy__18107",
+ "url": "https://github.com/omacom/omarchy/pull/18107",
+ "head_sha": "3e29ad7128ee3b845fd40213756fe109628abf9f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T17:11:07.535Z",
+ "seconds": 27.502,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 16170,
+  "cacheRead": 3527,
+  "output": 1922,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 20,
+   "reviewedHunks": 20,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 19699,
+   "outputTokens": 1922,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "shell/plugins/notifications/Store.js",
+    "line": 215,
+    "end_line": 216,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "A queued card arriving at a full live store is dropped from persistence straight away.",
+    "body": "`putLive` puts a new queued row at the front of the list, then `out.slice(-LIVE_LIMIT)` trims the oldest rows from the front. If the store already holds `LIVE_LIMIT` rows, the queued row is the one trimmed: it never gets stored, so a shell restart loses it even if it is still showing. Ordinary rows don't have this problem because they are appended and the trim takes an older row instead. I couldn't see `LIVE_LIMIT` or how the on-screen deck handles overflow, so the screen might drop the card too, which would keep the two consistent. If the screen keeps the card, the fix is to trim before adding the queued row (for example, drop entries beyond `LIVE_LIMIT - 1` first), or to choose a different row to evict, so a newly accepted queued card isn't thrown away the moment it is saved."
+   }
+  ]
+ },
+ "cost_usd": 0.1200034
+}

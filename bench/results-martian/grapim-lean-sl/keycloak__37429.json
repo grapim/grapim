@@ -1,0 +1,108 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "head_sha": "02f48f776f43734d1ac8914d3ad6a7115acdcb33",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:25:09.768Z",
+ "seconds": 48.357,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "themes/src/main/resources-community/theme/base/account/messages/messages_lt.properties",
+   "line": 101,
+   "end_line": 101,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Lithuanian totpStep1 replaced with an Italian sentence.",
+   "body": "The new `totpStep1` value, \"Installa una delle seguenti applicazioni sul tuo cellulare:\", is Italian. Lithuanian users will see Italian text in the OTP setup step. Use a Lithuanian translation instead, for example \"Įdiekite vieną iš šių programėlių savo mobiliajame telefone:\"."
+  },
+  {
+   "path": "themes/src/main/resources-community/theme/base/account/messages/messages_zh_CN.properties",
+   "line": 112,
+   "end_line": 112,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Simplified Chinese bundle now has a Traditional Chinese string.",
+   "body": "The new `totpStep1` value, \"在您的手機上安裝以下應用程式之一：\", uses Traditional characters and Taiwanese wording (手機, 應用程式). This file is zh_CN, and the lines around it are Simplified. Use the Simplified form instead: \"在您的手机上安装以下应用程序之一：\"."
+  },
+  {
+   "path": "themes/src/main/resources-community/theme/base/login/messages/messages_lt.properties",
+   "line": 71,
+   "end_line": 71,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Lithuanian loginTotpStep1 replaced with an Italian sentence.",
+   "body": "`loginTotpStep1` in the Lithuanian login bundle now reads \"Installa una delle seguenti applicazioni sul tuo cellulare:\", which is Italian. Lithuanian users will see Italian text on the login OTP setup page. Replace it with a Lithuanian translation."
+  },
+  {
+   "path": "js/apps/account-ui/maven-resources/theme/keycloak.v3/account/messages/messages_en.properties",
+   "line": 188,
+   "end_line": 188,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Account UI message switched from i18next `{{0}}` placeholders to MessageFormat syntax.",
+   "body": "The account UI is a React/i18next app. The old value used `{{0}}` interpolation. The new `{0}` placeholders and the `{2,choice,...}` construct are not handled by i18next. If this key is rendered client-side, a multivalued-size validation error will show the literal placeholders and the choice pattern instead of the values. I could not see whether the server formats it first. Keep i18next syntax and use plural keys if pluralization is needed."
+  },
+  {
+   "path": "js/apps/admin-ui/maven-resources/theme/keycloak.v2/admin/messages/messages_en.properties",
+   "line": 3138,
+   "end_line": 3138,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Admin UI message switched from i18next `{{0}}` placeholders to MessageFormat syntax.",
+   "body": "The admin UI resolves these keys with i18next. The rest of this file uses `{{...}}` interpolation, for example `{{error}}` and `{{fieldName}}`. i18next does not fill in `{0}` and does not understand `{2,choice,...}`. If the UI translates `error-invalid-multivalued-size` through i18next, as the old `{{0}}` syntax suggests, users will see raw text such as \"Attribute {0} must have at least {1} ... {2,choice,0#values|1#value|1<values}\". I could not check whether this key is formatted with MessageFormat on the server before it reaches the UI. Unless it is, keep the `{{0}}`/`{{1}}`/`{{2}}` placeholders and use i18next plural keys instead of a choice format."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 66739,
+  "cacheRead": 3262,
+  "output": 4233,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 48,
+   "hunks": 52,
+   "reviewedHunks": 52,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 70003,
+   "outputTokens": 4233,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 47,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "misc/theme-verifier/src/test/resources/duplicateKeys_en.properties",
+    "reason": "no content change"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.41901540000000004
+}

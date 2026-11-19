@@ -1,0 +1,33 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "discourse-graphite__2",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "logic: Potential nil pointer exception - if no TopicUser record exists, tu will be nil and calling methods on it will crash",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same problem: when no TopicUser record exists, the code still calls methods on the nil result and crashes."
+  },
+  {
+   "comment": "Typo in property name: 'stopNotificiationsText' should be 'stopNotificationsText' (missing 'n' in 'Notifications')",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the 'stopNotificiationsText' typo."
+  }
+ ],
+ "candidates": [
+  "TopicsController#unsubscribe dereferences the result of TopicUser.find_by(...) without handling the no-row case, which will raise and return a 500 when the current user has no topic_users record for that topic",
+  "TopicsController#unsubscribe bypasses TopicUser.change() so notifications_reason_id/notifications_changed_at aren't set for a user-initiated notification_level change, allowing update_last_read auto-tracking to later overwrite the user's choice",
+  "The unsubscribe route is defined as GET but the controller action mutates TopicUser.notification_level and saves it, making it vulnerable to CSRF via link/image injection since no CSRF token is required on GET requests",
+  "The GET unsubscribe endpoint will be triggered unintentionally by email client link prefetchers, silently changing users' notification settings"
+ ]
+}

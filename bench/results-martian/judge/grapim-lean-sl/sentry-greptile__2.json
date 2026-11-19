@@ -1,0 +1,58 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "sentry-greptile__2",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/2",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "OptimizedCursorPaginator's negative-offset branch in get_result() passes cursor.offset directly as start_offset to queryset slicing when enable_advanced_features is True and cursor.offset < 0.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 points to the negative-offset branch in OptimizedCursorPaginator, which passes a negative offset into the queryset slice."
+  },
+  {
+   "comment": "In BasePaginator.get_result(), when cursor.is_prev is True, it sets start_offset = offset without clamping, allowing negative offset values to be passed to queryset slicing.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.9,
+   "reasoning": "C5 points out that BasePaginator still passes a negative offset through without clamping when is_prev is true."
+  },
+  {
+   "comment": "OptimizedCursorPaginator.get_item_key uses floor/ceil on a datetime key (order_by='-datetime'), causing TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 identifies the TypeError from calling floor/ceil on a datetime key."
+  },
+  {
+   "comment": "Accessing .has_global_access on organization_context.member can raise an AttributeError when organization_context is None, particularly for non-superuser non-member users.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.95,
+   "reasoning": "C4 identifies the AttributeError raised when member is None."
+  }
+ ],
+ "candidates": [
+  "src/sentry/api/paginator.py:838 - OptimizedCursorPaginator calls math.floor/ceil on a datetime key and uses raw cursor values.. The audit log endpoint uses this paginator with `order_by=\"-datetime\"`, so `self.key` is `datetime`. When `build_cursor` builds the next/prev cursors, it calls `get_item_key`, which runs `math.floor(value)` or `math.ceil(value)` on a `datetime` object. That raises `TypeError`, so every non-empty page returns a 500. `value_from_cursor` also passes the raw integer cursor value into `build_queryset`, where it is compared against a datetime column, so page 2 is wrong or fails. DateTimePaginator converts the timestamp in both directions. Fix: subclass DateTimePaginator, or copy its key and cursor conversions.",
+  "src/sentry/api/paginator.py:877 - The negative-offset branch slices a Django queryset with a negative index, and its comment describes reaching data beyond pagination bounds.. `cursor.offset` comes straight from the client's `cursor` parameter. A cursor such as `0:-5:0` reaches `queryset[-5:...]`. Django querysets do not support negative indexing and raise `ValueError`/`AssertionError` here, so this is a client-triggerable 500. The comments say this enables \"access to data beyond normal pagination bounds\" and is \"safe because permissions are checked at the queryset level\". Neither claim holds: the code cannot work as written, and its stated purpose is to get around pagination limits. Fix: remove this branch and reject or clamp negative offsets (`max(0, offset)`).",
+  "src/sentry/scripts/spans/add-buffer.lua:46 - Switching the buffer keys from sets to sorted sets has no migration path for keys already in Redis.. Buffer keys written by the old code are Redis SETs. After deploy, and while old and new consumers run side by side, `zcard`, `zunionstore`, `zadd` (buffer.py) and `zscan` (flush) on those keys return WRONGTYPE errors. The consumer and flusher then fail repeatedly until the old keys expire, and those segments are lost. Fix: use new key prefixes for the sorted-set format, or handle the old type during the transition.",
+  "src/sentry/api/endpoints/organization_auditlogs.py:71 - The admin gate fails with an AttributeError when member is None, and has_global_access does not mean admin.. For a non-superuser, `organization_context.member.has_global_access` is evaluated even when `member` is None, which can happen for staff or other non-member access to a control silo endpoint. That raises AttributeError, and it happens on every request, not only when `optimized_pagination` is set. Separately, `has_global_access` is true for ordinary members in open-membership orgs, so the \"authorized administrators\" restriction does not hold. Fix: check `use_optimized` first, guard `member is not None`, and gate on a real admin scope.",
+  "src/sentry/api/paginator.py:182 - BasePaginator offset handling is changed for every paginator, but negative offsets are still passed through for prev cursors.. This edits the shared `BasePaginator.get_result` that every paginated endpoint uses. The request is about the spans buffer and an opt-in audit-log paginator, and does not cover this. When `cursor.is_prev` is true, a negative client-supplied offset is still passed to the queryset slice. That raises in Django, so the change does not do what its comment claims. Fix: revert, or clamp in both directions.",
+  "src/sentry/scripts/spans/add-buffer.lua:30 - The redirect depth limit drops from 10000 to 1000 with no reason given.. Segment trees deeper than 1000 levels stop resolving their redirect chain, so their spans end up in separate segments. Nothing in the request covers this change, and the comment explaining the limit was removed. Revert it, or justify it and record a metric when the limit is hit.",
+  "src/sentry/scripts/spans/add-buffer.lua:62 - Spans past 1000 are silently evicted, possibly including the segment root, with no metric or log.. `zpopmin` drops the spans with the earliest end timestamps once a segment has more than 1000 members, using a hardcoded limit instead of `max_segment_spans`. Nothing records the drop: the old code emitted a metric and an error log. A root or segment span that ends before its children can be evicted while `has_root_span` stays set, so the flushed segment has no root. Fix: keep the configured limit, emit a metric for evictions, and never evict the segment span."
+ ]
+}

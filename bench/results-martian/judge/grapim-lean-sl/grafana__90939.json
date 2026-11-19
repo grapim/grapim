@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "grafana__90939",
+ "url": "https://github.com/grafana/grafana/pull/90939",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The GetWebAssets function implements an incomplete double-checked locking pattern for caching web assets. The function first checks if the cache is populated using a read lock (RLock), and if the cache is empty, it acquires a write lock to populate it. However, it fails to re-check whether the cache was populated by another goroutine while waiting to acquire the write lock.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same missing re-check after the write lock is acquired."
+  },
+  {
+   "comment": "In addition to the missing double-check, the function has a critical flaw in its error handling: it unconditionally assigns the fetch result to the cache (line 69: entryPointAssetsCache = result) regardless of whether the fetch succeeded or failed. When an error occurs during asset fetching, result is nil, and this nil value overwrites any previously valid cache entry.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C1 doesn't mention the cache being overwritten with nil when the fetch fails."
+  }
+ ],
+ "candidates": [
+  "pkg/api/webassets/webassets.go:48 - Cache is not checked again after taking the write lock.. If several requests arrive while the cache is empty (for example right after startup), they all see `ret == nil`. Each one then waits for the write lock and reloads the manifest from disk, one after another, even though the first one already filled the cache. Fix: after `Lock()`, check again with `if cfg.Env != setting.Dev && entryPointAssetsCache != nil { return entryPointAssetsCache, nil }` before loading the assets."
+ ]
+}

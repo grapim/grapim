@@ -1,0 +1,30 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__94942",
+ "url": "https://github.com/grafana/grafana/pull/94942",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The enableSqlExpressions function has flawed logic that always returns false, effectively disabling SQL expressions unconditionally:",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out that enableSqlExpressions always returns false no matter what the flag is set to. That is the same flawed logic G1 describes."
+  },
+  {
+   "comment": "The DB methods NewInMemoryDB().RunCommands, DB.QueryFramesInto, and DB.TablesList in pkg/expr/sql/db.go return hardcoded 'not implemented' errors after removing the go-duck dependency.",
+   "severity": "High",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the db.go methods that return hardcoded 'not implemented' errors."
+  }
+ ],
+ "candidates": [
+  "pkg/expr/reader.go:194 - `enableSqlExpressions` reads the feature flag, then ignores it, and its variable name says the opposite of what it holds.. The local variable `enabled` holds `!IsEnabledGlobally(FlagSqlExpressions)`, so it is true when the flag is *off*. Both branches then return `false`, so the flag check does nothing. The function and its variable suggest that turning on `sqlExpressions` would enable the feature. That is not true. Someone who later \"fixes\" the dead branch by returning `enabled` would turn SQL expressions back on exactly when the flag is off, and that is the RCE path this PR closes. Make it return `false` directly, with a comment saying SQL expressions are disabled whatever the flag says."
+ ]
+}

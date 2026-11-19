@@ -1,0 +1,40 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Null reference if github_authenticated_user state is missing",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate is about a missing github_authenticated_user state causing a null reference."
+  },
+  {
+   "comment": "OAuth state uses pipeline.signature (static) instead of a per-request random value",
+   "severity": "Medium",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C1 mentions the pipeline signature, but it is about test coverage, not the security problem of a static OAuth state."
+  },
+  {
+   "comment": "The code attempts to access integration.metadata[sender][login] without checking for the existence of the sender key. This causes a KeyError for integrations where the sender metadata was not set during creation",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 describes the same KeyError on metadata['sender']['login']."
+  }
+ ],
+ "candidates": [
+  "tests/sentry/integrations/github/test_integration.py:388 - test_installation_not_found no longer tests the 404 path.. The test now sends a `state` (`ddd023...`) that does not match the pipeline signature. `OAuthLoginView` therefore rejects the request before `build_integration` runs, so the stubbed 404 for `/app/installations/{id}` is never hit. The old assertion that 'The GitHub installation could not be found.' appears was replaced with the generic state-mismatch message. The test passes without checking the not-found handling it is named for. Use the valid state and stub the OAuth calls (for example with `_stub_github()` followed by the 404 replace). Then step through to the installation and keep the original assertion.",
+  "src/sentry/integrations/github/integration.py:501 - Direct indexing of `metadata[\"sender\"][\"login\"]` can crash with a KeyError.. This path runs when an `Integration` row exists but has no `OrganizationIntegration`. A common example is a GitHub integration that was removed from its Sentry org and is now being reinstalled. Rows created through `build_integration`, or before this change, may have no `sender` key in their metadata. `integration.metadata[\"sender\"][\"login\"]` then raises a KeyError, and the user gets a 500 page instead of the error dialog. I couldn't see whether every existing row stores `sender`. Read it with `.get()` and send a missing sender to `error(...)`.",
+  "src/sentry/integrations/github/integration.py:141 - Error strings passed to `_()` as a variable are no longer picked up for translation.. The short error messages used to be literal `_(\"GitHub installation pending deletion.\")` and `_(\"Github installed on another Sentry organization.\")` calls, so makemessages picked them up for translation. Now plain strings are passed into `error()` and wrapped with `_(error_short)` at runtime. makemessages cannot find strings passed to `_()` through a variable, so these messages and the new default \"Invalid installation request.\" will drop out of the translation catalog.\n\nFix: wrap the literals with `_()` where they are written (the call sites and the default value) and use `error_short` as given inside `error()`."
+ ]
+}

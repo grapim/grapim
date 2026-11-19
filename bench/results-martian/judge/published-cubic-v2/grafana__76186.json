@@ -1,0 +1,44 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "grafana__76186",
+ "url": "https://github.com/grafana/grafana/pull/76186",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The ContextualLoggerMiddleware methods (QueryData, CallResource, CheckHealth, CollectMetrics) panic when a nil request is received. This occurs because they directly access req.PluginContext (via the instrumentContext function) without first checking if req is nil. This is a regression, as previous middleware layers gracefully handled nil requests.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same nil-request panic that comes from accessing req.PluginContext."
+  },
+  {
+   "comment": "The traceID is no longer logged for plugin requests. During a refactoring, the tracing import and the logic to extract and add traceID from the context to log parameters were removed from the LoggerMiddleware. The newly introduced ContextualLoggerMiddleware does not add this information, resulting in missing traceID in plugin request logs and impacting debugging and request tracing capabilities.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.96,
+   "reasoning": "C2 points out the same problem: traceID is missing from the contextual logger's attributes."
+  },
+  {
+   "comment": "The `TestLogger.FromContext` method returns a new `TestLogger` instance via `NewTestLogger()` instead of returning the receiver (f). This causes logs to be recorded on an un-referenced instance, leading to broken test assertions that expect logs to be recorded on the original logger.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 points out the same issue: FromContext returns a new TestLogger when it should return f."
+  }
+ ],
+ "candidates": [
+  "Accessing `req.PluginContext` without a nil guard will panic if `req` is nil - the middleware should guard against nil requests like LoggerMiddleware does in all four methods",
+  "The contextual log attributes omit `traceID` - since this middleware now owns the contextual logging setup, it should include `traceID` from `tracing.TraceIDFromContext` so plugin request logs still carry trace correlation",
+  "Returning a fresh `TestLogger` in `FromContext` drops all log writes made through `FromContext`, so tests can no longer observe logs emitted by code paths that use contextual logging - should return `f` instead"
+ ]
+}

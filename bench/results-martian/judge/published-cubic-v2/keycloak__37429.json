@@ -1,0 +1,58 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the Lithuanian file contains Italian text."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions Traditional Chinese terms appearing in the zh_CN file."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [
+    3
+   ],
+   "confidence": 0.55,
+   "reasoning": "Both point to a flaw in how the anchor sanitization pairs translated anchors with English anchors when the counts differ. C3 describes the case where the translation has fewer anchors, while G3 describes the case where it has more. They are close but not identical."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the 'santizeAnchors' typo."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions that HTML_TAGS should be declared as a constant."
+  }
+ ],
+ "candidates": [
+  "Lithuanian translation file messages_lt.properties contains Italian text instead of Lithuanian - line 101 has 'Installa una delle seguenti applicazioni sul tuo cellulare' which is Italian, not Lithuanian",
+  "Admin UI message uses Java MessageFormat syntax ({0}, {2,choice,...}) but the Admin UI uses i18next which won't resolve these placeholders, causing raw placeholder text to appear in validation error messages",
+  "Theme verifier anchor check only rejects extra/different anchor tags but doesn't fail when a translation drops a required source anchor, allowing translations to lose clickable links while still passing verification"
+ ]
+}

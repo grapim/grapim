@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "vllm-project__vllm-torchtpu__3271",
+ "url": "https://github.com/vllm-project/vllm-torchtpu/pull/3271",
+ "head_sha": "648ebd3ec486f47ff9042c1b56853670f5b34d71",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:32:29.963Z",
+ "seconds": 14.916,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 9078,
+  "cacheRead": 3527,
+  "output": 1154,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 12607,
+   "outputTokens": 1154,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.06918339999999999
+}

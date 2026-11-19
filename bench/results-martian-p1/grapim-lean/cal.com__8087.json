@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "head_sha": "820d7fa87e0c824c5dee8082a33efadb1a2566f7",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:47:24.619Z",
+ "seconds": 42.6,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/app-store/index.ts",
+   "line": 3,
+   "end_line": 30,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "`import()` runs as soon as this module loads, so no app loading is deferred.",
+   "body": "Each property calls `import(\"./x\")` when the object literal is built. Importing `@calcom/app-store` therefore starts loading all 28 app packages at once, which is what the old static imports did. The PR says it defers module loading, but it doesn't: no cold-start or bundle cost is saved. There is also a new risk: if an app module fails to load and nothing awaits that key, its rejected promise is an unhandled rejection. Before, the same failure surfaced at import time. Store thunks instead (`applecalendar: () => import(\"./applecalendar\")`) and have callers write `await appStore[key]?.()`."
+  },
+  {
+   "path": "packages/app-store/vital/lib/reschedule.ts",
+   "line": 125,
+   "end_line": 128,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The `forEach(async …)` callback moves `getCalendar` errors outside the `try/catch`.",
+   "body": "Before this change, a synchronous throw from `getCalendar` (for example a CalendarService constructor failing on a bad credential) was caught and logged by the surrounding `try/catch`. Now the callback is async and `forEach` ignores the promises it returns. Such errors become unhandled promise rejections that are not logged here and can crash a Node process running with the default unhandled-rejection mode. The deletions are also never awaited. Fix: `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => { ... }))` inside the `try`."
+  },
+  {
+   "path": "packages/app-store/wipemycalother/lib/reschedule.ts",
+   "line": 125,
+   "end_line": 128,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The `forEach(async …)` callback moves `getCalendar` errors outside the `try/catch`.",
+   "body": "Same problem as in vital's `reschedule.ts`. The async callback's promises are dropped by `forEach`, so a `getCalendar` or `deleteEvent` failure is no longer caught by the surrounding `try/catch`. It becomes an unhandled rejection instead. Use `await Promise.all(bookingRefsFiltered.map(async ...))` inside the `try`."
+  },
+  {
+   "path": "packages/core/CalendarManager.ts",
+   "line": 31,
+   "end_line": 31,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`getCalendarCredentials` now puts a Promise in `calendar`, which breaks callers that use it directly.",
+   "body": "`getCalendar` is now async, but this function still stores its result in `calendar` without awaiting it. `getConnectedCalendars` was updated to await it. Any other caller of `getCalendarCredentials` that reads `item.calendar` is not updated, and I couldn't see whether such callers exist. In those callers, `if (calendar)` is always true for a Promise, and `calendar.listCalendars()` or `getAvailability()` throws `is not a function`. A rejected `getCalendar` promise that no caller awaits also becomes an unhandled rejection. Fix: make `getCalendarCredentials` async and resolve the calendars with `Promise.all`, or audit every caller."
+  },
+  {
+   "path": "packages/trpc/server/routers/viewer/bookings.tsx",
+   "line": 553,
+   "end_line": 556,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The `forEach(async …)` callback drops the promises, so `getCalendar` failures become unhandled rejections.",
+   "body": "`getCalendar` now runs inside an async callback whose promise `forEach` discards. Any error from `getCalendar` or from the deletions no longer reaches the request's error handling and becomes an unhandled rejection. The handler also no longer waits for the async credential resolution before it returns. Use `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => { ... }))`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 20978,
+  "cacheRead": 25123,
+  "output": 4311,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 23,
+   "reviewedHunks": 23,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 46105,
+   "outputTokens": 4311,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 12,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1961506
+}

@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "maximhq__bifrost__10172",
+ "url": "https://github.com/maximhq/bifrost/pull/10172",
+ "head_sha": "e488295eea0120f6a2c50db1d88be7ec59a8a70b",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:11:58.859Z",
+ "seconds": 58.706,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 27333,
+  "cacheRead": 29260,
+  "output": 5633,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 12,
+   "reviewedHunks": 12,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 56597,
+   "outputTokens": 5633,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "core/providers/utils/utils.go",
+    "line": 4342,
+    "end_line": 4348,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Reads after cleanup() now fail with ErrStreamClosed instead of reaching the upstream.",
+    "body": "Before this change, `cleanup()` only stopped the timer, and later `Read` calls still went to the underlying reader. Now `cleanup` sets `stopped`, and `startRead` returns false for every later `Read`, so the caller gets `ErrStreamClosed` (or `ErrStreamIdleTimeout` if the timer fired earlier). A caller that calls `cleanup()` (or a disarm helper built on it) early to turn off idle detection and then keeps reading or draining the body, for example after `finish_reason`, would now lose the rest of the stream. The request asks only to limit the timeout to pending reads; it does not ask to stop reads after cleanup. I couldn't see the call sites, so check that no caller reads after `cleanup()`. If one does, make `stopped` only disarm the timer and let `Read` pass straight through to `r.reader`."
+   },
+   {
+    "path": "core/providers/utils/utils.go",
+    "line": 4348,
+    "end_line": 4353,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Each zero-byte Read now restarts the idle deadline, so a stream that keeps returning (0, nil) never times out.",
+    "body": "Before, only reads that returned `n > 0` reset the timer, so an upstream that kept returning `(0, nil)` was still treated as idle. That is what the removed `ZeroBytesDoNotResetTimer` test checked. Now `startRead` sets a fresh deadline and resets the timer on every `Read` call, whatever the previous call returned. A misbehaving upstream or decoder that returns zero bytes with no error in a loop keeps the timer re-armed forever, and the idle timeout never fires. The renamed test only covers one zero-byte read followed by a stall. To fix, keep a 'last progress' time that only reads with `n > 0` update, and base the deadline on it, while still disarming the timer between reads."
+   }
+  ]
+ },
+ "cost_usd": 0.255193
+}

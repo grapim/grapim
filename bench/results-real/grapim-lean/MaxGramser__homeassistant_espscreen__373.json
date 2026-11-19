@@ -1,0 +1,64 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "MaxGramser__homeassistant_espscreen__373",
+ "url": "https://github.com/MaxGramser/homeassistant_espscreen/pull/373",
+ "head_sha": "560786c37e3658457a0821b119d322bb767045bc",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:26:14.314Z",
+ "seconds": 17.786,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 33535,
+  "cacheRead": 3527,
+  "output": 1310,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 24,
+   "reviewedHunks": 24,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 37064,
+   "outputTokens": 1310,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 16,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "packages/boards/wavesharep47b.yaml",
+    "line": 89,
+    "end_line": 89,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Battery level formula is not clamped to 0–100 %.",
+    "body": "The straight line `(v - 3.3f) / 0.9f * 100` goes past 100 % when the cell reads above 4.2 V, which is normal while charging on USB or from ADC error. It goes negative between 2.5 V and 3.3 V. Home Assistant's Battery Level and the top-bar icon would then show values like 105 % or -20 %. I couldn't see `features/battery-voltage.yaml`, so this only applies if that file doesn't clamp the formula's result. If it doesn't, clamp it in the formula: `(v < 2.5f ? NAN : clamp((v - 3.3f) / (4.2f - 3.3f) * 100.0f, 0.0f, 100.0f))`. This needs `std::clamp`, or write the same thing with `fminf`/`fmaxf`.",
+    "suggestion": "  BATTERY_LEVEL_FORMULA: \"(v < 2.5f ? NAN : fminf(100.0f, fmaxf(0.0f, (v - 3.3f) / (4.2f - 3.3f) * 100.0f)))\""
+   }
+  ]
+ },
+ "cost_usd": 0.1945884
+}

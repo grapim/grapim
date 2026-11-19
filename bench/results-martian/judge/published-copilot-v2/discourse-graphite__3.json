@@ -1,0 +1,48 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "BlockedEmail.should_block_email? method has side effects during a read operation - it updates statistics even when just checking if an email should be blocked. This could cause race conditions in concurrent environments and makes the method name misleading.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    1,
+    8
+   ],
+   "confidence": 0.7,
+   "reasoning": "C1 and C8 both point to the stats update inside should_block? being a non-atomic read-modify-write that races under concurrent calls. That is the race-condition part of G1's concern about side effects during a check."
+  },
+  {
+   "comment": "The regex pattern @(#{domains}) in email_in_restriction_setting? method only matches domain suffixes, not full domains with proper boundary anchoring. An attacker can register evil.example.com to bypass a whitelist entry for example.com.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the unanchored domain regex that would let a subdomain bypass the whitelist."
+  },
+  {
+   "comment": "The case-sensitive email lookup in `BlockedEmail.should_block?` creates a bypass risk, allowing 'User@Example.com' to bypass a block on 'user@example.com'. This can lead to unauthorized access to blocked users.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 identifies the same issue: the case-sensitive lookup lets differently cased emails get past a block."
+  }
+ ],
+ "candidates": [
+  "should_block? does a non-atomic read-modify-write (match_count += 1 then save) which can lose increments under concurrent calls, and ignores failed saves so stats updates can silently be dropped",
+  "Email comparisons in should_block? use exact lookup, but email comparisons elsewhere normalize via Email.downcase/strip, so case/whitespace variations can bypass a blocked entry. Should normalize the input",
+  "validate_each calls email_in_restriction_setting? and BlockedEmail.should_block? even when value is blank/nil, which can raise errors (e.g., nil =~ regexp). Should guard early with return if value.blank?",
+  "The model sets a default action_type in a callback, but the DB column has no default. Adding a database default would make manual/bulk inserts safer and align with the model's behavior",
+  "rejectedEmails: Em.A([]) creates a mutable array on the controller prototype that can unintentionally persist across controller reuse. Should initialize it per-instance in init",
+  "The computed property depends on rejectedEmails contents but uses rejectedEmails.@each which is for observing property changes on array items. Should use rejectedEmails.[] to reliably recompute when items are added/removed",
+  "The create endpoint now returns errors and values keys on failure, but there are no controller specs asserting this new response shape, so regressions could slip in",
+  "Should use atomic UPDATE ... match_count = match_count + 1 (e.g., update_all) for the stats update instead of read-modify-write"
+ ]
+}

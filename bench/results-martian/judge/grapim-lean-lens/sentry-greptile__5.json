@@ -1,0 +1,82 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry-greptile__5",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/5",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The BrowserReportingCollectorEndpoint returns HttpResponse objects but the endpoint inherits from Endpoint which expects rest_framework.response.Response objects.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention the HttpResponse vs DRF Response mismatch."
+  },
+  {
+   "comment": "In BaseDetectorTypeValidator.update(), the validator incorrectly updates instance.type using validated_data.get('detector_type') instead of validated_data.get('type').",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C10 is about detector owner validation, not the detector_type key bug."
+  },
+  {
+   "comment": "Using zip(error_ids, events.values()) assumes the get_multi result preserves the input order; dict value order is not guaranteed to match error_ids, so event data can be paired with the wrong ID (missing nodes also shift alignment).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    7,
+    8
+   ],
+   "confidence": 0.95,
+   "reasoning": "C7 and C8 both flag the positional zip of error_ids with events.values()."
+  },
+  {
+   "comment": "Hardcoded empty data passed to TableWidgetVisualization causes it to always render an empty table instead of displaying actual results when the feature flag is enabled.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 flags the empty columns and data passed to TableWidgetVisualization."
+  },
+  {
+   "comment": "Validation logic incorrectly uses .get('timestamp'), which treats a timestamp of 0 as absent. It should directly check 'timestamp' in self.initial_data to ensure proper field presence detection, preventing both 'age=0' and 'timestamp' from passing mutual-exclusion validation.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 flags the truthiness check that treats 0 as absent and suggests using an 'in' check instead."
+  },
+  {
+   "comment": "Analytics events are recorded before the feature flag check, resulting in analytics being logged for all requests, including those that return 404 due to the feature being disabled. This can lead to misleading analytics data.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    13
+   ],
+   "confidence": 0.95,
+   "reasoning": "C13 flags that analytics are recorded before the feature flag check."
+  }
+ ],
+ "candidates": [
+  "src/sentry/issues/endpoints/browser_reporting_collector.py:50 - The checks that age and timestamp are mutually exclusive use truthiness, so a value of 0 counts as absent.. `self.initial_data.get(\"age\")` and `.get(\"timestamp\")` are falsy when the value is 0, and `age: 0` is a normal value for a report that is sent right away. So a report with `age: 0` and a timestamp passes both validators even though it sets both fields. A report with neither field is also accepted, because neither field-level validator runs. Use `\"age\" in self.initial_data` and `\"timestamp\" in self.initial_data`. Also add an object-level `validate` that requires exactly one of the two.",
+  "static/app/views/dashboards/widgetCard/chart.tsx:164 - Behind the feature flag, the table widget always renders with no columns and no data.. When `use-table-widget-visualization` is on, `TableWidgetVisualization` gets `columns={[]}` and empty `tableData`. `result.data`, `result.meta`, the loading state and the widget fields are all ignored. Every table widget for orgs with this flag shows an empty table. Map `fields`/`result.meta` to columns and pass `result.data`, or keep the flag off until the wiring is done.",
+  "static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/attributes.tsx:65 - Hidden attributes are filtered only when a search query is present.. `HIDDEN_ATTRIBUTES` is checked only inside the search branch. When `searchQuery` is empty, the memo returns `sorted` early, so `is_segment`, `project_id` and `received` still show in the default view. That is the normal case. Filter hidden attributes before the empty-query early return, for example `const sorted = sortAttributes(attributes).filter(a => !HIDDEN_ATTRIBUTES.includes(a.name));`, and keep only the search match in this filter.",
+  "src/sentry/migrations/0917_convert_org_saved_searches_to_views.py:14 - Migration 0917 made a no-op and its test deleted, without the replacement migration in this PR.. The SavedSearch→GroupSearchView conversion is removed and `tests/sentry/migrations/test_0917_...` is deleted. The comment points to a 0921 migration that this PR does not add. Nothing in the replay bulk-delete request covers changing past data migrations. Any environment that has not applied 0917 or 0920 loses the conversion silently. Move this to its own PR together with the 0921 migration that replaces it.",
+  "src/sentry/migrations/0920_convert_org_saved_searches_to_views_revised.py:13 - Saved-search migration made a no-op, but the 0921 migration it points to is not in this PR.. This change turns the data migration into a no-op (`return`). The new comment says `0921_convert_org_saved_searches_to_views_rerevised.py` does the conversion instead, but that file is not in the CHANGES list. On any database where 0920 has not run yet, organization-visible saved searches will now never become GroupSearchViews. The PR is about replay bulk delete and gives no reason to change this. Either add the 0921 migration in the same PR or keep 0920 as it was. I could not check whether 0921 already exists on the base branch.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:70 - The Snuba query for error IDs is unguarded and runs even when error context is disabled, so a Snuba failure breaks the whole summary.. `query_replay_instance` and `process_raw_response` run before the `enable_error_context` check and outside any try/except. If Snuba times out or errors, the endpoint returns a 500, even though the error context only adds to the summary. `fetch_error_details` swallows nodestore failures, but this query has no such protection. It also runs, and can fail, when the caller passes `enable_error_context=false`.\n\nFix: skip the query when error context is disabled. Otherwise wrap it in try/except, report the exception with `sentry_sdk.capture_exception`, and fall back to an empty `error_ids` list.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:107 - Error IDs are paired with nodestore results by position instead of by key.. `nodestore.backend.get_multi` returns a mapping keyed by node id. The code zips `error_ids` with `events.values()`, so it assumes the mapping keeps the request order and holds an entry for every id. If a backend drops missing ids or returns them in another order (cache hits merged with misses, for example), errors get the wrong id, title or message attached. The fix is to look each one up by key: `data = events.get(node_id)` for each `(event_id, node_id)` pair.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:118 - Error IDs are paired with nodestore results by position, so a missing event can give errors the wrong IDs.. `events` is a dict keyed by node ID. The code pairs it with `error_ids` by position using `zip(error_ids, events.values())`. If the nodestore backend leaves a missing or expired node out of the dict, or returns keys in a different order, every later error gets the wrong `id`, and a trailing error is dropped. The `if data is not None` filter only works if every missing ID comes back as `None` in order. I could not check what `get_multi` returns for missing nodes.\n\nFix: look up each result by its own node ID, e.g. `for event_id, node_id in zip(error_ids, node_ids): data = events.get(node_id); if data is not None: ...`.",
+  "src/sentry/replays/endpoints/project_replay_summarize_breadcrumbs.py:153 - Error timestamps in seconds are compared with replay event timestamps in milliseconds.. `fetch_error_details` takes `timestamp` from the nodestore event payload, which is a float in seconds. Replay recording events (rrweb) carry `timestamp` in milliseconds. So `error_events[error_idx][\"timestamp\"] < event.get(\"timestamp\", 0)` is true for every error at the first event that has a timestamp. All errors get emitted at the start of the log instead of in time order, and the 'chronological' merge does nothing. The timestamp printed in each error message is also in a different unit from the rest of the log. To fix, convert one side so both use the same unit, for example multiply the error timestamp by 1000 when building `ErrorEvent`.",
+  "src/sentry/workflow_engine/endpoints/validators/base/detector.py:37 - The detector owner is not checked against the detector's organization.. `ActorField` turns a `user:<id>` or `team:<id>` string into an Actor, but nothing here checks that the user is a member of the organization or that the team belongs to it. In create and update, any team or user id is written straight to `owner_team_id`/`owner_user_id`, so a client can assign a detector to a team or user in another organization. Other owner-capable serializers (alert rules, for example) check this. Add a `validate_owner` that rejects teams outside `self.context[\"organization\"]` and users who are not members of it.",
+  "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx:39 - Attribute-keys cache key leaves out the organization.. The old `useApiQuery` key contained the URL `/organizations/${slug}/trace-items/attributes/`. The new key is only `['use-trace-item-attribute-keys', queryOptions]`, and `queryOptions` holds item type, attribute type, project IDs and datetime but not the org slug. The trigger is switching organizations without reloading the page while the query client survives. If both orgs have the same project selection (for example the default empty `[]` = all projects) and the same period, the second org is served the first org's attribute keys from the cache. The fix is to add `organization.slug` to the query key.",
+  "static/app/views/explore/hooks/useTraceItemAttributeKeys.tsx:50 - Rewrite drops `retry: false`, `refetchOnWindowFocus: false` and `staleTime: 0` from the attribute-keys query.. The old `useApiQuery` call set `retry: false`, `refetchOnWindowFocus: false` and `staleTime: 0`. The new `useQuery` call sets none of them, so it falls back to the app's query-client defaults.\n\nWhat goes wrong:\n- When `/trace-items/attributes/` fails (for example a 400 for an unsupported project or item type, or a timeout), the request is now retried several times with backoff. The search bar stays in `isLoading` the whole time instead of failing at once.\n- Each time the window regains focus, the request may be sent again. Because `isLoading` is now `isFetching`, the loading state flickers on every refetch.\n- Without `staleTime: 0`, the data may also be cached differently than before.\n\nI could not see the app's query-client defaults, so the exact retry count and refetch behaviour are not confirmed. Fix: put the old options back on the `useQuery` call.",
+  "src/sentry/preprod/api/endpoints/organization_preprod_artifact_assemble.py:81 - The analytics event is recorded before the feature check.. `preprod_artifact.api.assemble` is recorded for every request, including ones rejected with 404 because the feature is off. That inflates the usage numbers. Move the call after the `features.has` check.",
+  "static/app/views/performance/newTraceDetails/traceTabsAndVitals.tsx:93 - Replacing Container with Flex drops align-items center and the gap.. The removed `Container` came from `FlexBox`, so it set `align-items: center` and `gap: space(1)` as well as `justify-content: space-between`. The new `Flex` sets only `justify`, so the tabs and vitals are no longer centred vertically or spaced. The second group in `Placeholder` (line 27) lost the same `align`/`gap`. Add `align=\"center\" gap={space(1)}` to restore the old layout."
+ ]
+}

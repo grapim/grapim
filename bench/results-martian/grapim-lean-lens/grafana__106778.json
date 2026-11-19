@@ -1,0 +1,117 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__106778",
+ "url": "https://github.com/grafana/grafana/pull/106778",
+ "head_sha": "8df850371034b73dc4dd9908cc30fa09f12a1f97",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:27:07.875Z",
+ "seconds": 41.476,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "public/app/features/alerting/unified/hooks/useAbilities.ts",
+   "line": 242,
+   "end_line": 245,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "Federated rule groups are no longer treated as immutable in the legacy abilities hook.",
+   "body": "`useAllAlertRuleAbilities(CombinedRule)` used to compute `isFederated = isFederatedRuleGroup(rule.group)`, and that value made federated Mimir groups immutable. It now delegates to `useAllRulerRuleAbilities`, which hardcodes `isFederated = false`. In the existing list and detail views, a rule from a federated Mimir group (one with `source_tenants`) now gets Update, Delete and Pause abilities. Users can then edit or delete rules the UI deliberately protected, and saving the group through the UI can drop its federation settings. Keep the federated check in `useAllAlertRuleAbilities`, for example by passing `isFederatedRuleGroup(rule.group)` into the shared hook as a parameter, until the ruler-based hook can work it out itself."
+  },
+  {
+   "path": "public/app/features/alerting/unified/hooks/useAbilities.ts",
+   "line": 308,
+   "end_line": 308,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "With skipToken, the Grafana prom-rule ability still reports Duplicate as supported.",
+   "body": "`useGrafanaPromRuleAbilities(skipToken, ...)` calls `useAllGrafanaPromRuleAbilities(undefined)`. When `rule` is undefined, `useIsGrafanaPromRuleEditable` returns `loading: false`, so `MaybeSupported` is `AlwaysSupported` and `duplicateSupported` is too. That makes Duplicate `[true, hasCreatePermission]`. `AlertRuleMenu` combines the ruler and Grafana checks with OR, so Duplicate appears for every cloud/Mimir rule (where skipToken is passed) whenever the user has `alert.rules:create`. This happens even when the ruler check says it isn't supported, for example when the ruler is unavailable or still loading, or when the rule is plugin-provided. Fix: when `rule` is undefined, return `NotSupported` for every action. For example, set `const MaybeSupported = !rule || loading ? NotSupported : AlwaysSupported;`."
+  },
+  {
+   "path": "public/app/features/alerting/unified/rule-list/FilterView.tsx",
+   "line": 157,
+   "end_line": 161,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The `key` prop was dropped from the Grafana list item rendered inside `rules.map`.",
+   "body": "The old `GrafanaRuleLoader` element received `key={key}`. The new `GrafanaRuleListItem` gets no key, even though `key` is still destructured from `ruleWithOrigin` and the sibling branches still pass it. React will warn, and it will match items by position. As more pages load or filters change, rows can keep the state of the wrong rule, such as an open silence drawer, delete modal or clone redirect in `RuleActionsButtons`. Add `key={key}` back."
+  },
+  {
+   "path": "public/app/features/alerting/unified/rule-list/GrafanaGroupLoader.test.tsx",
+   "line": 191,
+   "end_line": 207,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The new list view loses the Delete and Pause actions, and the test locks that in.",
+   "body": "The test grants AlertingRuleDelete and AlertingRuleUpdate on the folder, then asserts that the menu holds exactly 4 items: silence, copy link, duplicate and export. Delete and Pause are missing because the list view no longer loads a `rulerRule`, and `AlertRuleMenu` builds the pause and delete items only from `rulerRule` (`handleDelete` needs a `RulerRuleDTO`). Users who have permission to delete or pause a Grafana rule can no longer do it from the list, even though `canDelete` and `canPause` are now computed from the Prometheus rule. Either support delete and pause using the Prometheus rule identifier, or state the removal explicitly. The test should not assert an item count that hides the regression."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 8,
+  "cacheWrite": 153913,
+  "cacheRead": 14108,
+  "output": 11286,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 14,
+   "hunks": 26,
+   "reviewedHunks": 22,
+   "aiHunks": 0,
+   "skippedHunks": 4,
+   "inputTokens": 168029,
+   "outputTokens": 11286,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "public/app/features/alerting/unified/rule-list/GrafanaRuleLoader.tsx",
+    "reason": "file deleted (no new lines to comment on)"
+   },
+   {
+    "path": "public/app/features/alerting/unified/rule-list/hooks/prometheusGroupsGenerator.ts",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "public/locales/en-US/grafana.json",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "public/app/features/alerting/unified/components/rule-viewer/AlertRuleMenu.tsx",
+    "line": 83,
+    "end_line": 100,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Combining the ruler and Prometheus checks with OR lets the less strict check override the immutability check.",
+    "body": "When both `rulerRule` and a Grafana `promRule` are passed, as in the rule viewer, each action is allowed if either the ruler check or the Prometheus check allows it. The ruler path blocks provisioned and plugin-provided rules using `grafana_alert.provenance` and the ruler labels. The Prometheus path relies on the newly typed `promRule.provenance` and on `isPluginProvidedRule(promRule)`. If the Prometheus rules API does not return `provenance`, or the plugin-origin label differs, a provisioned rule is allowed to pause and delete because the Prometheus check says yes, even though the ruler check says no. I could not confirm that the Prometheus endpoint returns `provenance`. Use the Prometheus abilities only when `rulerRule` is absent, instead of OR-ing the two. The same applies to `canEditRule` in `RuleActionsButtons.V2`."
+   }
+  ]
+ },
+ "cost_usd": 0.9981386
+}

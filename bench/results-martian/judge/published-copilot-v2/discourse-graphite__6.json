@@ -1,0 +1,25 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The include_website_name method is missing the required ? suffix. Rails serializers expect include_ methods to end with ? for conditional attribute inclusion, a convention followed by other methods in this serializer. Without it, the website_name attribute may not be conditionally included as intended. Additionally, the '.' << website_host string concatenation should be replaced with '.' + website_host or '.#{website_host}' to avoid mutating string literals, which can lead to issues.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out the same missing `?` suffix on include_website_name and that the attribute won't be included conditionally as intended. The string mutation part of the golden comment isn't covered by any candidate, but the main issue is the same."
+  }
+ ],
+ "candidates": [
+  "`include_website_name` is missing the `?`, so ActiveModel::Serializer won't treat it as an include-guard, causing `website_name` to be serialized unconditionally even when `restrict_user_fields?` is true, which can leak the user's website for TL0 users seen by anonymous",
+  "`website_name` repeatedly reparses the URL (`URI(website.to_s)` is called multiple times) causing repeated work",
+  "`website_name` uses a broad `rescue nil` which can hide unexpected errors - should rescue `URI::InvalidURIError` specifically for better robustness",
+  "Host comparison doesn't normalize hosts, which can cause case-sensitivity surprises"
+ ]
+}

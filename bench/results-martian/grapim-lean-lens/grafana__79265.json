@@ -1,0 +1,134 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "head_sha": "bbd8c507cdf56f6b884373809e0b24abd4a2353d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:32:53.399Z",
+ "seconds": 47.764,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+   "line": 108,
+   "end_line": 118,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The limit check and the insert are not atomic, so concurrent new devices can exceed the limit.",
+   "body": "`CountDevices` runs in its own session, and the upsert runs later in a separate one. When the count is at limit-1, several new devices arriving at once (or across HA instances) all see the count below the limit and all insert. The limit is then exceeded by up to the number of concurrent requests. Do the count and the insert in one transaction with suitable locking, or use a conditional insert."
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/client.go",
+   "line": 44,
+   "end_line": 50,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "performance",
+   "title": "Device tagging now runs synchronously on every anonymous authentication.",
+   "body": "Device tagging used to run in a background goroutine with its own 2-minute timeout and a panic recover. Now `TagDevice` runs inline on the request's context. On a cache miss, an anonymous request now waits on a DB write, plus a COUNT query when a limit is set. Even with the default limit of 0, unlimited installs get the extra latency and DB load on the auth path. A panic inside tagging now reaches the request instead of being recovered. If the client cancels mid-request, the cancellation is logged as a tagging failure. Keep the async path when `deviceLimit == 0`, and only check synchronously when a limit is set, ideally as a cheap check before the write."
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+   "line": 83,
+   "end_line": 85,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The query is prepended to the captured `args` inside the session closure, so a retry corrupts the arguments.",
+   "body": "`args = append([]interface{}{query}, args...)` changes a variable from outside the closure. If `WithDbSession` runs the callback again (Grafana's sqlstore retries on SQLite \"database is locked\"), the second run prepends the query again. Exec then gets `[query, query, ip, ...]` and fails or binds the wrong values. Build the slice into a local variable inside the closure instead."
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+   "line": 95,
+   "end_line": 97,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "A zero RowsAffected can come from an existing device, not just a new one, so known devices get locked out.",
+   "body": "By default, MySQL reports rows *changed*, not rows *matched*. Suppose the limit is reached and an already-registered device sends a second request in the same second with the same IP and user agent. MySQL stores `updated_at` with second precision, so nothing changes and RowsAffected is 0. That existing device then gets `ErrDeviceLimitReached` and fails authentication. Decide whether the device exists with a SELECT, or treat 0 rows as \"not found\" only after confirming the device is absent."
+  },
+  {
+   "path": "pkg/services/anonymous/anonimpl/impl.go",
+   "line": 147,
+   "end_line": 147,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "TagDevice now returns every tagging error, and the error is ignored or fatal depending on the caller.",
+   "body": "Before this change, `TagDevice` logged a failure in `tagDeviceUI` and returned nil. Now every failure is returned, including DB errors and context cancellation. The anonymous client only special-cases `ErrDeviceLimitReached`. Any other caller of `anonymous.Service.TagDevice` that treats an error as fatal will now fail requests on a transient DB error. If `ErrDeviceLimitReached` is the only error that should change behaviour, return just that one and keep logging the rest."
+  },
+  {
+   "path": "packages/grafana-runtime/src/config.ts",
+   "line": 97,
+   "end_line": 97,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "other",
+   "title": "Field type is inferred as `undefined` instead of `number | undefined`.",
+   "body": "`anonymousDeviceLimit = undefined;` has no type annotation, so with strict null checks TypeScript infers the type `undefined`. That does not match the `number | undefined` declared in `GrafanaConfig` or the int64 the backend always sends. Code reading `config.anonymousDeviceLimit` cannot treat it as a number without a cast. The fix is to annotate the field explicitly."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 12,
+  "cacheWrite": 74239,
+  "cacheRead": 55560,
+  "output": 12560,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 11,
+   "hunks": 19,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 129811,
+   "outputTokens": 12560,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "pkg/services/anonymous/anonimpl/anonstore/database.go",
+    "line": 52,
+    "end_line": 53,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "New int64 parameter on ProvideAnonDBStore may break wire injection if the provider is still registered.",
+    "body": "`ProvideAnonDBStore` now takes `deviceLimit int64`, and `ProvideAnonymousDeviceService` now takes `db.DB` instead of `anonstore.AnonStore`. If `pkg/server/wire.go` still lists `anonstore.ProvideAnonDBStore` and binds `anonstore.AnonStore` to it, wire generation fails. Wire has no provider for a bare `int64`, and the binding becomes unused. I could not see the wire files, so I could not confirm this. The fix is to remove `ProvideAnonDBStore` and the `AnonStore` binding from the wire sets, since the service now builds the store itself."
+   },
+   {
+    "path": "pkg/services/anonymous/anonimpl/impl.go",
+    "line": 37,
+    "end_line": 43,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The constructor no longer takes the AnonStore through DI, and `ProvideAnonDBStore` now needs an int64 that the wire graph cannot supply.",
+    "body": "`ProvideAnonDBStore` now takes `(db.DB, int64)`, and the service builds its store itself instead of having `anonstore.AnonStore` injected. If the wire set still lists `anonstore.ProvideAnonDBStore` or binds `AnonStore`, wire generation fails because nothing provides an `int64`. I could not check this because wire.go is not shown. Also, any other consumer of the injected `AnonStore` would get a separate store that does not enforce the limit. Either remove the provider from wire, or read the limit from `*setting.Cfg` inside the provider."
+   }
+  ]
+ },
+ "cost_usd": 0.633555
+}

@@ -1,0 +1,33 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "Both say the code uses Error log level for debug output, which pollutes the error logs."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "Both point out that the cleanup ticker changed from 10 minutes to 1 minute, so cleanup runs more often."
+  }
+ ],
+ "candidates": [
+  "Cleanup log statements at line 534 use Error level for routine debug/informational output ('Annotations to clean by time', 'cleaned annotations by time'), which will pollute error logs and may trigger false alerts - should use Debug level instead",
+  "Cleanup scheduler ticker changed from 10 minutes to 1 minute, causing all cleanup jobs (snapshots, query history, short URLs, temp users, etc.) to run 10x more often instead of only changing annotation cleanup behavior"
+ ]
+}

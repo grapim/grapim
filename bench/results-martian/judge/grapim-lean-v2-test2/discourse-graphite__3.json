@@ -1,0 +1,41 @@
+{
+ "tool": "grapim-lean-v2-test2",
+ "pr_id": "discourse-graphite__3",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/3",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "BlockedEmail.should_block_email? method has side effects during a read operation - it updates statistics even when just checking if an email should be blocked. This could cause race conditions in concurrent environments and makes the method name misleading.",
+   "severity": "Medium",
+   "category": "concurrency",
+   "matches": [
+    2
+   ],
+   "confidence": 0.6,
+   "reasoning": "C2 points to the statistics update inside should_block (the match_count increment) and the race condition it causes when requests run at the same time. That is the same code and the same race concern G1 raises, though C2 doesn't object to a check method having side effects."
+  },
+  {
+   "comment": "The regex pattern @(#{domains}) in email_in_restriction_setting? method only matches domain suffixes, not full domains with proper boundary anchoring. An attacker can register evil.example.com to bypass a whitelist entry for example.com.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the domain regex in email_in_restriction_setting? or the whitelist bypass through subdomains."
+  },
+  {
+   "comment": "The case-sensitive email lookup in `BlockedEmail.should_block?` creates a bypass risk, allowing 'User@Example.com' to bypass a block on 'user@example.com'. This can lead to unauthorized access to blocked users.",
+   "severity": "Critical",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same issue: the blocked-email lookup is case-sensitive, so changing the letter case gets past the block."
+  }
+ ],
+ "candidates": [
+  "app/models/blocked_email.rb:11 - Blocked-email lookup is case-sensitive, so changing the letter case gets past the block.. `BlockedEmail.where(email: email)` is an exact, case-sensitive match. If `bad@spammers.org` is blocked, signing up as `Bad@Spammers.org` finds no record and the block is skipped. I can't see whether User lowercases the email before validation runs. If it doesn't, nothing here does. Fix: store blocked emails in lowercase and compare with `where('lower(email) = ?', email.to_s.downcase)`, or lowercase the email in both places.",
+  "app/models/blocked_email.rb:14 - The match_count increment can lose updates when signups overlap.. `record.match_count += 1; record.save` reads the count, adds one in Ruby and writes it back. When two signup attempts for the same blocked email run at once, both read the same value and one increment is lost. Use an atomic SQL update instead: `BlockedEmail.where(id: record.id).update_all(['match_count = match_count + 1, last_match_at = ?', Time.zone.now])`."
+ ]
+}

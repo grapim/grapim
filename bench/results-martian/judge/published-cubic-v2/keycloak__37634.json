@@ -1,0 +1,50 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "keycloak__37634",
+ "url": "https://github.com/keycloak/keycloak/pull/37634",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In AccessTokenContext constructor, the fourth Objects.requireNonNull validates grantType twice instead of validating rawTokenId, allowing null rawTokenId values to pass validation.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out the same copy-paste mistake: grantType is checked twice and rawTokenId is never validated."
+  },
+  {
+   "comment": "In isAccessTokenId, the substring for the grant shortcut and the equality check look inverted: the grant shortcut occupies indices 4–5 (substring(4,6)), and a match should return true (combined with UUID check), not false.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 identifies the same problem: the wrong substring is read and a match returns false."
+  },
+  {
+   "comment": "Javadoc mentions \"usually like 3-letters shortcut\" but some implementations use 2-letter shortcuts (\"ac\", \"cc\", \"rt\", \"te\", \"pc\", \"ci\", \"ro\"). Consider updating documentation to reflect actual usage pattern.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions the Javadoc saying shortcuts are 3 letters when implementations use 2."
+  },
+  {
+   "comment": " Catching generic RuntimeException is too broad. The implementation throws IllegalArgumentException specifically - catch that instead for more precise testing.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the test catching a broad RuntimeException."
+  }
+ ],
+ "candidates": [
+  "Copy-paste bug: the second `requireNonNull` checks `grantType` again instead of `rawTokenId`. A null `rawTokenId` will be silently accepted and likely cause a NullPointerException later when it's used.",
+  "The new access-token matcher rejects valid grant shortcuts because it reads the wrong substring and returns false on a match.",
+  "Make `getShortcut()` a default SPI method; adding it as abstract breaks existing custom grant factories on upgrade."
+ ]
+}

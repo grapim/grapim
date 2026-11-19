@@ -1,0 +1,64 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "grafana__79265",
+ "url": "https://github.com/grafana/grafana/pull/79265",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Race condition: Multiple concurrent requests could pass the device count check simultaneously and create devices beyond the limit. Consider using a database transaction or lock.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same race condition: the count is checked and then the insert happens, so concurrent requests can exceed the limit."
+  },
+  {
+   "comment": "Anonymous authentication now fails entirely if anonDeviceService.TagDevice returns ErrDeviceLimitReached. Previously, device tagging was asynchronous and non-blocking. This change prevents anonymous users from authenticating when the device limit is reached.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 says that ErrDeviceLimitReached is passed back up to Authenticate, which blocks anonymous authentication."
+  },
+  {
+   "comment": "The updateDevice function returns ErrDeviceLimitReached when rowsAffected == 0, but zero affected rows means the device doesn't exist or falls outside the time window, not that a limit was reached.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 describes the same misinterpretation: rowsAffected == 0 is treated as hitting the limit, even though it can mean the device doesn't exist or is outside the time window."
+  },
+  {
+   "comment": "Time window calculation inconsistency: Using device.UpdatedAt.UTC().Add(-anonymousDeviceExpiration) as the lower bound but device.UpdatedAt as the current time may not match the intended logic. Consider using time.Now().UTC() consistently.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mentions the inconsistent time window calculation."
+  },
+  {
+   "comment": "The `tagDeviceUI` function populates the local cache with the device ID before the `CreateOrUpdateDevice` call. If `ErrDeviceLimitReached` is returned, the cache entry remains set, allowing subsequent requests to bypass the device limit until the cache expires after 29 minutes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.85,
+   "reasoning": "C4 says the device is cached before the store write runs, so the limit can be bypassed. This is the same issue."
+  }
+ ],
+ "candidates": [
+  "The count-then-insert pattern has a TOCTOU race condition. Under concurrent load, multiple goroutines can read count < deviceLimit at the same moment and all proceed to insert, exceeding the limit",
+  "When the device limit is reached and a new (untracked) device tries to authenticate, updateDevice returns ErrDeviceLimitReached which propagates to client.go's Authenticate, returning nil and blocking anonymous access entirely. This means the device limit acts as a hard cap on anonymous authentication rather than just on device tracking",
+  "rowsAffected == 0 does not necessarily indicate the device limit was reached — the device may simply not exist in the DB, or its updated_at may be outside the BETWEEN window. Need to distinguish between 'device not found' and an actual limit-related condition",
+  "Propagating this error makes device-limit enforcement bypassable after the first rejected request because the device is cached before the store write runs",
+  "Add device_limit to the shipped [auth.anonymous] config files; otherwise the new setting cannot be overridden via GF_AUTH_ANONYMOUS_DEVICE_LIMIT and silently falls back to 0"
+ ]
+}

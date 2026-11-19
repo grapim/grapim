@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "commandprompt__pgcolumnar__2040",
+ "url": "https://github.com/commandprompt/pgcolumnar/pull/2040",
+ "head_sha": "f20ab5e83d94a55f133293cfa8f8e58de07cde65",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:40:45.289Z",
+ "seconds": 42.07,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 20647,
+  "cacheRead": 24320,
+  "output": 3892,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 10,
+   "reviewedHunks": 10,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 44971,
+   "outputTokens": 3892,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/columnar_arrow.c",
+    "line": 1661,
+    "end_line": 1662,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Arrow UTF-8 bytes are checked against the database encoding, not decoded from UTF-8.",
+    "body": "Arrow UTF8 values are always UTF-8, but this check runs them through the database encoding's verifier. In a database that is not UTF8, that gives wrong results both ways:\n\n- **Valid text is refused.** In an EUC_JP database, `日` (bytes `e6 97 a5`) fails `pg_eucjp_verifychar`, because the second byte `0x97` is outside `a1..fe`. Before this change the value imported; now the import fails with 22021, \"invalid byte sequence\".\n- **Wrong text is accepted.** In a LATIN1 database, any UTF-8 passes and is stored as mojibake.\n\nSo the new check turns a silent mis-decode into a hard failure for some valid files, and the error blames the file's bytes when the real problem is the missing UTF-8-to-server conversion.\n\n**Fix:** verify the value as UTF-8 with `pg_encoding_verifymbstr(PG_UTF8, ...)`. When the database encoding is not UTF8, convert the value with `pg_any_to_server(s, len, PG_UTF8)` before the input function runs.\n\nI could not see whether `pq_text_cell_ok` makes the same choice; if it does, both readers share this limitation."
+   }
+  ]
+ },
+ "cost_usd": 0.185955
+}

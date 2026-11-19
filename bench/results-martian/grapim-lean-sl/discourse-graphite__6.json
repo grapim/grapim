@@ -1,0 +1,68 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "head_sha": "267d8be1f556ed59639ced396c885bb44586da19",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:36:58.371Z",
+ "seconds": 23.974,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/serializers/user_serializer.rb",
+   "line": 153,
+   "end_line": 155,
+   "severity": "nit",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`include_website_name` is missing the `?`, so ActiveModel::Serializer never calls it.",
+   "body": "ActiveModel::Serializer only looks for `include_<attr>?` methods, and the rest of this file uses that form (for example `include_card_image_badge_id?`). Because this method has no `?`, it is never called. `website_name` is then serialized for every user, as `null` when no website is set, and the filter has no effect. Rename it to `include_website_name?`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 5007,
+  "cacheRead": 3262,
+  "output": 1461,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 6,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 8271,
+   "outputTokens": 1461,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "app/assets/javascripts/discourse/controllers/user.js.es6",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0549154
+}

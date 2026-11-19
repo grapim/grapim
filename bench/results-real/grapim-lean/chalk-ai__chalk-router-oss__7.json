@@ -1,0 +1,151 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "chalk-ai__chalk-router-oss__7",
+ "url": "https://github.com/chalk-ai/chalk-router-oss/pull/7",
+ "head_sha": "2666b3b115fb46f49408349fd4d101a2aea1856a",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:12:51.085Z",
+ "seconds": 45.99,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "ui/src/app/tokens/Quickstart.tsx",
+   "line": 80,
+   "end_line": 80,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Quickstart code still asks for the removed 'Everett Mono' font.",
+   "body": "This PR deletes the TWKEverettMono font files and switches the UI to JetBrains Mono. The Quickstart code block, its language label, and the Base URL and Auth header snippets still set `fontFamily: \"'Everett Mono', monospace\"` on unchanged lines 62, 81, 217 and 234. Those lines sit next to the colors this hunk recolors. Unless `globals.css` still defines an `Everett Mono` @font-face alias (I could not check that file), these snippets fall back to the browser's default monospace font instead of JetBrains Mono. Fix: replace the four inline font stacks with the new mono token or `font-mono`, or with `'JetBrains Mono', monospace`."
+  },
+  {
+   "path": "ui/src/app/providers/ProvidersClient.tsx",
+   "line": 222,
+   "end_line": 239,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "intent_mismatch",
+   "title": "Three provider brand colors were changed even though the PR says provider colors are left alone.",
+   "body": "The PR description says the codemod leaves brand palettes alone, provider chip colors included. In `PROVIDER_COLORS`, though, the `openai`, `bedrock` and `openai-compatible` `bg` values were swapped for status-tone tokens. Every other provider keeps its hex brand background. So these three connections now use the generic green, yellow and neutral status fills instead of their brand tint, and they no longer match the other providers. The codemod probably caught them only because their hex values happened to equal old status chip colors. Put the original hex values back (`#052e16`, `#2a1a00`, `#1f2937`) so all brand colors are handled the same way."
+  }
+ ],
+ "usage": {
+  "requests": 6,
+  "input": 14,
+  "cacheWrite": 331893,
+  "cacheRead": 66248,
+  "output": 7679,
+  "models": {
+   "claude-opus-5-5": 6
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 53,
+   "hunks": 73,
+   "reviewedHunks": 71,
+   "aiHunks": 0,
+   "skippedHunks": 2,
+   "inputTokens": 398155,
+   "outputTokens": 7679,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 44,
+   "reviewedAiHunks": 0,
+   "requests": 6,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 4,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "ui/public/fonts/InterVariable.ttf",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/JetBrainsMonoVariable.ttf",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverett-Bold-web.woff2",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverett-Light-web.woff2",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverett-Medium-web.woff2",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverett-Regular-web.woff2",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverettMono-Medium.ttf",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/public/fonts/TWKEverettMono-Regular.ttf",
+    "reason": "binary file"
+   },
+   {
+    "path": "ui/src/components/Sidebar.tsx",
+    "reason": "file deleted (no new lines to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "ui/src/components/AppShell.tsx",
+    "line": 104,
+    "end_line": 104,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Unguarded decodeURIComponent can crash the whole app shell.",
+    "body": "`breadcrumbsFor` calls `decodeURIComponent(id)` on the second path segment while rendering. If that segment holds a malformed escape, for example `/keys/abc%E0%A4` or an id that contains a literal `%` after the path has been decoded, it throws `URIError`. Because `Breadcrumbs` sits in the shell around every page, the error takes down the shell (rail, header and page) instead of only the breadcrumb. I could not check whether Next.js rejects such URLs before this client code runs. Fix: wrap the decode in a try/catch and fall back to the raw segment."
+   },
+   {
+    "path": "ui/src/components/router/RouterPrimitives.tsx",
+    "line": 91,
+    "end_line": 91,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "StatusBadge builds `badge-${tone}` class names that may not exist for every tone, such as `badge-yellow`.",
+    "body": "StatusBadge used to hard-code a colour pair for each tone. It now builds the class name from the tone: `badge-neutral`, `badge-green`, `badge-yellow` or `badge-red`. The PR description says the chips now use status tones named red/green/amber/blue. If `globals.css` defines `.badge-amber` but not `.badge-yellow`, every badge with `tone=\"yellow\"` gets only the base `.badge` style and loses its warning colour. I could not see `globals.css` to confirm which tone classes it defines. Map the tones to known class names explicitly (for example `{ neutral: \"badge-neutral\", green: \"badge-green\", yellow: \"badge-amber\", red: \"badge-red\" }[tone]`), or make sure `.badge-yellow` exists."
+   },
+   {
+    "path": "ui/src/app/telemetry/page.tsx",
+    "line": 290,
+    "end_line": 291,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Disabled styling may be lost when the buttons switch to `.btn` classes.",
+    "body": "The old buttons had `disabled:opacity-50`. The new `btn btn-secondary btn-md` and `btn btn-primary btn-md` classes drop it. The same happens to the Issue Token submit button in IssueTokenForm.tsx. If the `.btn` recipe in globals.css has no `:disabled` style (I could not check), Test configuration, Save exporter and Issue Token look clickable while a request is running or the name is empty. Fix: make sure `.btn:disabled` sets reduced opacity and `cursor: not-allowed`, or keep `disabled:opacity-50` on these buttons."
+   },
+   {
+    "path": "ui/src/app/tokens/TokensClient.tsx",
+    "line": 221,
+    "end_line": 221,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Save button loses its disabled styling and size class.",
+    "body": "The old classes included `disabled:opacity-50` and explicit padding. The replacement is only `btn btn-primary`. Every other converted button adds `btn-md`, and this one does not. Unless `.btn` sets a default size and a `:disabled` style in globals.css (not shown here), the Save button shows no visible change while `saving` is true and may render without padding. Add `btn-md`, and make sure `.btn:disabled` is styled."
+   }
+  ]
+ },
+ "cost_usd": 1.8263506
+}

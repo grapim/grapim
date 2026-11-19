@@ -11,6 +11,7 @@ Judge for the "our judge" rows: claude-opus-5-5, one request per PR. "published"
 | grapim-lean | our judge | 50 | 3.9 | 48.4% (91/188) | 57.6% (91/158) | 52.6% |
 | grapim-lean-r2 | our judge | 50 | 3.4 | 50.6% (85/168) | 53.8% (85/158) | 52.1% |
 | grapim-lean-r3 | our judge | 50 | 3.9 | 45.9% (89/194) | 56.3% (89/158) | 50.6% |
+| grapim-lean-sl | our judge | 50 | 3.2 | 52.5% (84/160) | 53.2% (84/158) | 52.8% |
 | bugbot | our judge | 50 | 2.5 | 56.8% (71/125) | 44.9% (71/158) | 50.2% |
 | bugbot | published | 50 | 2.6 | 56.9% (74/130) | 46.8% (74/158) | 51.4% |
 | claude-code | our judge | 50 | 3.2 | 44.1% (67/152) | 42.4% (67/158) | 43.2% |
@@ -31,6 +32,7 @@ Judge for the "our judge" rows: claude-opus-5-5, one request per PR. "published"
 | grapim-lean | our judge | 50 | 3.9 | 50.0% (97/194) | 56.1% (97/173) | 52.9% |
 | grapim-lean-r2 | our judge | 50 | 3.4 | 51.7% (89/172) | 51.4% (89/173) | 51.6% |
 | grapim-lean-r3 | our judge | 50 | 3.9 | 47.2% (94/199) | 54.3% (94/173) | 50.5% |
+| grapim-lean-sl | our judge | 50 | 3.2 | 53.7% (88/164) | 50.9% (88/173) | 52.2% |
 | bugbot | our judge | 50 | 2.5 | 57.8% (74/128) | 42.8% (74/173) | 49.2% |
 | bugbot | published | 50 | 2.6 | 58.2% (78/134) | 45.1% (78/173) | 50.8% |
 | claude-code | our judge | 50 | 3.2 | 46.2% (73/158) | 42.2% (73/173) | 44.1% |

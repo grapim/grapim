@@ -1,0 +1,104 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "head_sha": "bb75657fc8f13923c1d7983f422290908a1e7310",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T15:30:34.949Z",
+ "seconds": 35.016,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "tests/sentry/integrations/github/test_integration.py",
+   "line": 388,
+   "end_line": 396,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "test_installation_not_found no longer tests the 404 path.",
+   "body": "The test now sends a `state` (`ddd023...`) that does not match the pipeline signature. `OAuthLoginView` therefore rejects the request before `build_integration` runs, so the stubbed 404 for `/app/installations/{id}` is never hit. The old assertion that 'The GitHub installation could not be found.' appears was replaced with the generic state-mismatch message. The test passes without checking the not-found handling it is named for. Use the valid state and stub the OAuth calls (for example with `_stub_github()` followed by the 404 replace). Then step through to the installation and keep the original assertion."
+  },
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 501,
+   "end_line": 505,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Direct indexing of `metadata[\"sender\"][\"login\"]` can crash with a KeyError.",
+   "body": "This path runs when an `Integration` row exists but has no `OrganizationIntegration`. A common example is a GitHub integration that was removed from its Sentry org and is now being reinstalled. Rows created through `build_integration`, or before this change, may have no `sender` key in their metadata. `integration.metadata[\"sender\"][\"login\"]` then raises a KeyError, and the user gets a 500 page instead of the error dialog. I couldn't see whether every existing row stores `sender`. Read it with `.get()` and send a missing sender to `error(...)`."
+  },
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 141,
+   "end_line": 141,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "other",
+   "title": "Error strings passed to `_()` as a variable are no longer picked up for translation.",
+   "body": "The short error messages used to be literal `_(\"GitHub installation pending deletion.\")` and `_(\"Github installed on another Sentry organization.\")` calls, so makemessages picked them up for translation. Now plain strings are passed into `error()` and wrapped with `_(error_short)` at runtime. makemessages cannot find strings passed to `_()` through a variable, so these messages and the new default \"Invalid installation request.\" will drop out of the translation catalog.\n\nFix: wrap the literals with `_()` where they are written (the call sites and the default value) and use `error_short` as given inside `error()`."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 8,
+  "cacheWrite": 59857,
+  "cacheRead": 14108,
+  "output": 8490,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 73973,
+   "outputTokens": 8490,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/sentry/integrations/github/integration.py",
+    "line": 434,
+    "end_line": 436,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Errors from `get_user_info` are not caught, so the user gets a 500 instead of the error page.",
+    "body": "`get_user_info(access_token)` calls the GitHub `/user` API. If GitHub returns an error or the token is rejected, the helper probably raises (for example an identity or API error) rather than returning a dict without `login`. I could not check how `get_user_info` handles errors. If it does raise, the exception escapes the view and the user sees a 500 instead of the 'Invalid installation request' dialog. Fix: wrap the call in a `try` and return `error(request, self.active_organization)` when it fails."
+   },
+   {
+    "path": "src/sentry/integrations/github/integration.py",
+    "line": 423,
+    "end_line": 436,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Network failures in the token exchange cause a 500 instead of the error page.",
+    "body": "`safe_urlopen` sits outside the `try`. If the call to GitHub's `access_token` endpoint fails with a timeout or connection error, the exception escapes and the user gets a 500 instead of the 'Invalid installation request' dialog. `get_user_info` can also raise when GitHub returns a non-200 response, for example a revoked token. Put both calls inside the try/except and return `error(request, self.active_organization)` when they fail."
+   }
+  ]
+ },
+ "cost_usd": 0.4719386
+}

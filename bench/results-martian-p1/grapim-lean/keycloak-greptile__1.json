@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/keycloak-greptile/pull/1",
+ "head_sha": "3214b188de808fdb0fff335556b686f1b0a63218",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:31:13.388Z",
+ "seconds": 63.02,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java",
+   "line": 160,
+   "end_line": 162,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "The passkey check has the user condition backwards: passkeys are off for anonymous login and on for every identified user.",
+   "body": "`isConditionalPasskeysEnabled` returns true only when `user != null`. Before this change, `authenticate()` (else branch) and `challenge(context, error, field)` filled the WebAuthn form only when no user was selected. Now both call sites skip `fillContextForm` on the normal first login, where `context.getUser()` is null. So a realm with passkeys enabled no longer shows the conditional passkey UI on the login page, and passkey users cannot log in there. This also contradicts the tests' check that `//form[@id='webauth']` exists on the first login page.\n\nThe reverse is also wrong: once a user is identified (re-authentication, or a user set by an earlier step), the passkey UI is shown even if that user has no passkey credential.\n\nThe condition should allow the anonymous case and, for an identified user, require a configured passkey credential."
+  },
+  {
+   "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernameForm.java",
+   "line": 47,
+   "end_line": 47,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "With passkeys enabled, the username form no longer skips users who are already identified, including users without a passkey.",
+   "body": "Before, when `context.getUser()` was set and the user had no linked brokers, `UsernameForm` called `context.success()` and the form was skipped. Now, whenever realm passkeys are enabled, every already-identified user sees the username form again. That includes users with no passkey credential, and flows where an earlier authenticator (identity-first, organization, a custom step) set the user during first login rather than during re-authentication. The form is only needed when the user actually has a passkey to re-authenticate with. Pass `context.getUser()` and use a check that verifies the user has a passkey configured.\n\nThe no-argument `isConditionalPasskeysEnabled()` is not defined in the hunks shown, so I could not confirm what it checks. If it does not exist, this line will not compile."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 23093,
+  "cacheRead": 3561,
+  "output": 3730,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 9,
+   "hunks": 18,
+   "reviewedHunks": 18,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 26656,
+   "outputTokens": 3730,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "services/src/main/java/org/keycloak/authentication/authenticators/browser/WebAuthnConditionalUIAuthenticator.java",
+    "line": 64,
+    "end_line": 67,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "security",
+    "title": "Re-authentication now accepts any discoverable passkey, not only the current user's.",
+    "body": "Because this override returns false, `fillContextForm` sends `IS_USER_IDENTIFIED=false` and no `ALLOWED_AUTHENTICATORS`, even when `context.getUser()` is the user being re-authenticated (for example with prompt=login). The browser can then offer any discoverable passkey for the RP. Whether the action step rejects an assertion whose user handle maps to a different user than `context.getUser()` is outside the code shown. If it does not, a `prompt=login` re-authentication can be completed with another account's passkey and the authenticated user is silently switched. The action should check that the resolved user matches the pre-set user when `USER_SET_BEFORE_USERNAME_PASSWORD_AUTH` is set."
+   }
+  ]
+ },
+ "cost_usd": 0.19078520000000002
+}

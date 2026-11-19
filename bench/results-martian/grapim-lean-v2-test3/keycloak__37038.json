@@ -1,0 +1,82 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__37038",
+ "url": "https://github.com/keycloak/keycloak/pull/37038",
+ "head_sha": "7355f05e6aafe2a7acc6434fb40c686665416606",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:18:53.719Z",
+ "seconds": 42.318,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "services/src/main/java/org/keycloak/services/resources/admin/permissions/GroupPermissionsV2.java",
+   "line": 65,
+   "end_line": 71,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "canManage() lets callers with only the VIEW scope on groups manage them",
+   "body": "`canManage()` falls back to `hasPermission(null, VIEW, MANAGE)`. Any admin who was given only the `view` scope on all groups therefore passes `requireManage()`. That check guards operations such as creating top-level groups. A read-only group permission becomes a write permission. The fix is to check only `AdminPermissionsSchema.MANAGE` here, as `canManage(GroupModel)` already does. The javadoc on `GroupPermissionEvaluator.canManage()` describes the same wrong rule and needs the same correction."
+  },
+  {
+   "path": "services/src/main/java/org/keycloak/services/resources/admin/permissions/GroupPermissionsV2.java",
+   "line": 121,
+   "end_line": 125,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "getGroupIdsWithViewPermission returns resource IDs, not group IDs",
+   "body": "In V2 a group's authz resource is named after the group ID (see `resolveGroup`), and the resource's own ID is a different value. This loop passes `groupResource.getId()` to `hasPermission`, which looks the resource up by name, so the lookup misses and the check falls back to the all-groups resource. The loop then adds the resource ID to the result set. Callers put this set into `UserModel.GROUPS` and pass it to `getUsersCount`, so per-group VIEW_MEMBERS/MANAGE_MEMBERS grants never match real group IDs. User search filtering and user counts are then wrong for admins whose access comes from those grants. The set may also include the all-groups type resource itself. The fix is to use `groupResource.getName()` both for the permission check and for the value added to the set."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 41456,
+  "cacheRead": 3262,
+  "output": 3368,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 19,
+   "hunks": 32,
+   "reviewedHunks": 27,
+   "aiHunks": 0,
+   "skippedHunks": 5,
+   "inputTokens": 44720,
+   "outputTokens": 3368,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 17,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "server-spi-private/src/main/java/org/keycloak/models/utils/ModelToRepresentation.java",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "tests/base/src/test/java/org/keycloak/tests/admin/authz/fgap/UserResourceTypeEvaluationTest.java",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2753004
+}

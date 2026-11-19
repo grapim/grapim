@@ -1,0 +1,52 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "keycloak__37634",
+ "url": "https://github.com/keycloak/keycloak/pull/37634",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In AccessTokenContext constructor, the fourth Objects.requireNonNull validates grantType twice instead of validating rawTokenId, allowing null rawTokenId values to pass validation.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points to the same bug: grantType is checked twice and rawTokenId is never validated."
+  },
+  {
+   "comment": "In isAccessTokenId, the substring for the grant shortcut and the equality check look inverted: the grant shortcut occupies indices 4–5 (substring(4,6)), and a match should return true (combined with UUID check), not false.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 identifies the inverted equality check in isAccessTokenId. It does not mention the substring indices, but the core issue is the same."
+  },
+  {
+   "comment": "Javadoc mentions \"usually like 3-letters shortcut\" but some implementations use 2-letter shortcuts (\"ac\", \"cc\", \"rt\", \"te\", \"pc\", \"ci\", \"ro\"). Consider updating documentation to reflect actual usage pattern.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    3
+   ],
+   "confidence": 0.75,
+   "reasoning": "C3 points out that the javadoc mentions 3-letter shortcuts while the implementation needs 2-character ones. That is the same documentation mismatch."
+  },
+  {
+   "comment": " Catching generic RuntimeException is too broad. The implementation throws IllegalArgumentException specifically - catch that instead for more precise testing.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate raises the overly broad RuntimeException catch in the tests."
+  }
+ ],
+ "candidates": [
+  "AccessTokenContext's constructor calls requireNonNull(grantType) twice instead of validating rawTokenId, allowing null rawTokenId which can produce malformed encoded IDs or downstream NPEs",
+  "The isAccessTokenId matcher condition is inverted - it returns false when the grant matches instead of when it doesn't",
+  "Token ID decoding hard-requires a 6-character context prefix (2+2+2), but OAuth2GrantTypeFactory.getShortcut() javadoc suggests 3-letter shortcuts with no validation ensuring shortcuts are 2 characters, causing custom grants with 3-letter shortcuts to generate IDs that the decoder rejects"
+ ]
+}

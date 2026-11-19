@@ -1,0 +1,79 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "shirai91__nx2android__277",
+ "url": "https://github.com/shirai91/nx2android/pull/277",
+ "head_sha": "5e7f5f9b138c5afbbc164cfbb58b5deebf84283f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:42:42.400Z",
+ "seconds": 32.261,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "docs/PORT_CHECKLIST.md",
+   "line": 9,
+   "end_line": 9,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The checklist total goes up by two for one added game.",
+   "body": "This file adds one line, the Burnout entry (+2 −1, and the other added line is this counter). The ported count correctly goes from 43 to 44, but the total goes from 102 to 104. With one game added, the total should be 103, unless another entry was added somewhere this diff doesn't show. Fix: `**44 / 103 ported**`."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 45283,
+  "cacheRead": 3561,
+  "output": 2047,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 12,
+   "hunks": 11,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 48846,
+   "outputTokens": 2047,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 11,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "docs/images/burnout-paradise-remastered.jpg",
+    "reason": "binary file"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "nxnative/dm/games/0100DBF01000A000/shader_pairs.tsv",
+    "line": 2,
+    "end_line": 185,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "All 184 vertex shaders are paired with the same pixel shader.",
+    "body": "Every row pairs a vertex key with `c1a608e6add64c26` (ps_other.bin 104, from one SHADERS.BNDL entry). That includes the vertex shaders embedded in `main` (`main#GLSLC@...`), which can't share a BNSH variation with a bundle pixel shader. This looks like a shader_split.py pairing bug, possibly every vertex shader picking the last or a default pixel key, not real data. If the translator or prewarm uses these pairs to match vertex outputs to pixel inputs, every vertex shader gets built against one unrelated pixel shader's interface, which can give wrong varyings or pipeline failures. I couldn't see how this table is consumed. Fix: check the pairing logic for this game's bnd2 layout and regenerate the table, or ship it empty until the pairs are correct."
+   }
+  ]
+ },
+ "cost_usd": 0.2680752
+}

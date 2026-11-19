@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "keycloak__37429",
+ "url": "https://github.com/keycloak/keycloak/pull/37429",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The translation is in Italian instead of Lithuanian. This should be translated to Lithuanian to match the file's locale (messages_lt.properties).",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    2,
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 and C3 both point out Italian text in the Lithuanian files."
+  },
+  {
+   "comment": "The totpStep1 value uses Traditional Chinese terms in the Simplified Chinese file (zh_CN), which is likely incorrect for this locale. Please verify the locale‑appropriate translation.",
+   "severity": "Medium",
+   "category": "doc_defect",
+   "matches": [
+    7
+   ],
+   "confidence": 0.95,
+   "reasoning": "C7 points out Traditional Chinese text in the zh_CN file."
+  },
+  {
+   "comment": "The anchor sanitization logic has a potential issue where it consumes English matcher groups without proper validation. If the translated text has more anchor tags than the English text, this could lead to incorrect validation results.",
+   "severity": "Low",
+   "category": "security",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 and C6 are about the diff-trimming substring bug, not about the anchor matcher consuming English groups."
+  },
+  {
+   "comment": "The method name 'santizeAnchors' should be 'sanitizeAnchors' (missing 'i').",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the typo in the method name."
+  },
+  {
+   "comment": "Field HTML_TAGS should be declared as 'private static final' following Java naming conventions for constants",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "No candidate mentions the HTML_TAGS field modifiers."
+  }
+ ],
+ "candidates": [
+  "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java:102 - The diff-trimming loops can overlap, which crashes the verifier with StringIndexOutOfBoundsException.. The suffix loop at line 107 is limited only by the full string lengths, so `start + end` can be larger than the length of `value` or `sanitized`. Example: a translation with a missing `</p>`, such as `<p>a<p>b</p>`. The sanitizer returns `<p>a</p><p>b</p>`, which gives start=5 and end=8. Line 111 then calls `value.substring(5, 4)` and throws. The plugin crashes instead of reporting `Illegal HTML`, and this is exactly the kind of translation mistake the check is meant to catch. Fix: limit the suffix loop so it never reaches characters the prefix loop already counted.",
+  "themes/src/main/resources-community/theme/base/account/messages/messages_lt.properties:101 - The Lithuanian totpStep1 is now in Italian.. The new value, \"Installa una delle seguenti applicazioni sul tuo cellulare:\", is Italian. Lithuanian users will see Italian text on the account TOTP setup page. Use a Lithuanian translation, for example \"Įdiekite vieną iš šių programėlių savo mobiliajame telefone:\".",
+  "themes/src/main/resources-community/theme/base/login/messages/messages_lt.properties:71 - The Lithuanian loginTotpStep1 is now in Italian.. The new value is the Italian sentence \"Installa una delle seguenti applicazioni sul tuo cellulare:\". Lithuanian users will see it on the login OTP setup screen. Use a Lithuanian translation instead.",
+  "js/apps/account-ui/maven-resources/theme/keycloak.v3/account/messages/messages_en.properties:188 - Account UI message switched from i18next `{{0}}` placeholders to MessageFormat syntax, which i18next does not interpolate.. The account UI translates this key on the client with i18next, as the earlier `{{0}}` placeholders show. `{0}` and `{2,choice,...}` are not interpolated there, so users will see the raw placeholders and choice syntax in the validation error. I could not check how the account UI translates this error. Revert to `{{n}}` placeholders, or use i18next pluralization.",
+  "js/apps/admin-ui/maven-resources/theme/keycloak.v2/admin/messages/messages_en.properties:3138 - Admin UI message switched from i18next `{{0}}` placeholders to MessageFormat syntax, which i18next does not interpolate.. The admin UI bundle uses i18next interpolation (`{{error}}`, `{{fieldName}}` in nearby keys), and the old value used `{{0}}`. The new value uses `{0}` and `{2,choice,...}`, which i18next leaves as they are. The user-profile multivalued-size error will show raw text like \"Attribute {0} must have at least {1} and at most {2} {2,choice,0#values|1#value|1<values}.\" I could not check how the admin UI translates this error. Keep the i18next form here, or use i18next plurals.",
+  "misc/theme-verifier/src/main/java/org/keycloak/themeverifier/VerifyMessageProperties.java:107 - Limit the suffix scan so it cannot overlap the common prefix.. This is the one-line fix for the substring crash described above: stop the suffix scan before it reaches characters already counted in `start`.",
+  "themes/src/main/resources-community/theme/base/account/messages/messages_zh_CN.properties:112 - The Simplified Chinese file now has a Traditional Chinese string.. \"在您的手機上安裝以下應用程式之一：\" is written in Traditional Chinese (zh_TW) characters, but this is the zh_CN file. Use the Simplified form."
+ ]
+}

@@ -1,0 +1,34 @@
+{
+ "tool": "published-augment",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block).",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 raises the same problem: a stale retryCount value can lose increments when runs overlap."
+  },
+  {
+   "comment": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 points out the same missing SMS method filter, which lets non-SMS reminders be deleted."
+  }
+ ],
+ "candidates": [
+  "`retryCount: reminder.retryCount + 1` is based on a potentially stale in-memory value; if this cron overlaps/runs concurrently it can lose increments",
+  "The `retryCount > 1` branch isn't scoped to `method: SMS`, so it will delete any WorkflowReminder that happens to have retryCount incremented (even non-SMS methods), causing potential unintended data loss",
+  "`update()` will throw if the reminder was deleted between `findMany` and this write, which would escape the catch block - needs to be robust to concurrency and missing rows"
+ ]
+}

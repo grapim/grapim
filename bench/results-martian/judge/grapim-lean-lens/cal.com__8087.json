@@ -1,0 +1,38 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "cal.com__8087",
+ "url": "https://github.com/calcom/cal.com/pull/8087",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Consider adding try-catch around the await to handle import failures gracefully",
+   "severity": "Low",
+   "category": "speculative",
+   "matches": [
+    1
+   ],
+   "confidence": 0.5,
+   "reasoning": "C1 mainly says the imports are eager, but it also says a failed module import causes an unhandled rejection. That overlaps with G1's concern that import failures are not handled gracefully. The match is partial."
+  },
+  {
+   "comment": "The code uses forEach with async callbacks, which causes asynchronous operations (e.g., calendar/video event deletions, payment refunds) to run concurrently without being awaited. This 'fire-and-forget' behavior leads to unhandled promise rejections, race conditions, and incomplete cleanup, as surrounding try-catch blocks cannot properly handle errors from these unawaited promises. Replace forEach with for...of loops or Promise.all() with map() to ensure proper sequential execution and error handling.",
+   "severity": "Critical",
+   "category": "concurrency",
+   "matches": [
+    2,
+    3,
+    5
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2, C3 and C5 each flag async forEach callbacks that are not awaited, which lets errors escape the try/catch and leaves deletions unawaited. They recommend Promise.all with map, as G2 does."
+  }
+ ],
+ "candidates": [
+  "packages/app-store/index.ts:3 - `import()` calls run as soon as the module loads, so nothing is deferred.. Each `import(\"./x\")` runs when the object literal is evaluated, which happens on the first import of `@calcom/app-store`. All 28 app packages still load right away, so the stated goal (\"defer module loading\") is not met. It also adds a risk: if any one module fails to load, its promise rejects with no handler attached until some caller awaits that key, which can crash Node with an unhandled rejection. Fix: store loader functions (`applecalendar: () => import(\"./applecalendar\")`) and call them at the use sites.",
+  "packages/app-store/vital/lib/reschedule.ts:125 - An async `forEach` callback moves `getCalendar` errors outside the try/catch.. Errors thrown by `getCalendar` used to be synchronous and were caught by the surrounding `try/catch`, for example when the `CalendarService` constructor throws on a bad credential. Now they reject the promise from the async callback. `forEach` drops that promise, so the catch never runs and the error becomes an unhandled rejection, which can crash the process. The deletions are also not awaited. Fix: use `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => ...))` inside the try.",
+  "packages/app-store/wipemycalother/lib/reschedule.ts:125 - An async `forEach` callback moves `getCalendar` errors outside the try/catch.. This is the same problem as in the vital reschedule. Rejections from `await getCalendar(...)` inside the `forEach(async ...)` callback skip the surrounding `try/catch` and become unhandled rejections. Before this change, synchronous errors from `getCalendar` were caught. Fix: `await Promise.all(bookingRefsFiltered.map(async ...))` inside the try.",
+  "packages/core/CalendarManager.ts:31 - `getCalendarCredentials` now returns `calendar` as an unawaited Promise.. `getCalendar` is now async, so each `calendar` field in `getCalendarCredentials`' result is a Promise. A Promise is always truthy. `getConnectedCalendars` was changed to await it, but any other consumer that checks `item.calendar` or calls methods on it directly would silently misbehave or fail to compile through the changed type. Those consumers are outside this diff, so I could not check them. If a consumer never awaits the promise, a rejected `getCalendar` becomes an unhandled rejection. Fix: make `getCalendarCredentials` async and resolve the calendars there with `Promise.all`, or audit every consumer.",
+  "packages/trpc/server/routers/viewer/bookings.tsx:553 - An async `forEach` callback drops `getCalendar` errors as unhandled rejections.. With `forEach(async ...)`, an error from `await getCalendar(...)` rejects a promise that nothing observes. The request handler never sees the error and it surfaces as an unhandled rejection. Before, the synchronous throw went to the caller. The calendar and video deletions are also no longer tied to the request flow. Fix: `await Promise.all(bookingRefsFiltered.map(async (bookingRef) => ...))`."
+ ]
+}

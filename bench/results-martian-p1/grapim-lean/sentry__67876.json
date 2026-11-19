@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__67876",
+ "url": "https://github.com/getsentry/sentry/pull/67876",
+ "head_sha": "bb75657fc8f13923c1d7983f422290908a1e7310",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:35:58.168Z",
+ "seconds": 40.775,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/integrations/github/integration.py",
+   "line": 501,
+   "end_line": 505,
+   "severity": "blocker",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`metadata[\"sender\"][\"login\"]` raises KeyError for integrations that have no `sender`",
+   "body": "The check indexes `integration.metadata[\"sender\"][\"login\"]` directly. Only integrations created by the `installation` webhook have `sender` in their metadata. An Integration row built by this pipeline's `build_integration` (access_token, icon, domain_name, account_type, ...) has no `sender` key. If such an Integration still exists after its OrganizationIntegrations are removed, for example when an org uninstalls and then reinstalls, this line raises KeyError and the user gets a 500 instead of the install or the error page. I could not see every path that writes this metadata. Fix: use `integration.metadata.get(\"sender\", {}).get(\"login\")` and return `error(...)` when it is missing or does not match."
+  },
+  {
+   "path": "tests/sentry/integrations/github/test_integration.py",
+   "line": 388,
+   "end_line": 396,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "weakened_check",
+   "title": "test_installation_not_found now only tests a state mismatch, not the 404 path",
+   "body": "Before, this test checked that a GitHub 404 for the installation showed \"The GitHub installation could not be found.\". Now it sends a `state` (`ddd023...`) that does not match the pipeline signature and asserts the generic \"Invalid installation request.\". The request fails at the state check in OAuthLoginView and never reaches `build_integration`, so the 404 stub is never used and nothing tests the installation-not-found handling anymore. Fix: send the correct state and code, then assert the original not-found message."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 14887,
+  "cacheRead": 3561,
+  "output": 2684,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 13,
+   "reviewedHunks": 13,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 18450,
+   "outputTokens": 2684,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 1,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1288352
+}

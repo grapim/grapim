@@ -1,0 +1,71 @@
+{
+ "tool": "published-augment",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A null reference occurs in GoogleCalendarService.createEvent() and updateEvent() when mainHostDestinationCalendar is destructured from evt.destinationCalendar but evt.destinationCalendar is null or an empty array, causing mainHostDestinationCalendar to be undefined.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 flags the same problem: mainHostDestinationCalendar is undefined when destinationCalendar is missing or empty."
+  },
+  {
+   "comment": "The optional chaining on mainHostDestinationCalendar?.integration is redundant since you already check mainHostDestinationCalendar in the ternary condition.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate says the optional chaining is redundant."
+  },
+  {
+   "comment": "Logic error: when externalCalendarId is provided, you're searching for a calendar where externalId === externalCalendarId, but this will always fail since you're looking for a calendar that matches itself. Should likely find by credentialId or use different logic.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.6,
+   "reasoning": "C2 targets the same faulty lookup, find(cal => cal.externalId === externalCalendarId), and says it picks the wrong calendar. It describes a different trigger (externalCalendarId being falsy), but the flawed logic is the same."
+  },
+  {
+   "comment": "Logic inversion in organization creation: The slug property is now conditionally set when IS_TEAM_BILLING_ENABLED is true, instead of when it's false as originally intended. This change, combined with requestedSlug still being set when IS_TEAM_BILLING_ENABLED is true, results in both properties being set when billing is enabled, and neither when disabled",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.9,
+   "reasoning": "C3 points out that the slug/requestedSlug condition on IS_TEAM_BILLING_ENABLED is inverted."
+  },
+  {
+   "comment": "The Calendar interface now requires createEvent(event, credentialId), but some implementations (e.g., Lark/Office365) still declare createEvent(event) only—this breaks the interface contract (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "api",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises the change to the interface signature for createEvent."
+  },
+  {
+   "comment": "The `credential` may be undefined when passed to `updateEvent` if `reference.credentialId` is set but the credential is not found. This can lead to a runtime error when `updateEvent` is called with an undefined credential, which should be handled to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.9,
+   "reasoning": "C4 flags the same risk: credential can be undefined when it isn't found, and it is still passed to updateEvent."
+  }
+ ],
+ "candidates": [
+  "mainHostDestinationCalendar can be undefined when evt.destinationCalendar is missing/empty, so mainHostDestinationCalendar.integration can throw at runtime - need to guard this check so Meet fallback doesn't crash for events without a destination calendar",
+  "When externalCalendarId is falsy, the fallback find((cal) => cal.externalId === externalCalendarId) compares against undefined, so selectedCalendar/calendarId will usually become undefined - this can cause updates to target an invalid calendarId and deletes to fall back to primary instead of the booking's actual destination calendar",
+  "The feature-flag conditional for setting slug/requestedSlug appears inverted vs the prior behavior: when IS_TEAM_BILLING_ENABLED is false, neither slug nor requestedSlug is set now - org creation could start producing records without a slug in the non-team-billing flow",
+  "If reference.credentialId points to a missing/removed credential and the DB lookup doesn't return an app slug, credential can remain falsy and updateEvent(credential, ...) will throw - need to handle the credential not found case before calling updateEvent"
+ ]
+}

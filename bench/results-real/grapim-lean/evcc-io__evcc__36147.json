@@ -1,0 +1,84 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "evcc-io__evcc__36147",
+ "url": "https://github.com/evcc-io/evcc/pull/36147",
+ "head_sha": "9d387ace23e145ab0d210aee5e8ac31295c4dc4d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:16:37.884Z",
+ "seconds": 47.397,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "core/loadpoint_api.go",
+   "line": 291,
+   "end_line": 294,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Integrated devices without an energy collector now always report 0 charged energy.",
+   "body": "`todayEnergy` is only set when `lp.chargeEnergy` (the collector) is wired, and that only happens when `lp.chargeMeter != nil && collector != nil` (loadpoint.go hunk 2). `updateEnergyStats` also returns early when `chargeEnergy == nil`. For an integrated device without a collector, `getChargedEnergy()` now always returns 0. Before this change it returned the session `energyMetrics` value. In that setup the energy limit is never reached, so the device keeps running past it, and energy plans never make progress. I can't see whether every integrated device always gets a collector. To fix this, fall back to `energyMetrics.TotalWh()` when `lp.chargeEnergy == nil`.",
+   "suggestion": "\t// integrated devices have no session, their energy counts per day\n\tif lp.chargerHasFeature(api.IntegratedDevice) && lp.chargeEnergy != nil {\n\t\treturn lp.todayEnergy\n\t}"
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 17061,
+  "cacheRead": 3527,
+  "output": 4532,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 11,
+   "hunks": 22,
+   "reviewedHunks": 19,
+   "aiHunks": 0,
+   "skippedHunks": 3,
+   "inputTokens": 20590,
+   "outputTokens": 4532,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 9,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "server/mcp/openapi.json",
+    "reason": "only removed lines (nothing to comment on)"
+   },
+   {
+    "path": "server/openapi.state.yaml",
+    "reason": "only removed lines (nothing to comment on)"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "assets/js/components/Vehicles/Vehicle.vue",
+    "line": 252,
+    "end_line": 252,
+    "severity": "nit",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "The translation key `main.loadpoint.todayEnergy` may not exist.",
+    "body": "The new label uses `main.loadpoint.todayEnergy`, but no i18n file is in this PR's change list. If an earlier change didn't already add this key, integrated devices will show the raw key string as their label. Please check that the key exists in the locale files, or add it."
+   }
+  ]
+ },
+ "cost_usd": 0.1766584
+}

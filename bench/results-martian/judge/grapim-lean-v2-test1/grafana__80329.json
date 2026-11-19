@@ -1,0 +1,35 @@
+{
+ "tool": "grapim-lean-v2-test1",
+ "pr_id": "grafana__80329",
+ "url": "https://github.com/grafana/grafana/pull/80329",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The code uses Error log level for what appears to be debugging information. This will pollute error logs in production. Consider using Debug or Info level instead.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the debug logging at Error level that floods the logs, which is the same issue as G1."
+  },
+  {
+   "comment": "The cleanup job ticker was changed from 10 minutes to 1 minute, which can lead to increased database load and contention due to more frequent execution of cleanup tasks. This change should be reviewed to ensure it aligns with performance expectations.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [
+    3
+   ],
+   "confidence": 0.97,
+   "reasoning": "C3 points out the ticker change from 10 minutes to 1 minute and the extra database load, which is the same issue as G2."
+  }
+ ],
+ "candidates": [
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:534 - Leftover debug logging at Error level dumps every batch's full ID list.. Each batch calls `r.log.Error` twice, and one of those calls logs the full `ids` slice. The same pattern is at lines 554/557 and 576/579. These calls also run when nothing is deleted, so every cleanup cycle writes Error-level entries for each annotation type and for tags, even on a healthy system. With large batch sizes (the test uses 32767), each entry carries tens of thousands of IDs. That floods the logs, sets off error alerting, and hides real failures. The `err` logged at 534/554/576 is always nil at that point. Remove these calls, or log at Debug level with only the counts.",
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:609 - Building the SQLite ID list with repeated Sprintf takes quadratic time.. `values = fmt.Sprintf(\"%s, %d\", values, v)` copies the whole growing string on every iteration. With a batch size of tens of thousands (32767 in the new test), one batch copies gigabytes of memory, so cleanup becomes very slow and uses a lot of CPU. Build the list with a `strings.Builder` or `strings.Join` over `strconv.FormatInt` values.",
+  "pkg/services/cleanup/cleanup.go:77 - The shared cleanup ticker now runs 10x as often, which the deadlock fix does not need.. The request is to split the annotation cleanup queries so they stop deadlocking on MySQL. This line changes the interval of the whole `CleanUpService` from 10 minutes to 1 minute. Every cleanup job (temp files, snapshots, versions, annotations and others) now runs every minute, which adds load to the database on all installations. The fix does not need this; it looks like a leftover from testing. Revert it to `time.Minute * 10`, or make it a separate, justified change.",
+  "pkg/services/annotations/annotationsimpl/xorm_store.go:614 - Non-SQLite deletes bind one placeholder per ID, so very large batch sizes now fail.. Before this change the DELETE used a subquery and bound no parameters, so any `AnnotationCleanupJobBatchSize` worked. Now MySQL and Postgres get one `?` per ID, and both cap a prepared statement at 65535 placeholders. With a batch size above that, every cleanup batch fails and annotations are never deleted. Inline the integer IDs, as the SQLite branch does, or split `ids` into chunks under the placeholder limit."
+ ]
+}

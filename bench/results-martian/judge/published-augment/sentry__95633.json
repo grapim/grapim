@@ -1,0 +1,30 @@
+{
+ "tool": "published-augment",
+ "pr_id": "sentry__95633",
+ "url": "https://github.com/getsentry/sentry/pull/95633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The magic number 50 for max_wait is used repeatedly throughout the tests. Consider extracting this as a named constant to improve maintainability.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mention the magic number 50 or max_wait in the tests."
+  },
+  {
+   "comment": "The test test_thread_queue_parallel_error_handling has a docstring that doesn't match the test implementation.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 is about a docstring contradiction, but it concerns the production code's commit guarantee, not the docstring of the test_thread_queue_parallel_error_handling test."
+  }
+ ],
+ "candidates": [
+  "complete_offset is called in finally block, so offsets will be considered processed even when result_processor raises an exception, leading to committing past failed items and dropping them - contradicts docstring guarantee 'Only commits offsets after successful processing'",
+  "Setting worker.shutdown = True before shutting down the queues means workers can exit without draining items still queued, leaving work unprocessed during shutdown and potentially preventing offsets from becoming committable for abandoned items during rebalances",
+  "SimpleQueueProcessingStrategy.close() shuts down the passed-in queue_pool, but the pool is created/stored on ResultsStrategyFactory and shared into each strategy instance - if create_with_partitions is called again (e.g., Kafka rebalance), the factory will reference a previously-shutdown pool and subsequent processing may break"
+ ]
+}

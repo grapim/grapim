@@ -1,0 +1,32 @@
+{
+ "tool": "published-augment",
+ "pr_id": "sentry__80528",
+ "url": "https://github.com/getsentry/sentry/pull/80528",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The function modifies the config variable to include display values but then returns the original monitor.config instead of the modified version.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the code builds a modified config, but the function returns the original monitor.config instead."
+  },
+  {
+   "comment": "The code fetches MonitorCheckIn objects by ID when the required data already exists in previous_checkins. This creates an unnecessary database query.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mentions the redundant MonitorCheckIn database query."
+  }
+ ],
+ "candidates": [
+  "`config` is copied and `schedule_type` is converted to a display value, but the returned payload uses `monitor_environment.monitor.config`, so this transformation is currently ignored. If the intent was to publish a human-readable `schedule_type`, it won't happen as written.",
+  "If `failed_checkins` contains only statuses not in `HUMAN_FAILURE_STATUS_MAP`, `status_counts` will be empty and this can yield a user-visible message like `\" check-ins detected\"` despite the docstring mentioning a generic fallback. Consider explicitly handling the empty-count case to avoid confusing evidence text.",
+  "If there are fewer than `failure_issue_threshold` check-ins available, `previous_checkins[:failure_issue_threshold]` will still return a shorter list and the code proceeds to open an incident. This seems at odds with the \"N consecutive missed or failed check-ins in a row\" threshold semantics (it could create an incident on the first failure for a brand-new monitor)."
+ ]
+}

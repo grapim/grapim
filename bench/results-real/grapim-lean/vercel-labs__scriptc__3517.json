@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "vercel-labs__scriptc__3517",
+ "url": "https://github.com/vercel-labs/scriptc/pull/3517",
+ "head_sha": "e69f548e65eda9c120ee3500735bf97286151e77",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:24:24.571Z",
+ "seconds": 39.076,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 37764,
+  "cacheRead": 3527,
+  "output": 3489,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 21,
+   "hunks": 33,
+   "reviewedHunks": 33,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 41293,
+   "outputTokens": 3489,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 21,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.25931339999999997
+}

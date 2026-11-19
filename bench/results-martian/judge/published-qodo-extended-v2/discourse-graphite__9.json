@@ -1,0 +1,28 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "discourse-graphite__9",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The @loaded_locales instance variable in translate_accelerator.rb is lazily initialized and accessed by multiple concurrent threads without synchronization.",
+   "severity": "Low",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "C1 is about the cache key missing default_locale. It does not mention thread safety."
+  },
+  {
+   "comment": "Consider normalizing the input locale (e.g., to a symbol) when checking/loading here to avoid double-loading if the same locale is passed as a String vs Symbol (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "C1 does not mention String vs Symbol locale normalization or loading the same locale twice."
+  }
+ ],
+ "candidates": [
+  "Cache key in translate method does not include SiteSetting.default_locale, causing stale cached translations when admin changes default_locale. The FallbackLocaleList#[] dynamically includes SiteSetting.default_locale.to_sym in the fallback chain, but the cache key only includes the translation key, current locale, and backend object ID, with no cache invalidation when default_locale changes."
+ ]
+}

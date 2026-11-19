@@ -1,0 +1,30 @@
+{
+ "tool": "published-qodo-extended-v2",
+ "pr_id": "sentry__80528",
+ "url": "https://github.com/getsentry/sentry/pull/80528",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The function modifies the config variable to include display values but then returns the original monitor.config instead of the modified version.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: the function modifies config but then returns the original monitor.config."
+  },
+  {
+   "comment": "The code fetches MonitorCheckIn objects by ID when the required data already exists in previous_checkins. This creates an unnecessary database query.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "None of the candidates mentions the redundant MonitorCheckIn database query."
+  }
+ ],
+ "candidates": [
+  "get_monitor_environment_context() copies and mutates config[\"schedule_type\"] to a display value but returns monitor_environment.monitor.config instead of the modified config variable, so the transformation is never applied to the occurrence context payload"
+ ]
+}

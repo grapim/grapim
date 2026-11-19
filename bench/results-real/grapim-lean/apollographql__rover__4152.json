@@ -1,0 +1,116 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "apollographql__rover__4152",
+ "url": "https://github.com/apollographql/rover/pull/4152",
+ "head_sha": "dad629b193271731674b6d20b14ff23e5bf52bb8",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:31:07.583Z",
+ "seconds": 26.552,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "crates/rover-client/src/operations/subgraph/check_workflow/runner.rs",
+   "line": 158,
+   "end_line": 162,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`task_statuses` skips every task after a build that returned composition errors.",
+   "body": "The summary is pushed inside the `for task in check_workflow.tasks` loop. The existing `CompositionCheckTask` arm still `break`s as soon as `composition_errors` is non-empty. So when a subgraph check fails composition with errors, `task_summaries` only holds the tasks Studio listed up to and including the build. Operations, lint, proposals, filter, custom and downstream tasks that come after it never appear in `data.task_statuses`. That contradicts the PR and changeset, which say the field \"lists every task in the check\". A script that reads it also can't see that those tasks were BLOCKED, and it gets a different set of tasks depending on the order Studio returns them in.\n\nFix: build `task_summaries` from all tasks before the loop that can break, e.g. `let task_summaries: Vec<_> = check_workflow.tasks.iter().map(|task| CheckTaskSummary { .. }).collect();`. Or replace the `break` with a flag so only the per-task response handling is skipped."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 29443,
+  "cacheRead": 34459,
+  "output": 2470,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 21,
+   "hunks": 39,
+   "reviewedHunks": 26,
+   "aiHunks": 0,
+   "skippedHunks": 13,
+   "inputTokens": 63906,
+   "outputTokens": 2470,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 8,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "src/command/snapshots/rover__command__check_output__test__build_only_response_json_snapshot.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "src/command/snapshots/rover__command__check_output__test__comprehensive_response_json_snapshot.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "src/command/snapshots/rover__command__check_output__test__max_diffs_response_json_exceeded.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "src/command/snapshots/rover__command__check_output__test__max_diffs_response_json_not_exceeded.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "src/command/snapshots/rover__command__check_output__test__max_diffs_response_json_not_reported.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "tests/integration/graph/snapshots/main__integration__graph__check__graph_check_fails_on_blocking_downstream_contract_failure.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "tests/integration/graph/snapshots/main__integration__graph__check__graph_check_ignores_a_blocking_contract_failure_unless_contract_checks_are_included.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "tests/integration/graph/snapshots/main__integration__graph__check__graph_check_succeeds_despite_non_blocking_task_status_failure.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "tests/integration/graph/snapshots/main__integration__graph__publish__graph_publish_check_failure_is_e043_with_the_check_result.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "tests/integration/subgraph/snapshots/main__integration__subgraph__check__subgraph_check_fails_on_blocking_downstream_contract_failure.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "tests/integration/subgraph/snapshots/main__integration__subgraph__check__subgraph_check_ignores_a_blocking_contract_failure_unless_contract_checks_are_included.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "tests/integration/subgraph/snapshots/main__integration__subgraph__check__subgraph_check_succeeds_despite_non_blocking_task_status_failure.snap",
+    "reason": "ignored by .grapim/review.json"
+   },
+   {
+    "path": "tests/integration/subgraph/snapshots/main__integration__subgraph__publish__subgraph_publish_check_failure_is_e043_with_the_check_result.snap",
+    "reason": "ignored by .grapim/review.json"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.20352279999999998
+}

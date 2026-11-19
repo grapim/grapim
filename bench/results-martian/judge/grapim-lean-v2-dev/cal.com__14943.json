@@ -1,0 +1,28 @@
+{
+ "tool": "grapim-lean-v2-dev",
+ "pr_id": "cal.com__14943",
+ "url": "https://github.com/calcom/cal.com/pull/14943",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block).",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "C1 is about an unguarded update in the catch block that can throw. It does not raise the stale-read race on retryCount or suggest an atomic increment."
+  },
+  {
+   "comment": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "C1 does not mention the deletion filter that is missing the SMS method condition."
+  }
+ ],
+ "candidates": [
+  "packages/features/ee/workflows/api/scheduleSMSReminders.ts:190 - A database write inside the catch block can throw and abort the whole cron run.. Before this change the catch block only logged, so one bad reminder could not stop the loop. Now it calls `prisma.workflowReminder.update`, which nothing protects. The update can fail in two cases. First, the original error was itself a database or connection error. Second, the record no longer exists because a booking was cancelled or deleted while the cron ran, and Prisma throws P2025. In either case the error escapes the handler, the remaining reminders in this run are skipped, and the cron request fails. Fix: wrap the increment in its own try/catch and log the failure, or use `updateMany` with the id so a missing row does not throw."
+ ]
+}

@@ -1,0 +1,74 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "mirai-mamori__Sakurairo__1438",
+ "url": "https://github.com/mirai-mamori/Sakurairo/pull/1438",
+ "head_sha": "c1709d7d5c572c6ea2d55f13c10002a81446fab0",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:39:22.817Z",
+ "seconds": 62.784,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "inc/classes/Captcha.php",
+   "line": 85,
+   "end_line": 109,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "security",
+   "title": "Anyone can use up another IP's captcha bucket and lock that user out of wp-login.php",
+   "body": "The mint counter is keyed on `get_the_user_ip()`, which trusts X-Forwarded-For by default and takes the right-most entry. On a site that is reached directly, without a trusted proxy, an attacker can call the anonymous `/captcha` REST endpoint 30 times with `X-Forwarded-For: <admin's IP>` and use up that IP's bucket. The same attacker can send a different spoofed IP on every request and never hit the limit.\n\nThis bucket is shared with `login_CAPTCHA()`. Once it is full, the login, register and lost-password forms show only a notice and no captcha fields, so `CAPTCHA_CHECK` rejects every login from that IP with \"验证码为空\" for 10 minutes. Each new burst restarts the 10 minutes. Readers behind a shared NAT who fetch comment captchas while browsing can also block their own logins.\n\nThe code relies on site owners turning off XFF trust, but the default stays unsafe. Suggested fixes:\n- Rate-limit on `REMOTE_ADDR` unless the site has opted into proxy trust.\n- Or keep the login-page mint out of the bucket that the anonymous REST endpoint fills."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 24190,
+  "cacheRead": 27789,
+  "output": 4298,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 12,
+   "reviewedHunks": 11,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 51983,
+   "outputTokens": 4298,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "functions.php",
+    "line": 3737,
+    "end_line": 3754,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "intent_mismatch",
+    "title": "Passwordless/WebAuthn logins now fail because nothing hooks the new skip filter",
+    "body": "The client-side `skip_captcha_check` path is gone, along with the script that hid the captcha when the password field was absent. Now passwordless logins only work if something hooks `sakurairo_skip_login_captcha`, and these hunks add no such hook. If the theme or a plugin a site uses submits `loginform` without a password (passkey/WebAuthn) and sends no `yzm`, or no `cf-turnstile-response` in the Turnstile branch, every such login is now rejected. I could not see whether any built-in passwordless flow exists. If one does, it needs a server-side verified hook on this filter in the same change."
+   }
+  ]
+ },
+ "cost_usd": 0.2124838
+}

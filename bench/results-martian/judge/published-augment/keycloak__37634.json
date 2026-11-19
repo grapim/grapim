@@ -1,0 +1,51 @@
+{
+ "tool": "published-augment",
+ "pr_id": "keycloak__37634",
+ "url": "https://github.com/keycloak/keycloak/pull/37634",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In AccessTokenContext constructor, the fourth Objects.requireNonNull validates grantType twice instead of validating rawTokenId, allowing null rawTokenId values to pass validation.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same duplicate grantType check that should validate rawTokenId."
+  },
+  {
+   "comment": "In isAccessTokenId, the substring for the grant shortcut and the equality check look inverted: the grant shortcut occupies indices 4–5 (substring(4,6)), and a match should return true (combined with UUID check), not false.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 identifies the inverted equality check that returns false on a match. C2 does not mention the substring index error, but the main inversion bug is the same."
+  },
+  {
+   "comment": "Javadoc mentions \"usually like 3-letters shortcut\" but some implementations use 2-letter shortcuts (\"ac\", \"cc\", \"rt\", \"te\", \"pc\", \"ci\", \"ro\"). Consider updating documentation to reflect actual usage pattern.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate mentions the Javadoc saying 3-letter shortcuts when the implementations use 2-letter ones."
+  },
+  {
+   "comment": " Catching generic RuntimeException is too broad. The implementation throws IllegalArgumentException specifically - catch that instead for more precise testing.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.92,
+   "reasoning": "No candidate mentions the test catching a generic RuntimeException instead of IllegalArgumentException."
+  }
+ ],
+ "candidates": [
+  "Objects.requireNonNull(grantType, \"Null rawTokenId not allowed\") is a typo that validates grantType instead of rawTokenId, allowing null raw ID to slip through and potentially cause malformed encoded token IDs or later failures",
+  "isAccessTokenId() has inverted logic where equals(expectedGrantShortcut) branch returns false when it matches, causing it to reject correct tokens and accept wrong grant shortcuts",
+  "isAccessTokenId() may throw StringIndexOutOfBoundsException for short prefixes instead of returning false",
+  "session.getProvider(TokenContextEncoderProvider.class) is used without checking for a missing provider, which will cause NPE during token issuance if the SPI isn't available/registered"
+ ]
+}

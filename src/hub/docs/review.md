@@ -40,7 +40,7 @@ Public repositories are reviewed free. [Install the GitHub App](https://github.c
 
 ### A second look before posting
 
-Before cloud review posts anything, every finding goes back to the model with the code around it, where the names it mentions are used in the repository, the commit messages, and what the author and people with write access said on the pull request. A finding that context contradicts is dropped: the author already explained the change, the condition it needs cannot happen in this code, or the value it calls wrong is right. The summary says how many were dropped. If the second look fails, every finding is posted as before.
+Before cloud review posts anything, every finding goes back to the model with the code around it, where the names it mentions are used in the repository, the commit messages, and what the author and people with write access said on the pull request. The second look can also search and read the whole repository at the pull request's head. A finding is dropped when that context contradicts it (the author already explained the change, the condition it needs cannot happen in this code, the value it calls wrong is right, the library does not behave that way) or when it is a remark rather than a defect (the change goes beyond its description without breaking anything, docs wording, a go.mod or lock file detail). One whose key fact the second look cannot settle is posted only if it is a blocker or the reviewer traced it fully. The low-confidence points the reviewer was unsure of are checked the same way: the ones the second look confirms are posted, the rest are not shown. The summary says how many were dropped. If the second look fails, every finding is posted as before.
 
 ### On every new push
 
@@ -289,7 +289,7 @@ It exits with code 1 when it finds a blocker. Options are in the [CLI reference]
 
 - **Model costs are yours.** Every request goes to your model account and is billed there by the provider. Grapim does not charge for the review or see your usage. The summary comment lists the tokens each review used.
 - **What gets reviewed.** By default every changed line. `"review": "ai-and-sensitive"` skips human-written lines outside `sensitive` paths to keep the cost down; a repository with no Grapim notes yet has no known authors, so it reviews every changed line there too.
-- **What gets posted.** The reviewer rates how sure it is of each finding. High and medium findings become inline comments. Low ones are listed in the summary under "Worth a look", one line each.
+- **What gets posted.** The reviewer rates how sure it is of each finding. High and medium findings become inline comments. Low ones are listed in the summary under "Worth a look", one line each; in cloud review the second look checks them first and posts only the ones it confirms.
 - **Size.** Up to `maxFiles` files per review, riskiest first. A review sends at most about 600,000 input tokens. Files over the limit are listed as not reviewed.
 - **When a request fails.** A request that still fails after retries, or that the model declines, is listed under not reviewed in the summary. Rejected credentials or a model that is not enabled stop the job with a failure.
 - **Forks.** A pull request from a fork gets no secrets, so it is not reviewed and the job passes.

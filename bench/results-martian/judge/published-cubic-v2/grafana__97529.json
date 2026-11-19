@@ -1,0 +1,35 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "grafana__97529",
+ "url": "https://github.com/grafana/grafana/pull/97529",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A race condition in BuildIndex allows multiple goroutines to concurrently build the same expensive index for the same key. This is caused by moving the b.cacheMu lock from protecting the entire function to only protecting the final cache assignment. ",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 describes the same BuildIndex race: with the broad lock removed, goroutines can build the same index for one key at the same time."
+  },
+  {
+   "comment": "Calling s.search.TotalDocs() here may race with concurrent index creation: TotalDocs iterates b.cache without synchronization, and the event watcher goroutine started just above could trigger BuildIndex writes concurrently, potentially causing a concurrent map read/write panic.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    2
+   ],
+   "confidence": 0.9,
+   "reasoning": "C2 identifies the same problem: TotalDocs iterates the cache map without a lock while BuildIndex writes to it, which can cause a concurrent map read/write panic."
+  }
+ ],
+ "candidates": [
+  "Removing the broad lock allows concurrent `BuildIndex` calls for the same key to race. Two goroutines can simultaneously build the same index — for file-backed indices this calls `bleve.New` on the same directory path (risking I/O errors or corruption), and in all cases the second writer silently overwrites the first. Consider a per-key lock or a check-before-build pattern (e.g., `sync.Map` of in-flight keys) to prevent duplicate concurrent builds for the same `NamespacedResource`.",
+  "`TotalDocs()` iterates `b.cache` without acquiring `b.cacheMu.RLock()`, while `BuildIndex` concurrently writes to the map under `cacheMu.Lock()`. In Go, this is a fatal race — the runtime will panic with 'concurrent map read and map write'. `TotalDocs` must hold the read lock while iterating the map.",
+  "Removing per-request `Init()` checks means `Stop()` no longer blocks later RPCs; the server can still serve requests after shutdown starts.",
+  "Skipping this integration test for postgres removes coverage for the storage-server startup and `/metrics` path on a supported backend. That hides regressions instead of fixing the Drone-specific failure."
+ ]
+}

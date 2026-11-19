@@ -223,10 +223,15 @@ if (cmd === 'judge') {
   // Every tool is scored on the PRs that have a verdict for all of them.
   const judged = (t) => new Set(dataset.filter((pr) => { const f = path.join(judgeDir, t, `${pr.id}.json`); return fs.existsSync(f) && JSON.parse(fs.readFileSync(f, 'utf8')).status === 'ok'; }).map((pr) => pr.id));
   const sets = tools.map(judged).filter((x) => x.size);
-  const common = new Set(dataset.map((pr) => pr.id).filter((id) => sets.every((x) => x.has(id))));
+  // --split dev|test: one half of data/martian-split.json (tune on dev, report test once).
+  const half = opt('split') ? new Set(JSON.parse(fs.readFileSync(path.join(BENCH_DIR, 'data', 'martian-split.json'), 'utf8'))[opt('split')]) : null;
+  // --tools a,b: only these rows.
+  const only = opt('tools') ? new Set(opt('tools').split(',')) : null;
+  if (only) tools.splice(0, tools.length, ...tools.filter((t) => only.has(t)));
+  const common = new Set(dataset.map((pr) => pr.id).filter((id) => (!half || half.has(id)) && tools.map(judged).filter((x) => x.size).every((x) => x.has(id))));
   const L = [];
   L.push(`# Martian offline Code Review Bench: ${dataset.length} PRs, ${dataset.reduce((n, p) => n + bd[p.url].golden_comments.length, 0)} golden comments`, '');
-  L.push(`Scored on the ${common.size} PRs that have a verdict for every tool listed.`, '');
+  L.push(`Scored on the ${common.size} PRs${half ? ` of the ${opt('split')} half` : ''} that have a verdict for every tool listed.`, '');
   L.push(`Judge for the "our judge" rows: ${JUDGE_MODEL}, one request per PR. "published" rows: Martian's own verdicts (judge claude-opus-4-5, pair by pair).`, '');
   for (const [name, profile] of [['Core profile (the benchmark default)', CORE], ['All categories', null]]) {
     L.push(`## ${name}`, '', '| Tool | Verdicts | PRs | Candidates / PR | Precision | Recall | F1 |', '|---|---|---|---|---|---|---|');
@@ -244,7 +249,7 @@ if (cmd === 'judge') {
   }
   const text = L.join('\n');
   fs.mkdirSync(resultsDir, { recursive: true });
-  fs.writeFileSync(path.join(resultsDir, 'report-martian.md'), text);
+  if (!half && !only) fs.writeFileSync(path.join(resultsDir, 'report-martian.md'), text);
   process.stdout.write(`${text}\n`);
 } else {
   log('usage: node bench/martian.mjs judge --tool <grapim tool> | --published <tool,tool> ; node bench/martian.mjs score');

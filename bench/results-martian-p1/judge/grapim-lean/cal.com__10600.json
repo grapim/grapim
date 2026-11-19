@@ -1,0 +1,58 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The exported function TwoFactor handles backup codes and is in BackupCode.tsx. Inconsistent naming.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "G1 is about the TwoFactor function being named inconsistently with its file, BackupCode.tsx. No candidate raises naming."
+  },
+  {
+   "comment": "Error message mentions 'backup code login' but this is a disable endpoint, not login",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "G2 is about an error message on the disable endpoint that says 'backup code login'. No candidate mentions it."
+  },
+  {
+   "comment": "Backup code validation is case-sensitive due to the use of indexOf(). This causes validation to fail if a user enters uppercase hex characters, as backup codes should be case-insensitive for a better user experience.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "G3 is about case-sensitive backup code validation through indexOf. No candidate covers it."
+  },
+  {
+   "comment": "Because backupCodes are decrypted and mutated in memory before being written back, two concurrent login requests using the same backupCode could both pass this check and update, so a single backup code may effectively be accepted more than once if used concurrently, weakening the intended one-time-use semantics.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 describes the same race: two concurrent logins can both use one backup code."
+  },
+  {
+   "comment": "Object URL for backup codes is not revoked on component unmount, leading to a potential memory leak. This can cause increased memory usage over time, especially if the component is mounted and unmounted frequently.",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.95,
+   "reasoning": "G5 is about the object URL not being revoked on unmount. No candidate mentions it."
+  }
+ ],
+ "candidates": [
+  "packages/features/auth/lib/next-auth-options.ts:131 - A backup code plus any non-empty totpCode logs in without the password.. The password check just above only runs when `!credentials.totpCode`. If an attacker sends `totpCode` set to any non-empty value together with `backupCode`, the password check is skipped. The new branch is then taken because `backupCode` is truthy, so the TOTP value is never checked either. The account is opened with only the email and one leaked backup code, with no password and no TOTP. Before this change, skipping the password still required a valid TOTP. Fix: in the backup-code branch, always check the password. For example, require `credentials.password` and run `verifyPassword` when `credentials.backupCode` is set, or reject requests that carry both `totpCode` and `backupCode`.",
+  "packages/features/auth/lib/next-auth-options.ts:139 - Two concurrent logins can both use the same backup code.. The code reads the encrypted list, checks the supplied code, then writes back the list with that code set to null. Nothing makes this read-check-write atomic. Two requests with the same code that arrive together both read the old list, both find the code, and both get a session, so a single-use code works twice. Later writes can also undo each other's changes. Fix: make the consume step conditional, for example `updateMany({ where: { id: user.id, backupCodes: user.backupCodes }, data: {...} })`, and reject the login when the count is 0. A transaction with a row lock also works.",
+  "apps/web/components/settings/EnableTwoFactorModal.tsx:135 - Closing the dialog on the backup-codes step skips onEnable, so the page still shows 2FA as off.. After the TOTP code is accepted, 2FA is already on at the server, but `onEnable()` now runs only from the new Close button. The modal also hides Cancel on this step. If the user dismisses the dialog with Escape, an outside click or the dialog's X, only `onOpenChange` runs. The parent never learns that 2FA was enabled, so the switch stays unchecked until the page reloads. `resetState()` is also skipped, so the modal opens again on the backup-codes step.\n\nI could not see the parent's `onOpenChange`, so I can't confirm it doesn't refresh this state some other way. Fix: call `onEnable()` right after a successful enable and use the backup-codes step for display only. Or handle `onOpenChange` while `step === SetupStep.DisplayBackupCodes` so it runs `resetState(); onEnable();`.",
+  "packages/ui/components/form/inputs/Input.tsx:49 - tabIndex={-1} takes the show-password toggle out of keyboard focus for every PasswordField.. `PasswordField` is a shared UI component. Setting `tabIndex={-1}` on its visibility toggle means keyboard and screen-reader users can no longer reach the show/hide control on any password field in the app, including login and signup. The backup-codes feature doesn't need this change. Remove `tabIndex={-1}`, or make it an opt-in prop for the modal that wants it.",
+  "apps/web/components/settings/EnableTwoFactorModal.tsx:278 - The 'copied' toast shows even when the clipboard write fails.. `navigator.clipboard.writeText` returns a promise. Here it isn't awaited, and the success toast is shown right away. If the write is rejected (permission denied, an insecure context, or `navigator.clipboard` undefined), the user is told the codes were copied when they weren't, and could lose their recovery codes. Await the call and show an error toast on failure."
+ ]
+}

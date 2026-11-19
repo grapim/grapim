@@ -1,0 +1,83 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "nlmixr2__rxode2__1693",
+ "url": "https://github.com/nlmixr2/rxode2/pull/1693",
+ "head_sha": "591d42add1773b5667e9db8e19f3e75954767fa3",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:46:47.260Z",
+ "seconds": 48.167,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": ".github/workflows/pkgdown.yaml",
+   "line": 54,
+   "end_line": 55,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "`/ci` runs untrusted PR code with a `contents: write` token.",
+   "body": "An `issue_comment` run happens in the base repository's context with that repository's secrets. This job grants `contents: write` (lines 36-38). It exposes the token as `GITHUB_PAT`, and `actions/checkout` also saves it in `.git/config`. On `/ci`, the job checks out `refs/pull/N/merge` and builds the site, which runs the PR's R code, vignettes and examples. Skipping the deploy step does not help: code from a fork PR can read the token and push to `main` or `gh-pages`, or tamper with releases.\n\nThis is also a race. The maintainer's `/ci` comment approves whatever the merge ref points to when the checkout runs, so the author can push malicious commits after the maintainer has looked at the PR. Before this change, fork PRs ran under `pull_request` with a read-only token.\n\nFix: do not run pkgdown on `issue_comment`. If it has to run, use a separate job with `contents: read`, `persist-credentials: false` and no `GITHUB_PAT`, and check out the exact head SHA that was reviewed."
+  },
+  {
+   "path": ".github/workflows/R-CMD-check.yaml",
+   "line": 9,
+   "end_line": 17,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "scope",
+   "title": "Unrelated CI change stops running checks on PR pushes.",
+   "body": "This PR is about the `vmnorm0()` speed-up, but it removes the `pull_request` trigger from R-CMD-check, lint, pkgdown and test-coverage (the same edit is in all four files). After this, opening a PR or pushing to one runs no checks. Checks run only after a review approval containing \"ready to be merged\" or a maintainer's `/ci` comment.\n\nTwo things break:\n- Contributors no longer get feedback on their pushes.\n- Branch protection that requires these checks will wait on them, or will accept `/ci` commit statuses for a different SHA than the one that was tested.\n\nThe retarget handling for stacked PRs (`edited` with a base change) is also gone, although the header comment still describes it. Nothing in the request covers this. Move it to its own PR or drop it."
+  },
+  {
+   "path": ".github/workflows/test-coverage.yaml",
+   "line": 65,
+   "end_line": 66,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "`/ci` checks out the PR merge ref in a privileged context, open to a race and to secret theft.",
+   "body": "For `issue_comment`, the checkout uses `refs/pull/N/merge` and then runs the PR's code. The run has the base repository's secrets: `CODECOV_TOKEN` here and a `GITHUB_TOKEN` with `statuses: write`, which checkout saves in `.git/config`. The same pattern is in R-CMD-check.yaml and lint.yaml.\n\nPR code can read the saved token. It can also write to `$GITHUB_ENV` (for example `NODE_OPTIONS`) to take over the later codecov and github-script steps and steal `CODECOV_TOKEN`, or forge commit statuses on any SHA.\n\nThe merge ref is resolved at checkout time, so a push made after the maintainer's `/ci` comment runs unreviewed code. In that case the result status is posted on the earlier `CI_PR_HEAD_SHA` from the first step, so a green status can describe code that was never tested on that SHA.\n\nFix: pin the checkout to the head SHA fetched in the first step, set `persist-credentials: false`, and run untrusted code without secrets. Keep the status reporting in a separate workflow (for example triggered by `workflow_run`)."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 18738,
+  "cacheRead": 7122,
+  "output": 4166,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 6,
+   "hunks": 9,
+   "reviewedHunks": 9,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 25864,
+   "outputTokens": 4166,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 6,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.17845039999999998
+}

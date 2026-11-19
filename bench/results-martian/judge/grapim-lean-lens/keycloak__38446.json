@@ -1,0 +1,33 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__38446",
+ "url": "https://github.com/keycloak/keycloak/pull/38446",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Unsafe raw List deserialization without type safety. Calling Optional.get() directly on the Optional returned by RecoveryAuthnCodesUtils.getCredential(user) without checking isPresent() can lead to a NoSuchElementException if the Optional is empty.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "No candidate covers raw List deserialization or calling Optional.get() without an isPresent() check. C4 is about a null user, which is a different issue."
+  },
+  {
+   "comment": "After creating the RecoveryAuthnCodesCredentialModel, consider setting its id from the stored credential (e.g., myUser.recoveryCodes.getId()); otherwise getId() will be null and downstream removal by id (e.g., removeStoredCredentialById in the authenticator flow) may not work.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.8,
+   "reasoning": "C2 says the credential model built by createFromValues has no id, so removeStoredCredentialById fails to remove it."
+  }
+ ],
+ "candidates": [
+  "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java:326 - The test storage accepts any stored recovery code, never consumes it, and ignores the requested code number.. `isValid` returns true when the input matches any of the 12 stored codes. The used code is never removed, so the same code works for every later login. The login form asks for code #N, but any code passes. As a result, the new test cannot catch a mismatch between the code number shown and the code checked, and it does not show that codes are single-use. The `getCredentials` model is also rebuilt from all raw codes on every call, so `getNextRecoveryAuthnCode()` always returns code 0. Fix: compare the input only with the next expected code, then drop that code from the stored list.",
+  "services/src/main/java/org/keycloak/authentication/authenticators/browser/RecoveryAuthnCodesFormAuthenticator.java:80 - An exhausted recovery-codes credential from user storage is removed from local storage instead.. `getCredential` now returns the user-storage credential first. When `allCodesUsed()` is true, the unchanged code below still calls `removeStoredCredentialById(recoveryCodeCredentialModel.getId())`, which only deletes from the local Keycloak database. For a credential that comes from user storage, nothing is deleted and the used-up credential stays in the provider. In the test provider the id is also null, because `getCredentials` builds the model with `createFromValues` and never sets an id. Fix: check where the credential came from. For a user-storage credential, call `credentialManager().removeStoredCredentialById` only for local ones and use `disableCredentialType` or the storage's own removal path for federated ones.",
+  "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java:244 - Log message names the wrong credential type.. The log message says the credential type is `recovery-codes`. The type actually handled is `RecoveryAuthnCodesCredentialModel.TYPE`, which is `recovery-authn-codes`, and the message also has a double space. Use the constant in the message so it matches the real type.",
+  "testsuite/integration-arquillian/servers/auth-server/services/testsuite-providers/src/main/java/org/keycloak/testsuite/federation/BackwardsCompatibilityUserStorage.java:232 - `getCredentials` throws an NPE when the user is not in the storage map.. Every other method in this class checks whether `getMyUser(user)` returned null; this one does not. If the user is no longer in `users`, for example after removal, the call to `myUser.recoveryCodes` throws a NullPointerException while credentials are being listed. Fix: return `Stream.empty()` when `myUser` is null."
+ ]
+}

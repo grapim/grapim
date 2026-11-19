@@ -1,0 +1,28 @@
+{
+ "tool": "grapim-lean-sl",
+ "pr_id": "cal.com__8330",
+ "url": "https://github.com/calcom/cal.com/pull/8330",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect end time calculation using slotStartTime instead of slotEndTime",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.8,
+   "reasoning": "C1 is about the logic for handling multiple override ranges, not about using slotStartTime where slotEndTime should be used."
+  },
+  {
+   "comment": "Using === for dayjs object comparison will always return false as it compares object references, not values. Use .isSame() method instead: dayjs(date.start).add(utcOffset, 'minutes').isSame(dayjs(date.end).add(utcOffset, minutes))",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "C1 doesn't mention using === to compare dayjs objects."
+  }
+ ],
+ "candidates": [
+  "packages/trpc/server/routers/viewer/slots.ts:106 - With several override ranges on one day, every slot outside the first range is rejected.. `dateOverrides.find` returns true as soon as one override on the slot's date doesn't contain the slot. Take a day with overrides 09:00–10:00 and 14:00–15:00: a 14:00 slot is after the end of the first range, so `find` matches and the slot is rejected even though the second range covers it. The fix is to collect the overrides for that date and reject the slot only if no range contains it."
+ ]
+}

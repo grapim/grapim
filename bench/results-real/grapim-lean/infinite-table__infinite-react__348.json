@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "infinite-table__infinite-react__348",
+ "url": "https://github.com/infinite-table/infinite-react/pull/348",
+ "head_sha": "c196d53b7f6d604bb88d4e17f0fbffd7e0de1ce6",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:38:07.200Z",
+ "seconds": 31.498,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "source/src/components/InfiniteTable/vars-shadcn-light.css.ts",
+   "line": 54,
+   "end_line": 62,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "intent_mismatch",
+   "title": "AccentVars switch the focus outline, expand icon, filter focus border and selection fill to --primary, which the PR says it does not change.",
+   "body": "The PR description says the expand/collapse icon, the focus outline and the filter focus border keep the default theme's blue accent instead of `--primary`, and leaves that for a separate decision. It also says a light page has 0 changed variables. `AccentVars` sets `focusOutline`, `ExpandCollapseIcon.color`, `filterEditorFocusBorderColor`, `GroupingToolbarItem.activeBorder` and `Cell.selectedBackgroundDefault` again on the theme element. They now resolve against `--infinite-accent-color` = `var(--primary)`, so these colours change visibly in both modes. The new spec test (\"uses the --primary color of the page…\") checks for the new behaviour. Either remove `AccentVars` (and that test) to match the stated scope, or update the description and confirm that this visual change for existing users is intended."
+  },
+  {
+   "path": "source/src/components/InfiniteTable/vars-shadcn-light.css.ts",
+   "line": 11,
+   "end_line": 17,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Inlining default-theme values breaks user overrides of the variables they referenced.",
+   "body": "`getDefaultLightValue` replaces every `var(--infinite-…)` reference with the default theme's literal value. For example, `--infinite-cell-border` becomes `1px solid #c6c6c6` and no longer reads `1px solid var(--infinite-cell-border-color)`. Before this change these values were resolved at runtime. An app that sets `--infinite-cell-border-color` or `--infinite-background` (and so on) on a shadcn grid used to change the derived border, pinned border, filter-editor border and disabled-row backgrounds. Now those are fixed in light mode. The dark vars have the same problem: they use `var(--border)` directly instead of `Cell.borderColor`. Keep the references (copy the `LightVars` values unchanged, as `AccentVars` does) and only set the leaf variables that depend on the mode. I could not see the default `LightVars` definitions, so which variables are affected is inferred."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 15220,
+  "cacheRead": 3527,
+  "output": 2908,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 7,
+   "reviewedHunks": 7,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 18749,
+   "outputTokens": 2908,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.1349734
+}

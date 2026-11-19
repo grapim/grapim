@@ -1,0 +1,69 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "apify__apify-docs__3221",
+ "url": "https://github.com/apify/apify-docs/pull/3221",
+ "head_sha": "7e18dcb92586f6e44bdf06e597700a71ca1eec55",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:40:02.531Z",
+ "seconds": 14.337,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 14070,
+  "cacheRead": 3527,
+  "output": 1060,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 17599,
+   "outputTokens": 1060,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [
+   {
+    "path": "sources/platform/integrations/images/HubSpot/HubSpot_active_enrichments_list.webp",
+    "reason": "binary file"
+   },
+   {
+    "path": "sources/platform/integrations/images/HubSpot/HubSpot_config_wizard_step_1.webp",
+    "reason": "binary file"
+   },
+   {
+    "path": "sources/platform/integrations/images/HubSpot/HubSpot_config_wizard_step_2.webp",
+    "reason": "binary file"
+   },
+   {
+    "path": "sources/platform/integrations/images/HubSpot/HubSpot_per_company_result.webp",
+    "reason": "binary file"
+   }
+  ],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.0922634
+}

@@ -1,0 +1,114 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "sentry__77754",
+ "url": "https://github.com/getsentry/sentry/pull/77754",
+ "head_sha": "9501091c52ae94e8d916f79b35d21975b3f9cadb",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:22:56.828Z",
+ "seconds": 22.069,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/integrations/services/assignment_source.py",
+   "line": 18,
+   "end_line": 18,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`queued` default is computed once at import time, not per instance.",
+   "body": "`queued: datetime = timezone.now()` runs once, when the class is defined. Every `AssignmentSource` built without an explicit `queued` (including every one from `from_integration`) gets the same timestamp: the moment the worker process imported this module. Anything that reads `queued` to order events or detect stale sync requests gets wrong values, and they get more wrong the longer the process runs. Fix: use `queued: datetime = field(default_factory=timezone.now)` and import `field` from `dataclasses`."
+  },
+  {
+   "path": "src/sentry/integrations/mixins/issues.py",
+   "line": 411,
+   "end_line": 418,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "`assignment_source` was added to the abstract `sync_status_outbound`, but the task passes it to `sync_assignee_outbound`.",
+   "body": "The new task code calls `installation.sync_assignee_outbound(..., assignment_source=parsed_assignment_source)`. The abstract `sync_assignee_outbound` signature was not changed, so the argument only gets through its `**kwargs`. Meanwhile the explicit `assignment_source` parameter was added to `sync_status_outbound`, and none of the code shown passes it there. The declared interface doesn't match how the code calls it, so implementers will look for the parameter on the wrong method. Fix: move the `assignment_source: AssignmentSource | None = None` parameter to `sync_assignee_outbound` and take it out of `sync_status_outbound`."
+  },
+  {
+   "path": "src/sentry/integrations/services/assignment_source.py",
+   "line": 31,
+   "end_line": 35,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "If the payload fails to parse, `from_dict` returns None and the cycle guard is silently skipped.",
+   "body": "When `cls(**input_dict)` raises, for example because a payload from an older or newer version has an extra or missing key, `from_dict` returns None with no log. `should_sync` then treats the change as having no source and syncs back to the integration it came from, which brings back the loop this PR is meant to stop, with nothing to show why. Log the parse failure, or ignore unknown keys, so the guard isn't lost without a trace."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 8,
+  "cacheWrite": 52921,
+  "cacheRead": 14108,
+  "output": 5793,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 16,
+   "reviewedHunks": 16,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 67037,
+   "outputTokens": 5793,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 3,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/sentry/integrations/mixins/issues.py",
+    "line": 382,
+    "end_line": 382,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Subclasses that override `should_sync` with the old signature will crash.",
+    "body": "`sync_assignee_outbound` now calls `installation.should_sync(\"outbound_assignee\", parsed_assignment_source)` with a second positional argument. Any integration (or test double) that overrides `should_sync(self, attribute)` without the new parameter will raise `TypeError` on every outbound assignee sync. I could not see the other integrations from here. Make sure every override accepts `sync_source`, or pass it as a keyword argument and check that overrides take `**kwargs`."
+   },
+   {
+    "path": "src/sentry/integrations/services/assignment_source.py",
+    "line": 27,
+    "end_line": 28,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`to_dict()` puts a raw datetime into the Celery task kwargs.",
+    "body": "`asdict(self)` keeps `queued` as a `datetime`, and `sync_group_assignee_outbound` passes that dict straight to `sync_assignee_outbound.apply_async`. If the task serializer is JSON, `apply_async` raises on the datetime. That would break the outbound sync for every assignment that comes in from an integration. With pickle it works. I could not see the serializer setting from here. Fix: convert `queued` to an ISO string (or timestamp) in `to_dict` and parse it back in `from_dict`."
+   },
+   {
+    "path": "src/sentry/integrations/utils/sync.py",
+    "line": 141,
+    "end_line": 143,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "A raw `datetime` is put into the Celery task kwargs.",
+    "body": "`assignment_source.to_dict()` uses `asdict`, which leaves `queued` as a `datetime` object, and that dict is passed to `apply_async`. If the task serializer is JSON (I could not check the Celery settings from here), sending the task either fails or turns `queued` into a string. A failed send would break every assignment that comes in from an integration webhook. A string would reach `from_dict` and end up as a `str` in a field typed `datetime`. Fix: serialize `queued` as an ISO string in `to_dict` and parse it back in `from_dict`."
+   }
+  ]
+ },
+ "cost_usd": 0.38331859999999995
+}

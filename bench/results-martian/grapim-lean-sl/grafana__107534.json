@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "grafana__107534",
+ "url": "https://github.com/grafana/grafana/pull/107534",
+ "head_sha": "1cab4143d443c33079566f6ca36931eb8468159f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T10:27:39.454Z",
+ "seconds": 30.95,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 6838,
+  "cacheRead": 3262,
+  "output": 2235,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 4,
+   "hunks": 6,
+   "reviewedHunks": 6,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 10102,
+   "outputTokens": 2235,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 4,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "public/app/plugins/datasource/loki/querySplitting.ts",
+    "line": 299,
+    "end_line": 299,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "Queries may be template-interpolated twice, applying ad-hoc filters twice.",
+    "body": "The queries are now passed through `applyTemplateVariables(query, request.scopedVars, request.filters)` before splitting, but the sub-requests still go through `datasource.runQuery`. If that ends in `DataSourceWithBackend.query`, it calls `applyTemplateVariables` on every target again with the same `request.filters`. The second pass then adds the ad-hoc filters again: for queries with a parser, `addAdHocFilters` adds another `| key=\"value\"` stage, and selectors may get duplicate matchers. A variable value that contains `$...` would also be expanded again. I could not see `runQuery`, so I could not confirm the second pass. If it happens, clear `filters` on the sub-requests, or mark the targets as already interpolated so they are not interpolated again. The same applies to `runShardSplitQuery` in shardQuerySplitting.ts."
+   }
+  ]
+ },
+ "cost_usd": 0.0795504
+}

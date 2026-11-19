@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "discourse-graphite__5",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/5",
+ "head_sha": "5b229316ee4c661836ed1161139692a3e8527444",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:30:25.613Z",
+ "seconds": 29.616,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "app/assets/stylesheets/common/base/topic-post.scss",
+   "line": 264,
+   "end_line": 265,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Making `.small-action` a flex container shrinks `.small-action-desc` to its content, so right-floated buttons no longer reach the right edge.",
+   "body": "Before this change, `.small-action-desc` was an ordinary block that took the full row width. Its buttons (`button { float: right; }`) sat at the far right of the post. With `.small-action` now `display: flex`, `.small-action-desc` becomes a flex item with no `flex-grow`, so it is only as wide as its content. For a short action like \"closed this topic\", the delete/edit buttons now float right inside that narrow box, next to the text instead of at the edge of the post. If any button is a direct child of `.small-action`, its float is ignored entirely, because floats have no effect on flex items. I could not see the template, so I can't tell which of the two applies. Fix: add `flex: 1 1 auto;` (or `flex-grow: 1`) to `.small-action-desc` so it fills the remaining space as it did before."
+  }
+ ],
+ "usage": {
+  "requests": 4,
+  "input": 8,
+  "cacheWrite": 20509,
+  "cacheRead": 14108,
+  "output": 3643,
+  "models": {
+   "claude-opus-5-5": 4
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 5,
+   "hunks": 5,
+   "reviewedHunks": 5,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 34625,
+   "outputTokens": 3643,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 5,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.17825860000000002
+}

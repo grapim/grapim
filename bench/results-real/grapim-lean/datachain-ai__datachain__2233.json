@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "datachain-ai__datachain__2233",
+ "url": "https://github.com/datachain-ai/datachain/pull/2233",
+ "head_sha": "52e6865e8c440b5d60b8f638ddf519d69971a1c5",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:10:40.668Z",
+ "seconds": 53.71,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 10036,
+  "cacheRead": 3426,
+  "output": 4704,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 8,
+   "reviewedHunks": 8,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 13464,
+   "outputTokens": 4704,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "src/datachain/client/hf_file_system.py",
+    "line": 84,
+    "end_line": 84,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "performance",
+    "title": "`self.url()` can cost an extra Hub request on every read that goes to the Hub.",
+    "body": "In `huggingface_hub`, `HfFileSystemFile.url()` calls `self.fs.url(self.path)`. That re-resolves the path and then calls `self.isdir(path)`, which goes through `info()`. If that info is not already in the dircache, it is an extra `paths_info` call to the Hub on the first read and again after every expired-URL fallback. The upstream `_fetch_range` builds the URL straight from `self.resolved_path` with `hf_hub_url`, which needs no network. The new tests replace `fs.info` with a stub, so they would not show the extra call. I could not see the installed `huggingface_hub` version or whether `PinnedHfFileSystem` overrides `url`, so this may not happen. Fix: build the URL from `self.resolved_path` with `hf_hub_url`, the same way upstream does."
+   }
+  ]
+ },
+ "cost_usd": 0.1449532
+}

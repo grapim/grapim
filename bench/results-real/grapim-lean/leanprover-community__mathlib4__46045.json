@@ -1,0 +1,52 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "leanprover-community__mathlib4__46045",
+ "url": "https://github.com/leanprover-community/mathlib4/pull/46045",
+ "head_sha": "474b7518c60c9eb0341e0fee98e3cb07e6b7cf7d",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T19:21:22.265Z",
+ "seconds": 17.515,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 12621,
+  "cacheRead": 3527,
+  "output": 989,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 3,
+   "hunks": 3,
+   "reviewedHunks": 3,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16150,
+   "outputTokens": 989,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 3,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.08359839999999999
+}

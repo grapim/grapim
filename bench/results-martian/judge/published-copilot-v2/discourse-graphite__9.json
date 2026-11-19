@@ -1,0 +1,29 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "discourse-graphite__9",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The @loaded_locales instance variable in translate_accelerator.rb is lazily initialized and accessed by multiple concurrent threads without synchronization.",
+   "severity": "Low",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "No candidate raises thread-safety or synchronization of @loaded_locales."
+  },
+  {
+   "comment": "Consider normalizing the input locale (e.g., to a symbol) when checking/loading here to avoid double-loading if the same locale is passed as a String vs Symbol (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "perf",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate mentions normalizing String vs Symbol locales to avoid loading the same locale twice."
+  }
+ ],
+ "candidates": [
+  "Background-job contexts (e.g. app/jobs/base.rb sets I18n.locale = SiteSetting.default_locale) can hit missing translations when the backend falls back to :en/site default locales that haven't been loaded by the translate accelerator yet - the 'ensure fallbacks locales are loaded' behavior should be moved to a shared entry point for jobs/mailers",
+  "No specs assert that server-side fallbacks actually resolve (e.g. missing key in user locale falls back to site default and then :en) - adding a focused spec would help prevent regressions in fallback ordering/loading"
+ ]
+}

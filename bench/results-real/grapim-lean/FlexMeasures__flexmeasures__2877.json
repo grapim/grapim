@@ -1,0 +1,73 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "FlexMeasures__flexmeasures__2877",
+ "url": "https://github.com/FlexMeasures/flexmeasures/pull/2877",
+ "head_sha": "3c71fe893496207bb5dccc8ebf015c5f7ba0ae1f",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T15:11:26.291Z",
+ "seconds": 34.196,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [],
+ "usage": {
+  "requests": 1,
+  "input": 4,
+  "cacheWrite": 5791,
+  "cacheRead": 10821,
+  "output": 2472,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 2,
+   "hunks": 2,
+   "reviewedHunks": 2,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16616,
+   "outputTokens": 2472,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 2,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 2,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "flexmeasures/data/models/annotations.py",
+    "line": 213,
+    "end_line": 213,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "An unset belief_time may stop the lookup from finding existing annotations, so repeat posts create duplicates.",
+    "body": "The lookup now filters on `Annotation.belief_time == annotation.belief_time`. A caller may build an Annotation without a belief_time and leave it to a column default or server default applied at insert. Before flush, that object's `belief_time` is `None`, so the filter becomes `belief_time IS NULL`. It then never matches the stored row, which has a real timestamp. Each repeat of the same annotation would insert a new row with a new belief_time, where the old content/start/end lookup reused the existing row. I could not see the `Annotation` model or its callers, so I can't confirm whether `belief_time` gets a default. If it does, fill in the default before the lookup (for example in the constructor), or keep a fallback match for callers that give no belief time."
+   },
+   {
+    "path": "flexmeasures/data/models/annotations.py",
+    "line": 213,
+    "end_line": 213,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "`scalar_one_or_none()` can raise MultipleResultsFound on existing rows that match the new, wider key.",
+    "body": "Before this change, end was part of the lookup and belief_time was not, so the database may already hold rows that differ only in `end`. That can happen when belief_time is NULL, because PostgreSQL treats NULLs in a unique constraint as distinct, so the constraint does not block such rows. The new filter drops `end`, so a post for such an annotation matches several rows. `scalar_one_or_none()` then raises `MultipleResultsFound` and the request fails with HTTP 500. Whether such rows exist depends on the column's nullability and on existing data, which I could not see. Either handle more than one match (for example, order by id and take the first) or deduplicate those rows in a migration."
+   }
+  ]
+ },
+ "cost_usd": 0.0805752
+}

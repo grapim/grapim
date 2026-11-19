@@ -1,0 +1,23 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "discourse-graphite__6",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/6",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The include_website_name method is missing the required ? suffix. Rails serializers expect include_ methods to end with ? for conditional attribute inclusion, a convention followed by other methods in this serializer. Without it, the website_name attribute may not be conditionally included as intended. Additionally, the '.' << website_host string concatenation should be replaced with '.' + website_host or '.#{website_host}' to avoid mutating string literals, which can lead to issues.",
+   "severity": "Medium",
+   "category": "api",
+   "matches": [
+    1
+   ],
+   "confidence": 0.93,
+   "reasoning": "C1 points out the same missing ? suffix on include_website_name. C2 is about a missing restrict_user_fields guard, which is a different issue."
+  }
+ ],
+ "candidates": [
+  "Method `include_website_name` is missing the `?` suffix - the serializer uses `include_<attribute>?` as its predicate convention, so without the trailing `?` this method is never called and `website_name` will be included unconditionally",
+  "The `include_website_name` method needs to apply the same `restrict_user_fields?` guard as `website`, otherwise the derived URL label can bypass the existing hidden-profile-field check"
+ ]
+}

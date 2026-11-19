@@ -1,0 +1,52 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "sentry-greptile__1",
+ "url": "https://github.com/ai-code-review-evaluation/sentry-greptile/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The OptimizedCursorPaginator in organization_auditlogs.py attempts to use negative slice offsets on Django querysets, but Django querysets do not support negative slicing and will raise an AssertionError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 covers the same issue: negative slicing on a Django queryset raises an AssertionError."
+  },
+  {
+   "comment": "When requests are authenticated with API keys or org auth tokens (which have user_id=None), organization_context.member is None. Line 71 attempts to access organization_context.member.has_global_access without checking if member is None, causing an AttributeError crash when optimized_pagination=true is used, even though the request passed all permission checks with valid org:write scope.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.85,
+   "reasoning": "C2 covers the same crash: member can be None, so accessing has_global_access raises an AttributeError. It gives a different cause for the None (no membership rather than API key auth), but the bug is the same."
+  },
+  {
+   "comment": "get_item_key assumes a numeric key, but the paginator is used with order_by=-datetime in the audit logs endpoint; calling math.floor/ceil on a datetime will raise a TypeError.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 covers the same issue: calling math.floor/ceil on a datetime raises a TypeError."
+  },
+  {
+   "comment": "Importing non-existent OptimizedCursorPaginator",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates says the import refers to a class that doesn't exist."
+  }
+ ],
+ "candidates": [
+  "Django QuerySets do not support negative indexing. When `enable_advanced_features` is True and `cursor.offset < 0`, this code will raise an `AssertionError` at runtime with message 'Negative indexing is not supported.'",
+  "`organization_context.member` can be `None` (when the user has no membership in the organization), so accessing `.has_global_access` will raise `AttributeError` for non-superusers without membership. Guard against the `None` case.",
+  "`OptimizedCursorPaginator.get_item_key` applies `math.floor`/`math.ceil` directly to the raw attribute value. When paginating by `-datetime`, the value is a `datetime` object, and `math.floor(datetime)` raises `TypeError`. The `DateTimePaginator` it replaces handles this correctly by first converting to a float timestamp."
+ ]
+}

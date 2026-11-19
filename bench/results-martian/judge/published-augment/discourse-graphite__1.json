@@ -1,0 +1,51 @@
+{
+ "tool": "published-augment",
+ "pr_id": "discourse-graphite__1",
+ "url": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/1",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The downsize method is defined twice. The second definition, which expects a single dimensions string parameter, overrides the first, which expected separate max_width and max_height parameters. This makes the original method unreachable and breaks existing code that calls it with separate width and height arguments.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 points out the same problem: downsize is defined twice and the second definition overrides the first with a different signature."
+  },
+  {
+   "comment": "Hardcoding maxSizeKB = 10 * 1024 ignores Discourse.SiteSettings['max_' + type + '_size_kb'], so the client-side limit can diverge from server-side and per-type settings (also applies to the 413 handler below).",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.95,
+   "reasoning": "C2 raises the same issue: hardcoding 10MB ignores the per-type max_*_size_kb site settings."
+  },
+  {
+   "comment": "Passing 80% as the dimensions can fail for animated GIFs when allow_animated_thumbnails is true, since the animated path uses gifsicle --resize-fit which expects WxH geometry, not a percentage; downsizing would then silently fail.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [],
+   "confidence": 0.75,
+   "reasoning": "C4 covers downsize failing in general, but it doesn't identify the cause G3 describes: gifsicle can't handle percentage geometry for animated GIFs."
+  },
+  {
+   "comment": "The loop checking `tempfile.size` may never terminate correctly due to stale cached size, leading to potential infinite loops or incorrect file handling after modifications.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.7,
+   "reasoning": "No candidate says the cached tempfile.size goes stale. C3 is about the iteration count limit and C4 is about downsize failures."
+  }
+ ],
+ "candidates": [
+  "There are two self.downsize method definitions where the latter overrides the former and changes the signature, which will raise ArgumentError for callers still passing max_width, max_height (e.g. app/jobs/regular/resize_emoji.rb)",
+  "Hardcoding maxSizeKB to 10MB ignores the per-type max_*_size_kb site settings, so the client can accept files the server rejects or reject files when admins allow >10MB",
+  "The downsize loop only shrinks to ~33% of the original after 5 iterations (0.8^5), so a 10MB image may still exceed max_image_size_kb and proceed to Upload.create_for despite the comment promising automatic reduction",
+  "If OptimizedImage.downsize fails and returns false, the loop keeps retrying and the oversized file continues"
+ ]
+}

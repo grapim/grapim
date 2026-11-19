@@ -1,0 +1,74 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "Abilityai__trinity__4629",
+ "url": "https://github.com/Abilityai/trinity/pull/4629",
+ "head_sha": "06b90ae503e80213e8c3af657ed67c22f5312f03",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:32:02.868Z",
+ "seconds": 86.825,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "docs/user-docs/faq/troubleshooting.md",
+   "line": 205,
+   "end_line": 205,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Troubleshooting gives an incomplete fix for a credential entry held as `role_cannot_open_agent`.",
+   "body": "After this change, a credential entry can be held as `role_cannot_open_agent` for three other reasons: the primary contact is deactivated or blocked from the Workspace, or the owner is the reader and cannot open the agent. In those cases, sharing the agent with the primary contact does nothing, so an admin who follows this sentence will see the entry stay held. The other pages in this PR (approvals.md, credential-management.md) give the fuller remedy: make sure the agent is shared with the primary contact and that they can sign in, assign a primary contact, or check the owner's access. This sentence should give the same remedy."
+  }
+ ],
+ "usage": {
+  "requests": 5,
+  "input": 10,
+  "cacheWrite": 205526,
+  "cacheRead": 17805,
+  "output": 8838,
+  "models": {
+   "claude-opus-5-5": 5
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 36,
+   "hunks": 69,
+   "reviewedHunks": 68,
+   "aiHunks": 0,
+   "skippedHunks": 1,
+   "inputTokens": 223341,
+   "outputTokens": 8838,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 36,
+   "reviewedAiHunks": 0,
+   "requests": 5,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": [
+   {
+    "path": "tests/unit/test_4579_credential_primary_reach.py",
+    "line": 291,
+    "end_line": 297,
+    "severity": "warning",
+    "confidence": "low",
+    "category": "correctness",
+    "title": "New assertion may contradict the `CAUSE_NO_PRIMARY` refusal this scenario raises.",
+    "body": "This test covers \"nobody seated, owner off the roster\". If the assignments provider is installed for this test class (the sibling tests call `_seat`), `resolve_addressee` resolves the owner as a stand-in (`stood_in=True`). `resolve_credential_reader` then takes the `owner_is_primary and r.stood_in` arm. That arm raises `CAUSE_NO_PRIMARY`, whose message is \"...Ask an admin to assign a primary person and share {agent} with them.\" That message contains \"share\", so `assert \"share\" not in refusal.message.lower()` would fail.\n\nThe docstring says the owner \"is the primary person here\", which is the `CAUSE_OWNER_IS_PRIMARY` case. That case only applies when no assignments module answers. I could not see the fixture that decides whether the provider is registered here.\n\nFix: confirm which cause this scenario produces. Then assert that cause, or the sentence of that arm, instead of a blanket ban on \"share\". The `NO_PRIMARY` remedy correctly includes sharing with the newly assigned primary."
+   }
+  ]
+ },
+ "cost_usd": 1.207991
+}

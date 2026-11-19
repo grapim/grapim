@@ -1,0 +1,44 @@
+{
+ "tool": "published-cubic-v2",
+ "pr_id": "grafana__103633",
+ "url": "https://github.com/grafana/grafana/pull/103633",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The Check operation exhibits asymmetric cache trust logic: cached permission grants are trusted and returned immediately, but cached denials from the same permission cache are ignored, leading to a fresh database lookup. This allows stale cached grants to provide access to revoked resources, posing a security risk. ",
+   "severity": "High",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.6,
+   "reasoning": "C1 points to the same asymmetric cache-trust logic in Check, where the permission cache's denials are ignored and the DB is re-queried. However, C1's concern is stale denials blocking new grants, while G1's is stale grants allowing access to revoked resources. It is the same underlying code issue, so I count it as a partial match."
+  },
+  {
+   "comment": "The test comment says the cached permissions 'allow access', but the map stores false for dashboards:uid:dash1, so checkPermission will still treat this scope as not allowed.",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [
+    2
+   ],
+   "confidence": 0.7,
+   "reasoning": "C2 notes that the test seeds the cached permission as denied (false). This is the same mismatch G2 describes between the test comment's claim of 'allow access' and the false value in the map."
+  },
+  {
+   "comment": "The cache key construction in `userPermDenialCacheKey` uses simple string concatenation with underscores, which can lead to ambiguous keys and collision risks when any component contains underscores or is empty. This could result in incorrect denial cache hits, affecting user permissions.",
+   "severity": "Medium",
+   "category": "data",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 identifies the same collision risk from the underscore-joined key in userPermDenialCacheKey."
+  }
+ ],
+ "candidates": [
+  "`Check` trusts the denial cache (returns denied immediately) but deliberately ignores denials from the permission cache (re-queries DB to pick up new grants). This is contradictory: once a denial is stored in `permDenialCache` after a DB re-query, any permission granted afterward is blocked for up to 30s — the exact staleness problem the re-query path was designed to solve. Consider either not caching denials for the `Check` path, or invalidating the denial cache entry when the permission cache is refreshed.",
+  "This test seeds the cached permission as denied, so it can pass even if `permDenialCache` is never consulted.",
+  "Escape or encode `name` and `parent` in the denial-cache key; the current `_`-joined format can collide and cause false permission denials."
+ ]
+}

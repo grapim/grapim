@@ -1,0 +1,63 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "sentry__77754",
+ "url": "https://github.com/getsentry/sentry/pull/77754",
+ "head_sha": "9501091c52ae94e8d916f79b35d21975b3f9cadb",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-15T11:25:21.978Z",
+ "seconds": 20.722,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "src/sentry/integrations/services/assignment_source.py",
+   "line": 18,
+   "end_line": 18,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "correctness",
+   "title": "`queued` default is set once at import time, not per instance.",
+   "body": "`queued: datetime = timezone.now()` runs once, when the class is defined. Every `AssignmentSource` built afterwards (including through `from_integration`) gets the worker's import timestamp, not the time the assignment was queued. Anything that reads `queued`, such as ordering or staleness checks for the sync-cycle logic, gets a wrong and possibly hours-old value. Use `queued: datetime = field(default_factory=timezone.now)` instead."
+  }
+ ],
+ "usage": {
+  "requests": 1,
+  "input": 2,
+  "cacheWrite": 13114,
+  "cacheRead": 3262,
+  "output": 1101,
+  "models": {
+   "claude-opus-5-5": 1
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 7,
+   "hunks": 16,
+   "reviewedHunks": 16,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 16378,
+   "outputTokens": 1101,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 7,
+   "reviewedAiHunks": 0,
+   "requests": 1,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 1,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.08825039999999999
+}

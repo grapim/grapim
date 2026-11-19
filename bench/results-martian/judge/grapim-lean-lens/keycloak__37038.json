@@ -1,0 +1,36 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "keycloak__37038",
+ "url": "https://github.com/keycloak/keycloak/pull/37038",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "In GroupPermissionsV2.canManage(), the permission fallback checks for both VIEW and MANAGE scopes (hasPermission(null, AdminPermissionsSchema.VIEW, AdminPermissionsSchema.MANAGE)), but canManage() should only grant access for MANAGE scope, not VIEW. This means users with only VIEW permission on groups can pass the canManage() check, granting them write access they should not have. The canView() method correctly checks both VIEW and MANAGE, but canManage() should only check MANAGE.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1,
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C1 and C2 both say that canManage() checks the VIEW scope as well as MANAGE, which gives view-only admins write access."
+  },
+  {
+   "comment": "In getGroupIdsWithViewPermission, hasPermission is called with groupResource.getId() and the same groupResource.getId() is added to granted, but hasPermission resolves resources by name (treating the argument as a group id) and the GroupPermissionEvaluator contract says this method returns group IDs that are later used as UserModel.GROUPS and in getUsersCount group filters. This mismatch means per-group VIEW_MEMBERS/MANAGE_MEMBERS permissions may not yield the expected group IDs for filtering and counts, and evaluation may effectively only look at the type-level 'all-groups' resource; consider revisiting whether this should operate on the underlying group ids (resource names) instead so it aligns with the JPA queries and the interface contract.",
+   "severity": "High",
+   "category": "api",
+   "matches": [
+    3
+   ],
+   "confidence": 0.93,
+   "reasoning": "C3 says that getGroupIdsWithViewPermission uses resource IDs where it should use group IDs (the resource names). This makes the filters and counts wrong and leaves the check falling back to the all-groups resource."
+  }
+ ],
+ "candidates": [
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/GroupPermissionsV2.java:65 - Global canManage() also passes for a view-only groups permission. `canManage()` calls `hasPermission(null, VIEW, MANAGE)`. An admin who has only an all-groups `view` permission therefore passes `requireManage()`. That check guards creating top-level groups, so a view-only grant lets the admin write groups. `canManage(GroupModel)` beside it correctly checks only `MANAGE`. Fix: check only `AdminPermissionsSchema.MANAGE` here.",
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/GroupPermissionsV2.java:70 - canManage() accepts the VIEW scope, so a view-only all-groups permission lets the admin manage groups.. `canManage()` passes `AdminPermissionsSchema.VIEW, AdminPermissionsSchema.MANAGE` to `hasPermission`. The method returns true if any listed scope is granted. An admin who was given only `view` on all groups therefore passes `requireManage()` and can do anything gated on it, such as creating top-level groups. This looks like a copy of the `canView()` line. Check only `MANAGE` here.",
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/GroupPermissionsV2.java:121 - getGroupIdsWithViewPermission uses resource IDs instead of group IDs. Group resources are named after the group ID: `resolveGroup` returns `group.getId()`, and that becomes the resource name. This loop instead passes `groupResource.getId()` (the internal resource ID) to `hasPermission`. There `findByName` never matches, so every check falls back to the all-groups resource. The loop then adds `groupResource.getId()` to the result, and that set is stored as `UserModel.GROUPS` and used as group IDs to filter user search and count queries. `findByType` also returns the \"Groups\" type resource itself, so its ID ends up in the set too.\n\nThe result: an admin with VIEW_MEMBERS on a group gets a filter made of IDs that are not group IDs. User counts and search results are then wrong (usually empty), or wrongly granted through the all-groups fallback. Fix: use `groupResource.getName()` for both the check and the result, and skip the resource-type resource.",
+  "services/src/main/java/org/keycloak/services/resources/admin/permissions/GroupPermissionEvaluator.java:132 - requireManageMembers docstring names the wrong method.. The Javadoc for `requireManageMembers` says it throws when `canManageMembership(GroupModel)` returns false. It is the counterpart of `canManageMembers(GroupModel)`, so the doc names the wrong check; it looks copied from `requireManageMembership`."
+ ]
+}

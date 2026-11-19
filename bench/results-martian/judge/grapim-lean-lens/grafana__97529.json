@@ -1,0 +1,32 @@
+{
+ "tool": "grapim-lean-lens",
+ "pr_id": "grafana__97529",
+ "url": "https://github.com/grafana/grafana/pull/97529",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A race condition in BuildIndex allows multiple goroutines to concurrently build the same expensive index for the same key. This is caused by moving the b.cacheMu lock from protecting the entire function to only protecting the final cache assignment. ",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "None of the candidates mention the race in BuildIndex where narrowing the cacheMu lock lets several goroutines build the same index at once."
+  },
+  {
+   "comment": "Calling s.search.TotalDocs() here may race with concurrent index creation: TotalDocs iterates b.cache without synchronization, and the event watcher goroutine started just above could trigger BuildIndex writes concurrently, potentially causing a concurrent map read/write panic.",
+   "severity": "High",
+   "category": "concurrency",
+   "matches": [
+    3
+   ],
+   "confidence": 0.95,
+   "reasoning": "C3 describes the same problem: TotalDocs reads the cache map without a lock while the event goroutine may write to it through BuildIndex."
+  }
+ ],
+ "candidates": [
+  "pkg/server/module_server_test.go:35 - Storage-server integration test is now skipped for Postgres instead of fixed.. This test now skips whenever `GRAFANA_TEST_DB=postgres`. That disables the only Postgres coverage for the storage-server module target. The PR summary calls this \"Enhanced PostgreSQL integration test compatibility\", but the test is simply switched off. It happens in the same PR that moves resource-server init into the constructor, which is exactly the kind of startup change this test would catch. Fix the Drone failure, or track it explicitly, instead of skipping the test.",
+  "pkg/storage/unified/resource/server.go:258 - Removing the per-request `Init` checks means requests are no longer rejected after `Stop`.. `Stop` sets `s.initErr = \"service is stopping\"`. Before this change, every handler (Create, Update, Delete, Read, List, Watch, Search, History, Origin, IsHealthy, PutBlob, GetBlob) called `s.Init`, which returns `s.initErr`, so requests arriving during shutdown got a clean error. With those checks gone, `initErr` is never read after construction. During shutdown, requests still reach the cancelled backend and the stopped watcher. `IsHealthy` can also keep reporting healthy while the server stops. Fix: keep a cheap check in the handlers, for example a helper that returns `s.initErr` when it is set, or remove the `Stop` assignment if this behaviour is meant to go away.",
+  "pkg/storage/unified/resource/search.go:216 - New `TotalDocs()` call reads the index cache map without a lock while the event goroutine can write to it.. The event-handling goroutine starts just above this line. `handleEvent` can reach `getOrCreateIndex` → `build` → `BuildIndex`, which writes `b.cache[key]` under `cacheMu`. `bleveBackend.TotalDocs` loops over `b.cache` without taking `cacheMu`. If a write event for a namespace or resource without an index arrives at startup, the two can overlap. Go then aborts with \"concurrent map iteration and map write\", taking the whole server down at startup. Fix: take `cacheMu` (read lock) inside `TotalDocs`, or call it before starting the event goroutine. I could not see whether `handleEvent` always builds through this path."
+ ]
+}

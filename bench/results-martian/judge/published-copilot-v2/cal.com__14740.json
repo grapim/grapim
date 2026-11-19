@@ -1,0 +1,76 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "cal.com__14740",
+ "url": "https://github.com/calcom/cal.com/pull/14740",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "The addGuests.handler.ts blacklist check uses blacklistedGuestEmails.includes(guest) after lowercasing the blacklist but not the input guest emails, allowing attackers to bypass BLACKLISTED_GUEST_EMAILS restrictions by submitting emails with uppercase characters.",
+   "severity": "High",
+   "category": "security",
+   "matches": [
+    1
+   ],
+   "confidence": 0.95,
+   "reasoning": "C1 points out that the blacklist is lowercased but guest emails are not, which lets case variants bypass the blacklist."
+  },
+  {
+   "comment": "The logic for checking team admin/owner permissions is incorrect. This condition uses AND (&&) which requires both isTeamAdmin AND isTeamOwner to be true, but it should use OR (||) since a user needs to be either an admin OR an owner to have permission.",
+   "severity": "Critical",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.97,
+   "reasoning": "C2 identifies the same AND-vs-OR mistake in the admin/owner permission check."
+  },
+  {
+   "comment": "The sendAddGuestsEmails function in email-manager.ts passes the full calendarEvent.attendees array when determining which attendees receive AttendeeScheduledEmail vs AttendeeAddGuestsEmail, but checks if newGuests.includes(attendee.email) where newGuests is the input guests array.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.75,
+   "reasoning": "C3 says the raw guests array decides which attendees count as new guests, so they can get the wrong email template. That is the same misclassification problem in sendAddGuestsEmails."
+  },
+  {
+   "comment": "uniqueGuests filters out existing attendees and blacklisted emails but does not deduplicate duplicates within the input; createMany can insert duplicate attendee rows if the client submits repeated emails.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.8,
+   "reasoning": "C1 says duplicate emails in the input are not removed, so createMany can insert duplicate attendee rows."
+  },
+  {
+   "comment": "Starting with an array containing an empty string may cause validation issues. Consider starting with an empty array [] and handling the empty state in the MultiEmail component instead.",
+   "severity": "Low",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate raises the problem of the initial state being an array with one empty string."
+  },
+  {
+   "comment": "The `sendAddGuestsEmails` function does not check the `disableStandardEmails` flags in the `EventType` metadata, which may result in sending emails to hosts/attendees even when standard emails are disabled for the event type.",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    4
+   ],
+   "confidence": 0.92,
+   "reasoning": "C4 points out that sendAddGuestsEmails ignores the event type's settings for disabling host and attendee emails."
+  }
+ ],
+ "candidates": [
+  "Guest normalization/deduping is missing: blacklist entries are lowercased but guest isn't, and duplicates/whitespace/case variants can slip through, potentially bypassing BLACKLISTED_GUEST_EMAILS and causing duplicate attendee inserts",
+  "isTeamAdminOrOwner currently requires the user to be both team admin AND team owner instead of OR semantics, which will wrongly forbid legitimate team admins/owners from adding guests",
+  "Email sender is passed the raw guests array but handler filters to uniqueGuests before writing attendees, which can misclassify existing/blacklisted/duplicate entries as newGuests and send wrong email template",
+  "sendAddGuestsEmails always emails organizer + attendees but doesn't respect eventTypeDisableHostEmail / eventTypeDisableAttendeeEmail like other booking-update emails do",
+  "Group label uses htmlFor='emails' but rendered inputs don't have matching id, so label isn't associated with any control (hurts screen-reader and click-to-focus behavior)",
+  "Remove-email control has hard-coded English tooltip and icon-only button lacks accessible label - should use translated text and add aria-label for screen readers",
+  "Once isInvalidEmail is set, it never clears when user edits the email list, so error stays visible even after input becomes valid until next submit/cancel"
+ ]
+}

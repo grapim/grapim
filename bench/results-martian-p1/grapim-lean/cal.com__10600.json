@@ -1,0 +1,103 @@
+{
+ "tool": "grapim-lean",
+ "pr_id": "cal.com__10600",
+ "url": "https://github.com/calcom/cal.com/pull/10600",
+ "head_sha": "54486a059cd2032042189bb565646ba4e0f6bd61",
+ "model": "claude-opus-5-5",
+ "dry": false,
+ "at": "2026-11-18T16:46:40.098Z",
+ "seconds": 37.59,
+ "status": "ok",
+ "via": "claude-cli",
+ "findings": [
+  {
+   "path": "packages/features/auth/lib/next-auth-options.ts",
+   "line": 131,
+   "end_line": 157,
+   "severity": "blocker",
+   "confidence": "high",
+   "category": "security",
+   "title": "A backup code plus any non-empty totpCode logs in without the password.",
+   "body": "The password check just above only runs when `!credentials.totpCode`. If an attacker sends `totpCode` set to any non-empty value together with `backupCode`, the password check is skipped. The new branch is then taken because `backupCode` is truthy, so the TOTP value is never checked either. The account is opened with only the email and one leaked backup code, with no password and no TOTP. Before this change, skipping the password still required a valid TOTP. Fix: in the backup-code branch, always check the password. For example, require `credentials.password` and run `verifyPassword` when `credentials.backupCode` is set, or reject requests that carry both `totpCode` and `backupCode`."
+  },
+  {
+   "path": "packages/features/auth/lib/next-auth-options.ts",
+   "line": 139,
+   "end_line": 156,
+   "severity": "warning",
+   "confidence": "high",
+   "category": "security",
+   "title": "Two concurrent logins can both use the same backup code.",
+   "body": "The code reads the encrypted list, checks the supplied code, then writes back the list with that code set to null. Nothing makes this read-check-write atomic. Two requests with the same code that arrive together both read the old list, both find the code, and both get a session, so a single-use code works twice. Later writes can also undo each other's changes. Fix: make the consume step conditional, for example `updateMany({ where: { id: user.id, backupCodes: user.backupCodes }, data: {...} })`, and reject the login when the count is 0. A transaction with a row lock also works."
+  },
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 135,
+   "end_line": 135,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "Closing the dialog on the backup-codes step skips onEnable, so the page still shows 2FA as off.",
+   "body": "After the TOTP code is accepted, 2FA is already on at the server, but `onEnable()` now runs only from the new Close button. The modal also hides Cancel on this step. If the user dismisses the dialog with Escape, an outside click or the dialog's X, only `onOpenChange` runs. The parent never learns that 2FA was enabled, so the switch stays unchecked until the page reloads. `resetState()` is also skipped, so the modal opens again on the backup-codes step.\n\nI could not see the parent's `onOpenChange`, so I can't confirm it doesn't refresh this state some other way. Fix: call `onEnable()` right after a successful enable and use the backup-codes step for display only. Or handle `onOpenChange` while `step === SetupStep.DisplayBackupCodes` so it runs `resetState(); onEnable();`."
+  },
+  {
+   "path": "packages/ui/components/form/inputs/Input.tsx",
+   "line": 49,
+   "end_line": 49,
+   "severity": "warning",
+   "confidence": "medium",
+   "category": "scope",
+   "title": "tabIndex={-1} takes the show-password toggle out of keyboard focus for every PasswordField.",
+   "body": "`PasswordField` is a shared UI component. Setting `tabIndex={-1}` on its visibility toggle means keyboard and screen-reader users can no longer reach the show/hide control on any password field in the app, including login and signup. The backup-codes feature doesn't need this change. Remove `tabIndex={-1}`, or make it an opt-in prop for the modal that wants it."
+  },
+  {
+   "path": "apps/web/components/settings/EnableTwoFactorModal.tsx",
+   "line": 278,
+   "end_line": 279,
+   "severity": "nit",
+   "confidence": "medium",
+   "category": "correctness",
+   "title": "The 'copied' toast shows even when the clipboard write fails.",
+   "body": "`navigator.clipboard.writeText` returns a promise. Here it isn't awaited, and the success toast is shown right away. If the write is rejected (permission denied, an insecure context, or `navigator.clipboard` undefined), the user is told the codes were copied when they weren't, and could lose their recovery codes. Await the call and show an error toast on failure."
+  }
+ ],
+ "usage": {
+  "requests": 2,
+  "input": 4,
+  "cacheWrite": 28692,
+  "cacheRead": 7122,
+  "output": 4945,
+  "models": {
+   "claude-opus-5-5": 2
+  }
+ },
+ "raw": {
+  "stats": {
+   "files": 16,
+   "hunks": 34,
+   "reviewedHunks": 34,
+   "aiHunks": 0,
+   "skippedHunks": 0,
+   "inputTokens": 35818,
+   "outputTokens": 4945,
+   "model": "claude-opus-5-5",
+   "provider": "anthropic",
+   "reviewedFiles": 16,
+   "reviewedAiHunks": 0,
+   "requests": 2,
+   "droppedFindings": 0,
+   "omittedFindings": 0,
+   "comparedWith": [
+    "PR description"
+   ],
+   "noNotes": true,
+   "heldFindings": 0,
+   "passes": 1
+  },
+  "skipped": [],
+  "deletedTests": [],
+  "notesWritten": 0,
+  "held": []
+ },
+ "cost_usd": 0.2438004
+}

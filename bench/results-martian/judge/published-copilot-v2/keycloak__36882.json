@@ -1,0 +1,30 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "keycloak__36882",
+ "url": "https://github.com/keycloak/keycloak/pull/36882",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "Incorrect method call for exit codes. The picocli.exit() method calls System.exit() directly, which is problematic:",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates mention that picocli.exit() calls System.exit() directly."
+  },
+  {
+   "comment": "Need to add changelog/release notes documenting the exit code change and migration guidance",
+   "severity": "Low",
+   "category": "doc_defect",
+   "matches": [],
+   "confidence": 0.9,
+   "reasoning": "None of the candidates ask for changelog or release-note documentation."
+  }
+ ],
+ "candidates": [
+  "The new FEATURE_DISABLED constant is inconsistent with the existing *_EXIT_CODE naming convention (ROLLING_UPGRADE_EXIT_CODE, RECREATE_UPGRADE_EXIT_CODE), making it harder to recognize as an exit-code contract and easier to confuse with a boolean flag. Should be renamed to FEATURE_DISABLED_EXIT_CODE",
+  "The feature-disabled error message doesn't tell the user how to resolve the problem. Should include the exact CLI option to enable it (e.g. 'Enable it with --features=rolling-updates') to make the failure actionable",
+  "Grammar issue: 'While on preview stage' is unidiomatic English. Should be 'While in preview' or 'While in the preview stage'"
+ ]
+}

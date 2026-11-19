@@ -1,0 +1,80 @@
+{
+ "tool": "published-copilot-v2",
+ "pr_id": "cal.com__10967",
+ "url": "https://github.com/calcom/cal.com/pull/10967",
+ "judge": "claude-opus-5-5",
+ "status": "ok",
+ "goldens": [
+  {
+   "comment": "A null reference occurs in GoogleCalendarService.createEvent() and updateEvent() when mainHostDestinationCalendar is destructured from evt.destinationCalendar but evt.destinationCalendar is null or an empty array, causing mainHostDestinationCalendar to be undefined.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    1
+   ],
+   "confidence": 0.9,
+   "reasoning": "C1 flags the same problem: mainHostDestinationCalendar is undefined when destinationCalendar is null or empty."
+  },
+  {
+   "comment": "The optional chaining on mainHostDestinationCalendar?.integration is redundant since you already check mainHostDestinationCalendar in the ternary condition.",
+   "severity": "Low",
+   "category": "style",
+   "matches": [],
+   "confidence": 0.85,
+   "reasoning": "No candidate says the optional chaining is redundant. C1 actually asks for more guarding."
+  },
+  {
+   "comment": "Logic error: when externalCalendarId is provided, you're searching for a calendar where externalId === externalCalendarId, but this will always fail since you're looking for a calendar that matches itself. Should likely find by credentialId or use different logic.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    2
+   ],
+   "confidence": 0.55,
+   "reasoning": "C2 points to the same flawed fallback lookup (externalId === externalCalendarId), which gives an undefined calendarId. It gets there from a slightly different angle."
+  },
+  {
+   "comment": "Logic inversion in organization creation: The slug property is now conditionally set when IS_TEAM_BILLING_ENABLED is true, instead of when it's false as originally intended. This change, combined with requestedSlug still being set when IS_TEAM_BILLING_ENABLED is true, results in both properties being set when billing is enabled, and neither when disabled",
+   "severity": "Medium",
+   "category": "bug",
+   "matches": [
+    3
+   ],
+   "confidence": 0.85,
+   "reasoning": "C3 flags the same inverted org slug and requestedSlug logic under IS_TEAM_BILLING_ENABLED."
+  },
+  {
+   "comment": "The Calendar interface now requires createEvent(event, credentialId), but some implementations (e.g., Lark/Office365) still declare createEvent(event) only—this breaks the interface contract (also applies to other locations in the PR).",
+   "severity": "Low",
+   "category": "api",
+   "matches": [
+    4
+   ],
+   "confidence": 0.7,
+   "reasoning": "C4 says Lark's createEvent signature lacks credentialId and should be updated, which is the same interface mismatch."
+  },
+  {
+   "comment": "The `credential` may be undefined when passed to `updateEvent` if `reference.credentialId` is set but the credential is not found. This can lead to a runtime error when `updateEvent` is called with an undefined credential, which should be handled to prevent crashes.",
+   "severity": "High",
+   "category": "bug",
+   "matches": [
+    5
+   ],
+   "confidence": 0.9,
+   "reasoning": "C5 flags the same risk: credential can be undefined when it is passed to updateEvent."
+  }
+ ],
+ "candidates": [
+  "mainHostDestinationCalendar can be undefined when evt.destinationCalendar is null/[], accessing .integration will throw and break booking creation/reschedule for Meet location - use optional chaining or a guard",
+  "In updateEvent, externalCalendarId can be null/empty (passed from booking references), the current fallback branch searches for externalId === externalCalendarId (which will be null/undefined) and can produce an undefined calendarId, causing the Google API call to fail - provide a reliable fallback",
+  "This inverts the org slug behavior compared to the existing publish/update flow - elsewhere when IS_TEAM_BILLING_ENABLED is true and an org isn't published yet, the slug is stored in metadata.requestedSlug (not team.slug) - setting slug directly here under team billing likely bypasses that flow",
+  "Same issue as other calendar services: Lark always uses the first element of event.destinationCalendar - for collective/multi-host bookings, EventManager will call createEvent once per destination/credential, without selecting by credentialId Lark event creation for secondary hosts can target the wrong calendar ID - update the signature to accept credentialId and pick the matching destination calendar",
+  "If a calendar reference has credentialId but that credential isn't present in this.calendarCredentials and also can't be fetched from DB, credential stays undefined and updateEvent(credential, ...) will throw a non-obvious runtime error - add an explicit guard or return a failure result before calling updateEvent",
+  "credentialId is now only set on references when isCalendarType is true, but video references rely on credentialId for later cleanup (cancellation uses bookingVideoReference.credentialId), so dropping it will prevent deleting/updating the created video meeting",
+  "selectedCalendar can be undefined when destinationCalendar doesn't contain an entry for the passed credentialId, the insert uses fallback to 'primary' but later events.patch({ calendarId: selectedCalendar }) will be called with undefined and can fail - default selectedCalendar to 'primary' when not found",
+  "In deleteEvent, the fallback path tries to find a destinationCalendar entry matching externalCalendarId even when externalCalendarId is falsy, resulting in undefined and relying on later ternaries - simplify and make the fallback explicit to avoid deleting from the wrong calendar",
+  "evt.destinationCalendar is set to null when neither event type nor organizer has a destination calendar, but later collective logic appends team members via evt.destinationCalendar?.push(...) - if organizer has no destination calendar, team host destination calendars will be dropped - prefer an empty array so the collective append always works",
+  "When dynamicUserList is missing/empty for a dynamic booking, this currently throws a generic Error and gets converted into a 500 'Unable to load users' - that's a client input problem and should return a 400 with a clear message",
+  "In the recurring-event branch, the code already iterates all calendar credentials and deletes events for all updatedBookings, when there are multiple _calendar references the surrounding loop will repeat that same work for each reference, causing duplicate delete calls and unnecessary API load - exit the loop after completing the recurring deletion pass"
+ ]
+}
