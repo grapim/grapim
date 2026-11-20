@@ -36,33 +36,53 @@ const NAV_ICON = {
   log: glyph('<circle cx="8" cy="8" r="5.75"/><path d="M8 5v3l2 1.5"/>'),
   note: glyph('<path d="M9.5 1.75H4.25a1 1 0 0 0-1 1v10.5a1 1 0 0 0 1 1h7.5a1 1 0 0 0 1-1V4.75l-3-3Z"/><path d="M9.5 1.75v3h3M5.5 8.5h5M5.5 11h3.5"/>'),
   help: glyph('<circle cx="8" cy="8" r="5.75"/><path d="M6.25 6.4a1.8 1.8 0 0 1 3.5.6c0 1.2-1.75 1.5-1.75 2.6"/><path d="M8 11.4h.01" stroke-width="2"/>'),
+  code: glyph('<path d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5M9 3 7 13"/>'),
+  repo: glyph('<path d="M3.5 12.5v-9a1.5 1.5 0 0 1 1.5-1.5h7.5v9.5H5a1.5 1.5 0 0 0-1.5 1.5Zm0 0A1.5 1.5 0 0 0 5 14h7.5"/><path d="M6.5 5h3"/>'),
+  chat: glyph('<path d="M2.5 4A1.5 1.5 0 0 1 4 2.5h8A1.5 1.5 0 0 1 13.5 4v6a1.5 1.5 0 0 1-1.5 1.5H7.25L4.5 13.75V11.5H4A1.5 1.5 0 0 1 2.5 10V4Z"/><path d="M5.5 6h5M5.5 8.25h3"/>'),
+  linkedin: glyph('<rect x="2" y="2" width="12" height="12" rx="2.5"/><path d="M5.25 7v4M5.25 4.9v.01M8 11V7m0 1.9c0-1.05.8-1.9 1.75-1.9s1.75.85 1.75 1.9V11"/>'),
 };
 
-// The top bar's menus. Every href is a page or a heading that exists
-// (test/site.test.js follows each one); `on` is the siteBar `current` value
-// that marks the item as the page you are on.
+// The top bar's menus: two columns of items, each an icon tile, a title and
+// one grey line (the pattern Exa and Dropbox use). Every href is a page, a
+// heading or Grapim's public repository (test/site.test.js follows each
+// one); `on` is the siteBar `current` value that marks the item as the page
+// you are on. `group` is a second, smaller set under a mono label.
+export const REPO = 'https://github.com/grapim/grapim';
+const AGENTS_DOC = '/docs/concepts#agents';
 export const NAV_MENUS = [
   {
     id: 'product',
     label: 'Product',
     href: '/#how', // without script the trigger is this link
     items: [
-      { href: '/#how', icon: 'pr', title: 'How it works', text: 'Each change checked against what the agent was asked.' },
-      { href: '/docs/review#the-merge-decision', icon: 'card', title: 'Merge decision', text: 'One verdict on top of every review, with the evidence.' },
-      { href: '/docs/review#merge-gate', icon: 'merge', title: 'Tests and merge gate', text: 'CI results on the card. Low-risk PRs approved, risky ones held.', badge: 'New' },
-      { href: '/docs/review#run-it-in-your-own-ci', icon: 'runner', title: 'Run in your own CI', text: 'Your runner, your model account. Grapim receives nothing.' },
-      { href: '/docs/security', icon: 'shield', title: 'Security', text: 'Where your code goes, what is kept, and for how long.', on: 'security' },
+      { href: '/#how', icon: 'pr', title: 'How it works', text: 'Checked against what was asked.' },
+      { href: '/docs/review#run-it-in-your-own-ci', icon: 'runner', title: 'Run in your own CI', text: 'Your runner, your model account.' },
+      { href: '/docs/review#the-merge-decision', icon: 'card', title: 'Merge decision', text: 'One verdict on top of every review.' },
+      { href: '/docs/review#merge-gate', icon: 'merge', title: 'Merge gate', text: 'Risky PRs wait for a person.', badge: 'New' },
+      { href: '/docs/security', icon: 'shield', title: 'Security', text: 'Where code goes, what is kept.', on: 'security' },
+      { href: '/changelog', icon: 'log', title: 'Changelog', text: 'What shipped, newest first.', on: 'changelog' },
     ],
+    group: {
+      label: 'Works with',
+      items: [
+        { href: AGENTS_DOC, brand: 'claude', title: 'Claude Code' },
+        { href: AGENTS_DOC, brand: 'openai', title: 'Codex' },
+        { href: AGENTS_DOC, brand: 'cursor', title: 'Cursor' },
+        { href: AGENTS_DOC, brand: 'googlegemini', title: 'Gemini CLI' },
+      ],
+    },
   },
   {
     id: 'resources',
     label: 'Resources',
     href: '/docs',
     items: [
-      { href: '/docs', icon: 'book', title: 'Docs', text: 'Set up the App or the Action in a few minutes.', on: 'docs' },
-      { href: '/changelog', icon: 'log', title: 'Changelog', text: 'What shipped, newest first.', on: 'changelog' },
-      { href: '/notes/claude-code-prs', icon: 'note', title: 'What we found in 69 Claude Code PRs', text: 'Our reviewer on public pull requests, and where it was wrong.', on: 'claude-code-prs' },
-      { href: '/docs/faq', icon: 'help', title: 'FAQ', text: 'Data, pricing, seats and open source.', on: 'faq' },
+      { href: '/docs', icon: 'book', title: 'Docs', text: 'Set up the App or the Action.', on: 'docs' },
+      { href: '/notes/claude-code-prs', icon: 'note', title: '69 Claude Code PRs', text: 'Our reviewer on public PRs.', on: 'claude-code-prs' },
+      { href: '/docs/review#the-config-file', icon: 'code', title: 'CI reference', text: 'Every setting of the review.' },
+      { href: '/docs/faq', icon: 'help', title: 'FAQ', text: 'Data, pricing, seats, open source.', on: 'faq' },
+      { href: REPO, icon: 'repo', title: 'GitHub repository', text: 'The review code, Apache 2.0.' },
+      { href: '/docs/support', icon: 'chat', title: 'Support', text: 'Write to the people who build it.', on: 'support' },
     ],
   },
 ];
@@ -71,27 +91,13 @@ export const NAV_LINKS = [
   { href: '/docs/support', label: 'Contact', on: 'support' },
 ];
 
-// The Product menu's picture: the top of a real summary comment, the merge
-// decision card as renderCard (src/airev/decision.js) writes it, for the
-// landing's one demo pull request.
-function navPreview() {
-  return html`<a class="nav-feature" href="/docs/review#the-merge-decision">
-    <span class="nf-card" aria-hidden="true">
-      <span class="gh-who"><span class="gh-av">${LOGO}</span><b>grapim</b><span class="gh-bot">bot</span><span class="muted">commented</span></span>
-      <span class="nf-verdict">Do not merge · 1 blocker</span>
-      <span class="nf-line">Reviewed 2 of 2 changed hunks: 1 blocker.</span>
-      <span class="nf-line">1. <b class="nf-blocker">Blocker:</b> Drops users.email, which the request did not ask for · <span class="nf-path">migrations/20261114_users_cleanup.sql:2</span></span>
-      <span class="nf-line"><b>Asked</b> (run prompt) Claude Code: “${RUN_PROMPT}”</span>
-      <span class="nf-line"><b>Tests</b> · passed, 3 checks.</span>
-    </span>
-    <span class="nf-cap">How the verdict is decided ${ICON.arrow}</span>
-  </a>`;
-}
-
 // aria-current: "page" on the page itself, "true" for the section you are in
 // (the Docs item on every docs page).
 const currentAttr = (it, current, at) => (it.on && it.on === current ? html`aria-current="${it.href === at ? 'page' : 'true'}"` : '');
-const navRow = (it, current, at) => html`<li><a class="nav-row" href="${it.href}" ${currentAttr(it, current, at)}><span class="nav-ico">${NAV_ICON[it.icon]}</span><span class="nav-txt"><span class="nav-title">${it.title}${it.badge ? html`<span class="nav-badge">${it.badge}</span>` : ''}</span><span class="nav-desc">${it.text}</span></span></a></li>`;
+const navRow = (it, current, at) => html`<li><a class="nav-row" href="${it.href}"${ext(it.href)} ${currentAttr(it, current, at)}><span class="nav-ico">${NAV_ICON[it.icon]}</span><span class="nav-txt"><span class="nav-title">${it.title}${it.badge ? html`<span class="nav-badge">${it.badge}</span>` : ''}</span><span class="nav-desc">${it.text}</span></span></a></li>`;
+const ext = (href) => (href.startsWith('https://') ? html` rel="noopener"` : '');
+const navAgent = (it) => html`<li><a class="nav-chip" href="${it.href}"><span class="nav-ico nav-ico-sm">${brand(it.brand, '')}</span>${it.title}</a></li>`;
+const navGroup = (g) => html`<div class="nav-group"><p class="nav-label">${g.label}</p><ul class="nav-chips">${g.items.map(navAgent)}</ul></div>`;
 
 // Structured data for the home page, so search results name the site
 // "Grapim" and show its logo.
@@ -161,13 +167,14 @@ export function siteBar({ current = 'home', at = '', signedIn = false } = {}) {
       <div class="nav-panel nav-panel-${m.id}" id="nav-${m.id}">
         <div class="nav-card">
           <ul class="nav-rows" aria-label="${m.label}">${m.items.map((it) => navRow(it, current, at))}</ul>
-          ${m.id === 'product' ? navPreview() : ''}
+          ${m.group ? navGroup(m.group) : ''}
         </div>
       </div>
     </li>`;
   const sheetGroup = (m) => html`<details class="sheet-group"${inMenu(m) ? html` open` : ''}>
         <summary>${m.label}${ICON.chevron}</summary>
         <ul class="nav-rows">${m.items.map((it) => navRow(it, current, at))}</ul>
+        ${m.group ? navGroup(m.group) : ''}
       </details>`;
   const end = signedIn
     ? html`<a class="btn btn-primary btn-sm" href="/hub">Open the hub</a>`
@@ -198,21 +205,33 @@ export function siteBar({ current = 'home', at = '', signedIn = false } = {}) {
 </header>`;
 }
 
+// The footer, as Composio lays theirs out: six columns, each under a thin
+// rule with a small mono head; links in mono capitals; the social marks and
+// the theme switch on the left of the last row, the mark and the year on the
+// right. Every link is a page, a heading or an account Grapim has.
+export const FOOT_COLS = [
+  ['Product', [['/#how', 'How it works'], ['/docs/review#the-merge-decision', 'Merge decision'], ['/docs/review#merge-gate', 'Merge gate'], ['/docs/review#run-it-in-your-own-ci', 'Run in your own CI'], ['/pricing', 'Pricing']]],
+  ['Resources', [['/docs', 'Docs'], ['/changelog', 'Changelog'], ['/notes/claude-code-prs', '69 Claude Code PRs'], ['/docs/faq', 'FAQ'], ['/docs/cli', 'CLI reference']]],
+  ['Open source', [[REPO, 'GitHub repository'], ['/docs/review#the-config-file', 'CI reference'], ['/docs/review#free-for-open-source', 'Public repos free']]],
+  ['Works with', [[AGENTS_DOC, 'Claude Code'], [AGENTS_DOC, 'Codex'], [AGENTS_DOC, 'Cursor'], [AGENTS_DOC, 'Gemini CLI'], ['/docs/github', 'GitHub']]],
+  ['Company', [['/docs/support', 'Contact'], ['mailto:support@grapim.com', 'Email us'], ['https://www.linkedin.com/company/grapim', 'LinkedIn']]],
+  ['Legal', [['/docs/security', 'Security'], ['/terms', 'Terms'], ['/privacy', 'Privacy']]],
+];
 export function siteFooter() {
   const theme = (t, label, ic) => html`<button type="button" data-theme-set="${t}" aria-pressed="false" aria-label="${label} theme" title="${label}">${ICON[ic]}</button>`;
   return html`<footer class="foot">
   <div class="foot-in">
-    <div class="foot-brand">
-      <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
-      <p>Code review for the pull requests your agents write.</p>
-      <p class="foot-legal">© 2026 Grapim<a href="/terms">Terms</a><a href="/privacy">Privacy</a></p>
-      <div class="theme-seg" role="group" aria-label="Theme">${theme('system', 'System', 'system')}${theme('light', 'Light', 'sun')}${theme('dark', 'Dark', 'moon')}</div>
-    </div>
     <nav class="foot-cols" aria-label="Footer">
-      <div><h2>Product</h2><a href="/#how">How it works</a><a href="/docs/review#the-merge-decision">Merge decision</a><a href="/docs/review#run-it-in-your-own-ci">Run in your own CI</a><a href="/docs/security">Security</a><a href="/pricing">Pricing</a></div>
-      <div><h2>Resources</h2><a href="/docs">Docs</a><a href="/changelog">Changelog</a><a href="/notes/claude-code-prs">What we found in 69 Claude Code PRs</a><a href="/docs/faq">FAQ</a><a href="/docs/cli">CLI reference</a></div>
-      <div><h2>Contact</h2><a href="/docs/support">Support</a><a href="mailto:support@grapim.com">support@grapim.com</a><a href="https://github.com/grapim" rel="noopener">GitHub</a><a href="https://www.linkedin.com/company/grapim" rel="noopener">LinkedIn</a></div>
+      ${FOOT_COLS.map(([head, links]) => html`<div class="foot-col"><h2>${head}</h2><ul>${links.map(([href, label]) => html`<li><a href="${href}"${ext(href)}>${label}</a></li>`)}</ul></div>`)}
     </nav>
+    <div class="foot-base">
+      <div class="foot-social">
+        <a href="${REPO}" rel="noopener" aria-label="Grapim on GitHub">${brand('github', '')}</a>
+        <a href="https://www.linkedin.com/company/grapim" rel="noopener" aria-label="Grapim on LinkedIn">${NAV_ICON.linkedin}</a>
+        <div class="theme-seg" role="group" aria-label="Theme">${theme('system', 'System', 'system')}${theme('light', 'Light', 'sun')}${theme('dark', 'Dark', 'moon')}</div>
+      </div>
+      <p class="foot-copy"><a class="foot-mark" href="/" aria-label="Grapim home">${LOGO}</a><span>© 2026 Grapim</span></p>
+    </div>
   </div>
 </footer>`;
 }
@@ -455,6 +474,87 @@ function pathLine() {
       ${stop('Grapim', 'receives nothing', ' path-off')}
     </ol>`;
 }
+// Proof in numbers: the hand-checked real-repo set in bench/README.md
+// ("Precision work of 2026-11-19"), counted by bench/real-score.mjs. First
+// pass 47% inline precision with 35 false findings shown; the shipped V2
+// second look 83%, 2 false shown, 20 of 24 real ones inline. No benchmark
+// ranks here: on Martian's held-out half Grapim is not first.
+const BENCH = 'https://github.com/grapim/grapim/blob/main/bench';
+const BENCH_METHOD = `${BENCH}/README.md#precision-work-of-2026-11-19-the-hand-checked-real-repo-set-and-the-second-look`;
+const STATS = [
+  { num: '83%', label: 'of inline comments were correct', note: 'Up from 47% before the second look.', mark: true },
+  { num: '35 → 2', label: 'wrong comments shown', note: 'On the same 95 pull requests.' },
+  { num: '20 of 24', label: 'real issues still posted inline', note: 'The second look drops a few real ones too.' },
+];
+
+// Real findings, only the ones the 69-PR write-up itself presents
+// (src/hub/docs/notes/claude-code-prs.md, "What the real ones looked like").
+// The write-up names no projects (maintainers were told privately), so
+// neither do these cards. Nothing was posted to those pull requests, hence
+// "would have commented".
+const CAUGHT = [
+  { title: 'A login rate limit anyone can trip for you', body: html`The captcha now limits attempts per client IP, and a helper elsewhere in the project trusts <code>X-Forwarded-For</code> by default. Together, someone who knows your IP can keep you off the login page.` },
+  { title: 'A restarted process stops listening', body: html`The panel tells a background process to start watching for input when it opens. If that process restarts while the panel is open, nothing tells the new one, and the feature quietly stops until the panel is reopened.` },
+  { title: 'A company parsed as a person', body: html`The new name parser would turn <code>ABC HOME CARE, LLC</code> into a person whose first name is LLC.` },
+];
+
+// Grapim, Copilot code review and CodeRabbit, from each vendor's public
+// pages (read 2026-11-20, SOURCES below). null: not confirmed there, so the
+// cell stays blank instead of guessing.
+const RIVALS = ['Grapim', 'GitHub Copilot code review', 'CodeRabbit'];
+const VERSUS = [
+  ['Open source', 'Yes, Apache 2.0', 'No', 'No'],
+  ['Runs in your own CI', 'Yes, a GitHub Action on your runner, on every plan', null, 'A self-hosted container on Enterprise, from 500 seats'],
+  ['Your own model account', 'Anthropic API, Amazon Bedrock, Google Vertex AI or Microsoft Foundry', 'No, GitHub chooses the models', 'On self-hosted Enterprise'],
+  ['Where your code goes', 'In your CI: only to your model provider. Cloud: a temporary folder on Grapim’s server, deleted after the review', 'GitHub’s Copilot service', 'CodeRabbit’s service, or only your model provider when self-hosted'],
+  ['Checks the change against what was asked', 'The linked issue, the pull request and the agent run’s own prompt', null, 'Linked issues'],
+  ['Code hosts', 'GitHub', 'GitHub and Azure DevOps', 'GitHub, GitLab, Bitbucket and Azure DevOps'],
+  ['Free on public repositories', 'Yes', 'Not on Copilot Free', 'Yes'],
+  ['Price', 'Free plan; Team $16 per pull request author a month, billed yearly', '$19 per seat a month (Copilot Business)', '$24 per developer who opens pull requests a month, billed yearly (Essentials)'],
+];
+const SOURCES = [
+  ['GitHub Docs: Copilot code review', 'https://docs.github.com/en/copilot/concepts/agents/code-review'],
+  ['GitHub Docs: Copilot plans', 'https://docs.github.com/en/copilot/get-started/plans'],
+  ['CodeRabbit pricing', 'https://www.coderabbit.ai/pricing'],
+  ['CodeRabbit self-hosted', 'https://docs.coderabbit.ai/self-hosted/overview'],
+  ['CodeRabbit linked issues', 'https://docs.coderabbit.ai/guides/linked-issues'],
+  ['CodeRabbit platforms', 'https://docs.coderabbit.ai/platforms'],
+];
+
+// What buyers ask first. Every answer is what docs/review.md, the pricing
+// page and the security docs already say.
+const TEAM_PLAN = PLANS.find((p) => p.name === 'Team');
+const GOV_PLAN = PLANS.find((p) => p.name === 'Governance');
+const HOME_FAQ = [
+  ['Which model does it use?', 'Cloud review on the GitHub App uses Claude Opus 5.5 through Anthropic. In your own CI it uses the Claude model in your own account: the Anthropic API with your key, Amazon Bedrock, Google Vertex AI or Microsoft Foundry.'],
+  ['Is our code stored?', 'Cloud review fetches the pull request into a temporary folder on Grapim’s server, sends the changes to Anthropic, and deletes the folder when the review ends. For each comment Grapim keeps the file, lines, title and reactions, not the code. Run it in your own CI and Grapim receives nothing at all.'],
+  ['How is it different from Copilot code review?', 'Grapim checks each change against what was asked: the linked issue, the pull request and, when Grapim recorded the run, the agent’s own prompt. It lists what goes beyond that, such as deleted tests, checks turned off or a migration nobody asked for. It is open source and runs in your own CI on your own model account.'],
+  ['Does it work with Claude Code, Codex and Cursor pull requests?', 'Yes. Every pull request is reviewed, whoever wrote it. With the Grapim CLI recording runs from Claude Code, Codex CLI, Cursor or Gemini CLI, the review also knows which run wrote each line and what that run was asked.'],
+  ['Can we self-host it?', 'The review, yes: a GitHub Action on your runner with your own model account, and no Grapim account needed. The hub, the web app, is hosted by Grapim; talk to us if you need it on your own servers.'],
+  ['How is pricing counted?', `Per pull request author: a person who opens pull requests Grapim reviews that month. Agents and bots are not authors. Free is $0, Team ${TEAM_PLAN.year.price} and Governance ${GOV_PLAN.year.price} per author a month billed yearly (${TEAM_PLAN.price} and ${GOV_PLAN.price} monthly). Nothing is charged during early access.`],
+  ['Does it review private repositories?', `Yes. Cloud review covers private repositories for a team with it turned on, about ${FREE_PRS} pull requests a month on Free. Grapim Review in your own CI works on any repository, free. Public repositories are reviewed free on the App.`],
+];
+
+const APP_INSTALL = 'https://github.com/apps/grapim';
+
+// #where: the black band. Its text never fades (an opacity fade would pass
+// through low contrast on black); it only rises a few pixels as it enters.
+function whereSection() {
+  return html`<section class="where" id="where" aria-labelledby="where-title">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <h2 id="where-title" class="sec-title">Or keep your code in your own CI.</h2>
+      <p class="sec-lede">The same review on your runner and your model account. Grapim receives nothing.</p>
+    </div>
+    ${pathLine()}
+    <div class="where-grid">
+      <figure class="where-fig" data-reveal>${codePanel('.github/workflows/grapim-review.yml', BEDROCK, ['role-to-assume', 'aws-region', 'provider:'], `${REVIEW_DOCS}#amazon-bedrock`)}<figcaption>Amazon Bedrock, with no long-lived keys.</figcaption></figure>
+      <figure class="where-fig" data-reveal>${summaryEnd()}<figcaption>How every summary comment ends.</figcaption></figure>
+    </div>
+    <p class="where-links"><a class="link" href="/docs/security">Security and privacy ${ICON.arrow}</a></p>
+  </div>
+</section>`;
+}
 const description = 'Grapim reviews every pull request in a minute or two and comments on the lines that need attention. It knows which agent wrote each line and what it was asked to do, and flags the changes nobody asked for. Install the GitHub App, or run it in your own CI on your own model account.';
 
 export function landingPage({ origin }) {
@@ -477,21 +577,6 @@ ${siteBar({ current: 'home', at: '/' })}
   </div>
   <div class="wrap">${reviewComment()}</div>
   <div class="wrap"><ul class="facts" data-reveal>${FACTS.map(([lead, rest]) => html`<li><b>${lead}</b> ${rest}</li>`)}</ul></div>
-</section>
-
-<section class="where" id="where" aria-labelledby="where-title">
-  <div class="wrap">
-    <div class="sec-head" data-reveal>
-      <h2 id="where-title" class="sec-title">Or keep your code in your own CI.</h2>
-      <p class="sec-lede">The same review on your runner and your model account. Grapim receives nothing.</p>
-    </div>
-    ${pathLine()}
-    <div class="where-grid">
-      <figure class="where-fig" data-reveal>${codePanel('.github/workflows/grapim-review.yml', BEDROCK, ['role-to-assume', 'aws-region', 'provider:'], `${REVIEW_DOCS}#amazon-bedrock`)}<figcaption>Amazon Bedrock, with no long-lived keys.</figcaption></figure>
-      <figure class="where-fig" data-play data-reveal>${summaryEnd()}<figcaption>How every summary comment ends.</figcaption></figure>
-    </div>
-    <p class="where-links"><a class="link" href="/docs/security">Security and privacy ${ICON.arrow}</a></p>
-  </div>
 </section>
 
 <section class="how" id="how" aria-labelledby="how-title">
@@ -519,13 +604,75 @@ ${siteBar({ current: 'home', at: '/' })}
 
 ${SHOW_FILM ? filmSection() : ''}
 
+<section class="caught" id="caught" aria-labelledby="caught-title">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <h2 id="caught-title" class="sec-title">What it found in real pull requests.</h2>
+      <p class="sec-lede">From our run on 69 public pull requests written with Claude Code. Nothing was posted, and we told maintainers privately, so no project is named.</p>
+    </div>
+    <ul class="bugs" data-reveal>
+      ${CAUGHT.map((c) => html`<li class="bug">
+        ${actionsBot('would have commented')}
+        <p class="bug-title">${c.title}</p>
+        <p class="bug-body">${c.body}</p>
+        <p class="bug-foot">Public repository · Generated with Claude Code</p>
+      </li>`)}
+    </ul>
+    <p class="sec-more"><a class="link" href="/notes/claude-code-prs">What we found in 69 Claude Code PRs, and where it was wrong ${ICON.arrow}</a></p>
+  </div>
+</section>
+
+<section class="proof" id="proof" aria-labelledby="proof-title">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <h2 id="proof-title" class="sec-title">Few comments, and they hold up.</h2>
+      <p class="sec-lede">On 95 open-source pull requests, people checked Grapim’s findings by hand against the code.</p>
+    </div>
+    <ul class="stats" data-reveal>
+      ${STATS.map((s) => html`<li><b class="stat-num num${s.mark ? ' stat-mark' : ''}">${s.num}</b><span class="stat-label">${s.label}</span><span class="stat-note">${s.note}</span></li>`)}
+    </ul>
+    <p class="proof-note">A second look checks each finding against the code around it and the pull request’s discussion before posting. We tuned it on this set, so read 83% as an upper bound.</p>
+    <p class="sec-more proof-links"><a class="link" href="${BENCH_METHOD}" rel="noopener">How we measured ${ICON.arrow}</a><a class="link" href="${BENCH}/real-score.mjs" rel="noopener">The scoring script, real-score.mjs ${ICON.arrow}</a></p>
+  </div>
+</section>
+
+${whereSection()}
+
+<section class="versus" id="compare" aria-labelledby="versus-title">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <h2 id="versus-title" class="sec-title">How it compares.</h2>
+      <p class="sec-lede">From each product’s own public pages, read on 20 November 2026.</p>
+    </div>
+    <div class="versus-scroll" tabindex="0" role="region" aria-label="Grapim, GitHub Copilot code review and CodeRabbit compared">
+      <table class="versus-table">
+        <thead><tr><th scope="col"><span class="sr-only">Feature</span></th>${RIVALS.map((r, i) => html`<th scope="col"${i === 0 ? html` class="vs-us"` : ''}>${r}</th>`)}</tr></thead>
+        <tbody>${VERSUS.map(([label, ...cells]) => html`<tr><th scope="row">${label}</th>${cells.map((c, i) => html`<td${i === 0 ? html` class="vs-us"` : ''}>${c ?? html`<span class="sr-only">Not stated on its public pages</span>`}</td>`)}</tr>`)}</tbody>
+      </table>
+    </div>
+    <p class="fine versus-note">A blank cell: the vendor’s public pages do not say, so we left it out. Products change; check the sources: ${SOURCES.map(([label, href], i) => html`${i ? ', ' : ''}<a href="${href}" rel="noopener">${label}</a>`)}.</p>
+  </div>
+</section>
+
+<section class="faq home-faq" id="faq" aria-labelledby="faq-title">
+  <div class="wrap faq-in">
+    <div>
+      <h2 id="faq-title" class="sec-title">Questions</h2>
+      <p class="faq-more"><a class="link" href="/docs/faq">More in the docs ${ICON.arrow}</a></p>
+    </div>
+    <div class="faq-list">
+      ${HOME_FAQ.map(([q, a]) => html`<details><summary>${q}</summary><p>${a}</p></details>`)}
+    </div>
+  </div>
+</section>
+
 <section class="close" aria-labelledby="close-title">
   <div class="wrap close-in" data-reveal>
     <h2 id="close-title">Try it on one repo.</h2>
-    <p>Install the App, or add one workflow file. Free in early access.</p>
+    <p>Install the GitHub App and open a pull request, or run the same review in your own CI.</p>
     <div class="cta">
-      <a class="btn btn-primary btn-lg" href="${SIGN_IN}">Start free</a>
-      <a class="btn btn-lg" href="/pricing">See pricing</a>
+      <a class="btn btn-primary btn-lg" href="${APP_INSTALL}">Install the GitHub App</a>
+      <a class="btn btn-lg" href="${REVIEW_DOCS}#run-it-in-your-own-ci">Self-host in your CI</a>
     </div>
   </div>
 </section>

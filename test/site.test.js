@@ -12,7 +12,7 @@ import path from 'node:path';
 import { createHub } from '../src/hub/server.js';
 import { cliHelp, docPath, LEGAL, loadDocs, NOTES, ORDER, parseHelp, renderMarkdown } from '../src/hub/pages/docs.js';
 import { REVIEW_PROVIDERS } from '../src/hub/pages/review-setup.js';
-import { NAV_LINKS, NAV_MENUS } from '../src/hub/pages/site.js';
+import { FOOT_COLS, NAV_LINKS, NAV_MENUS, REPO } from '../src/hub/pages/site.js';
 
 const ORIGIN = 'http://localhost:7998';
 let h;
@@ -79,8 +79,12 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   assert.ok(!/review\.json|actions\/checkout/.test(body), 'no config file and no full workflow on the landing');
   assert.match(body, /<dd class="fd-hi">depth high<\/dd>/, 'the depth fragment uses the summary’s words');
   // The top bar's menus are the same on every page, so they are not counted.
-  const words = body.replace(/<header class="bar">[^]*?<\/header>/, '').replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
-  assert.ok(words < 500, `the landing page stays short (${words} words)`);
+  // The comparison table and the FAQ answers are reference text a visitor
+  // opens on purpose; the rest of the page keeps to a short read.
+  const count = (b) => b.replace(/<header class="bar">[^]*?<\/header>/, '').replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
+  const story = count(body.replace(/<section class="versus"[^]*?<\/section>/, '').replace(/<section class="faq home-faq"[^]*?<\/section>/, ''));
+  assert.ok(story < 850, `the landing page stays short (${story} words outside the comparison and the FAQ)`);
+  assert.ok(count(body) < 1500, `the whole landing page stays under 1,500 words (${count(body)})`);
 
   // Pricing has its own page. Honest pricing: no checkout while billing is not live.
   const pricing = await (await get('/pricing')).text();
@@ -104,6 +108,86 @@ test('/ is the landing page when signed out, and /hub when signed in', async () 
   const signedIn = await get('/', { Cookie: signedInCookie() });
   assert.equal(signedIn.status, 303);
   assert.equal(signedIn.headers.get('location'), '/hub');
+});
+
+test('the landing page: real findings, proof in numbers, the comparison, questions and the closing band', async () => {
+  const body = await (await get('/')).text();
+  // In order: how it works, what it found, the numbers, your own CI, the comparison, questions, the closing band.
+  const at = ['id="how"', 'id="caught"', 'id="proof"', 'id="where"', 'id="compare"', 'id="faq"', 'id="close-title"'].map((m) => body.indexOf(m));
+  assert.ok(at.every((i) => i > 0), 'every section is on the page');
+  assert.deepEqual([...at].sort((a, b) => a - b), at, 'the sections come in order');
+
+  // Real findings: only the ones the 69-PR write-up presents, and no project names (the write-up names none).
+  const note = fs.readFileSync(new URL('../src/hub/docs/notes/claude-code-prs.md', import.meta.url), 'utf8');
+  const caught = body.slice(body.indexOf('id="caught"'), body.indexOf('id="proof"'));
+  assert.equal((caught.match(/<li class="bug">/g) ?? []).length, 3, 'three findings');
+  for (const fact of ['X-Forwarded-For', 'ABC HOME CARE, LLC', 'first name is LLC', 'restarts while the panel is open']) {
+    assert.ok(caught.includes(fact), `the card says: ${fact}`);
+    assert.ok(note.includes(fact), `the write-up says it too: ${fact}`);
+  }
+  assert.ok(!/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+|#\d{2,}\b/.test(caught), 'no repository or pull request is named');
+  assert.match(caught, /would have commented/, 'nothing was posted, and the cards say so');
+  assert.match(caught, /href="\/notes\/claude-code-prs"/);
+
+  // Proof: the hand-checked set, its method, and no rank claim anywhere on the page.
+  const proof = body.slice(body.indexOf('id="proof"'), body.indexOf('id="where"'));
+  for (const fact of ['83%', '47%', '35 → 2', '20 of 24', '95']) assert.ok(proof.includes(fact), `proof: ${fact}`);
+  assert.match(proof, /href="https:\/\/github\.com\/grapim\/grapim\/blob\/main\/bench\/README\.md#precision-work-of-2026-11-19[^"]*"/);
+  assert.match(proof, /href="https:\/\/github\.com\/grapim\/grapim\/blob\/main\/bench\/real-score\.mjs"/);
+  const readme = fs.readFileSync(new URL('../bench/README.md', import.meta.url), 'utf8');
+  assert.match(readme, /## Precision work of 2026-11-19: the hand-checked real-repo set and the second look/, 'the heading the method link points at');
+  assert.match(readme, /\*\*V2 second look \(shipped\)\*\* \| \*\*20\*\* \| \*\*2\*\* \| \*\*2\*\* \| \*\*83%\*\*/, 'the numbers are the README’s');
+  const text = body.replace(/<[^>]+>/g, ' ');
+  assert.ok(!/\b(rank(ed|s)?|#1|number one|first place|leaderboard|top[- ]ranked|best[- ]in[- ]class|Martian)\b/i.test(text), 'no leaderboard or rank claim');
+  // No social proof we do not have.
+  assert.ok(!/testimonial|trusted by|customers love|SOC ?2 (certified|compliant)|ISO 27001 certified|\d[\d,]* (teams|developers|users) (use|trust)/i.test(text), 'no logos, testimonials, user counts or certifications');
+
+  // The comparison: three products, every row a label and three cells, a blank only where the vendor does not say.
+  const versus = body.slice(body.indexOf('id="compare"'), body.indexOf('id="faq"'));
+  assert.match(versus, /<th scope="col" class="vs-us">Grapim<\/th><th scope="col">GitHub Copilot code review<\/th><th scope="col">CodeRabbit<\/th>/);
+  const rows = [...versus.matchAll(/<tr><th scope="row">[^]*?<\/tr>/g)].map((m) => m[0]);
+  assert.ok(rows.length >= 6, 'at least six rows');
+  for (const r of rows) assert.equal((r.match(/<td[\s>]/g) ?? []).length, 3, r);
+  for (const row of ['Open source', 'Runs in your own CI', 'Your own model account', 'Where your code goes', 'Checks the change against what was asked', 'Free on public repositories', 'Price']) {
+    assert.ok(rows.some((r) => r.includes(`<th scope="row">${row}</th>`)), `row: ${row}`);
+  }
+  assert.match(versus, /<td><span class="sr-only">Not stated on its public pages<\/span><\/td>/, 'a blank cell says why to screen readers');
+  for (const src of ['https://docs.github.com/en/copilot/concepts/agents/code-review', 'https://www.coderabbit.ai/pricing', 'https://docs.coderabbit.ai/self-hosted/overview']) assert.ok(versus.includes(`href="${src}"`), `source: ${src}`);
+  assert.match(versus, /\$16 per pull request author a month, billed yearly/, 'Grapim’s price is the pricing page’s');
+
+  // Questions: native details and summary, all closed, answers that match the docs.
+  const faq = body.slice(body.indexOf('id="faq"'), body.indexOf('id="close-title"'));
+  const items = [...faq.matchAll(/<details><summary>([^<]+)<\/summary><p>([^<]+)<\/p><\/details>/g)];
+  assert.ok(items.length >= 6 && items.length <= 8, `6 to 8 questions (${items.length})`);
+  assert.ok(!/<details open/.test(faq), 'every answer starts closed');
+  const answer = (q) => items.find((m) => m[1].includes(q))?.[2] ?? '';
+  assert.match(answer('Which model'), /Claude Opus 5\.5/);
+  assert.match(answer('stored'), /deletes the folder when the review ends/);
+  assert.match(answer('Copilot'), /open source/);
+  assert.match(answer('Claude Code, Codex and Cursor'), /Gemini CLI/);
+  assert.match(answer('self-host'), /GitHub Action on your runner/);
+  assert.match(answer('pricing'), /Team \$16 and Governance \$32 per author a month billed yearly \(\$20 and \$40 monthly\)/);
+  assert.match(answer('private'), /about 80 pull requests a month on Free/);
+
+  // The closing band: install the App, or self-host.
+  const close = body.slice(body.indexOf('id="close-title"'));
+  assert.match(close, /<a class="btn btn-primary btn-lg" href="https:\/\/github\.com\/apps\/grapim">Install the GitHub App<\/a>/);
+  assert.match(close, /<a class="btn btn-lg" href="\/docs\/review#run-it-in-your-own-ci">Self-host in your CI<\/a>/);
+});
+
+test('#where reads at full contrast before, during and after its motion', async () => {
+  const body = await (await get('/')).text();
+  const where = body.slice(body.indexOf('id="where"'), body.indexOf('id="compare"'));
+  assert.match(where, /<b>Grapim<\/b><span>receives nothing<\/span>/);
+  assert.ok(!/data-play/.test(where), 'nothing in the band waits for a scene to play');
+  const css = fs.readFileSync(new URL('../src/hub/pages/site.css', import.meta.url), 'utf8');
+  const hidden = css.match(/\.motion \[data-reveal\]:not\(\.in\) \{([^}]*)\}/)[1];
+  assert.ok(!/opacity/.test(hidden), 'sections rise without fading from transparent');
+  assert.ok(!/@keyframes sweep|\.gh-last \{[^}]*background-size/.test(css), 'the stamp is not swept in over unreadable text');
+  assert.match(css, /\.path-stop\.path-off span:not\(\.path-dot\) \{ color: var\(--text\);/, '"receives nothing" in the band’s text colour');
+  // The motion only starts from html.motion, which site.js sets only without reduced motion.
+  const client = fs.readFileSync(new URL('../src/hub/pages/site-client.js', import.meta.url), 'utf8');
+  assert.match(client, /!matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches\) \{[^]*root\.classList\.add\('motion'\)/);
 });
 
 test('every public page is CSP clean and has its title, description, canonical and Open Graph tags', async () => {
@@ -130,11 +214,17 @@ test('the home page names the site and its logo for search results', async () =>
 });
 
 test('every internal link and image on the public pages resolves', async () => {
+  // One request per address: the footer links every page to the same
+  // headings, and the hub rate-limits a client that asks too often.
   const seen = new Map();
-  const check = async (url) => {
-    if (!seen.has(url)) seen.set(url, (await get(url)).status);
+  const fetchOnce = async (url) => {
+    if (!seen.has(url)) {
+      const res = await get(url);
+      seen.set(url, { status: res.status, text: await res.text() });
+    }
     return seen.get(url);
   };
+  const check = async (url) => (await fetchOnce(url)).status;
   for (const p of PAGES) {
     const body = await (await get(p)).text();
     const ids = new Set([...body.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
@@ -150,7 +240,7 @@ test('every internal link and image on the public pages resolves', async () => {
       const status = await check(pathname);
       assert.ok([200, 303].includes(status), `${p}: ${href} answered ${status}`);
       if (hash && status === 200 && !pathname.startsWith('/hub/')) {
-        const target = await (await get(pathname)).text();
+        const target = (await fetchOnce(pathname)).text;
         assert.ok(target.includes(`id="${hash}"`), `${p}: ${href} has no #${hash} there`);
       }
     }
@@ -294,7 +384,8 @@ test('terms and privacy: served on their own, dated, with a Changes section, lin
   // Every public page's footer, and the sign-in page.
   for (const p of PAGES) {
     const body = await (await get(p)).text();
-    assert.match(body, /<p class="foot-legal">[^]*?<a href="\/terms">Terms<\/a><a href="\/privacy">Privacy<\/a><\/p>/, `${p}: footer links`);
+    const foot = body.match(/<footer class="foot">[^]*?<\/footer>/)?.[0] ?? '';
+    assert.match(foot, /<li><a href="\/terms">Terms<\/a><\/li><li><a href="\/privacy">Privacy<\/a><\/li>/, `${p}: footer links`);
   }
   const signIn = await (await get('/hub')).text();
   assert.match(signIn, /<a href="\/terms">Terms<\/a>/);
@@ -365,7 +456,16 @@ test('the top bar: Product and Resources menus, plain Pricing and Contact, and t
     assert.match(bar, /<a class="bar-signin" href="\/hub\/auth\/github" rel="nofollow">Sign in<\/a><a class="btn btn-primary btn-sm" href="\/hub\/auth\/github" rel="nofollow">Start free<\/a>/, `${p}: Sign in and Start free`);
     assert.match(bar, /<details class="bar-menu" data-sheet>\s*<summary aria-label="Menu">/, `${p}: the phone sheet opens without script`);
     assert.equal((bar.match(/<details class="sheet-group"/g) ?? []).length, NAV_MENUS.length, `${p}: one accordion per menu`);
+    // Product's second group, under a mono label, in the menu and in the sheet.
+    for (const m of NAV_MENUS.filter((x) => x.group)) {
+      assert.equal((bar.match(new RegExp(`<p class="nav-label">${m.group.label}</p>`, 'g')) ?? []).length, 2, `${p}: ${m.group.label} label`);
+      for (const it of m.group.items) assert.equal((bar.split(`<a class="nav-chip" href="${it.href}"><span class="nav-ico nav-ico-sm"><svg`).length - 1) >= 2, true, `${p}: ${it.title}`);
+    }
   }
+  // Two columns of six, as the reference menus lay them out.
+  for (const m of NAV_MENUS) assert.equal(m.items.length, 6, `${m.label}: six items`);
+  const css = fs.readFileSync(new URL('../src/hub/pages/site.css', import.meta.url), 'utf8');
+  assert.match(css, /\.bar-nav \.nav-rows \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/);
   // The script turns each trigger into a button that says what it controls.
   for (const s of ["setAttribute('aria-expanded'", "setAttribute('aria-controls'", "'ArrowDown'", "'Escape'", "'pointerenter'", "'pointerleave'", "'sheet-open'"]) assert.ok(client.includes(s), `site.js handles ${s}`);
   assert.match(client, /const OPEN_DELAY = (\d+);/);
@@ -377,13 +477,37 @@ function reEsc(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-test('the top bar: every menu link is a page or a heading that exists', async () => {
-  for (const it of [...NAV_MENUS.flatMap((m) => [{ href: m.href }, ...m.items]), ...NAV_LINKS]) {
+test('the top bar and the footer: every link is a page or a heading that exists', async () => {
+  const links = [
+    ...NAV_MENUS.flatMap((m) => [{ href: m.href }, ...m.items, ...(m.group?.items ?? [])]),
+    ...NAV_LINKS,
+    ...FOOT_COLS.flatMap(([, ls]) => ls.map(([href]) => ({ href }))),
+  ];
+  for (const it of links) {
+    // Off the site, only Grapim's own accounts and address.
+    if (!it.href.startsWith('/')) {
+      assert.ok([REPO, 'https://www.linkedin.com/company/grapim', 'mailto:support@grapim.com'].includes(it.href), it.href);
+      continue;
+    }
     const [pathname, hash] = it.href.split('#');
     const res = await get(pathname);
     assert.equal(res.status, 200, it.href);
     if (hash) assert.ok((await res.text()).includes(`id="${hash}"`), `${it.href}: the heading exists`);
   }
+});
+
+test('the footer: six columns under mono heads, the social marks we have, the year and the mark', async () => {
+  const body = await (await get('/pricing')).text();
+  const foot = body.match(/<footer class="foot">[^]*?<\/footer>/)[0];
+  assert.deepEqual([...foot.matchAll(/<div class="foot-col"><h2>([^<]+)<\/h2>/g)].map((m) => m[1]), ['Product', 'Resources', 'Open source', 'Works with', 'Company', 'Legal']);
+  const social = foot.match(/<div class="foot-social">[^]*?<div class="theme-seg"/)[0];
+  assert.deepEqual([...social.matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]), [REPO, 'https://www.linkedin.com/company/grapim'], 'only accounts Grapim has');
+  assert.ok(!/x\.com|twitter\.com/.test(foot), 'no X account to link');
+  assert.match(foot, /<div class="theme-seg" role="group" aria-label="Theme">/, 'the theme switch stays');
+  assert.match(foot, /<p class="foot-copy"><a class="foot-mark" href="\/" aria-label="Grapim home"><svg[^]*?<\/svg><\/a><span>© 2026 Grapim<\/span><\/p>/);
+  const css = fs.readFileSync(new URL('../src/hub/pages/site.css', import.meta.url), 'utf8');
+  assert.match(css, /\.foot-cols \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
+  assert.match(css, /\.foot-col a \{[^}]*var\(--mono\)[^}]*text-transform: uppercase;/);
 });
 
 test('the top bar marks where you are', async () => {
