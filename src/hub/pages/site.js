@@ -36,33 +36,53 @@ const NAV_ICON = {
   log: glyph('<circle cx="8" cy="8" r="5.75"/><path d="M8 5v3l2 1.5"/>'),
   note: glyph('<path d="M9.5 1.75H4.25a1 1 0 0 0-1 1v10.5a1 1 0 0 0 1 1h7.5a1 1 0 0 0 1-1V4.75l-3-3Z"/><path d="M9.5 1.75v3h3M5.5 8.5h5M5.5 11h3.5"/>'),
   help: glyph('<circle cx="8" cy="8" r="5.75"/><path d="M6.25 6.4a1.8 1.8 0 0 1 3.5.6c0 1.2-1.75 1.5-1.75 2.6"/><path d="M8 11.4h.01" stroke-width="2"/>'),
+  code: glyph('<path d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5M9 3 7 13"/>'),
+  repo: glyph('<path d="M3.5 12.5v-9a1.5 1.5 0 0 1 1.5-1.5h7.5v9.5H5a1.5 1.5 0 0 0-1.5 1.5Zm0 0A1.5 1.5 0 0 0 5 14h7.5"/><path d="M6.5 5h3"/>'),
+  chat: glyph('<path d="M2.5 4A1.5 1.5 0 0 1 4 2.5h8A1.5 1.5 0 0 1 13.5 4v6a1.5 1.5 0 0 1-1.5 1.5H7.25L4.5 13.75V11.5H4A1.5 1.5 0 0 1 2.5 10V4Z"/><path d="M5.5 6h5M5.5 8.25h3"/>'),
+  linkedin: glyph('<rect x="2" y="2" width="12" height="12" rx="2.5"/><path d="M5.25 7v4M5.25 4.9v.01M8 11V7m0 1.9c0-1.05.8-1.9 1.75-1.9s1.75.85 1.75 1.9V11"/>'),
 };
 
-// The top bar's menus. Every href is a page or a heading that exists
-// (test/site.test.js follows each one); `on` is the siteBar `current` value
-// that marks the item as the page you are on.
+// The top bar's menus: two columns of items, each an icon tile, a title and
+// one grey line (the pattern Exa and Dropbox use). Every href is a page, a
+// heading or Grapim's public repository (test/site.test.js follows each
+// one); `on` is the siteBar `current` value that marks the item as the page
+// you are on. `group` is a second, smaller set under a mono label.
+export const REPO = 'https://github.com/grapim/grapim';
+const AGENTS_DOC = '/docs/concepts#agents';
 export const NAV_MENUS = [
   {
     id: 'product',
     label: 'Product',
     href: '/#how', // without script the trigger is this link
     items: [
-      { href: '/#how', icon: 'pr', title: 'How it works', text: 'Each change checked against what the agent was asked.' },
-      { href: '/docs/review#the-merge-decision', icon: 'card', title: 'Merge decision', text: 'One verdict on top of every review, with the evidence.' },
-      { href: '/docs/review#merge-gate', icon: 'merge', title: 'Tests and merge gate', text: 'CI results on the card. Low-risk PRs approved, risky ones held.', badge: 'New' },
-      { href: '/docs/review#run-it-in-your-own-ci', icon: 'runner', title: 'Run in your own CI', text: 'Your runner, your model account. Grapim receives nothing.' },
-      { href: '/docs/security', icon: 'shield', title: 'Security', text: 'Where your code goes, what is kept, and for how long.', on: 'security' },
+      { href: '/#how', icon: 'pr', title: 'How it works', text: 'Checked against what was asked.' },
+      { href: '/docs/review#run-it-in-your-own-ci', icon: 'runner', title: 'Run in your own CI', text: 'Your runner, your model account.' },
+      { href: '/docs/review#the-merge-decision', icon: 'card', title: 'Merge decision', text: 'One verdict on top of every review.' },
+      { href: '/docs/review#merge-gate', icon: 'merge', title: 'Merge gate', text: 'Risky PRs wait for a person.', badge: 'New' },
+      { href: '/docs/security', icon: 'shield', title: 'Security', text: 'Where code goes, what is kept.', on: 'security' },
+      { href: '/changelog', icon: 'log', title: 'Changelog', text: 'What shipped, newest first.', on: 'changelog' },
     ],
+    group: {
+      label: 'Works with',
+      items: [
+        { href: AGENTS_DOC, brand: 'claude', title: 'Claude Code' },
+        { href: AGENTS_DOC, brand: 'openai', title: 'Codex' },
+        { href: AGENTS_DOC, brand: 'cursor', title: 'Cursor' },
+        { href: AGENTS_DOC, brand: 'googlegemini', title: 'Gemini CLI' },
+      ],
+    },
   },
   {
     id: 'resources',
     label: 'Resources',
     href: '/docs',
     items: [
-      { href: '/docs', icon: 'book', title: 'Docs', text: 'Set up the App or the Action in a few minutes.', on: 'docs' },
-      { href: '/changelog', icon: 'log', title: 'Changelog', text: 'What shipped, newest first.', on: 'changelog' },
-      { href: '/notes/claude-code-prs', icon: 'note', title: 'What we found in 69 Claude Code PRs', text: 'Our reviewer on public pull requests, and where it was wrong.', on: 'claude-code-prs' },
-      { href: '/docs/faq', icon: 'help', title: 'FAQ', text: 'Data, pricing, seats and open source.', on: 'faq' },
+      { href: '/docs', icon: 'book', title: 'Docs', text: 'Set up the App or the Action.', on: 'docs' },
+      { href: '/notes/claude-code-prs', icon: 'note', title: '69 Claude Code PRs', text: 'Our reviewer on public PRs.', on: 'claude-code-prs' },
+      { href: '/docs/review#the-config-file', icon: 'code', title: 'CI reference', text: 'Every setting of the review.' },
+      { href: '/docs/faq', icon: 'help', title: 'FAQ', text: 'Data, pricing, seats, open source.', on: 'faq' },
+      { href: REPO, icon: 'repo', title: 'GitHub repository', text: 'The review code, Apache 2.0.' },
+      { href: '/docs/support', icon: 'chat', title: 'Support', text: 'Write to the people who build it.', on: 'support' },
     ],
   },
 ];
@@ -71,27 +91,13 @@ export const NAV_LINKS = [
   { href: '/docs/support', label: 'Contact', on: 'support' },
 ];
 
-// The Product menu's picture: the top of a real summary comment, the merge
-// decision card as renderCard (src/airev/decision.js) writes it, for the
-// landing's one demo pull request.
-function navPreview() {
-  return html`<a class="nav-feature" href="/docs/review#the-merge-decision">
-    <span class="nf-card" aria-hidden="true">
-      <span class="gh-who"><span class="gh-av">${LOGO}</span><b>grapim</b><span class="gh-bot">bot</span><span class="muted">commented</span></span>
-      <span class="nf-verdict">Do not merge · 1 blocker</span>
-      <span class="nf-line">Reviewed 2 of 2 changed hunks: 1 blocker.</span>
-      <span class="nf-line">1. <b class="nf-blocker">Blocker:</b> Drops users.email, which the request did not ask for · <span class="nf-path">migrations/20261114_users_cleanup.sql:2</span></span>
-      <span class="nf-line"><b>Asked</b> (run prompt) Claude Code: “${RUN_PROMPT}”</span>
-      <span class="nf-line"><b>Tests</b> · passed, 3 checks.</span>
-    </span>
-    <span class="nf-cap">How the verdict is decided ${ICON.arrow}</span>
-  </a>`;
-}
-
 // aria-current: "page" on the page itself, "true" for the section you are in
 // (the Docs item on every docs page).
 const currentAttr = (it, current, at) => (it.on && it.on === current ? html`aria-current="${it.href === at ? 'page' : 'true'}"` : '');
-const navRow = (it, current, at) => html`<li><a class="nav-row" href="${it.href}" ${currentAttr(it, current, at)}><span class="nav-ico">${NAV_ICON[it.icon]}</span><span class="nav-txt"><span class="nav-title">${it.title}${it.badge ? html`<span class="nav-badge">${it.badge}</span>` : ''}</span><span class="nav-desc">${it.text}</span></span></a></li>`;
+const navRow = (it, current, at) => html`<li><a class="nav-row" href="${it.href}"${ext(it.href)} ${currentAttr(it, current, at)}><span class="nav-ico">${NAV_ICON[it.icon]}</span><span class="nav-txt"><span class="nav-title">${it.title}${it.badge ? html`<span class="nav-badge">${it.badge}</span>` : ''}</span><span class="nav-desc">${it.text}</span></span></a></li>`;
+const ext = (href) => (href.startsWith('https://') ? html` rel="noopener"` : '');
+const navAgent = (it) => html`<li><a class="nav-chip" href="${it.href}"><span class="nav-ico nav-ico-sm">${brand(it.brand, '')}</span>${it.title}</a></li>`;
+const navGroup = (g) => html`<div class="nav-group"><p class="nav-label">${g.label}</p><ul class="nav-chips">${g.items.map(navAgent)}</ul></div>`;
 
 // Structured data for the home page, so search results name the site
 // "Grapim" and show its logo.
@@ -161,13 +167,14 @@ export function siteBar({ current = 'home', at = '', signedIn = false } = {}) {
       <div class="nav-panel nav-panel-${m.id}" id="nav-${m.id}">
         <div class="nav-card">
           <ul class="nav-rows" aria-label="${m.label}">${m.items.map((it) => navRow(it, current, at))}</ul>
-          ${m.id === 'product' ? navPreview() : ''}
+          ${m.group ? navGroup(m.group) : ''}
         </div>
       </div>
     </li>`;
   const sheetGroup = (m) => html`<details class="sheet-group"${inMenu(m) ? html` open` : ''}>
         <summary>${m.label}${ICON.chevron}</summary>
         <ul class="nav-rows">${m.items.map((it) => navRow(it, current, at))}</ul>
+        ${m.group ? navGroup(m.group) : ''}
       </details>`;
   const end = signedIn
     ? html`<a class="btn btn-primary btn-sm" href="/hub">Open the hub</a>`
@@ -198,21 +205,33 @@ export function siteBar({ current = 'home', at = '', signedIn = false } = {}) {
 </header>`;
 }
 
+// The footer, as Composio lays theirs out: six columns, each under a thin
+// rule with a small mono head; links in mono capitals; the social marks and
+// the theme switch on the left of the last row, the mark and the year on the
+// right. Every link is a page, a heading or an account Grapim has.
+export const FOOT_COLS = [
+  ['Product', [['/#how', 'How it works'], ['/docs/review#the-merge-decision', 'Merge decision'], ['/docs/review#merge-gate', 'Merge gate'], ['/docs/review#run-it-in-your-own-ci', 'Run in your own CI'], ['/pricing', 'Pricing']]],
+  ['Resources', [['/docs', 'Docs'], ['/changelog', 'Changelog'], ['/notes/claude-code-prs', '69 Claude Code PRs'], ['/docs/faq', 'FAQ'], ['/docs/cli', 'CLI reference']]],
+  ['Open source', [[REPO, 'GitHub repository'], ['/docs/review#the-config-file', 'CI reference'], ['/docs/review#free-for-open-source', 'Public repos free']]],
+  ['Works with', [[AGENTS_DOC, 'Claude Code'], [AGENTS_DOC, 'Codex'], [AGENTS_DOC, 'Cursor'], [AGENTS_DOC, 'Gemini CLI'], ['/docs/github', 'GitHub']]],
+  ['Company', [['/docs/support', 'Contact'], ['mailto:support@grapim.com', 'Email us'], ['https://www.linkedin.com/company/grapim', 'LinkedIn']]],
+  ['Legal', [['/docs/security', 'Security'], ['/terms', 'Terms'], ['/privacy', 'Privacy']]],
+];
 export function siteFooter() {
   const theme = (t, label, ic) => html`<button type="button" data-theme-set="${t}" aria-pressed="false" aria-label="${label} theme" title="${label}">${ICON[ic]}</button>`;
   return html`<footer class="foot">
   <div class="foot-in">
-    <div class="foot-brand">
-      <a class="bar-brand" href="/" aria-label="Grapim home">${LOGO}<span>Grapim</span></a>
-      <p>Code review for the pull requests your agents write.</p>
-      <p class="foot-legal">© 2026 Grapim<a href="/terms">Terms</a><a href="/privacy">Privacy</a></p>
-      <div class="theme-seg" role="group" aria-label="Theme">${theme('system', 'System', 'system')}${theme('light', 'Light', 'sun')}${theme('dark', 'Dark', 'moon')}</div>
-    </div>
     <nav class="foot-cols" aria-label="Footer">
-      <div><h2>Product</h2><a href="/#how">How it works</a><a href="/docs/review#the-merge-decision">Merge decision</a><a href="/docs/review#run-it-in-your-own-ci">Run in your own CI</a><a href="/docs/security">Security</a><a href="/pricing">Pricing</a></div>
-      <div><h2>Resources</h2><a href="/docs">Docs</a><a href="/changelog">Changelog</a><a href="/notes/claude-code-prs">What we found in 69 Claude Code PRs</a><a href="/docs/faq">FAQ</a><a href="/docs/cli">CLI reference</a></div>
-      <div><h2>Contact</h2><a href="/docs/support">Support</a><a href="mailto:support@grapim.com">support@grapim.com</a><a href="https://github.com/grapim" rel="noopener">GitHub</a><a href="https://www.linkedin.com/company/grapim" rel="noopener">LinkedIn</a></div>
+      ${FOOT_COLS.map(([head, links]) => html`<div class="foot-col"><h2>${head}</h2><ul>${links.map(([href, label]) => html`<li><a href="${href}"${ext(href)}>${label}</a></li>`)}</ul></div>`)}
     </nav>
+    <div class="foot-base">
+      <div class="foot-social">
+        <a href="${REPO}" rel="noopener" aria-label="Grapim on GitHub">${brand('github', '')}</a>
+        <a href="https://www.linkedin.com/company/grapim" rel="noopener" aria-label="Grapim on LinkedIn">${NAV_ICON.linkedin}</a>
+        <div class="theme-seg" role="group" aria-label="Theme">${theme('system', 'System', 'system')}${theme('light', 'Light', 'sun')}${theme('dark', 'Dark', 'moon')}</div>
+      </div>
+      <p class="foot-copy"><a class="foot-mark" href="/" aria-label="Grapim home">${LOGO}</a><span>© 2026 Grapim</span></p>
+    </div>
   </div>
 </footer>`;
 }
